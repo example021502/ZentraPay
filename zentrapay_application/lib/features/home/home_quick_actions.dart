@@ -6,19 +6,17 @@ import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'history.dart';
 
-/**
- * Home Quick Actions Widget
- *
- * Provides quick access to main features from home screen
- * - NFC Pay: Contactless payments
- * - Pay: Send money to contacts
- * - To Bank: External bank transfers
- * - History: Transaction history
- *
- * @description Quick action buttons for home screen
- * @version 1.0.0
- * @author ZentraPay Team
- */
+/// Home Quick Actions Widget
+///
+/// Provides quick access to main features from home screen
+/// - NFC Pay: Contactless payments
+/// - Pay: Send money to contacts
+/// - To Bank: External bank transfers
+/// - History: Transaction history
+///
+/// @description Quick action buttons for home screen
+/// @version 1.0.0
+/// @author ZentraPay Team
 
 class HomeQuickActions extends StatefulWidget {
   const HomeQuickActions({super.key});
@@ -55,10 +53,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     super.dispose();
   }
 
-  /**
-   * Handle NFC Pay action
-   * @description Initiates NFC payment flow
-   */
+  /// Handle NFC Pay action
+  /// @description Initiates NFC payment flow
   void _onNFCAction(BuildContext context) {
     // TODO: Implement NFC payment
     ScaffoldMessenger.of(context).showSnackBar(
@@ -69,10 +65,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  /**
-   * Handle To Bank action
-   * @description Navigates to external payment screen
-   */
+  /// Handle To Bank action
+  /// @description Navigates to external payment screen
   void _onReceiveAction(BuildContext context) async {
     final Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -85,10 +79,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     // Navigator.pushNamed(context, '/external_payment');
   }
 
-  /**
-   * Show History bottom sheet
-   * @description Displays transaction history
-   */
+  /// Show History bottom sheet
+  /// @description Displays transaction history
   void _onHistoryAction(BuildContext context) {
     showModalBottomSheet(
       // 4. Added custom animation controller here
@@ -201,10 +193,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  /**
-   * Show Pay bottom sheet
-   * @description Displays payment options
-   */
+  /// Show Pay bottom sheet
+  /// @description Displays payment options
   void _onPayAction(BuildContext context) {
     showModalBottomSheet(
       // 5. Fixed variable name to match the controller defined in initState
@@ -243,13 +233,11 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  /**
-   * Build action button widget
-   * @param {BuildContext} context - Build context
-   * @param {IconData} icon - Icon to display
-   * @param {String} label - Button label
-   * @param {VoidCallback} onTapping - Callback function
-   */
+  /// Build action button widget
+  /// @param {BuildContext} context - Build context
+  /// @param {IconData} icon - Icon to display
+  /// @param {String} label - Button label
+  /// @param {VoidCallback} onTapping - Callback function
   Widget _action(
     BuildContext context,
     IconData icon,

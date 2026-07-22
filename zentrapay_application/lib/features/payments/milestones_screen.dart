@@ -213,7 +213,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...goals.map((goal) => _buildGoalCard(goal)).toList(),
+          ...goals.map((goal) => _buildGoalCard(goal)),
         ],
       ),
     );

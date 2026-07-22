@@ -1,12 +1,23 @@
+import 'dart:io';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'dart:convert';
 
 class ConverterService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
+
+  static Future<http.Client> _createHttpClient() async {
+    final client = HttpClient();
+    client.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+    return IOClient(client);
+  }
 
   Future<Map<String, dynamic>> getExchangeRates() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/converter/rates'));
+      final client = await _createHttpClient();
+      final response = await client.get(Uri.parse('$baseUrl/converter/rates'));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -25,7 +36,8 @@ class ConverterService {
     required String conversionType,
   }) async {
     try {
-      final response = await http.post(
+      final client = await _createHttpClient();
+      final response = await client.post(
         Uri.parse('$baseUrl/converter/convert'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -48,7 +60,10 @@ class ConverterService {
 
   Future<List<Map<String, dynamic>>> getConversionHistory() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/converter/history'));
+      final client = await _createHttpClient();
+      final response = await client.get(
+        Uri.parse('$baseUrl/converter/history'),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);

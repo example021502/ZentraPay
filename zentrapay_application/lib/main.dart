@@ -20,6 +20,15 @@ import 'package:zentrapay_application/features/payments/voice_recording_screen.d
 import 'package:zentrapay_application/features/home/zentrapay_splash_screen_main.dart';
 import 'package:zentrapay_application/features/payments/zinvest_screen.dart';
 import 'package:zentrapay_application/features/payments/instant_transfer_screen.dart';
+import 'package:zentrapay_application/features/zpay/zpay_screen.dart';
+import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
+import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
+import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
+import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart'
+    as zinvest_new;
+import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
+import 'package:zentrapay_application/features/payanywhere/payanywhere_screen.dart';
+import 'package:zentrapay_application/features/secure/secure_screen.dart';
 
 import 'features/auth/register_screen.dart';
 import 'features/auth/verify_screen.dart';
@@ -132,6 +141,14 @@ class MainApp extends StatelessWidget {
           '/settings': (context) => const SettingsScreen(),
           '/fraud_detection': (context) => const FraudDetectionScreen(),
           '/external_payment': (context) => const ExternalPaymentScreen(),
+          '/zpay': (context) => const ZPayScreen(),
+          '/zbanking': (context) => const ZBankingScreen(),
+          '/zremit': (context) => const ZRemitScreen(),
+          '/zvoice': (context) => const ZVoiceScreen(),
+          '/zinvest_new': (context) => const zinvest_new.ZInvestScreen(),
+          '/zgrow_new': (context) => const ZGrowScreen(),
+          '/pay_anywhere': (context) => const PayAnywhereScreen(),
+          '/secure': (context) => const SecureScreen(),
         },
       ),
     );

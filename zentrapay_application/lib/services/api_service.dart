@@ -6,12 +6,12 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 final dio = ApiClient().dio;
 
 /// Fetches only the raw balance value as a String
-Future<String> getBalance(String currency, String user_id) async {
+Future<String> getBalance(String currency, String userId) async {
   try {
     // We tell Dio to expect a Map payload back from the server backend
     final response = await dio.get<Map<String, dynamic>>(
       '/api/getBalance',
-      queryParameters: {"user_id": user_id, "currencyCode": currency},
+      queryParameters: {"user_id": userId, "currencyCode": currency},
     );
     if (!response.data?["success"]) {
       ZentraNotifier.error(

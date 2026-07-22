@@ -28,8 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void register() async {
     if (_full_nameController.text.trim() == "" ||
         _emailController.text.trim() == "" ||
-        contactForm['phone_number'] == "" ||
-        contactForm["country"] == "") {
+        contactForm['phone_number'] == "") {
       return ZentraNotifier.error(
         "Missing Value(s)",
         "All fields are required",
@@ -67,6 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
     try {
       final res = await registerUser(registrationForm);
+      print("THE RES:: ${res}");
       if (!res?["success"]) {
         return ZentraNotifier.error(
           "Failed",
@@ -75,7 +75,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       ZentraNotifier.success("Success", res?["message"]);
 
-      final token = res?['token'];
+      // Extract user data from nested 'data' field
+      final userData = res?['data'];
+      final token = userData?['token'];
+      final email = userData?['email'];
+      final fullName = userData?['fullName'];
+      final zentag = userData?['zentag'];
+
       await SecureStorageService.saveToken(token);
 
       //================================================
@@ -95,9 +101,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       //       newEthereumWallet.fold(
       //         onSuccess: (wallet) async {
       //           final newWalletData = {
-      //             "user_id": res.data['user_id'],
-      //             "wallet_address": res.data['user_id'],
-      //             "user_id": res.data['user_id'],
+      //             "user_id": userData?['userId'],
+      //             "wallet_address": userData?['userId'],
+      //             "user_id": userData?['userId'],
       //           };
       //           final result = await createNewCryptoWallet(newWalletData);
       //         },
@@ -126,7 +132,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
-        Navigator.pushNamed(context, '/home', arguments: res?["user"]);
+        Navigator.pushNamed(
+          context,
+          '/home',
+          arguments: {
+            'token': token,
+            'email': email,
+            'fullName': fullName,
+            'zentag': zentag,
+          },
+        );
       });
     } catch (e) {
       if (!mounted) return;
@@ -149,78 +164,107 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 470;
-    final maxWidth = isTablet ? 300.0 : MediaQuery.of(context).size.width;
-    final horizontalPadding = isTablet ? 40.0 : 20.0;
-    final imageHeight = isTablet ? 200.0 : 150.0;
-    final titleFontSize = isTablet ? 28.0 : 20.0;
-    final containerPadding = isTablet ? 24.0 : 20.0;
+    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
+    final horizontalPadding = isTablet ? 40.0 : 24.0;
 
     return Scaffold(
       backgroundColor: AppColors.main,
-      // Keeps your background color intact
       resizeToAvoidBottomInset: true,
-      // Tells scaffold to shrink when keyboard appears
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              // Forces the contents to be at least the full height of the viewport
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.main,
+              AppColors.main.withAlpha(133),
+              AppColors.main.withAlpha(144),
+            ],
+          ),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   child: Column(
-                    // Centering now works perfectly because the parent fills the viewport height
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Image(
-                        image: const AssetImage('images/home_page_image.jpg'),
-                        width: maxWidth,
-                        height: imageHeight,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
+                      // Elegant logo
+                      Image.network(
+                        'https://i.ibb.co/tjHXt0D/home-page-image.jpg',
                       ),
                       const SizedBox(height: 10),
                       Text(
                         "Create Account",
                         textAlign: TextAlign.center,
-                        style: AppStyles.header.copyWith(
+                        style: TextStyle(
+                          fontSize: isTablet ? 25 : 20,
+                          fontWeight: FontWeight.bold,
                           color: AppColors.primary,
-                          fontSize: titleFontSize,
-                          fontWeight: FontWeight.normal,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(height: 20),
 
-                      // Form fields container ====================
-                      SizedBox(
+                      // Welcome text
+                      Text(
+                        "Let's get you started!",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: isTablet ? 16 : 14,
+                          color: AppColors.primary.withAlpha(204),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      // Elegant card container for form
+                      Container(
                         width: maxWidth,
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.symmetric(
-                            vertical: containerPadding,
-                            horizontal: containerPadding,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(242),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.secondary.withAlpha(51),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
                             ),
-                          ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(isTablet ? 28 : 20),
                           child: Column(
-                            spacing: 15,
+                            spacing: 16,
                             children: [
-                              if (isLoading) CircularProgressIndicator(),
-
+                              if (isLoading)
+                                Container(
+                                  padding: EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withAlpha(51),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppColors.secondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               AuthTextField(
-                                label: "Full name",
+                                label: "Full Name",
                                 isPassword: false,
                                 controller: _full_nameController,
                                 isLoading: isLoading,
                               ),
                               AuthTextField(
-                                label: "Email",
+                                label: "Email Address",
                                 isPassword: false,
                                 controller: _emailController,
                                 isLoading: isLoading,
@@ -231,33 +275,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 enabled: !isLoading,
                                 dropdownDecoration: const BoxDecoration(
                                   borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(10),
+                                    top: Radius.circular(12),
                                   ),
                                 ),
                                 decoration: InputDecoration(
                                   counterText: '',
-                                  labelText: "Contact No.",
+                                  labelText: "Contact Number",
                                   filled: true,
-                                  fillColor: AppColors.lightGrey.withAlpha(50),
+                                  fillColor: AppColors.primary,
+                                  labelStyle: TextStyle(
+                                    color: AppColors.textBlack.withAlpha(153),
+                                    fontSize: 13,
+                                  ),
+                                  hintStyle: TextStyle(
+                                    color: AppColors.textBlack.withAlpha(102),
+                                    fontSize: 13,
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: AppColors.secondary.withAlpha(77),
+                                      width: 1.5,
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: AppColors.secondary,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: AppColors.secondary.withAlpha(77),
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                                 initialCountryCode: 'GH',
                                 onChanged: (phone) {
+                                  print(
+                                    "PHONE NUMBER:: ${phone.completeNumber}",
+                                  );
                                   setState(() {
-                                    contactForm['contact'] =
+                                    contactForm['phone_number'] =
                                         phone.completeNumber;
-                                    setState(() {
-                                      _isPhoneValid = phone.isValidNumber();
-                                    });
+                                    _isPhoneValid = phone.isValidNumber();
 
-                                    // FIX: Look up country safely and update the correct 'country' key
+                                    // Look up country safely and update the correct 'country' key
                                     final country = countries.firstWhere(
                                       (element) =>
                                           element.code == phone.countryISOCode,
@@ -276,48 +342,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // Submit button container ====================
-                      SizedBox(
+                      const SizedBox(height: 24),
+                      // Elegant register button with gradient
+                      Container(
                         width: maxWidth,
-                        child: Container(
-                          height: 55,
-                          width: double.infinity,
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 20,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.secondary,
+                              AppColors.secondary.withAlpha(217),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: GestureDetector(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.secondary.withAlpha(102),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
                             onTap: !isLoading && _isPhoneValid
                                 ? register
                                 : null,
-                            child: Text(
-                              "Create",
-                              style: AppStyles.header.copyWith(
-                                color: AppColors.primary,
-                                fontSize: isTablet ? 18.0 : 15.0,
-                              ),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Center(
+                              child: isLoading
+                                  ? SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.primary,
+                                            ),
+                                      ),
+                                    )
+                                  : Text(
+                                      "Create Account",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // Footer links ====================
-                      Column(
-                        spacing: 5,
+                      const SizedBox(height: 24),
+                      // Footer links
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "Already have an account?",
+                            "Already have an account? ",
                             style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: isTablet ? 16.0 : 14.0,
+                              fontSize: 14,
+                              color: AppColors.primary.withAlpha(204),
                             ),
                           ),
                           GestureDetector(
@@ -327,11 +417,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     Navigator.pushNamed(context, '/login');
                                   },
                             child: Text(
-                              "Login",
+                              "Sign In",
                               style: TextStyle(
-                                color: AppColors.primary,
+                                fontSize: 14,
+                                color: AppColors.secondary,
                                 fontWeight: FontWeight.bold,
-                                fontSize: isTablet ? 16.0 : 14.0,
                               ),
                             ),
                           ),
@@ -341,9 +431,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

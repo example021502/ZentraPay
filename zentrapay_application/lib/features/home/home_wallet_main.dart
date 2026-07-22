@@ -16,7 +16,7 @@ class HomeWalletMain extends StatefulWidget {
 
 class _HomeWalletMainState extends State<HomeWalletMain> {
   final PageController _controller = PageController();
-  int _index = 0;
+  final int _index = 0;
 
   @override
   Widget build(BuildContext context) {

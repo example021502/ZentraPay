@@ -10,8 +10,8 @@ Future<Map<String, dynamic>?> createFiatAccount(
   Map<String, dynamic> formData,
 ) async {
   try {
-    final Response response = await dio.post(
-      '/api/newAccount/fiat',
+    final response = await dio.post(
+      '/api/accounts/newAccount/fiat',
       data: formData,
     );
     print("RESPONSE:: ${response.data}");
@@ -40,9 +40,25 @@ Future<Map<String, dynamic>?> createCryptoAccount(
 }
 
 // get Fiat balances ==================================
+Future<Map<String, dynamic>?> getAllBalances() async {
+  try {
+    final response = await dio.get('/api/accounts/balances/all');
+    debugPrint('REGISTER RESPONSE: ${response.data}');
+    if (response.data is Map) {
+      return Map<String, dynamic>.from(response.data);
+    }
+  } on DioException catch (e) {
+    print("ERROR:: ${e.response?.data['message']}");
+    rethrow;
+  }
+}
+
+// get Fiat balances ==================================
 Future<Map<String, dynamic>?> getFiatBalances() async {
   try {
-    final Response response = await dio.get('/api/getBalances/fiat/all');
+    final Response response = await dio.get(
+      '/api/accounts/balances/fiatBalances',
+    );
     print("FIAT BALANCES:: ${response.data}");
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
@@ -51,10 +67,10 @@ Future<Map<String, dynamic>?> getFiatBalances() async {
   }
 }
 
-// get Fiat balances ==================================
+// get crypto balances ==================================
 Future<Map<String, dynamic>?> getCryptoBalances() async {
   try {
-    final response = await dio.get('/api/getBalances/crypto/all');
+    final response = await dio.get('/api/accounts/balances/cryptoBalances');
     print("CRYPTO BALANCES:: ${response.data}");
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {

@@ -177,7 +177,7 @@ class _PaySectionMainState extends State<PaymentHistory> {
                 ],
                 elevation: WidgetStateProperty.all(0),
                 backgroundColor: WidgetStateProperty.all(
-                  AppColors.lightGrey.withOpacity(0.15),
+                  AppColors.lightGrey.withValues(alpha: 0.15),
                 ),
                 padding: WidgetStateProperty.all(
                   const EdgeInsets.symmetric(horizontal: 15.0),
@@ -236,13 +236,13 @@ class _PaySectionMainState extends State<PaymentHistory> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey.withOpacity(0.05),
+        color: AppColors.lightGrey.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
         leading: CircleAvatar(
           radius: 22,
-          backgroundColor: AppColors.secondary.withOpacity(0.1),
+          backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
           child: Icon(
             _getIconForType(type),
             size: 22,

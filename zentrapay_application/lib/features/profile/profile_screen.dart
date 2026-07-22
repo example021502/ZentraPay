@@ -406,7 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...bankAccounts.map((account) => _buildBankCard(account)).toList(),
+          ...bankAccounts.map((account) => _buildBankCard(account)),
         ],
       ),
     );

@@ -39,31 +39,50 @@ class _AuthTextFieldState extends State<AuthTextField> {
     return TextField(
       enabled: !widget.isLoading,
       controller: widget.controller,
-      // 3. FIX: Track the local state variable, not the rigid widget parameter
       obscureText: _isObscured,
+      style: TextStyle(color: AppColors.textBlack, fontSize: 14),
       decoration: InputDecoration(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
-        fillColor: AppColors.lightGrey.withAlpha(50),
-        label: Text(_label),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+        fillColor: AppColors.primary,
+        label: Text(
+          _label,
+          style: TextStyle(
+            color: AppColors.textBlack.withAlpha(153),
+            fontSize: 13,
+          ),
         ),
-        // 4. FIX: Interactive interactive suffix management layout engine
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.secondary.withAlpha(80),
+            width: 1.5,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.secondary, width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppColors.secondary.withAlpha(77),
+            width: 1.5,
+          ),
+        ),
         suffixIcon: widget.isPassword
             ? IconButton(
                 onPressed: () {
                   setState(() {
-                    _isObscured =
-                        !_isObscured; // Toggles visibility representation
+                    _isObscured = !_isObscured;
                   });
                 },
                 icon: Icon(
                   _isObscured
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: Colors.grey,
+                  color: AppColors.secondary.withAlpha(153),
+                  size: 20,
                 ),
               )
             : null,

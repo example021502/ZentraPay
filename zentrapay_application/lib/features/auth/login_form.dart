@@ -28,6 +28,7 @@ class _LoginFormState extends State<LoginForm> {
       : MediaQuery.of(context).size.width;
 
   void loginNow() async {
+    debugPrint('LOGIN init');
     // Validate credentials before initiating the login process
     if (_emailController.text == "") {
       if (contact == "") {
@@ -65,10 +66,12 @@ class _LoginFormState extends State<LoginForm> {
 
     try {
       // Perform API request (this automatically executes Privy internal auth now)
+      debugPrint('LOGIN form: $form');
+      debugPrint('LOGIN base from interceptor: ${dio.options.baseUrl}');
       final res = await loginUser(form);
-
+      print("RES:: $res");
       // Check backend response success flag
-      if (!res?['success']) {
+      if (!res?['success'] || res?['data'] == null) {
         return ZentraNotifier.error(
           "Failed",
           res?['message'] ?? "Unknown error occurred",
@@ -76,9 +79,17 @@ class _LoginFormState extends State<LoginForm> {
       }
 
       // Handle successful authentication
-      ZentraNotifier.success("Success", res?["message"]);
+      ZentraNotifier.success(
+        "Success",
+        res?["message"]! ?? "Login Successful.",
+      );
 
-      final token = res?['token'];
+      // Extract user data from nested 'data' field
+      final userData = res?['data'];
+      final token = userData?['token'];
+      final email = userData?['email'];
+      final fullName = userData?['fullName'];
+      final zentag = userData?['zentag'];
 
       await SecureStorageService.saveToken(token);
 
@@ -101,12 +112,17 @@ class _LoginFormState extends State<LoginForm> {
         //   );
         // }
 
-        Navigator.pushNamed(context, '/home', arguments: res?["user"]);
+        // Pass user data as arguments
+        Navigator.pushNamed(
+          context,
+          '/home',
+          arguments: {'zentag': zentag, 'email': email, 'fullName': fullName},
+        );
       });
     } catch (e) {
       // Catch any network, parsing, or unexpected runtime errors to prevent permanent loading loops
       if (!mounted) return;
-
+      debugPrint('LOGIN EXCEPTION: $e');
       ZentraNotifier.error(
         "Error",
         "An unexpected error occurred: ${e.toString()}",
@@ -129,124 +145,194 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      spacing: 20,
-      children: [
-        Container(
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: AppColors.primary,
-          ),
-          child: Column(
-            spacing: 20,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                runAlignment: WrapAlignment.center,
-
-                children: [
-                  Text("Login using:", style: AppStyles.text),
-                  SizedBox(width: 5),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        useEmail
-                            ? _emailController.text = ""
-                            : _contactController.text = "";
-                        useEmail = !useEmail;
-                      });
-                    },
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 25, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(30),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withAlpha(20), width: 1),
+      ),
+      child: Column(
+        spacing: 18,
+        children: [
+          // Elegant toggle for login method
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(90),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              runAlignment: WrapAlignment.center,
+              children: [
+                Text(
+                  "Login using:",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      useEmail
+                          ? _emailController.text = ""
+                          : _contactController.text = "";
+                      useEmail = !useEmail;
+                    });
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: Text(
                       useEmail ? "Contact Number" : "Email",
-                      style: AppStyles.text.copyWith(color: AppColors.main),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ],
-              ),
-              useEmail
-                  ? AuthTextField(
-                      label: "Email",
-                      isPassword: false,
-                      controller: _emailController,
-                      isLoading: isLoading,
-                    )
-                  : IntlPhoneField(
-                      enabled: !isLoading,
-                      controller: _contactController,
-                      decoration: InputDecoration(
-                        counterText: '',
-                        labelText: "Contact No.",
-                        filled: true,
-                        fillColor: AppColors.lightGrey.withAlpha(50),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      initialCountryCode: 'GH',
-                      onChanged: (phone) {
-                        setState(() {
-                          contact = phone.completeNumber;
-                        });
-                      },
-                    ),
-
-              AuthTextField(
-                label: "Password",
-                isPassword: true,
-                controller: _passwordController,
-                isLoading: isLoading,
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
-        InkWell(
-          onTap: isLoading ? null : loginNow,
-          child: Container(
+          useEmail
+              ? AuthTextField(
+                  label: "Email Address",
+                  isPassword: false,
+                  controller: _emailController,
+                  isLoading: isLoading,
+                )
+              : IntlPhoneField(
+                  enabled: !isLoading,
+                  controller: _contactController,
+                  decoration: InputDecoration(
+                    counterText: '',
+                    labelText: "Contact Number",
+                    filled: true,
+                    fillColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: AppColors.textBlack.withAlpha(60),
+                      fontSize: 13,
+                    ),
+                    hintStyle: TextStyle(
+                      color: AppColors.textBlack.withAlpha(40),
+                      fontSize: 13,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.secondary.withAlpha(80),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.secondary,
+                        width: 2,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColors.secondary.withAlpha(30),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  initialCountryCode: 'GH',
+                  onChanged: (phone) {
+                    setState(() {
+                      contact = phone.completeNumber;
+                    });
+                  },
+                ),
+
+          AuthTextField(
+            label: "Password",
+            isPassword: true,
+            controller: _passwordController,
+            isLoading: isLoading,
+          ),
+
+          // Elegant login button with gradient
+          Container(
             width: maxWidth,
+            height: 56,
             decoration: BoxDecoration(
               color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.secondary.withAlpha(40),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Center(
-                child: Text(
-                  "Login",
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+            child: Material(
+              color: Colors.transparent,
+              child: GestureDetector(
+                onTap: isLoading ? null : loginNow,
+                child: Center(
+                  child: isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          "Sign In",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                 ),
               ),
             ),
           ),
-        ),
 
-        Text(
-          "Don't have account yet?",
-          style: TextStyle(color: AppColors.primary),
-        ),
-        GestureDetector(
-          onTap: isLoading
-              ? null
-              : () => Navigator.pushNamed(context, '/register'),
-          child: Text(
-            "Create",
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 5,
+            children: [
+              Text(
+                "Don't have an account? ",
+                style: TextStyle(fontSize: 12, color: AppColors.textBlack),
+              ),
+              GestureDetector(
+                onTap: isLoading
+                    ? null
+                    : () => Navigator.pushNamed(context, '/register'),
+                child: Text(
+                  "Sign Up",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

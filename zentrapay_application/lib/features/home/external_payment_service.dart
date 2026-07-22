@@ -3,26 +3,22 @@ import 'package:flutter/cupertino.dart';
 
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
-/**
- * External Payment Service
- *
- * This service handles all external payment operations using Paystack.
- * External payments are transactions to bank accounts outside ZentraPay.
- *
- * @description Integrates with Paystack API for processing external national transactions
- * @version 1.0.0
- * @author ZentraPay Team
- */
+/// External Payment Service
+///
+/// This service handles all external payment operations using Paystack.
+/// External payments are transactions to bank accounts outside ZentraPay.
+///
+/// @description Integrates with Paystack API for processing external national transactions
+/// @version 1.0.0
+/// @author ZentraPay Team
 class ExternalPaymentService {
   // Use the custom client wrapper instead of bare http/dio instances
   final Dio dio = ApiClient().dio;
 
-  /**
-   * Initialize external payment
-   * @description Creates a payment intent with Paystack for external transfer
-   * @param {Map<String, dynamic>} paymentData - Payment details
-   * @returns {Future<Map<String, dynamic>>} Payment initialization response
-   */
+  /// Initialize external payment
+  /// @description Creates a payment intent with Paystack for external transfer
+  /// @param {Map<String, dynamic>} paymentData - Payment details
+  /// @returns {Future<Map<String, dynamic>>} Payment initialization response
   Future<Map<String, dynamic>?> initializeExternalPayment({
     required Map<String, dynamic> paymentData,
   }) async {
@@ -48,24 +44,22 @@ class ExternalPaymentService {
       );
       return Map<String, dynamic>.of(response.data);
     } on DioException catch (de) {
-      print("DE ERROR: ${de}");
+      print("DE ERROR: $de");
       return {
         'success': false,
         'message':
             de.response?.data?['message'] ?? 'Network exception occurred.',
       };
     } catch (e) {
-      print("CATCH ERROR: ${e}");
+      print("CATCH ERROR: $e");
       return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
-  /**
-   * Verify external payment
-   * @description Checks the status of a payment with Paystack
-   * @param {String} reference - Transaction reference to verify
-   * @returns {Future<Map<String, dynamic>>} Verification response
-   */
+  /// Verify external payment
+  /// @description Checks the status of a payment with Paystack
+  /// @param {String} reference - Transaction reference to verify
+  /// @returns {Future<Map<String, dynamic>>} Verification response
   Future<Map<String, dynamic>> verifyExternalPayment(String reference) async {
     try {
       if (reference.isEmpty) {
@@ -107,12 +101,10 @@ class ExternalPaymentService {
     }
   }
 
-  /**
-   * Get transaction status
-   * @description Retrieves the status of a specific transaction
-   * @param {String} reference - Transaction reference
-   * @returns {Future<Map<String, dynamic>>} Transaction status
-   */
+  /// Get transaction status
+  /// @description Retrieves the status of a specific transaction
+  /// @param {String} reference - Transaction reference
+  /// @returns {Future<Map<String, dynamic>>} Transaction status
   Future<Map<String, dynamic>> getTransactionStatus({
     required String reference,
   }) async {
@@ -150,11 +142,9 @@ class ExternalPaymentService {
     }
   }
 
-  /**
-   * Get supported banks
-   * @description Fetches list of banks supported by Paystack Network directly
-   * @returns {Future<Map<String, dynamic>>} List of supported banks
-   */
+  /// Get supported banks
+  /// @description Fetches list of banks supported by Paystack Network directly
+  /// @returns {Future<Map<String, dynamic>>} List of supported banks
   Future<Map<String, dynamic>> getSupportedBanks() async {
     try {
       // CHANGED: Notice the '/paystack/' identifier prefix.
@@ -185,13 +175,11 @@ class ExternalPaymentService {
     }
   }
 
-  /**
-   * Validate bank account
-   * @description Real-time lookup resolving account identifiers directly against network endpoints
-   * @param {String} accountNumber - Bank account number
-   * @param {String} bankCode - Bank code
-   * @returns {Future<Map<String, dynamic>>} Validation result
-   */
+  /// Validate bank account
+  /// @description Real-time lookup resolving account identifiers directly against network endpoints
+  /// @param {String} accountNumber - Bank account number
+  /// @param {String} bankCode - Bank code
+  /// @returns {Future<Map<String, dynamic>>} Validation result
   Future<Map<String, dynamic>> validateBankAccount({
     required String accountNumber,
     required String bankCode,

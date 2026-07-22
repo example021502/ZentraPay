@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart'; // Required for debugPrint
-import 'package:privy_flutter/privy_flutter.dart'; // Import Privy SDK
+import 'package:flutter/foundation.dart';
+import 'package:privy_flutter/privy_flutter.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/main.dart' as app;
 
@@ -19,19 +19,38 @@ Privy get privy => app.privyClient;
 // Logging in
 Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
   try {
-    final response = await dio.post('/api/auth/login', data: form);
-    return response.data as Map<String, dynamic>?;
+    debugPrint('LOGIN PAYLOAD: $form');
+    debugPrint('ATTEMPT LOGIN TO: ${dio.options.baseUrl}/api/users/login');
+    final response = await dio.post('/api/users/login', data: form);
+    debugPrint('LOGIN RESPONSE DATA: ${response.data}');
+    if (response.data is Map) {
+      return Map<String, dynamic>.from(response.data);
+    }
+    debugPrint(
+      "LOGIN TYPE ERROR: response.data is not a Map, got ${response.data.runtimeType}",
+    );
+    return null;
   } catch (e) {
-    debugPrint("ERROR:: $e");
+    debugPrint("LOGIN ERROR:: $e");
   }
+  return null;
 }
 
 // Registering new user
 Future<Map<String, dynamic>?> registerUser(Map<String, dynamic> form) async {
   try {
-    final response = await dio.post('/api/auth/register', data: form);
-    return response as Map<String, dynamic>;
+    debugPrint('REGISTER PAYLOAD: $form');
+    final response = await dio.post('/api/users/register', data: form);
+    debugPrint('REGISTER RESPONSE: ${response.data}');
+    if (response.data is Map) {
+      return Map<String, dynamic>.from(response.data);
+    }
+    debugPrint(
+      "REGISTER TYPE ERROR: response.data is not a Map, got ${response.data.runtimeType}",
+    );
+    return null;
   } catch (e) {
-    debugPrint("ERROR:: $e");
+    debugPrint("REGISTER ERROR:: $e");
   }
+  return null;
 }

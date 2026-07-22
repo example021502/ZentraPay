@@ -12,16 +12,14 @@ import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 import 'external_payment_service.dart';
 
-/**
- * External Payment Screen
- *
- * This screen handles external payments to bank accounts via Paystack.
- * External payments are transactions to accounts outside ZentraPay.
- *
- * @description UI for initiating and managing external bank transfers with inline debounced bank search
- * @version 1.1.2
- * @author ZentraPay Team
- */
+/// External Payment Screen
+///
+/// This screen handles external payments to bank accounts via Paystack.
+/// External payments are transactions to accounts outside ZentraPay.
+///
+/// @description UI for initiating and managing external bank transfers with inline debounced bank search
+/// @version 1.1.2
+/// @author ZentraPay Team
 
 class _ExternalPaymentColors {
   static const Color main = Color(0xFFF21773);
@@ -78,10 +76,8 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
     super.initState();
   }
 
-  /**
-   * Debounced network fetch handler
-   * @description Destroys the existing timer and starts a 500ms countdown on each keystroke
-   */
+  /// Debounced network fetch handler
+  /// @description Destroys the existing timer and starts a 500ms countdown on each keystroke
   void _onSearchChanged(String query) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
@@ -100,9 +96,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
     });
   }
 
-  /**
-   * Query the backend server dynamically matching the searched bank keyword
-   */
+  /// Query the backend server dynamically matching the searched bank keyword
   Future<void> _fetchBanksFromServer(String query) async {
     if (!mounted) return;
     setState(() {
@@ -457,10 +451,8 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
     );
   }
 
-  /**
-   * Combined Search and Menu dropdown component layout
-   * @description Safe linear rendering layout for the dropdown block inside our dynamic layout scope
-   */
+  /// Combined Search and Menu dropdown component layout
+  /// @description Safe linear rendering layout for the dropdown block inside our dynamic layout scope
   Widget _buildInlineBankSearchWithDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

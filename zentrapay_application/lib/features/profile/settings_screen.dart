@@ -259,7 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...protectionHistory.map((item) => _buildHistoryItem(item)).toList(),
+          ...protectionHistory.map((item) => _buildHistoryItem(item)),
         ],
       ),
     );

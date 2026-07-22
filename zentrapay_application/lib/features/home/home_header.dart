@@ -1,8 +1,8 @@
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'package:zentrapay_application/main.dart';
 
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'NewWallet.dart';
 
 // CHANGED: Converted to StatefulWidget to preserve the GlobalKey instance across scroll rebuilds
@@ -153,18 +153,20 @@ class TabsContainerState extends State<TabsContainer>
       // final dynamic response = isFiat
       //     ? await getFiatBalances()
       //     : await getCryptoBalances();
-      final response = await getFiatBalances();
+      final response = await getAllBalances();
 
       if (!mounted) return;
-
+      if (!response?['success']) {
+        return;
+      }
       setState(() {
-        walletData = List<Map<String, dynamic>>.from(response?['result'] ?? []);
-        isLoading = false;
+        walletData = response?['balances'];
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => isLoading = false);
       debugPrint("SOMETHING WENT WRONG! $e");
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 

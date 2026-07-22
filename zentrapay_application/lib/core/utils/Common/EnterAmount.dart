@@ -157,12 +157,12 @@ class _EnterAmountState extends State<EnterAmount> {
                                 showCurrencyName: true,
                                 showCurrencyCode: true,
                                 onSelect: (Currency currency) {
-                                  String iso_code = extractCountryIsoCode(
+                                  String isoCode = extractCountryIsoCode(
                                     currency.code,
                                   );
                                   setState(() {
                                     currency_code = currency.code;
-                                    country_flag = iso_code;
+                                    country_flag = isoCode;
                                   });
                                 },
                               ),

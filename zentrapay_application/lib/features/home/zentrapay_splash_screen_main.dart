@@ -2,10 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
-import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
+import 'package:zentrapay_application/main.dart';
 
+import '../../core/theme/navigation_bar/responsive_navigation.dart';
+
+// Comment: Import the file where ResponsiveNavigation widget is defined.
+// Replace 'path/to/your_navigation_file.dart' with the actual path if it's not in main.dart
+// import 'package:zentrapay_application/path/to/your_navigation_file.dart';
+
+// Comment: Main splash screen widget handling initial app loading and route dispatching
 class ZentrapaySplashScreenMain extends StatefulWidget {
   const ZentrapaySplashScreenMain({super.key});
 
@@ -121,6 +127,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
+          // Comment: Passes decoded user claims payload directly to destination layout wrapper
           builder: (context) => ResponsiveNavigation(userData: userData),
         ),
       );
@@ -138,121 +145,102 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Comment: Background Gradient Layer
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.main, AppColors.purple, AppColors.secondary],
-                stops: [0.0, 0.5, 1.0],
-              ),
-            ),
-          ),
-
-          Positioned.fill(child: Container(color: Colors.black.withAlpha(40))),
-
-          // Comment: Interactive staggered layer hierarchy
-          SafeArea(
-            child: Align(
-              alignment: Alignment.center,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 80.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Stack(
-                          alignment: Alignment.centerLeft,
-                          clipBehavior: Clip.none,
-                          children: [
-                            // Comment: "entrapay" positioned behind Z visually via layer structure
-                            SlideTransition(
-                              position: _brandSlide,
-                              child: FadeTransition(
-                                opacity: _brandOpacity,
-                                child: const Padding(
-                                  padding: EdgeInsets.only(left: 65),
-                                  child: Text(
-                                    'entrapay',
-                                    style: TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 35,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: -1.0,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Comment: Z Logo positioned below text layout in tree so it sits "on top"
-                            ScaleTransition(
-                              scale: _logoScale,
-                              child: Container(
-                                width: 60,
-                                height: 60,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  'Z',
+      backgroundColor: AppColors.main,
+      // Comment: Set background directly on Scaffold to avoid sizing conflicts
+      body: SafeArea(
+        child: SizedBox.expand(
+          // Comment: Force full screen height safely without infinite height or scrolling collisions
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            // Comment: Center everything vertically
+            children: [
+              // Comment: Interactive staggered layer hierarchy
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Stack(
+                        alignment: Alignment.centerLeft,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Comment: "entrapay" positioned behind Z visually via layer structure
+                          SlideTransition(
+                            position: _brandSlide,
+                            child: FadeTransition(
+                              opacity: _brandOpacity,
+                              child: const Padding(
+                                padding: EdgeInsets.only(left: 65),
+                                child: Text(
+                                  'entrapay',
                                   style: TextStyle(
-                                    color: AppColors.main,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 40,
+                                    color: AppColors.primary,
+                                    fontSize: 35,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -1.0,
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                          ),
 
-                    // Comment: ClipRect hides the text while its offset is vertically "above" the layout space
-                    ClipRect(
-                      child: SlideTransition(
-                        position: _sloganSlide,
-                        child: FadeTransition(
-                          opacity: _sloganOpacity,
-                          child: const Text(
-                            'One Africa, One Wallet',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: 0.5,
+                          // Comment: Z Logo positioned below text layout in tree so it sits "on top"
+                          ScaleTransition(
+                            scale: _logoScale,
+                            child: Container(
+                              width: 60,
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Z',
+                                style: TextStyle(
+                                  color: AppColors.main,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 40,
+                                ),
+                              ),
                             ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Comment: ClipRect hides the text while its offset is vertically "above" the layout space
+                  ClipRect(
+                    child: SlideTransition(
+                      position: _sloganSlide,
+                      child: FadeTransition(
+                        opacity: _sloganOpacity,
+                        child: const Text(
+                          'One Africa, One Wallet',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
-          ),
 
-          // Comment: Layout layer mapping to render a clean loader widget on top of the visual elements dynamically
-          if (_isLoading)
-            const Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 60.0),
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            ),
-        ],
+              // Comment: Render conditional loading indicator cleanly beneath branding components
+              if (_isLoading) ...[
+                const SizedBox(height: 40),
+                const CircularProgressIndicator(color: AppColors.primary),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

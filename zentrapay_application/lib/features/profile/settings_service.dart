@@ -1,8 +1,9 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class SettingsService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
 
   Future<Map<String, dynamic>> getSecurityScore() async {
     try {

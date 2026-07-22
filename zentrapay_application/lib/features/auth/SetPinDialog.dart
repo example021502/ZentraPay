@@ -314,7 +314,7 @@ class _SetPinDialogState extends State<SetPinDialog> {
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.main.withAlpha(20),
-                              borderRadius: BorderRadius.circular(200),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               "Back",

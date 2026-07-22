@@ -233,7 +233,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...recentAlerts.map((alert) => _buildAlertItem(alert)).toList(),
+          ...recentAlerts.map((alert) => _buildAlertItem(alert)),
         ],
       ),
     );

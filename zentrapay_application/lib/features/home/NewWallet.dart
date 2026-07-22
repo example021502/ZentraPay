@@ -107,6 +107,7 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
   Widget _fiatAccountField(BuildContext localContext, String type) {
     return Column(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.start,
       spacing: 15,
       children: [
         if (isLoading)
@@ -116,6 +117,7 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
               strokeWidth: 2.0,
             ),
           ),
+        Text("New Account", style: AppStyles.header),
         TextField(
           enabled: !isLoading,
           controller: _fiatAccountNameController,
@@ -170,12 +172,12 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                   ),
                 ),
                 onSelect: (Currency currency) {
-                  String iso_code = extractCountryIsoCode(currency.code);
+                  String isoCode = extractCountryIsoCode(currency.code);
 
                   setState(() {
                     newFiatAccount["fiat_currency"] = currency.code;
                     newFiatAccount["fiat_name"] = currency.name;
-                    newFiatAccount["fiat_iso_code"] = iso_code;
+                    newFiatAccount["fiat_iso_code"] = isoCode;
                   });
                 },
               ),
@@ -256,9 +258,9 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                         isLoading = true;
                       });
                       final fiatForm = {
-                        "fiat_name": _fiatAccountNameController.text.trim(),
-                        "fiat_currency": newFiatAccount['fiat_currency'],
-                        "fiat_iso_code": newFiatAccount['fiat_iso_code'],
+                        "accountName": _fiatAccountNameController.text.trim(),
+                        "currency": newFiatAccount['fiat_currency'],
+                        "isoCode": newFiatAccount['fiat_iso_code'],
                       };
                       print(fiatForm);
                       try {
