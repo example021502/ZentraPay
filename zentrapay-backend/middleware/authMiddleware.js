@@ -1,6 +1,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const jwt = require("jsonwebtoken");
+const e = require("express");
 const jwt_secret = process.env.JWT_SECRET_KEY;
 
 // JWT Authentication Middleware
@@ -25,6 +26,7 @@ const authenticateToken = (req, res, next) => {
           .status(401)
           .json({ success: false, message: "Token has expired!" });
       }
+      console.log("ERROOR:: ", err);
       return res
         .status(403)
         .json({ success: false, message: "Invalid Token!" });
