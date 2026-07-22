@@ -154,7 +154,10 @@ router.post("/newAccount/crypto", authenticateToken, async (req, res) => {
       ...req.body,
       userId: userId,
     };
-    const response = await apiClient.post("/api/accounts/crypto", requestData);
+    const response = await apiClient.post(
+      "/api/accounts/newAccount/crypto",
+      requestData,
+    );
     console.log("CREATE CRYPTO ACCOUNT:: ", response.data);
     if (response.data && response.data.success) {
       return res.json({

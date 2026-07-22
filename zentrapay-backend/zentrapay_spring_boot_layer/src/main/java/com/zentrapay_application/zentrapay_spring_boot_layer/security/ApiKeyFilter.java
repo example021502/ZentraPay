@@ -24,6 +24,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String requestSecret = request.getHeader(headerName);
+<<<<<<< HEAD
         String path = request.getRequestURI();
 
         System.out.println("[API_KEY_FILTER] path=" + path + " header=" + headerName + " secretPresent=" + (requestSecret != null));
@@ -33,6 +34,14 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } else {
             System.out.println("[API_KEY_FILTER] secret mismatch or missing for path=" + path);
+=======
+
+        if (secretValue.equals(requestSecret)) {
+            // Secret matches, continue the request
+            filterChain.doFilter(request, response);
+        } else {
+            // Secret missing or invalid, block the request
+>>>>>>> update
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Unauthorized: Invalid or missing API key");
         }

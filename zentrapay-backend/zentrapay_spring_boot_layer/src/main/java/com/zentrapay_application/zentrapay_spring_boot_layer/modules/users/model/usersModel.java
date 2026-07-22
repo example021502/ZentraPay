@@ -6,11 +6,19 @@ import lombok.Data;
 @Entity
 @Table(name = "users")
 @Data // Requires Lombok dependency
+<<<<<<< HEAD
 public class usersModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, name = "user_id", unique = true)
     private String userId;
+=======
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false, name = "user_id", unique = true)
+    private Long userId;
+>>>>>>> update
 
     @Column(nullable = false, name = "full_name")
     private String fullName;

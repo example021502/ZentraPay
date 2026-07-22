@@ -21,10 +21,16 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+<<<<<<< HEAD
     public String generateToken(String email, String userId) {
         return Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
+=======
+    public String generateToken(String email) {
+        return Jwts.builder()
+                .subject(email)
+>>>>>>> update
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 86400000))
                 // Now you pass the SecretKey object, which matches the required signature

@@ -8,7 +8,10 @@ public record RegisterRequestDTO(
         @Email(message = "Invalid email format") String email,
         @NotBlank(message = "Phone number is required") String phoneNumber,
         @NotBlank(message = "Password is required") String password,
+<<<<<<< HEAD
         String zentag,
+=======
+>>>>>>> update
         @NotBlank(message = "PIN is required") String pin,
         String country
 ) {}

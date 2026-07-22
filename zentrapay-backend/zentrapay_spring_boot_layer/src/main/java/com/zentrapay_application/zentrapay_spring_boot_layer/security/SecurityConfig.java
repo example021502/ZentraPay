@@ -17,6 +17,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // Disabling CSRF for stateless APIs
                 .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+<<<<<<< HEAD
                         .requestMatchers(
                                 "/api/users/register",
                                 "/api/users/login",
@@ -28,6 +29,11 @@ public class SecurityConfig {
                 );
 
         System.out.println("[SECURITY_CONFIG] loaded permitAll paths: /api/users/{register,login,info}, /actuator/**, /error");
+=======
+                        .anyRequest().authenticated() // Ensures all requests are authenticated
+                );
+
+>>>>>>> update
         return http.build();
     }
 }

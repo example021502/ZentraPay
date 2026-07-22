@@ -43,20 +43,14 @@ app.use(
   cors({
     origin: function (origin, callback) {
       // allow requests with no origin (like mobile apps or curl requests)
+<<<<<<< HEAD
       if (!origin) {
         console.log("[CORS] No origin header, allowing request");
-        return callback(null, true);
-      }
-
-      console.log("[CORS] Checking origin:", origin);
-      if (allowedOrigins.includes(origin)) {
-        console.log("[CORS] Origin allowed:", origin);
         callback(null, true);
       } else {
-        console.log("[CORS] Origin DENIED:", origin);
+>>>>>>> update
         callback(new Error("Authentication Denied!"));
       }
-    },
     credentials: true,
   }),
 );
@@ -107,6 +101,7 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/support", supportRoutes); //supported banks, customer support, ai assistence, fraud detection, voice recordings
 app.use("/api/refreshToken", refreshToken);
 
+<<<<<<< HEAD
 // ZENTRAPAY FEATURE ENDPOINTS
 app.use("/api/zpay", zpayRoutes); // wallet, cards, NFC/QR payments, contactless
 app.use("/api/zbanking", zbankingRoutes); // savings, loans, budgeting, vault
@@ -117,6 +112,8 @@ app.use("/api/zgrow", zgrowRoutes); // financial wellness, challenges, rewards
 app.use("/api/payanywhere", payanywhereRoutes); // QR payments, merchant, offline
 app.use("/api/secure", secureRoutes); // security, biometric, fraud protection
 
+=======
+>>>>>>> update
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });

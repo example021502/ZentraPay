@@ -4,6 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequestDTO(
         String email,
+<<<<<<< HEAD
         String phoneNumber,
         @NotBlank(message = "Password is required") String password
 ) {}
+=======
+        @NotBlank(message = "Phone") String phoneNumber,
+        @NotBlank(message = "Password is required") String password
+) {}
+>>>>>>> update
