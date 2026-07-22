@@ -4,27 +4,38 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Secure s
 import 'package:privy_flutter/privy_flutter.dart'
     as privy_sdk; // Official Privy Flutter SDK package
 import 'package:toastification/toastification.dart'; // Notification package for toast alerts
-import 'package:zentrapay_application/ai_assistance/ai_assistance_screen.dart';
-import 'package:zentrapay_application/auth/login/login_screen.dart';
-import 'package:zentrapay_application/converter/converter_screen.dart';
-import 'package:zentrapay_application/fraud_detection/fraud_detection_screen.dart';
-import 'package:zentrapay_application/home_wallet/external_payment_screen.dart';
-import 'package:zentrapay_application/home_wallet/widgets/pay.dart';
-import 'package:zentrapay_application/liquidity_hub/liquidity_hub_screen.dart';
-import 'package:zentrapay_application/milestones/milestones_screen.dart';
-import 'package:zentrapay_application/navigation_bar/responsive_navigation.dart';
-import 'package:zentrapay_application/profile/profile_screen.dart';
-import 'package:zentrapay_application/settings/settings_screen.dart';
-import 'package:zentrapay_application/voice_recording/voice_recording_screen.dart';
-import 'package:zentrapay_application/zentrapay_splash_screen/zentrapay_splash_screen_main.dart';
-import 'package:zentrapay_application/zgrow/zinvest/zinvest_screen.dart';
-import 'package:zentrapay_application/zremit/instant_transfer_screen.dart';
+import 'package:zentrapay_application/features/payments/ai_assistance_screen.dart';
+import 'package:zentrapay_application/features/auth/login_screen.dart';
+import 'package:zentrapay_application/features/payments/converter_screen.dart';
+import 'package:zentrapay_application/features/payments/fraud_detection_screen.dart';
+import 'package:zentrapay_application/features/home/external_payment_screen.dart';
+import 'package:zentrapay_application/features/home/pay.dart';
+import 'package:zentrapay_application/features/payments/liquidity_hub_screen.dart';
+import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
+import 'package:zentrapay_application/features/profile/profile_screen.dart';
+import 'package:zentrapay_application/features/profile/settings_screen.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
+import 'package:zentrapay_application/features/payments/voice_recording_screen.dart';
+import 'package:zentrapay_application/features/home/zentrapay_splash_screen_main.dart';
+import 'package:zentrapay_application/features/payments/zinvest_screen.dart';
+import 'package:zentrapay_application/features/payments/instant_transfer_screen.dart';
+import 'package:zentrapay_application/features/zpay/zpay_screen.dart';
+import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
+import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
+import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
+import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart'
+    as zinvest_new;
+import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
+import 'package:zentrapay_application/features/payanywhere/payanywhere_screen.dart';
+import 'package:zentrapay_application/features/secure/secure_screen.dart';
 
-import 'auth/register_screen.dart';
-import 'auth/verify_screen.dart';
-import 'onboarding/onboarding_screen.dart';
+import 'features/auth/register_screen.dart';
+import 'features/auth/verify_screen.dart';
+import 'features/auth/onboarding_screen.dart';
 
 // Declare a globally accessible instance of the Privy client engine
+// This will be initialized by api_auth_services.dart with custom auth support
 late final privy_sdk.Privy privyClient;
 
 void main() async {
@@ -34,20 +45,22 @@ void main() async {
   try {
     // Load your configuration keys from the local .env file into memory
     await dotenv.load(fileName: ".env");
-
-    // Initialize the Privy configuration using environment variables
+    await SecureStorageService.init();
+    // Initialize Privy with custom auth configuration
+    // This is done here to ensure it's initialized before any auth operations
     final privyConfig = privy_sdk.PrivyConfig(
       appId: dotenv.get('PRIVY_APP_ID', fallback: ''),
       appClientId: dotenv.get('PRIVY_CLIENT_ID', fallback: ''),
+      customAuthConfig: privy_sdk.LoginWithCustomAuthConfig(
+        tokenProvider: () async => SecureStorageService.getToken(),
+      ),
     );
 
-    // Assign the built configuration to initialize the global instance variable
+    // Initialize the global Privy instance with custom auth support
     privyClient = privy_sdk.Privy.init(config: privyConfig);
   } catch (e) {
     // Fallback error logging if the environmental file fails to load or cannot be found
-    debugPrint(
-      "Warning:: Could not load configuration infrastructure keys: $e",
-    );
+    print("WARNING:: Could not load configuration infrastructure keys: $e");
   }
 
   // Launch the core application widget
@@ -128,6 +141,14 @@ class MainApp extends StatelessWidget {
           '/settings': (context) => const SettingsScreen(),
           '/fraud_detection': (context) => const FraudDetectionScreen(),
           '/external_payment': (context) => const ExternalPaymentScreen(),
+          '/zpay': (context) => const ZPayScreen(),
+          '/zbanking': (context) => const ZBankingScreen(),
+          '/zremit': (context) => const ZRemitScreen(),
+          '/zvoice': (context) => const ZVoiceScreen(),
+          '/zinvest_new': (context) => const zinvest_new.ZInvestScreen(),
+          '/zgrow_new': (context) => const ZGrowScreen(),
+          '/pay_anywhere': (context) => const PayAnywhereScreen(),
+          '/secure': (context) => const SecureScreen(),
         },
       ),
     );
