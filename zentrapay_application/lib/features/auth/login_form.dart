@@ -265,38 +265,39 @@ class _LoginFormState extends State<LoginForm> {
           ),
 
           // Elegant login button with gradient
-          Container(
-            width: maxWidth,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.secondary.withAlpha(40),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+          Material(
+            child: GestureDetector(
+              onTap: isLoading ? null : loginNow,
+              child: Container(
+                width: maxWidth,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.secondary.withAlpha(40),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: GestureDetector(
-                onTap: isLoading ? null : loginNow,
                 child: Center(
                   child: isLoading
                       ? SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primary,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
                             ),
                           ),
                         )
                       : Text(
-                          "Sign In",
+                          "Log In",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

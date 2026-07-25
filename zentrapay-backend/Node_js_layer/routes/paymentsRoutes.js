@@ -1,102 +1,44 @@
 const express = require("express");
 const router = express.Router();
-const pool = require("../config/database");
-const jwt = require("jsonwebtoken");
-const path = require("path");
-require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
-const axios = require("axios");
-const https = require("https");
-// Create the client
-const springClient = axios.create({
-  baseURL: process.env.SPRING_BOOT_BASE_URL,
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }), // For local dev
-});
+const { authenticateToken } = require("../middleware/authMiddleware");
+const apiClient = require("../utils/apiClient");
 
-{
-  /*
-  COLLECTION END POINT
-  */
-}
-router.get("/collect", async (req, res) => {
-  try {
-    const data = await springClient.get("/test/hello");
+router.post("/internal", authenticateToken, async (req, res) => {
+  const { amount, pin, phone_number, zentag, currency_code } = req.body;
+  const user_id = req.userId;
+  if (!amount || !pin || (!phone_number && !zentag) || !currency_code) {
     return res.json({
-      success: true,
-      message: data.data || "request went through but something went wrong",
-    });
-  } catch (error) {
-    // Extract only the message or specific properties
-    console.log("ERROR::", error);
-    res.status(500).json({
       success: false,
-      message: "Something went wrong!",
+      message: "Value Error",
     });
   }
-});
-
-{
-  /*
-  DISBURSEMENT END POINT
-  */
-}
-router.get("/disburse", async (req, res) => {
-  try {
-    const data = await springClient.get("/test/hello");
-    return res.json({
-      success: true,
-      message: data.data || "request went through but something went wrong",
-    });
-  } catch (error) {
-    // Extract only the message or specific properties
-    console.log("ERROR::", error);
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong!",
-    });
+  if (!user_id) {
+    return res.json({ success: false, message: "User Error!" });
   }
-});
-
-{
-  /*
-  VERIFICATION END POINT
-  */
-}
-router.get("/verify", async (req, res) => {
   try {
-    const data = await springClient.get("/test/hello");
-    return res.json({
-      success: true,
-      message: data.data || "request went through but something went wrong",
+    const result = apiClient.get(`/api/payments/internal`, {
+      userId: user_id,
+      amount: amount,
+      currencyCode: currency_code,
+      phoneNumber: phone_number,
+      zentag: zentag,
+      PIN: pin,
     });
-  } catch (error) {
-    // Extract only the message or specific properties
-    console.log("ERROR::", error);
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong!",
-    });
-  }
-});
-
-{
-  /*
-  HISTORY END POINT
-  */
-}
-router.get("/history", async (req, res) => {
-  try {
-    const data = await springClient.get("/test/hello");
-    return res.json({
-      success: true,
-      message: data.data || "request went through but something went wrong",
-    });
-  } catch (error) {
-    // Extract only the message or specific properties
-    console.log("ERROR::", error);
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong!",
-    });
+    console.log("payment results: ", result);
+    if (result.data && result.data.success) {
+      return res.json({
+        success: data.success,
+        result: result.data.paymentDetails,
+      });
+    } else {
+      return res.json({
+        success: contacts.data.success || false,
+        message: contacts.data.message || "Something went wrong",
+      });
+    }
+  } catch (e) {
+    console.log("ERROR SEARCHING: ", e);
+    return res.json({ success: false, message: "Network Error!" });
   }
 });
 

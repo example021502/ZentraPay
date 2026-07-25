@@ -34,6 +34,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "All fields are required",
       );
     }
+    if (!_isPhoneValid) {
+      return ZentraNotifier.error("Invalid value", "Invalid Phone number");
+    }
 
     bool isValidEmail(String email) {
       final RegExp emailRegExp = RegExp(
@@ -64,6 +67,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       isLoading = true;
     });
+    final token = await SecureStorageService.getToken();
+    print("TOKEN:: $token");
+
     try {
       final res = await registerUser(registrationForm);
       print("THE RES:: ${res}");
@@ -235,28 +241,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ],
                         ),
                         child: Padding(
-                          padding: EdgeInsets.all(isTablet ? 28 : 20),
+                          padding: EdgeInsets.all(isTablet ? 30 : 25),
                           child: Column(
                             spacing: 16,
                             children: [
-                              if (isLoading)
-                                Container(
-                                  padding: EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withAlpha(51),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.secondary,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               AuthTextField(
                                 label: "Full Name",
                                 isPassword: false,
@@ -344,34 +332,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 24),
                       // Elegant register button with gradient
-                      Container(
-                        width: maxWidth,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.secondary,
-                              AppColors.secondary.withAlpha(217),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.secondary.withAlpha(102),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: GestureDetector(
+                          onTap: !isLoading ? register : null,
+                          child: Container(
+                            width: maxWidth,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.textBlack.withAlpha(30),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: !isLoading && _isPhoneValid
-                                ? register
-                                : null,
-                            borderRadius: BorderRadius.circular(16),
                             child: Center(
                               child: isLoading
                                   ? SizedBox(

@@ -1,6 +1,5 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.walletBalances.model;
 
-<<<<<<< HEAD
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -33,7 +32,3 @@ public class CryptoBalancesModel {
     private String countryIsoCode;      // Stores bcrypt hash
 
 }
-=======
-public class CryptoBalancesModel {
-}
->>>>>>> update

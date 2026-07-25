@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'package:zentrapay_application/main.dart';
 
+import '../../core/utils/Notifier.dart';
 import 'NewWallet.dart';
 
 // CHANGED: Converted to StatefulWidget to preserve the GlobalKey instance across scroll rebuilds
@@ -63,6 +64,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                             barrierDismissible: false,
                             builder: (BuildContext context) =>
                                 CustomInputDialog(
+                                  currencies: [],
                                   type: widget.id == "fiat" ? "Fiat" : "Crypto",
                                   refresh: tabsContainerKey
                                       .currentState!
@@ -195,18 +197,42 @@ class TabsContainerState extends State<TabsContainer>
             ElevatedButton(
               onPressed: () async {
                 if (!context.mounted) return;
+                setState(() {
+                  isLoading = true;
+                });
+                final supportedCurrencies = await getSupportedCurrencies();
+                print("RECEIVED THIS: $supportedCurrencies");
+                if (!supportedCurrencies?["success"]) {
+                  setState(() {
+                    isLoading = false;
+                  });
+
+                  return ZentraNotifier.error(
+                    "Error",
+                    supportedCurrencies?["message"] ??
+                        "Something went wrong! try again",
+                  );
+                }
+                setState(() {
+                  isLoading = false;
+                });
+
                 await showDialog<Map<String, dynamic>>(
                   context: context,
                   barrierDismissible: false,
                   builder: (BuildContext context) => CustomInputDialog(
                     type: widget.id == "fiat" ? "Fiat" : "Crypto",
                     refresh: reloadBalances,
+                    currencies: supportedCurrencies?["accounts"] ?? [],
                   ),
                 );
               },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(AppColors.secondary),
+              ),
               child: Text(
-                "Add Wallet",
-                style: AppStyles.text.copyWith(color: AppColors.textBlack),
+                "New",
+                style: AppStyles.text.copyWith(color: AppColors.primary),
               ),
             ),
           ],

@@ -7,12 +7,12 @@ const httpsAgent = new https.Agent({
 });
 
 const apiClient = axios.create({
-  baseURL: process.env.SPRING_BOOT_BASE_URL || "https://10.46.34.125:2000",
+  baseURL: process.env.SPRING_BOOT_BASE_URL || "https://10.133.20.125:2000",
   // Force the use of the insecure agent
   httpsAgent: httpsAgent,
   headers: {
     "Content-Type": "application/json",
-    "X-Internal-Secret": process.env.SPRING_BOOT_SECRET_KEY,
+    "zentrapay-node_js-network": process.env.SPRING_BOOT_SECRET_KEY,
   },
 });
 

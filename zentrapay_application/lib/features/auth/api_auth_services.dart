@@ -1,20 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:privy_flutter/privy_flutter.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
-import 'package:zentrapay_application/main.dart' as app;
 
 final dio = ApiClient().dio;
-
-// Keep track of the active token in memory so Privy can fetch it on demand
-// This is a public variable accessible from main.dart for the tokenProvider
-String? currentCustomToken;
-
-// Public getter for the current custom token (used by main.dart)
-String? getCurrentCustomToken() => currentCustomToken;
-
-// Use the global privyClient instance initialized in main.dart
-// This ensures we're using the same Privy instance with custom auth configured
-Privy get privy => app.privyClient;
 
 // Logging in
 Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
@@ -29,11 +16,11 @@ Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
     debugPrint(
       "LOGIN TYPE ERROR: response.data is not a Map, got ${response.data.runtimeType}",
     );
-    return null;
+    return {"success": false, "message": "Format Error"};
   } catch (e) {
     debugPrint("LOGIN ERROR:: $e");
+    return {"success": false, "message": "Could not connect to database"};
   }
-  return null;
 }
 
 // Registering new user
@@ -48,9 +35,9 @@ Future<Map<String, dynamic>?> registerUser(Map<String, dynamic> form) async {
     debugPrint(
       "REGISTER TYPE ERROR: response.data is not a Map, got ${response.data.runtimeType}",
     );
-    return null;
+    return {"success": false, "message": "Format Error"};
   } catch (e) {
     debugPrint("REGISTER ERROR:: $e");
+    return {"success": false, "message": "Could not connect to database"};
   }
-  return null;
 }

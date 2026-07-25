@@ -94,7 +94,7 @@ Future<Map<String, dynamic>?> getRecentPaymentsBills() async {
 Future<Map<String, dynamic>> searchContacts(String query) async {
   try {
     final Response response = await dio.get(
-      '/api/searchContacts',
+      '/api/history/searchContacts',
       queryParameters: {"query": query},
     );
     print("Searched: $response");
@@ -165,5 +165,19 @@ Future<Response<dynamic>?> getAccessCode(Map<String, dynamic> form) async {
     print("ERROR:: $e");
     // Catch-all block for completely unexpected runtime errors (e.g., formatting issues)
     return null;
+  }
+}
+
+// GET ACCESS CODE FROM FLUTTER FOR PAYMENT POPUP =============================
+Future<Map<String, dynamic>?> getSupportedCurrencies() async {
+  try {
+    // Perform the API transaction request
+    final response = await dio.get('/api/accounts/supportedCurrencyAccounts');
+    print("THE RESULT FOR SUPPORTED ACCOUNTS:: ${response.data}");
+    return Map<String, dynamic>.from(response.data);
+  } catch (e) {
+    print("ERROR:: $e");
+    // Catch-all block for completely unexpected runtime errors (e.g., formatting issues)
+    return {"success": false, "message": "Server is Offline"};
   }
 }

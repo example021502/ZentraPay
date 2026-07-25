@@ -180,4 +180,69 @@ router.post("/newAccount/crypto", authenticateToken, async (req, res) => {
   }
 });
 
+// GETTING ALL THE SUPPORTED CURRENCIES FOR CREATING NEW FIAT CURRENCY ACCOUNTS
+router.get(
+  "/supportedCurrencyAccounts",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const response = await apiClient.get("/api/supportedCurrencyAccounts");
+      // console.log(response);
+      console.log("THE ACCOUNTS ARE:: ", response.data);
+      const data = response.data;
+      if (data && data.success) {
+        return res.json({
+          success: true,
+          message: data.message || "Currencies fetched successfully",
+          accounts: data.data.accounts,
+        });
+      } else {
+        return res.json({
+          success: false,
+          message: response.data.message || "Fetch Failed",
+        });
+      }
+    } catch (e) {
+      // console.log("ERROR:: ", e);
+
+      // paystack === 
+      // onafriq === 
+      // flutterwave === 3fb048bb-e5bf-4932-a5cc-b6a325392dd1
+
+      // Handle connection refused (Spring Boot is down or unreachable)
+      if (e.code === "ECONNREFUSED") {
+        return res.status(503).json({
+          success: false,
+          message: "Server error. Please try again later.",
+        });
+      }
+
+      // Handle specific HTTP status codes returned by Spring Boot
+      if (e.response) {
+        const status = e.response.status;
+
+        if (status === 403 || status === 401) {
+          return res.status(401).json({
+            success: false,
+            message: "Authentication failed. Please log in again.",
+          });
+        }
+
+        if (status === 404) {
+          return res.status(404).json({
+            success: false,
+            message: "The requested resource could not be found.",
+          });
+        }
+      }
+
+      // Fallback generic error message for any other unexpected issues
+      return res.status(500).json({
+        success: false,
+        message: "Database connection error. Please try again later.",
+      });
+    }
+  },
+);
+
 module.exports = router;

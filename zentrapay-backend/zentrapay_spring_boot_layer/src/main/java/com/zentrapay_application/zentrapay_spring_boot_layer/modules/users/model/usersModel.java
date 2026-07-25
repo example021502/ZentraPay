@@ -3,41 +3,32 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.mode
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "users")
 @Data // Requires Lombok dependency
-<<<<<<< HEAD
 public class usersModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, name = "user_id", unique = true)
-    private String userId;
-=======
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(nullable = false, name = "user_id", unique = true)
-    private Long userId;
->>>>>>> update
+    private UUID userId;
 
-    @Column(nullable = false, name = "full_name")
-    private String fullName;
-
-    @Column(unique = true, nullable = false, name = "email")
+    @Column(nullable = false, name = "email", unique = true)
     private String email;
 
     @Column(unique = true, nullable = false, name = "phone_number")
     private String phoneNumber;
 
-    @Column(nullable = false, name = "password")
+    @Column(nullable = false, name = "password_hash")
     private String password; // Stores bcrypt hash
 
-    @Column(nullable = false, name = "pin")
+    @Column(nullable = false, name = "transaction_pin_hash")
     private String pin;      // Stores bcrypt hash
 
-    @Column(nullable = false, name = "zentag")
-    private String zentag;
+    @Column(nullable = false, name = "status")
+    private String status;
 
-    @Column(nullable = false, name = "country")
-    private String country;
+    @Column(nullable = false, name = "created_at")
+    private String createdAt;
 }

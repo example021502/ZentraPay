@@ -1,49 +1,50 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto.CryptoAccountResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto.CreateCryptoAccountRequest;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto.CreateFiatAccountRequest;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto.CryptoAccountResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto.FiatAccountResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.CryptoAccountModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.CryptoWallet;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.FiatAccountModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.FiatWallet;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.FiatCurrencyAccountModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.repository.CryptoCurrencyAccountRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.repository.CryptoWalletRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.repository.FiatCurrencyAccountRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.repository.FiatWalletRepository;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.model.UserWalletsModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.repository.UserWalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class CurrencyAccountsService {
     private final FiatCurrencyAccountRepository fiatRepository;
+    private final UserWalletRepository fiatWalletRepository;
     private final CryptoCurrencyAccountRepository cryptoRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final CryptoWalletRepository cryptoWalletRepository;
 
     public FiatAccountResponse createFiatAccount(CreateFiatAccountRequest request) {
+
+        List<UserWalletsModel> wallet = fiatWalletRepository.findByUserId(request.userId());
+        final UUID wallet_id = wallet.getFirst().getWalletId();
         // Check if account of same currency already exists
-        if (!fiatRepository.findByUserIdAndCurrencyCode(request.userId(), request.currency()).isEmpty()) {
+        if (!fiatRepository.findByWalletIdAndCurrencyCode(wallet_id, request.currency()).isEmpty()) {
             throw new RuntimeException("Account of same currency already exists");
         }
 
-        FiatAccountModel account = new FiatAccountModel();
-        account.setUserId(request.userId());
-        account.setCurrencyCode(request.currency());
-        account.setIsoCode(request.isoCode());
+        FiatCurrencyAccountModel account = new FiatCurrencyAccountModel();
+        account.setWalletId(wallet_id);
         account.setAccountName(request.accountName());
+        account.setCurrencyCode(request.currency());
+        account.setCountryIsoCode(request.isoCode());
         account.setBalance(0.0);
-
-        FiatAccountModel saved = fiatRepository.save(account);
-        return mapToResponse(saved);
+        account.setStatus("active");
+        fiatRepository.save(account);
+        return new FiatAccountResponse(account.getAccountName(), account.getCurrencyCode(), account.getCountryIsoCode(), account.getBalance(), account.getStatus(), account.getCreatedAt().toString());
     }
 
     public CryptoAccountResponse createCryptoAccount(CreateCryptoAccountRequest request) {
-        // Create crypto currency account
+        // Create crypto_currency account
         CryptoAccountModel account = new CryptoAccountModel();
         account.setUserId(request.userId());
         account.setCurrencyCode(request.currencyCode());
@@ -53,21 +54,7 @@ public class CurrencyAccountsService {
         account.setBalance(0.0);
         account.setStatus("ACTIVE");
 
-        CryptoAccountModel saved = cryptoRepository.save(account);
-        return mapToResponse(saved);
-    }
-
-    private FiatAccountResponse mapToResponse(FiatAccountModel account) {
-        return new FiatAccountResponse(
-                account.getAccountName(),
-                account.getCurrencyCode(),
-                account.getIsoCode(),
-                account.getBalance(),
-                account.getCreatedAt().toString()
-        );
-    }
-
-    private CryptoAccountResponse mapToResponse(CryptoAccountModel account) {
+        cryptoRepository.save(account);
         return new CryptoAccountResponse(
                 account.getCurrencyCode(),
                 account.getCurrencyName(),
@@ -79,26 +66,5 @@ public class CurrencyAccountsService {
         );
     }
 
-    public void createDefaultWallets(String userId, String countryIsoCode) {
-        // Create default fiat wallet if not exists
-        if (!fiatWalletRepository.existsByUserId(userId)) {
-            FiatWallet fiatWallet = new FiatWallet();
-            fiatWallet.setUserId(userId);
-            fiatWallet.setWalletName("default_fiat_wallet");
-            fiatWallet.setCountryIsoCode(countryIsoCode);
-            fiatWallet.setTotalBalance(0.0);
-            fiatWallet.setStatus("ACTIVE");
-            fiatWalletRepository.save(fiatWallet);
-        }
 
-        // Create default crypto wallet if not exists
-        if (!cryptoWalletRepository.existsByUserId(userId)) {
-            CryptoWallet cryptoWallet = new CryptoWallet();
-            cryptoWallet.setUserId(userId);
-            cryptoWallet.setWalletName("default_crypto_wallet");
-            cryptoWallet.setTotalBalance(0.0);
-            cryptoWallet.setStatus("ACTIVE");
-            cryptoWalletRepository.save(cryptoWallet);
-        }
-    }
 }

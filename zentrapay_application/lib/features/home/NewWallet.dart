@@ -14,10 +14,12 @@ class CustomInputDialog extends StatefulWidget {
     super.key,
     required this.type,
     required this.refresh,
+    required this.currencies,
   });
 
   final String type;
   final VoidCallback refresh;
+  final List<dynamic> currencies;
 
   @override
   State<CustomInputDialog> createState() => _CustomInputDialogState();
@@ -29,7 +31,6 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
   final TextEditingController _cryptoAccountNameController =
       TextEditingController();
   late String _type;
-
   final Map<String, dynamic> newFiatAccount = {
     "fiat_currency": "GHS",
     "fiat_name": "Ghanaian Cedi",
@@ -107,7 +108,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
   Widget _fiatAccountField(BuildContext localContext, String type) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 15,
       children: [
         if (isLoading)

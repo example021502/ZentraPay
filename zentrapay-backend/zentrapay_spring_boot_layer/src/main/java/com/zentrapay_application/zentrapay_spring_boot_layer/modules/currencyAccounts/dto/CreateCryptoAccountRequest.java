@@ -1,7 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public record CreateCryptoAccountRequest(
         @NotBlank(message = "User ID is required") String userId,

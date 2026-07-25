@@ -20,16 +20,6 @@ const settingsRoutes = require("./routes/settingsRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 const usersRoutes = require("./routes/usersRoutes");
 
-// ZENTRAPAY FEATURE ROUTES
-const zpayRoutes = require("./routes/zpayRoutes");
-const zbankingRoutes = require("./routes/zbankingRoutes");
-const zremitRoutes = require("./routes/zremitRoutes");
-const zvoiceRoutes = require("./routes/zvoiceRoutes");
-const zinvestRoutes = require("./routes/zinvestRoutes");
-const zgrowRoutes = require("./routes/zgrowRoutes");
-const payanywhereRoutes = require("./routes/payanywhereRoutes");
-const secureRoutes = require("./routes/secureRoutes");
-
 // Security middleware
 app.use(helmet());
 // 1. Get the string from environment variables
@@ -43,14 +33,14 @@ app.use(
   cors({
     origin: function (origin, callback) {
       // allow requests with no origin (like mobile apps or curl requests)
-<<<<<<< HEAD
-      if (!origin) {
-        console.log("[CORS] No origin header, allowing request");
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
->>>>>>> update
         callback(new Error("Authentication Denied!"));
       }
+    },
     credentials: true,
   }),
 );
@@ -66,17 +56,13 @@ app.use("/api/", limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Logging
-app.use(morgan("combined"));
-
 app.use((req, res, next) => {
-  console.log(`[DEBUG] Incoming Request: ${req.method} ${req.url}`);
-  console.log(`[DEBUG] Origin header: ${req.headers.origin || "none"}`);
-  if (Object.keys(req.body).length > 0) {
-    console.log(`[DEBUG] Body:`, JSON.stringify(req.body));
-  }
+  console.log(`RECEIVED THE REQUEST FOR:: ${req.originalUrl}`);
   next();
 });
+
+// Logging
+app.use(morgan("combined"));
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -101,19 +87,6 @@ app.use("/api/notifications", notificationsRoutes);
 app.use("/api/support", supportRoutes); //supported banks, customer support, ai assistence, fraud detection, voice recordings
 app.use("/api/refreshToken", refreshToken);
 
-<<<<<<< HEAD
-// ZENTRAPAY FEATURE ENDPOINTS
-app.use("/api/zpay", zpayRoutes); // wallet, cards, NFC/QR payments, contactless
-app.use("/api/zbanking", zbankingRoutes); // savings, loans, budgeting, vault
-app.use("/api/zremit", zremitRoutes); // cross-border transfers, exchange rates
-app.use("/api/zvoice", zvoiceRoutes); // voice commands, voice fraud alerts
-app.use("/api/zinvest", zinvestRoutes); // investments, portfolio, AI recommendations
-app.use("/api/zgrow", zgrowRoutes); // financial wellness, challenges, rewards
-app.use("/api/payanywhere", payanywhereRoutes); // QR payments, merchant, offline
-app.use("/api/secure", secureRoutes); // security, biometric, fraud protection
-
-=======
->>>>>>> update
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });

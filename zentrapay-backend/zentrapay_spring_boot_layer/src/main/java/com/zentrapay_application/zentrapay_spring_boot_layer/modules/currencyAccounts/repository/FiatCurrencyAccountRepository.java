@@ -1,11 +1,11 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.repository;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.FiatAccountModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.currencyAccounts.model.FiatCurrencyAccountModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
-public interface FiatCurrencyAccountRepository extends JpaRepository<FiatAccountModel, String> {
-    List<FiatAccountModel> findByUserIdAndCurrencyCode(String userId, String currencyCode);
+public interface FiatCurrencyAccountRepository extends JpaRepository<FiatCurrencyAccountModel, String> {
+    List<FiatCurrencyAccountModel> findByWalletIdAndCurrencyCode(UUID wallet_id, String currencyCode);
 }

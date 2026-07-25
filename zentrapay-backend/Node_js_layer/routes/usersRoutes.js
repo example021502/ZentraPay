@@ -8,6 +8,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const apiClient = require("../utils/apiClient");
+const jwt_token = require("jsonwebtoken");
 {
   /*
   ===============================================
@@ -49,7 +50,7 @@ router.post("/login", async (req, res) => {
       message: "Missing Email/Phone number and Password!",
     });
   }
-
+  console.log("HERE IN  LOG IN...");
   try {
     const login = await apiClient.post(`/api/users/login`, {
       email: email,
@@ -60,11 +61,20 @@ router.post("/login", async (req, res) => {
     console.log("[SPRING_LOGIN] data:", JSON.stringify(login.data));
     const data = login.data;
     if (data && data.success && data.data) {
+      const userId = data.userId;
+      const secretKey = process.env.JWT_SECRET_KEY;
+      const jwt_period = `${process.env.JWT_EXPIRY}`;
+      const token = jwt_token.sign(
+        { user_id: userId, email: data.email, full_name: data.fullName },
+        secretKey,
+        { expiresIn: jwt_period },
+      );
+
       return res.json({
         success: data.success,
         message: data.message,
         data: {
-          token: data.data.token,
+          token: token,
           fullName: data.data.fullName,
           email: data.data.email,
           zentag: data.data.zentag,
@@ -108,6 +118,7 @@ router.post("/register", async (req, res) => {
       message: "Missing value(s)!",
     });
   }
+  console.log("HERE IN  REGISTERING IN...");
 
   const zentag = `${email.split("@")[0].trim()}@zentrapay`;
 
@@ -127,11 +138,19 @@ router.post("/register", async (req, res) => {
     console.log("[SPRING_REGISTER] httpStatus:", newUser.status);
     console.log("[SPRING_REGISTER] data:", JSON.stringify(data));
     if (data && data.success && data.data) {
+      const userId = data.userId;
+      const secretKey = process.env.JWT_SECRET_KEY;
+      const jwt_period = `${process.env.JWT_EXPIRY}`;
+      const token = jwt_token.sign(
+        { user_id: userId, email: data.email, full_name: data.fullName },
+        secretKey,
+        { expiresIn: jwt_period },
+      );
       return res.json({
         success: data.success,
         message: data.message,
         data: {
-          token: data.data.token,
+          token: token,
           fullName: data.data.fullName,
           email: data.data.email,
           zentag: data.data.zentag,
