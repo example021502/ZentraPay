@@ -21,6 +21,12 @@ public interface UserWalletsRepository extends JpaRepository<UsersWalletsModel, 
             @Param("zentag") String zentag
     );
 
+    @Query("SELECT u FROM PaymentsUsersModel u WHERE u.userId = :userId AND u.email = :email")
+    PaymentsUsersModel existsByUserIdAndEmail(
+            @Param("userId") UUID userId,
+            @Param("email") String email
+    );
+
     @Query("SELECT w FROM UsersWalletsModel w WHERE w.userId = :userId AND w.currencyCode = :currencyCode")
     UsersWalletsModel getWalletByUserIdAndCurrencyCode(
             @Param("userId") UUID userId,

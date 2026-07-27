@@ -1,27 +1,61 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.controller;
 
-
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.dtos.BillProvidersResponseDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.services.BillProvidersServices;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 
+/**
+ * Bill Providers Controller - Pay bills (airtime, data, utilities, TV subscriptions)
+ */
 @RestController
-@RequestMapping("/api/billProviders")
-@RequiredArgsConstructor
+@RequestMapping("/api/bill-providers")
 public class BillProvidersController {
-    private final BillProvidersServices billProvidersServices;
-    // Changed from @PostMapping to @GetMapping since fetching configuration
-    // does not require mutating server state via a request body.
-    @GetMapping("/getALL")
-    public ResponseEntity<ApiResponse<BillProvidersResponseDTO>> getBillProviders() {
-        System.out.println("[SPRING_CTRL] get supported currency accounts hit");
-        BillProvidersResponseDTO billProviders = billProvidersServices.getAllBillProviders();
-        return ResponseEntity.ok(ApiResponse.success(billProviders, "Fetch successfully"));
+
+    /**
+     * Get all bill providers.
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllProviders() {
+        // TODO: Implement retrieval from database
+        return ResponseEntity.ok(ApiResponse.success(List.of(), "Bill providers retrieved"));
+    }
+
+    /**
+     * Get bill providers by category.
+     */
+    @GetMapping("/category/{category}")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getProvidersByCategory(@PathVariable String category) {
+        // TODO: Implement category filtering
+        return ResponseEntity.ok(ApiResponse.success(List.of(), "Providers by category retrieved"));
+    }
+
+    /**
+     * Pay a bill.
+     */
+    @PostMapping("/pay")
+    public ResponseEntity<ApiResponse<Object>> payBill(@RequestBody Map<String, Object> request) {
+        // TODO: Implement bill payment logic
+        return ResponseEntity.ok(ApiResponse.success(null, "Bill payment processed"));
+    }
+
+    /**
+     * Validate a bill payment.
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<ApiResponse<Object>> validateBill(@RequestBody Map<String, Object> request) {
+        // TODO: Implement bill validation
+        return ResponseEntity.ok(ApiResponse.success(null, "Bill validation completed"));
+    }
+
+    /**
+     * Get payment history for a specific provider.
+     */
+    @GetMapping("/history/{providerId}")
+    public ResponseEntity<ApiResponse<Object>> getPaymentHistory(@PathVariable String providerId) {
+        // TODO: Implement payment history retrieval
+        return ResponseEntity.ok(ApiResponse.success(null, "Payment history retrieved"));
     }
 }

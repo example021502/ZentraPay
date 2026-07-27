@@ -3,6 +3,9 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.walletBala
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 // FIAT CURRENCY DATA
 @Entity
 @Table(name = "fiat_currencies")
@@ -14,7 +17,7 @@ public class FiatBalancesModel {
     private String fiatId;
 
     @Column(nullable = false, name = "user_id")
-    private String userId;
+    private UUID userId;
 
     @Column(nullable = false, name = "currency_name")
     private String currencyName;
@@ -22,12 +25,15 @@ public class FiatBalancesModel {
     @Column(nullable = false, name = "currency_code")
     private String currencyCode;
 
+    @Column(nullable = false, name = "currency")
+    private String currency;
+
     @Column(nullable = false, name = "balance")
-    private String balance;
+    private BigDecimal balance;
 
     @Column(nullable = false, name = "date_created")
-    private String dateCreated; // Stores bcrypt hash
+    private String dateCreated;
 
     @Column(nullable = false, name = "country_iso_code")
-    private String countryIsoCode;      // Stores bcrypt hash
+    private String countryIsoCode;
 }

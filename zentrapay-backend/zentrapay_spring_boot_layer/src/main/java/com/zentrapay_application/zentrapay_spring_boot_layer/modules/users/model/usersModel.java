@@ -17,6 +17,9 @@ public class usersModel {
     @Column(nullable = false, name = "email", unique = true)
     private String email;
 
+    @Column(nullable = false, name = "country")
+    private String country;
+
     @Column(unique = true, nullable = false, name = "phone_number")
     private String phoneNumber;
 
@@ -29,6 +32,6 @@ public class usersModel {
     @Column(nullable = false, name = "status")
     private String status;
 
-    @Column(nullable = false, name = "created_at")
-    private String createdAt;
+    @Column(nullable = false, name = "zentag")
+    private String zentag;
 }

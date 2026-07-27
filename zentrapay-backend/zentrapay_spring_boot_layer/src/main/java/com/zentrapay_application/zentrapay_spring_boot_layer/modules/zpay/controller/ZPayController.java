@@ -1,60 +1,102 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zpay.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zpay.model.CardModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zpay.service.ZPayService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * ZPay Wallet Controller
- * Multi-currency & crypto wallet, NFC/QR payments, virtual & physical cards
+ * ZPay Controller - Multi-currency wallet, NFC/QR payments, virtual & physical cards
  */
 @RestController
 @RequestMapping("/api/zpay")
 public class ZPayController {
 
+    private final ZPayService zPayService;
+
+    public ZPayController(ZPayService zPayService) {
+        this.zPayService = zPayService;
+    }
+
+    /**
+     * Get user's wallet balance.
+     */
     @GetMapping("/balance")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBalance() {
-        System.out.println("[SPRING_CTRL] ZPay get balance hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("totalBalance", "GHS 3,345,456.00");
-        data.put("fiatBalance", "GHS 2,500,000.00");
-        data.put("cryptoBalance", "GHS 845,456.00");
-        return ResponseEntity.ok(ApiResponse.success(data, "Balance retrieved successfully"));
+    public ResponseEntity<ApiResponse<Object>> getBalance(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        // TODO: Calculate balance from walletBalances module
+        return ResponseEntity.ok(ApiResponse.success(null, "Balance retrieved"));
     }
 
+    /**
+     * Get all cards for the authenticated user.
+     */
     @GetMapping("/cards")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getCards() {
-        System.out.println("[SPRING_CTRL] ZPay get cards hit");
-        Map<String, Object> data = new HashMap<>();
-        List<Map<String, String>> cards = new ArrayList<>();
-        Map<String, String> card1 = new HashMap<>();
-        card1.put("id", "card_001");
-        card1.put("type", "virtual");
-        card1.put("last4", "4242");
-        card1.put("brand", "Visa");
-        card1.put("status", "active");
-        cards.add(card1);
-        data.put("cards", cards);
-        return ResponseEntity.ok(ApiResponse.success(data, "Cards retrieved successfully"));
+    public ResponseEntity<ApiResponse<List<CardModel>>> getCards(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        List<CardModel> cards = zPayService.getUserCards(userId);
+        return ResponseEntity.ok(ApiResponse.success(cards, "Cards retrieved successfully"));
     }
 
+    /**
+     * Create a new virtual card.
+     */
+    @PostMapping("/cards/virtual")
+    public ResponseEntity<ApiResponse<CardModel>> createVirtualCard(
+            Authentication authentication,
+            @RequestParam String brand) {
+        UUID userId = UUID.fromString(authentication.getName());
+        CardModel card = zPayService.createVirtualCard(userId, brand);
+        return ResponseEntity.ok(ApiResponse.success(card, "Virtual card created successfully"));
+    }
+
+    /**
+     * Process NFC/QR payment.
+     */
     @PostMapping("/payment/nfc-qr")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> processNfcQrPayment(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZPay NFC/QR payment hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("transactionId", "txn_nfc_001");
-        data.put("status", "completed");
-        data.put("timestamp", new Date().toString());
-        return ResponseEntity.ok(ApiResponse.success(data, "Payment processed successfully"));
+    public ResponseEntity<ApiResponse<Object>> processNfcQrPayment(
+            Authentication authentication,
+            @RequestBody Map<String, Object> request) {
+        UUID userId = UUID.fromString(authentication.getName());
+        // TODO: Implement NFC/QR payment processing
+        return ResponseEntity.ok(ApiResponse.success(null, "Payment processed successfully"));
     }
 
+    /**
+     * Get transaction history.
+     */
     @GetMapping("/transactions")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getTransactions() {
-        System.out.println("[SPRING_CTRL] ZPay get transactions hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("transactions", new ArrayList<>());
-        return ResponseEntity.ok(ApiResponse.success(data, "Transactions retrieved successfully"));
+    public ResponseEntity<ApiResponse<Object>> getTransactions(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        // TODO: Retrieve transaction history from transactions table
+        return ResponseEntity.ok(ApiResponse.success(null, "Transactions retrieved"));
+    }
+
+    /**
+     * Toggle NFC payment for a card.
+     */
+    @PatchMapping("/cards/{cardId}/nfc")
+    public ResponseEntity<ApiResponse<CardModel>> toggleNfc(
+            @PathVariable UUID cardId,
+            @RequestParam boolean enabled) {
+        CardModel card = zPayService.toggleNfc(cardId, enabled);
+        return ResponseEntity.ok(ApiResponse.success(card, "NFC toggled successfully"));
+    }
+
+    /**
+     * Toggle QR payment for a card.
+     */
+    @PatchMapping("/cards/{cardId}/qr")
+    public ResponseEntity<ApiResponse<CardModel>> toggleQr(
+            @PathVariable UUID cardId,
+            @RequestParam boolean enabled) {
+        CardModel card = zPayService.toggleQr(cardId, enabled);
+        return ResponseEntity.ok(ApiResponse.success(card, "QR toggled successfully"));
     }
 }

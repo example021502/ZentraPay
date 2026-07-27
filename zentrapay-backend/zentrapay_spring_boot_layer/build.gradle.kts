@@ -19,25 +19,33 @@ repositories {
 }
 
 dependencies {
+	// Core Spring Boot starters
+	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("org.springframework.boot:spring-boot-starter-webmvc")
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
-	runtimeOnly("org.postgresql:postgresql")
-	testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	// JJWT API
+
+	// Development tools
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+	// Database
+	runtimeOnly("org.postgresql:postgresql")
+
+	// Testing
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+	// JJWT for JWT token handling
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
-	// JJWT Implementation
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
-	// JJWT Jackson support
-	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+	// Use Jackson 3.x provided by Spring Boot 4.x instead of jjwt's bundled Jackson 2.x
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6") {
+		exclude(group = "com.fasterxml.jackson.core")
+	}
+
+	// Lombok
 	compileOnly("org.projectlombok:lombok:1.18.36")
 	annotationProcessor("org.projectlombok:lombok:1.18.36")
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
 }
 
 tasks.withType<Test> {

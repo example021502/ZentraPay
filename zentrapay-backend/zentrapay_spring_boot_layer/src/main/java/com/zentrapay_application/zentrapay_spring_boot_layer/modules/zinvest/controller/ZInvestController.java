@@ -1,72 +1,88 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.model.InvestmentModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.service.ZInvestService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
 
 /**
- * ZInvest Controller
- * Micro-investments (stocks, crypto, commodities) and AI-guided portfolios
+ * ZInvest Controller - Micro-investments in stocks, crypto, commodities with AI-guided portfolios
  */
 @RestController
 @RequestMapping("/api/zinvest")
 public class ZInvestController {
 
+    private final ZInvestService zInvestService;
+
+    public ZInvestController(ZInvestService zInvestService) {
+        this.zInvestService = zInvestService;
+    }
+
+    /**
+     * Get all investments for the authenticated user.
+     */
     @GetMapping("/portfolio")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getPortfolio() {
-        System.out.println("[SPRING_CTRL] ZInvest get portfolio hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("totalValue", "GHS 3,728.28");
-        data.put("totalGain", "+35.6%");
-        data.put("holdings", new ArrayList<>());
-        return ResponseEntity.ok(ApiResponse.success(data, "Portfolio retrieved successfully"));
+    public ResponseEntity<ApiResponse<List<InvestmentModel>>> getPortfolio(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zInvestService.getUserInvestments(userId),
+                "Portfolio retrieved"));
     }
 
-    @GetMapping("/available")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getAvailableInvestments() {
-        System.out.println("[SPRING_CTRL] ZInvest get available investments hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("stocks", new ArrayList<>());
-        data.put("crypto", new ArrayList<>());
-        data.put("commodities", new ArrayList<>());
-        return ResponseEntity.ok(ApiResponse.success(data, "Available investments retrieved"));
+    /**
+     * Create a new investment.
+     */
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponse<Object>> createInvestment(
+            Authentication authentication,
+            @RequestParam String name,
+            @RequestParam String type,
+            @RequestParam String symbol,
+            @RequestParam BigDecimal quantity,
+            @RequestParam BigDecimal buyPrice,
+            @RequestParam String currency) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zInvestService.createInvestment(userId, name, type, symbol, quantity, buyPrice, currency),
+                "Investment created successfully"));
     }
 
-    @PostMapping("/buy")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> buyInvestment(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZInvest buy hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("transactionId", "zinvest_buy_001");
-        data.put("status", "completed");
-        return ResponseEntity.ok(ApiResponse.success(data, "Investment purchased successfully"));
+    /**
+     * Get investments by type.
+     */
+    @GetMapping("/type/{type}")
+    public ResponseEntity<ApiResponse<List<InvestmentModel>>> getInvestmentsByType(
+            Authentication authentication,
+            @PathVariable String type) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zInvestService.getInvestmentsByType(userId, type),
+                "Investments by type retrieved"));
     }
 
-    @PostMapping("/sell")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sellInvestment(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZInvest sell hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("transactionId", "zinvest_sell_001");
-        data.put("status", "completed");
-        return ResponseEntity.ok(ApiResponse.success(data, "Investment sold successfully"));
+    /**
+     * Get investment performance/analytics.
+     */
+    @GetMapping("/performance")
+    public ResponseEntity<ApiResponse<Object>> getPerformance(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        // TODO: Calculate portfolio performance
+        return ResponseEntity.ok(ApiResponse.success(null, "Performance metrics retrieved"));
     }
 
-    @GetMapping("/ai-recommendation")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getAiRecommendation() {
-        System.out.println("[SPRING_CTRL] ZInvest get AI recommendation hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("recommendation", "Based on your risk profile, we recommend increasing your crypto allocation by 10%.");
-        data.put("riskProfile", "moderate");
-        return ResponseEntity.ok(ApiResponse.success(data, "AI recommendation retrieved"));
-    }
-
-    @PostMapping("/auto-invest")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> setupAutoInvest(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZInvest auto-invest setup hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("planId", "auto_invest_001");
-        data.put("status", "active");
-        return ResponseEntity.ok(ApiResponse.success(data, "Auto-invest plan created"));
+    /**
+     * Sell/close an investment.
+     */
+    @PostMapping("/{investmentId}/sell")
+    public ResponseEntity<ApiResponse<Object>> sellInvestment(@PathVariable UUID investmentId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                zInvestService.closeInvestment(investmentId),
+                "Investment sold successfully"));
     }
 }

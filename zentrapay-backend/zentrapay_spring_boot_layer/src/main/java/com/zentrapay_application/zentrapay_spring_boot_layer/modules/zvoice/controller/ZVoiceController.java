@@ -1,65 +1,77 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.model.VoiceCommandModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.service.ZVoiceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 
 /**
- * ZVoice AI Controller
- * Full voice control, hands-free balance checks, voice fraud alerts
+ * ZVoice AI Controller - Full voice control, hands-free balance checks, voice fraud alerts
  */
 @RestController
 @RequestMapping("/api/zvoice")
 public class ZVoiceController {
 
+    private final ZVoiceService zVoiceService;
+
+    public ZVoiceController(ZVoiceService zVoiceService) {
+        this.zVoiceService = zVoiceService;
+    }
+
+    /**
+     * Record a voice command.
+     */
     @PostMapping("/command")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> processCommand(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZVoice command hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("interpreted", "check_balance");
-        data.put("response", "Your current balance is GHS 3,345,456.00");
-        return ResponseEntity.ok(ApiResponse.success(data, "Voice command processed"));
+    public ResponseEntity<ApiResponse<Object>> recordCommand(
+            Authentication authentication,
+            @RequestParam String commandType,
+            @RequestParam String language,
+            @RequestParam String transcript,
+            @RequestParam(defaultValue = "false") boolean fraudAlert,
+            @RequestParam(required = false) String fraudReason) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zVoiceService.recordVoiceCommand(userId, commandType, language, transcript, fraudAlert, fraudReason),
+                "Voice command recorded"));
     }
 
-    @GetMapping("/languages")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getLanguages() {
-        System.out.println("[SPRING_CTRL] ZVoice get languages hit");
-        Map<String, Object> data = new HashMap<>();
-        List<Map<String, String>> languages = new ArrayList<>();
-        languages.add(Map.of("code", "en", "name", "English"));
-        languages.add(Map.of("code", "fr", "name", "French"));
-        languages.add(Map.of("code", "sw", "name", "Swahili"));
-        languages.add(Map.of("code", "tw", "name", "Twi"));
-        languages.add(Map.of("code", "ha", "name", "Hausa"));
-        data.put("languages", languages);
-        return ResponseEntity.ok(ApiResponse.success(data, "Languages retrieved successfully"));
+    /**
+     * Get user's voice command history.
+     */
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<VoiceCommandModel>>> getHistory(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zVoiceService.getUserVoiceCommands(userId),
+                "Voice history retrieved"));
     }
 
-    @GetMapping("/balance")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getVoiceBalance() {
-        System.out.println("[SPRING_CTRL] ZVoice get balance hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("balance", "GHS 3,345,456.00");
-        data.put("voiceResponse", "Your current balance is three million, three hundred forty-five thousand, four hundred fifty-six Ghana Cedis.");
-        return ResponseEntity.ok(ApiResponse.success(data, "Voice balance retrieved"));
-    }
-
-    @PostMapping("/transfer")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> voiceTransfer(@RequestBody Map<String, Object> request) {
-        System.out.println("[SPRING_CTRL] ZVoice transfer hit by " + request);
-        Map<String, Object> data = new HashMap<>();
-        data.put("transactionId", "zvoice_txn_001");
-        data.put("status", "processing");
-        return ResponseEntity.ok(ApiResponse.success(data, "Voice transfer initiated"));
-    }
-
+    /**
+     * Get fraud alerts.
+     */
     @GetMapping("/fraud-alerts")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getFraudAlerts() {
-        System.out.println("[SPRING_CTRL] ZVoice get fraud alerts hit");
-        Map<String, Object> data = new HashMap<>();
-        data.put("alerts", new ArrayList<>());
-        return ResponseEntity.ok(ApiResponse.success(data, "Fraud alerts retrieved"));
+    public ResponseEntity<ApiResponse<List<VoiceCommandModel>>> getFraudAlerts(Authentication authentication) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zVoiceService.getFraudAlerts(userId),
+                "Fraud alerts retrieved"));
+    }
+
+    /**
+     * Get commands by language.
+     */
+    @GetMapping("/language/{language}")
+    public ResponseEntity<ApiResponse<List<VoiceCommandModel>>> getCommandsByLanguage(
+            Authentication authentication,
+            @PathVariable String language) {
+        UUID userId = UUID.fromString(authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                zVoiceService.getCommandsByLanguage(userId, language),
+                "Commands by language retrieved"));
     }
 }

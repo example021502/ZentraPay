@@ -17,6 +17,9 @@ public class PaymentsUsersModel {
     @Column(nullable = false, name = "email", unique = true)
     private String email;
 
+    @Column(nullable = false, name = "zentag", unique = true)
+    private String zentag;
+
     @Column(unique = true, nullable = false, name = "phone_number")
     private String phoneNumber;
 

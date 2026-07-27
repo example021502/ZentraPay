@@ -46,6 +46,8 @@ public class UsersService {
         user.setPassword(hashedPassword);
         user.setPin(hashedPin);
         user.setPhoneNumber(req.phoneNumber());
+        user.setZentag(req.zentag());
+        user.setCountry(req.country());
 
         userRepository.save(user);
 
@@ -54,6 +56,7 @@ public class UsersService {
             UserWalletsModel fiatWallet = new UserWalletsModel();
             fiatWallet.setUserId(user.getUserId());
             fiatWallet.setStatus("active");
+            fiatWallet.setStatus("Default Wallet");
             userWalletRepository.save(fiatWallet);
         }
 

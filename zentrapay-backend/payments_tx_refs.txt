@@ -1,0 +1,12 @@
+﻿
+zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\payments\r
+epository\TransactionRepository.java:3:import 
+com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.model.TransactionModel;
+zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\payments\s
+ervices\PaymentsServices.java:8:import 
+com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.model.TransactionModel;
+zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\payments\s
+ervices\PaymentsServices.java:10:import 
+com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.repository.TransactionRepository;
+
+

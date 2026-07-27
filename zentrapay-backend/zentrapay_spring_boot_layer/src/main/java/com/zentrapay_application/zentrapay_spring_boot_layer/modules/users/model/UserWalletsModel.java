@@ -21,6 +21,9 @@ public class UserWalletsModel {
     @Column(nullable = false, name = "currency_code")
     private String currencyCode;
 
+    @Column(nullable = false, name = "wallet_name")
+    private String walletName;
+
     @Column(nullable = false, name = "balance")
     private Double balance;
 
