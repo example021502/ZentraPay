@@ -1,133 +1,319 @@
 const express = require("express");
 const router = express.Router();
+const { authenticateToken } = require("../middleware/authMiddleware");
+const apiClient = require("../utils/apiClient");
+
+// ========================================================================
+// ZPAY ROUTES - API DOCUMENTATION FOR FRONTEND
+// ========================================================================
+//
+// Base URL: /api/zpay
+//
+// ENDPOINTS:
+// 1. GET  /api/zpay/balance           - Get wallet balance
+// 2. GET  /api/zpay/cards             - Get user's cards
+// 3. POST /api/zpay/cards/virtual     - Create virtual card
+// 4. POST /api/zpay/payment/nfc-qr    - Process NFC/QR payment
+// 5. GET  /api/zpay/transactions      - Get transaction history
+// 6. PATCH /api/zpay/cards/{id}/nfc   - Toggle NFC payment
+// 7. PATCH /api/zpay/cards/{id}/qr    - Toggle QR payment
+// ========================================================================
 
 /**
- * ZPay Wallet Routes
- * Multi-currency & crypto wallet, NFC/QR payments, virtual & physical cards,
- * contactless merchant payments
+ * GET WALLET BALANCE
+ * ==================
+ *
+ * @route GET /api/zpay/balance
+ * @requires Authentication
+ *
+ * @returns {Object} balance - Wallet balance details
  */
+router.get("/balance", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zpay/balance", {
+      userId: req.userId,
+    });
 
-// Get wallet balance summary
-router.get("/balance", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalBalance: "GHS 3,345,456.00",
-      fiatBalance: "GHS 2,500,000.00",
-      cryptoBalance: "GHS 845,456.00",
-      currencies: [
-        { code: "GHS", balance: "1,500,000.00", symbol: "" },
-        { code: "USD", balance: "50,000.00", symbol: "$" },
-        { code: "EUR", balance: "25,000.00", symbol: "€" },
-        { code: "BTC", balance: "0.5", symbol: "₿" },
-        { code: "ETH", balance: "5.0", symbol: "Ξ" },
-      ],
-    },
-  });
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch balance",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching balance: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get virtual cards
-router.get("/cards", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      cards: [
-        {
-          id: "card_001",
-          type: "virtual",
-          last4: "4242",
-          brand: "Visa",
-          status: "active",
-          expiry: "12/27",
-        },
-        {
-          id: "card_002",
-          type: "physical",
-          last4: "5555",
-          brand: "Mastercard",
-          status: "active",
-          expiry: "06/28",
-        },
-      ],
-    },
-  });
+/**
+ * GET USER'S CARDS
+ * ================
+ *
+ * @route GET /api/zpay/cards
+ * @requires Authentication
+ *
+ * @returns {Array} cards - List of user's cards
+ */
+router.get("/cards", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zpay/cards", {
+      userId: req.userId,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch cards",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching cards: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Create virtual card
-router.post("/cards/create", (req, res) => {
-  res.json({
-    success: true,
-    message: "Virtual card created successfully",
-    data: {
-      cardId: "card_new_001",
-      type: "virtual",
-      last4: "1234",
-      brand: "Visa",
-      status: "active",
-    },
-  });
+/**
+ * CREATE VIRTUAL CARD
+ * ===================
+ *
+ * @route POST /api/zpay/cards/virtual
+ * @requires Authentication
+ *
+ * @param {string} req.body.brand - Card brand (Visa, Mastercard, etc.)
+ *
+ * @returns {Object} card - Created card details
+ */
+router.post("/cards/virtual", authenticateToken, async (req, res) => {
+  const { brand } = req.body;
+
+  if (!brand) {
+    return res.status(400).json({
+      success: false,
+      message: "Card brand is required",
+    });
+  }
+
+  try {
+    const result = await apiClient.post("/api/zpay/cards/virtual", {
+      userId: req.userId,
+      brand,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+        message: result.data.message,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to create card",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR creating virtual card: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// NFC/QR payment
-router.post("/payment/nfc-qr", (req, res) => {
-  const { amount, currency, merchantId, paymentMethod } = req.body;
-  res.json({
-    success: true,
-    message: "Payment processed successfully",
-    data: {
-      transactionId: "txn_nfc_001",
+/**
+ * PROCESS NFC/QR PAYMENT
+ * ======================
+ *
+ * @route POST /api/zpay/payment/nfc-qr
+ * @requires Authentication
+ *
+ * @param {string} req.body.cardId - Card ID
+ * @param {number} req.body.amount - Payment amount
+ * @param {string} req.body.currency - Currency code
+ * @param {string} req.body.merchantId - Merchant ID
+ *
+ * @returns {Object} payment - Payment result
+ */
+router.post("/payment/nfc-qr", authenticateToken, async (req, res) => {
+  const { cardId, amount, currency, merchantId } = req.body;
+
+  if (!cardId || !amount || !currency || !merchantId) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields: cardId, amount, currency, merchantId",
+    });
+  }
+
+  try {
+    const result = await apiClient.post("/api/zpay/payment/nfc-qr", {
+      userId: req.userId,
+      cardId,
       amount,
       currency,
       merchantId,
-      paymentMethod,
-      status: "completed",
-      timestamp: new Date().toISOString(),
-    },
-  });
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+        message: result.data.message,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Payment failed",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR processing NFC/QR payment: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Contactless merchant payment
-router.post("/payment/contactless", (req, res) => {
-  const { amount, currency, merchantId } = req.body;
-  res.json({
-    success: true,
-    message: "Contactless payment processed",
-    data: {
-      transactionId: "txn_contactless_001",
-      amount,
-      currency,
-      merchantId,
-      status: "completed",
-      timestamp: new Date().toISOString(),
-    },
-  });
+/**
+ * GET TRANSACTION HISTORY
+ * =======================
+ *
+ * @route GET /api/zpay/transactions
+ * @requires Authentication
+ *
+ * @param {number} [req.query.limit] - Number of transactions to fetch
+ * @param {number} [req.query.offset] - Pagination offset
+ *
+ * @returns {Array} transactions - List of transactions
+ */
+router.get("/transactions", authenticateToken, async (req, res) => {
+  const { limit = 50, offset = 0 } = req.query;
+
+  try {
+    const result = await apiClient.get("/api/zpay/transactions", {
+      userId: req.userId,
+      limit,
+      offset,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch transactions",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching transactions: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get transaction history
-router.get("/transactions", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      transactions: [
-        {
-          id: "txn_001",
-          type: "payment",
-          amount: "GHS 150.00",
-          merchant: "Shoprite Accra",
-          date: "2026-07-21",
-          status: "completed",
-        },
-        {
-          id: "txn_002",
-          type: "transfer",
-          amount: "GHS 500.00",
-          recipient: "John Doe",
-          date: "2026-07-20",
-          status: "completed",
-        },
-      ],
-    },
-  });
+/**
+ * TOGGLE NFC PAYMENT
+ * ==================
+ *
+ * @route PATCH /api/zpay/cards/:cardId/nfc
+ * @requires Authentication
+ *
+ * @param {string} req.params.cardId - Card ID
+ * @param {boolean} req.body.enabled - Enable or disable NFC
+ *
+ * @returns {Object} card - Updated card details
+ */
+router.patch("/cards/:cardId/nfc", authenticateToken, async (req, res) => {
+  const { cardId } = req.params;
+  const { enabled } = req.body;
+
+  if (enabled === undefined) {
+    return res.status(400).json({
+      success: false,
+      message: "enabled field is required",
+    });
+  }
+
+  try {
+    const result = await apiClient.patch(
+      `/api/zpay/cards/${cardId}/nfc?enabled=${enabled}`,
+      {
+        userId: req.userId,
+      },
+    );
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+        message: result.data.message,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to toggle NFC",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR toggling NFC: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
+});
+
+/**
+ * TOGGLE QR PAYMENT
+ * ==================
+ *
+ * @route PATCH /api/zpay/cards/:cardId/qr
+ * @requires Authentication
+ *
+ * @param {string} req.params.cardId - Card ID
+ * @param {boolean} req.body.enabled - Enable or disable QR
+ *
+ * @returns {Object} card - Updated card details
+ */
+router.patch("/cards/:cardId/qr", authenticateToken, async (req, res) => {
+  const { cardId } = req.params;
+  const { enabled } = req.body;
+
+  if (enabled === undefined) {
+    return res.status(400).json({
+      success: false,
+      message: "enabled field is required",
+    });
+  }
+
+  try {
+    const result = await apiClient.patch(
+      `/api/zpay/cards/${cardId}/qr?enabled=${enabled}`,
+      {
+        userId: req.userId,
+      },
+    );
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+        message: result.data.message,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to toggle QR",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR toggling QR: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
 module.exports = router;

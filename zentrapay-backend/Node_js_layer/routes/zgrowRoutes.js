@@ -1,149 +1,204 @@
 const express = require("express");
 const router = express.Router();
+const { authenticateToken } = require("../middleware/authMiddleware");
+const apiClient = require("../utils/apiClient");
+
+// ========================================================================
+// ZGROW ROUTES - API DOCUMENTATION FOR FRONTEND
+// ========================================================================
+//
+// Base URL: /api/zgrow
+//
+// ENDPOINTS:
+// 1. GET  /api/zgrow/challenges              - Get active challenges
+// 2. GET  /api/zgrow/challenges/category/{category} - Get challenges by category
+// 3. POST /api/zgrow/challenges/{id}/join    - Join a challenge
+// 4. GET  /api/zgrow/rewards                 - Get user's rewards
+// 5. GET  /api/zgrow/literacy                - Get financial literacy content
+// ========================================================================
 
 /**
- * ZGrow Routes
- * Financial Wellness Hub - gamified savings, rewards, literacy videos, AI coach
+ * GET ACTIVE CHALLENGES
+ * =====================
+ *
+ * @route GET /api/zgrow/challenges
+ * @requires Authentication
+ *
+ * @returns {Array} challenges - List of active challenges
  */
+router.get("/challenges", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zgrow/challenges", {
+      userId: req.userId,
+    });
 
-// Get financial health score
-router.get("/health-score", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      score: 86.7,
-      level: "Excellent",
-      breakdown: {
-        savings: 90,
-        spending: 85,
-        investments: 80,
-        debt: 92,
-      },
-      nextMilestone: "Your next Milestone unlocks in 3 days",
-    },
-  });
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch challenges",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching challenges: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get savings challenges
-router.get("/challenges", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      activeChallenges: [
+/**
+ * GET CHALLENGES BY CATEGORY
+ * ==========================
+ *
+ * @route GET /api/zgrow/challenges/category/:category
+ * @requires Authentication
+ *
+ * @param {string} req.params.category - Category (SAVINGS, SPENDING, INVESTING)
+ *
+ * @returns {Array} challenges - List of challenges in category
+ */
+router.get(
+  "/challenges/category/:category",
+  authenticateToken,
+  async (req, res) => {
+    const { category } = req.params;
+
+    try {
+      const result = await apiClient.get(
+        `/api/zgrow/challenges/category/${category}`,
         {
-          id: "challenge_001",
-          name: "30-Day No Spend Challenge",
-          progress: 65,
-          reward: "GHS 50 bonus",
-          daysRemaining: 10,
+          userId: req.userId,
         },
+      );
+
+      if (result.data && result.data.success) {
+        return res.json({
+          success: true,
+          data: result.data.result,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message:
+            result.data?.message || "Failed to fetch challenges by category",
+        });
+      }
+    } catch (e) {
+      console.error("[NODE_JS] ERROR fetching challenges by category: ", e);
+      return res.status(500).json({ success: false, message: "Server Error!" });
+    }
+  },
+);
+
+/**
+ * JOIN A CHALLENGE
+ * ================
+ *
+ * @route POST /api/zgrow/challenges/:challengeId/join
+ * @requires Authentication
+ *
+ * @param {string} req.params.challengeId - Challenge ID to join
+ *
+ * @returns {Object} challenge - Updated challenge details
+ */
+router.post(
+  "/challenges/:challengeId/join",
+  authenticateToken,
+  async (req, res) => {
+    const { challengeId } = req.params;
+
+    try {
+      const result = await apiClient.post(
+        `/api/zgrow/challenges/${challengeId}/join`,
         {
-          id: "challenge_002",
-          name: "Save GHS 500 This Month",
-          progress: 80,
-          reward: "GHS 25 bonus",
-          daysRemaining: 5,
+          userId: req.userId,
         },
-      ],
-      completedChallenges: 12,
-    },
-  });
+      );
+
+      if (result.data && result.data.success) {
+        return res.json({
+          success: true,
+          data: result.data.result,
+          message: result.data.message,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: result.data?.message || "Failed to join challenge",
+        });
+      }
+    } catch (e) {
+      console.error("[NODE_JS] ERROR joining challenge: ", e);
+      return res.status(500).json({ success: false, message: "Server Error!" });
+    }
+  },
+);
+
+/**
+ * GET USER'S REWARDS
+ * ==================
+ *
+ * @route GET /api/zgrow/rewards
+ * @requires Authentication
+ *
+ * @returns {Object} rewards - User's rewards and points
+ */
+router.get("/rewards", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zgrow/rewards", {
+      userId: req.userId,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch rewards",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching rewards: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get rewards
-router.get("/rewards", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      points: 2500,
-      tier: "Gold",
-      availableRewards: [
-        { id: "reward_001", name: "GHS 10 Cashback", points: 1000 },
-        { id: "reward_002", name: "Free Transfer", points: 500 },
-        { id: "reward_003", name: "Premium Feature Unlock", points: 2000 },
-      ],
-    },
-  });
-});
+/**
+ * GET FINANCIAL LITERACY CONTENT
+ * ==============================
+ *
+ * @route GET /api/zgrow/literacy
+ * @requires Authentication
+ *
+ * @returns {Array} content - Financial literacy articles/videos
+ */
+router.get("/literacy", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zgrow/literacy", {
+      userId: req.userId,
+    });
 
-// Get finance literacy content
-router.get("/learn", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      videos: [
-        {
-          id: "video_001",
-          title: "Understanding Savings",
-          duration: "5 min",
-          category: "Basics",
-        },
-        {
-          id: "video_002",
-          title: "Investing for Beginners",
-          duration: "10 min",
-          category: "Investing",
-        },
-        {
-          id: "video_003",
-          title: "Budgeting Tips",
-          duration: "7 min",
-          category: "Budgeting",
-        },
-      ],
-      articles: [
-        { id: "article_001", title: "5 Ways to Save More", readTime: "3 min" },
-        { id: "article_002", title: "Crypto Basics", readTime: "8 min" },
-      ],
-    },
-  });
-});
-
-// Get milestones
-router.get("/milestones", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      milestones: [
-        {
-          id: "ms_001",
-          name: "First GHS 1,000 Saved",
-          achieved: true,
-          date: "2026-06-01",
-        },
-        {
-          id: "ms_002",
-          name: "First Investment",
-          achieved: true,
-          date: "2026-06-15",
-        },
-        {
-          id: "ms_003",
-          name: "GHS 5,000 Portfolio",
-          achieved: false,
-          progress: 74,
-        },
-        { id: "ms_004", name: "100 Day Streak", achieved: false, progress: 65 },
-      ],
-    },
-  });
-});
-
-// AI coach chat
-router.post("/ai-coach", (req, res) => {
-  const { message } = req.body;
-  res.json({
-    success: true,
-    data: {
-      response:
-        "Based on your spending patterns, I recommend setting aside 20% of your income for savings. You're currently at 15%.",
-      suggestions: [
-        "Set up automatic savings",
-        "Reduce dining out expenses",
-        "Consider micro-investments",
-      ],
-    },
-  });
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch literacy content",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching literacy content: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
 module.exports = router;

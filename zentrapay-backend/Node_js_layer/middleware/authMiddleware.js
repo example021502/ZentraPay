@@ -34,6 +34,7 @@ const authenticateToken = (req, res, next) => {
 
     // Attach decoded user info to request object safely
     req.userId = decoded.user_id;
+    req.email = decoded.email;
     next();
   });
 };

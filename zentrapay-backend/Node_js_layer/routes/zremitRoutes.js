@@ -1,108 +1,188 @@
 const express = require("express");
 const router = express.Router();
+const { authenticateToken } = require("../middleware/authMiddleware");
+const apiClient = require("../utils/apiClient");
+
+// ========================================================================
+// ZREMIT ROUTES - API DOCUMENTATION FOR FRONTEND
+// ========================================================================
+//
+// Base URL: /api/zremit
+//
+// ENDPOINTS:
+// 1. POST /api/zremit/send           - Send money (cross-border)
+// 2. GET  /api/zremit/history        - Get remittance history
+// 3. GET  /api/zremit/rates          - Get exchange rates
+// 4. GET  /api/zremit/supported      - Get supported countries/currencies
+// ========================================================================
 
 /**
- * ZRemit Routes
- * Instant cross-border transfers, smart currency conversion, pay bills
+ * SEND MONEY (CROSS-BORDER)
+ * =========================
+ *
+ * @route POST /api/zremit/send
+ * @requires Authentication
+ *
+ * @param {string} req.body.receiverId - Recipient user ID
+ * @param {number} req.body.amount - Amount to send
+ * @param {string} req.body.sourceCurrency - Source currency code
+ * @param {string} req.body.destinationCurrency - Destination currency code
+ * @param {string} req.body.channel - MOBILE_MONEY, BANK, CASH
+ * @param {string} req.body.recipientPhoneNumber - Recipient phone
+ * @param {string} req.body.recipientName - Recipient full name
+ *
+ * @returns {Object} remittance - Remittance details
  */
+router.post("/send", authenticateToken, async (req, res) => {
+  const {
+    receiverId,
+    amount,
+    sourceCurrency,
+    destinationCurrency,
+    channel,
+    recipientPhoneNumber,
+    recipientName,
+  } = req.body;
 
-// Get exchange rates
-router.get("/rates", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      rates: [
-        { from: "GHS", to: "USD", rate: 0.0115, inverse: 87.03 },
-        { from: "GHS", to: "EUR", rate: 0.0105, inverse: 95.12 },
-        { from: "GHS", to: "GBP", rate: 0.0091, inverse: 110.45 },
-        { from: "USD", to: "GHS", rate: 87.03, inverse: 0.0115 },
-        { from: "EUR", to: "GHS", rate: 95.12, inverse: 0.0105 },
-        { from: "GBP", to: "GHS", rate: 110.45, inverse: 0.0091 },
-      ],
-      lastUpdated: new Date().toISOString(),
-    },
-  });
-});
+  if (
+    !receiverId ||
+    !amount ||
+    !sourceCurrency ||
+    !destinationCurrency ||
+    !channel ||
+    !recipientPhoneNumber ||
+    !recipientName
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields for remittance",
+    });
+  }
 
-// Send money abroad
-router.post("/transfer", (req, res) => {
-  const { amount, fromCurrency, toCurrency, recipientId, recipientBank } =
-    req.body;
-  res.json({
-    success: true,
-    message: "Transfer initiated successfully",
-    data: {
-      transactionId: "zremit_txn_001",
+  try {
+    const result = await apiClient.post("/api/zremit/send", {
+      senderId: req.userId,
+      receiverId,
       amount,
-      fromCurrency,
-      toCurrency,
-      recipientId,
-      recipientBank,
-      exchangeRate: 87.03,
-      fee: "GHS 5.00",
-      estimatedDelivery: "2026-07-22T12:00:00Z",
-      status: "processing",
-    },
-  });
+      sourceCurrency,
+      destinationCurrency,
+      channel,
+      recipientPhoneNumber,
+      recipientName,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+        message: result.data.message,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Remittance failed",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR sending remittance: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get transfer history
-router.get("/transfers", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      transfers: [
-        {
-          id: "zremit_001",
-          recipient: "John Doe",
-          country: "Nigeria",
-          amount: "GHS 500.00",
-          receivedAmount: "NGN 5,750.00",
-          date: "2026-07-20",
-          status: "completed",
-        },
-        {
-          id: "zremit_002",
-          recipient: "Jane Smith",
-          country: "Kenya",
-          amount: "GHS 1,000.00",
-          receivedAmount: "KES 11,500.00",
-          date: "2026-07-18",
-          status: "completed",
-        },
-      ],
-    },
-  });
+/**
+ * GET REMITTANCE HISTORY
+ * ======================
+ *
+ * @route GET /api/zremit/history
+ * @requires Authentication
+ *
+ * @returns {Array} remittances - List of remittances
+ */
+router.get("/history", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zremit/history", {
+      userId: req.userId,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch remittance history",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching remittance history: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Get saved recipients
-router.get("/recipients", (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      recipients: [
-        { id: "rec_001", name: "John Doe", country: "Nigeria", bank: "GTBank" },
-        { id: "rec_002", name: "Jane Smith", country: "Kenya", bank: "KCB" },
-      ],
-    },
-  });
+/**
+ * GET EXCHANGE RATES
+ * ==================
+ *
+ * @route GET /api/zremit/rates
+ * @requires Authentication
+ *
+ * @returns {Object} rates - Exchange rates
+ */
+router.get("/rates", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zremit/rates", {
+      userId: req.userId,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch rates",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching rates: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
-// Pay international bills
-router.post("/bills/pay", (req, res) => {
-  const { billType, amount, currency, provider } = req.body;
-  res.json({
-    success: true,
-    message: "Bill payment processed",
-    data: {
-      transactionId: "bill_txn_001",
-      billType,
-      amount,
-      currency,
-      provider,
-      status: "completed",
-    },
-  });
+/**
+ * GET SUPPORTED COUNTRIES/CURRENCIES
+ * ==================================
+ *
+ * @route GET /api/zremit/supported
+ * @requires Authentication
+ *
+ * @returns {Object} supported - Supported countries and currencies
+ */
+router.get("/supported", authenticateToken, async (req, res) => {
+  try {
+    const result = await apiClient.get("/api/zremit/supported", {
+      userId: req.userId,
+    });
+
+    if (result.data && result.data.success) {
+      return res.json({
+        success: true,
+        data: result.data.result,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: result.data?.message || "Failed to fetch supported regions",
+      });
+    }
+  } catch (e) {
+    console.error("[NODE_JS] ERROR fetching supported regions: ", e);
+    return res.status(500).json({ success: false, message: "Server Error!" });
+  }
 });
 
 module.exports = router;

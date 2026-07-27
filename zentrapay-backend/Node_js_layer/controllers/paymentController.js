@@ -1,15 +1,52 @@
 /**
- * Payment Routes - Multi-Rail Payment API Endpoints
+ * Payment Controller - Multi-Rail Payment API Endpoints
  *
- * This module handles all payment-related API endpoints:
- * - Payment initialization
- * - Transaction verification
- * - Payment status checks
- * - Rail health monitoring
+ * This module handles ALL payment-related operations:
+ * - POST /api/payments/internal     - Internal wallet-to-wallet transfer
+ * - POST /api/payments/disbursement - External disbursement (national/international)
+ * - POST /api/payments/verify       - Verify transaction status
+ * - GET  /api/payments/status/:ref  - Get payment status
+ * - POST /api/payments/cancel       - Cancel pending transaction
+ * - POST /api/payments/refund       - Refund completed transaction
+ * - GET  /api/payments/history      - Get user transaction history
+ * - GET  /api/payments/:id          - Get transaction details
+ * - GET  /api/payments/rails        - Get available payment rails
+ * - GET  /api/payments/rails/:rail/currencies - Get supported currencies
  *
- * @description RESTful API for payment operations across all rails
- * @version 1.0.0
- * @author ZentraPay Team
+ * ============================================
+ * ARCHITECTURE OVERVIEW
+ * ============================================
+ *
+ * 1. Node.js Layer (Port 3000) - AUTHENTICATION & ORCHESTRATION
+ *    - Validates JWT tokens
+ *    - Extracts user context
+ *    - Forwards requests to Spring Boot
+ *    - Standardizes responses for frontend
+ *
+ * 2. Spring Boot Layer (Port 2000) - PAYMENT PROCESSING
+ *    - Validates request payload
+ *    - Selects optimal payment gateway
+ *    - Processes payment via Paystack/Onafriq/Flutterwave
+ *    - Records transaction atomically
+ *
+ * GATEWAY ROUTING (Handled by Spring Boot):
+ * - Ghanaian National (GHS)         → Paystack (primary) → Flutterwave (failover)
+ * - Other National (NGN, KES, etc)  → Paystack (primary) → Flutterwave (failover)
+ * - International                   → Onafriq (primary)   → Flutterwave (failover)
+ *
+ * ============================================
+ * REQUEST/RESPONSE FLOW
+ * ============================================
+ *
+ * Frontend → Node.js → Spring Boot → Payment Gateway
+ *           (Auth)     (Process)      (External API)
+ *
+ * All responses follow this standardized format:
+ * {
+ *   "success": true/false,
+ *   "result": { ... } | "data": { ... },
+ *   "message": "Human readable message"
+ * }
  */
 
 const express = require("express");
@@ -19,13 +56,24 @@ const PaymentRouter = require("../services/paymentRouter");
 const { authenticateToken } = require("../middleware/authMiddleware");
 
 // ============================================
-// Payment Initialization
+// PAYMENT INITIALIZATION
 // ============================================
 
 /**
  * @route   POST /api/payments/initiate
- * @desc    Initiate a new payment transaction
+ * @desc    Initiate a new payment transaction (for deposit/top-up)
  * @access  Private
+ *
+ * Request Body:
+ * {
+ *   "type": "deposit" | "withdrawal" | "transfer",
+ *   "amount": 1000.00,
+ *   "currency": "GHS",
+ *   "recipient": { ... },
+ *   "channel": "web" | "mobile" | "ussd",
+ *   "description": "Payment description",
+ *   "metadata": { ... }
+ * }
  */
 router.post("/initiate", authenticateToken, async (req, res) => {
   try {
@@ -119,6 +167,87 @@ router.post("/initiate", authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================
+// EXTERNAL DISBURSEMENT
+// ============================================
+
+/**
+ * @route   POST /api/payments/external
+ * @desc    Send money to external recipients (banks, mobile money)
+ * @access  Private
+ *
+ * Request Body:
+ * {
+ *   "amount": 10000.00,
+ *   "pin": "1234",
+ *   "recipient": {
+ *     "accountName": "John Doe",
+ *     "accountNumber": "0123456789",
+ *     "bankCode": "058",
+ *     "countryCode": "NG"
+ *   },
+ *   "paymentDetails": {
+ *     "sourceCurrency": "NGN",
+ *     "destinationCurrency": "NGN",
+ *     "isInternational": false,
+ *     "destinationType": "NUBAN",
+ *     "narration": "Payout"
+ *   }
+ * }
+ */
+router.post("/external", authenticateToken, async (req, res) => {
+  try {
+    const { amount, pin, recipient, paymentDetails } = req.body;
+
+    // Validate required fields
+    if (!amount || !pin || !recipient || !paymentDetails) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount, pin, recipient, and paymentDetails are required",
+      });
+    }
+
+    // Forward to Spring Boot backend
+    const response = await apiClient.post("/api/payments/disbursement", {
+      user_id: req.userId,
+      email: req.email,
+      pin: pin,
+      recipient: recipient,
+      paymentDetails: {
+        amount: amount,
+        sourceCurrency: paymentDetails.sourceCurrency || "NGN",
+        destinationCurrency:
+          paymentDetails.destinationCurrency || paymentDetails.sourceCurrency,
+        isInternational: paymentDetails.isInternational || false,
+        destinationType: paymentDetails.destinationType || "MOBILE_MONEY",
+        narration: paymentDetails.narration || "ZentraPay Disbursement",
+        reference:
+          paymentDetails.reference ||
+          "DISB-" + uuid.randomUUID().toString().substring(0, 8).toUpperCase(),
+      },
+    });
+
+    const result = response.data;
+
+    return res.status(200).json({
+      success: true,
+      result: result.data || result.paymentDetails,
+    });
+  } catch (error) {
+    console.error("[PaymentRoutes] External payment error:", error);
+    return res.status(500).json({
+      success: false,
+      message:
+        error.response?.data?.message || "Failed to process external payment",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+// ============================================
+// TRANSACTION VERIFICATION
+// ============================================
+
 /**
  * @route   POST /api/payments/verify
  * @desc    Verify payment transaction status
@@ -180,6 +309,10 @@ router.post("/verify", authenticateToken, async (req, res) => {
   }
 });
 
+// ============================================
+// PAYMENT STATUS
+// ============================================
+
 /**
  * @route   GET /api/payments/status/:reference
  * @desc    Get payment status by reference
@@ -236,7 +369,7 @@ router.get("/status/:reference", authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// Transaction Management
+// TRANSACTION MANAGEMENT
 // ============================================
 
 /**
@@ -311,7 +444,7 @@ router.post("/refund", authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// Transaction History
+// TRANSACTION HISTORY
 // ============================================
 
 /**
@@ -429,7 +562,7 @@ router.get("/:transactionId/history", authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// Rail Information
+// PAYMENT RAILS INFO
 // ============================================
 
 /**
@@ -488,7 +621,7 @@ router.get("/rails/:rail/currencies", async (req, res) => {
 });
 
 // ============================================
-// Statistics (Admin)
+// STATISTICS (Admin)
 // ============================================
 
 /**
