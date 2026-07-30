@@ -18,7 +18,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _full_nameController = TextEditingController();
+  final TextEditingController _first_nameController = TextEditingController();
+  final TextEditingController _last_nameController = TextEditingController();
   bool _isPhoneValid = false;
 
   Map<String, dynamic> contactForm = {"phone_number": "", "country": ""};
@@ -26,7 +27,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool isLoading = false;
 
   void register() async {
-    if (_full_nameController.text.trim() == "" ||
+    if (_first_nameController.text.trim() == "" ||
+        _last_nameController.text.trim() == "" ||
         _emailController.text.trim() == "" ||
         contactForm['phone_number'] == "") {
       return ZentraNotifier.error(
@@ -56,7 +58,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     final Map<String, dynamic> registrationForm = {
-      "full_name": _full_nameController.text.trim(),
+      "first_name": _first_nameController.text.trim(),
+      "last_name": _last_nameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
       "phone_number": contactForm['phone_number']!,
@@ -67,8 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       isLoading = true;
     });
-    final token = await SecureStorageService.getToken();
-    print("TOKEN:: $token");
 
     try {
       final res = await registerUser(registrationForm);
@@ -87,6 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final email = userData?['email'];
       final fullName = userData?['fullName'];
       final zentag = userData?['zentag'];
+      print("TOKEN IS:: $token");
 
       await SecureStorageService.saveToken(token);
 
@@ -246,9 +248,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             spacing: 16,
                             children: [
                               AuthTextField(
-                                label: "Full Name",
+                                label: "First Name",
                                 isPassword: false,
-                                controller: _full_nameController,
+                                controller: _first_nameController,
+                                isLoading: isLoading,
+                              ),
+                              AuthTextField(
+                                label: "Last Name",
+                                isPassword: false,
+                                controller: _last_nameController,
                                 isLoading: isLoading,
                               ),
                               AuthTextField(

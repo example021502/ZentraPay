@@ -43,7 +43,7 @@ Future<Map<String, dynamic>?> createCryptoAccount(
 Future<Map<String, dynamic>?> getAllBalances() async {
   try {
     final response = await dio.get('/api/accounts/balances/all');
-    debugPrint('REGISTER RESPONSE: ${response.data}');
+    debugPrint('ALL BALANCES RESPONSE: ${response.data}');
     if (response.data is Map) {
       return Map<String, dynamic>.from(response.data);
     }
@@ -51,6 +51,7 @@ Future<Map<String, dynamic>?> getAllBalances() async {
     print("ERROR:: ${e.response?.data['message']}");
     rethrow;
   }
+  return null;
 }
 
 // get Fiat balances ==================================
@@ -82,7 +83,9 @@ Future<Map<String, dynamic>?> getCryptoBalances() async {
 // getting recent outward payments =============================
 Future<Map<String, dynamic>?> getRecentPaymentsBills() async {
   try {
-    final Response response = await dio.get('/api/getRecentPaymentsBills');
+    final Response response = await dio.get(
+      '/api/history/getRecentPaymentsBills',
+    );
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
     debugPrint("ERROR:: ${e.response?.data["message"]}");
@@ -168,7 +171,7 @@ Future<Response<dynamic>?> getAccessCode(Map<String, dynamic> form) async {
   }
 }
 
-// GET ACCESS CODE FROM FLUTTER FOR PAYMENT POPUP =============================
+// GET SUPPORTED CURRENCIES FOR CREATING A NEW WALLET ACCOUNT =============================
 Future<Map<String, dynamic>?> getSupportedCurrencies() async {
   try {
     // Perform the API transaction request
@@ -178,6 +181,64 @@ Future<Map<String, dynamic>?> getSupportedCurrencies() async {
   } catch (e) {
     print("ERROR:: $e");
     // Catch-all block for completely unexpected runtime errors (e.g., formatting issues)
+    return {"success": false, "message": "Server is Offline"};
+  }
+}
+
+// GET ALL THE REGISTERED CARDS =============================
+Future<Map<String, dynamic>?> getVirtualCards() async {
+  try {
+    // Perform the API transaction request
+    final response = await dio.get('/api/cards/allCards');
+    print("THE RESULT FOR SUPPORTED ACCOUNTS:: ${response.data}");
+    return Map<String, dynamic>.from(response.data);
+  } catch (e) {
+    print("ERROR:: $e");
+    // Catch-all block for completely unexpected runtime errors (e.g., formatting issues)
+    return {"success": false, "message": "Server is Offline"};
+  }
+}
+
+// Explanation: The snippet contains mixed JavaScript/TypeScript syntax (`Promise.all`, `const`, destruction) inside a Dart function.
+// In Dart, we use `Future.wait` instead of `Promise.all`, and properly await individual Dio requests while safely handling responses.
+
+// GET ALL HOME DATA =============================
+Future<Map<String, dynamic>?> loadHomeData() async {
+  try {
+    // Explanation: Use Future.wait to execute all API requests concurrently in Dart.
+    final responses = await Future.wait([
+      dio.get('/api/cards/allCards'),
+      dio.get('/api/serviceProviders/allServiceProviders'),
+      dio.get('/api/bills/allBills'),
+      dio.get('/api/history/paymentsHistory'),
+    ]);
+
+    final allCards = responses[0].data;
+    final allServices = responses[1].data;
+    final allBills = responses[2].data;
+    final allPaymentHistory = responses[3].data;
+
+    final cards = allCards['data']?['cards'] ?? [];
+    final services = allServices['data']?['services'] ?? [];
+    final bills = allBills['data']?['bills'] ?? [];
+    final paymentHistory = allPaymentHistory['data']?['history'] ?? [];
+
+    print("THE HOME DATA LOADED SUCCESSFULLY");
+
+    // Return aggregated map containing all fetched home dashboard segments
+    return {
+      "success": true,
+      "message": "Home data fetched successfully",
+      "data": {
+        "cards": cards,
+        "services": services,
+        "bills": bills,
+        "history": paymentHistory,
+      },
+    };
+  } catch (e) {
+    print("ERROR:: $e");
+    // Catch-all block for completely unexpected runtime errors
     return {"success": false, "message": "Server is Offline"};
   }
 }

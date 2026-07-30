@@ -48,7 +48,6 @@ class ApiClient {
 
           // Comment: Fetch the active user's authorization session token asynchronously from secure storage
           String? token = await SecureStorageService.getToken();
-
           // Comment: Inject the JWT token into the headers if the user is authenticated
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';

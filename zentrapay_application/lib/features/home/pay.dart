@@ -71,11 +71,14 @@ class _PaySectionMainState extends State<PaySectionMain> {
           searchedContacts = List<Map<String, dynamic>>.from(
             response["contacts"] ?? [],
           );
-          isSearching = false;
         });
       } catch (e) {
         debugPrint("Search API Error: $e");
         if (mounted) setState(() => isSearching = false);
+      } finally {
+        setState(() {
+          isSearching = false;
+        });
       }
     });
   }
@@ -202,49 +205,35 @@ class _PaySectionMainState extends State<PaySectionMain> {
                         constraints: const BoxConstraints(
                           maxHeight: 250, // 💡 Hard ceiling cap rule context
                         ),
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppColors.lightGrey.withAlpha(20),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: searchedContacts.isNotEmpty
-                              ? SingleChildScrollView(
-                                  scrollDirection: Axis.vertical,
-                                  physics: const BouncingScrollPhysics(),
+                        child: searchedContacts.isNotEmpty
+                            ? SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                physics: const BouncingScrollPhysics(),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: searchedContacts
+                                      .map(
+                                        (contact) =>
+                                            _buildSearchedContactItem(contact),
+                                      )
+                                      .toList(),
+                                ),
+                              )
+                            : Center(
+                                child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                    horizontal: 10,
+                                    vertical: 12.0,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: searchedContacts
-                                        .map(
-                                          (contact) =>
-                                              _buildSearchedContactItem(
-                                                contact,
-                                              ),
-                                        )
-                                        .toList(),
-                                  ),
-                                )
-                              : Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12.0,
-                                    ),
-                                    child: Text(
-                                      isSearching
-                                          ? "Searching system records..."
-                                          : "No matches found",
-                                      style: AppStyles.text.copyWith(
-                                        color: Colors.grey,
-                                      ),
+                                  child: Text(
+                                    isSearching
+                                        ? "Searching system records..."
+                                        : "No matches found",
+                                    style: AppStyles.text.copyWith(
+                                      color: Colors.grey,
                                     ),
                                   ),
                                 ),
-                        ),
+                              ),
                       ),
                   ],
                 ),
@@ -384,7 +373,12 @@ class _PaySectionMainState extends State<PaySectionMain> {
       "recipient_id": contact['id'],
     };
 
+    final isAppUser = contact["userType"] == "app-user";
+    final isBillProvider = contact["userType"] == "billProvider";
+    final isFundingSource = contact["userType"] == "fundingSource";
+
     return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: () async {
           Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
@@ -410,50 +404,69 @@ class _PaySectionMainState extends State<PaySectionMain> {
           );
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 15.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
-                child: Icon(Icons.person, size: 30),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 0,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      contact["name"] ?? "N/A",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textBlack,
-                      ),
-                    ),
-
-                    Text(
-                      contact["type"] ?? "N/A",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w200,
-                        color: AppColors.textBlack,
-                      ),
-                    ),
-                  ],
+          margin: const EdgeInsets.only(bottom: 20.0),
+          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+          decoration: BoxDecoration(
+            color: AppColors.secondary.withAlpha(20),
+            borderRadius: BorderRadius.circular(200),
+          ),
+          child: Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+                  child: Icon(Icons.person, size: 30),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 0,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isAppUser
+                            ? contact["zentag"]
+                            : isBillProvider
+                            ? contact["billerName"]
+                            : isFundingSource
+                            ? contact["accountIdentifier"]
+                            : contact["name"] ?? "N/A",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textBlack,
+                        ),
+                      ),
+
+                      Text(
+                        isAppUser
+                            ? contact["phoneNumber"]
+                            : isBillProvider
+                            ? contact["category"]
+                            : isFundingSource
+                            ? contact["sourceName"]
+                            : contact["bankCode"] ?? "N/A",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w200,
+                          color: AppColors.textBlack,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

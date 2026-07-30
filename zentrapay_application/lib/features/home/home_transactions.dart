@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 
 class HomeTransactions extends StatelessWidget {
-  const HomeTransactions({super.key});
+  const HomeTransactions({super.key, required this.history});
+
+  // Stores the list of recent transactions passed from the parent widget
+  final List<Map<String, dynamic>> history;
 
   @override
   Widget build(BuildContext context) {
+    // Determine layout metrics based on whether the device is a tablet or phone
     final isTablet = MediaQuery.of(context).size.width >= 600;
     final horizontalPadding = isTablet ? 40.0 : 20.0;
     final titleFontSize = isTablet ? 20.0 : 16.0;
@@ -30,7 +34,7 @@ class HomeTransactions extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {
-                  // Navigate to full transaction history
+                  // TODO: Navigate to the full transaction history screen
                 },
                 child: Text(
                   "View All",
@@ -44,55 +48,49 @@ class HomeTransactions extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 15),
-          _item(
-            context,
-            "Send to John Willis",
-            "Today, 09:20",
-            "-GHS 140.00",
-            Icons.person_outline,
-            "transfer",
-            itemFontSize: itemFontSize,
-            subtitleFontSize: subtitleFontSize,
-            iconSize: iconSize,
-          ),
-          _item(
-            context,
-            "Received from Lucky",
-            "Today, 09:20",
-            "+GHS 140.00",
-            Icons.person_outline,
-            "receive",
-            itemFontSize: itemFontSize,
-            subtitleFontSize: subtitleFontSize,
-            iconSize: iconSize,
-          ),
-          _item(
-            context,
-            "Send to John Willis",
-            "Today, 09:20",
-            "-GHS 140.00",
-            Icons.flash_on_outlined,
-            "transfer",
-            itemFontSize: itemFontSize,
-            subtitleFontSize: subtitleFontSize,
-            iconSize: iconSize,
-          ),
-          _item(
-            context,
-            "Paid goods to O.K Market",
-            "Today, 09:20",
-            "-GHS 140.00",
-            Icons.shopping_cart_outlined,
-            "payment",
-            itemFontSize: itemFontSize,
-            subtitleFontSize: subtitleFontSize,
-            iconSize: iconSize,
-          ),
+          // FIX: Invert the check. history.isEmpty shows "No history", history.isNotEmpty renders the list.
+          history.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20.0),
+                    child: Text(
+                      "No history",
+                      style: TextStyle(
+                        color: AppColors.lightGrey,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                )
+              : SizedBox(
+                  // FIX: Removed invalid Expanded inside ConstrainedBox. Using SizedBox with maxHeight handles layout safely inside columns.
+                  height: 250,
+                  child: ListView.builder(
+                    scrollDirection: Axis.vertical,
+                    itemCount: history.length,
+                    itemBuilder: (BuildContext context, int i) {
+                      final item = history[i];
+                      return _item(
+                        context,
+                        item["title"] ?? "Transaction",
+                        item["time"] ?? "Today",
+                        item["amount"] ?? "GHS 0.00",
+                        item["icon"] ?? Icons.receipt_long,
+                        item["type"] ?? "payment",
+                        itemFontSize: itemFontSize,
+                        subtitleFontSize: subtitleFontSize,
+                        iconSize: iconSize,
+                      );
+                    },
+                  ),
+                ),
         ],
       ),
     );
   }
 
+  // Renders an individual transaction tile row
   Widget _item(
     BuildContext context,
     String title,
@@ -132,6 +130,7 @@ class HomeTransactions extends StatelessWidget {
     ),
   );
 
+  // Displays a bottom sheet modal showing breakdown metrics for a selected transaction
   void _showTransactionDetails(
     BuildContext context,
     String title,
@@ -205,6 +204,7 @@ class HomeTransactions extends StatelessWidget {
     );
   }
 
+  // Helper widget to structure label-value metrics inside the transaction detail sheet
   Widget _buildDetailItem(String label, String value) {
     return Column(
       children: [

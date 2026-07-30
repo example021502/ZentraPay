@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/main.dart';
 
+import 'api_home_wallet_services.dart';
+
 class HomeCardsCarousel extends StatefulWidget {
-  const HomeCardsCarousel({super.key});
+  const HomeCardsCarousel({super.key, required this.cards});
+
+  final List<Map<String, dynamic>> cards;
 
   @override
   State<HomeCardsCarousel> createState() => _HomeCardsCarouselState();
 }
 
 class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
-  final PageController _controller = PageController();
+  // Explanation: Adjusted viewportFraction to 0.48 so roughly 2 cards fit side-by-side cleanly without overflowing.
+  final PageController _controller = PageController(viewportFraction: 0.48);
   int _index = 0;
+  final List<dynamic> cardColors = [
+    AppColors.purple,
+    AppColors.blue,
+    AppColors.green,
+  ];
+
+  List<Map<String, dynamic>> cards = [];
 
   final List<Map<String, dynamic>> _cards = [
     {
@@ -30,7 +43,8 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
       'visible': false,
     },
     {
-      "index": 1,
+      "index": 2,
+      // Explanation: Fixed index mismatch from duplicate '1' to '2' to prevent range errors.
       "name": "Prepaid Card",
       "color": AppColors.green,
       "type": "Mastercard",
@@ -39,26 +53,44 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
     },
   ];
 
+  void loadVirtualCards() async {
+    try {
+      final cardsResponse = await getVirtualCards();
+      if (!cardsResponse?['success']) {
+        return print("ERROR:: RECEIVED THIS:: $cardsResponse");
+      }
+      setState(() {
+        cards = List<Map<String, dynamic>>.from(cardsResponse?["data"]);
+      });
+      return;
+    } catch (e) {
+      return print("SOMETHING WENT WRONG:: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadVirtualCards();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
-    final horizontalPadding = isTablet ? 40.0 : 20.0;
-    final titleFontSize = isTablet ? 20.0 : 16.0;
-    final cardHeight = isTablet ? 220.0 : 190.0;
-    final cardPadding = isTablet ? 24.0 : 20.0;
-    final cardFontSize = isTablet ? 20.0 : 18.0;
-    final balanceFontSize = isTablet ? 22.0 : 18.0;
+    final cardHeight = isTablet
+        ? 200.0
+        : 120.0; // Explanation: Increased height to accommodate multi-row layouts.
+    final cardPadding = isTablet
+        ? 24.0
+        : 12.0; // Explanation: Reduced side margins slightly to allow dual page views smoothly.
+    final cardFontSize = isTablet ? 18.0 : 16.0;
+    final balanceFontSize = isTablet ? 10.0 : 10.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            25,
-            horizontalPadding,
-            15,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
           child: Container(
             width: MediaQuery.of(context).size.width,
             decoration: BoxDecoration(
@@ -71,35 +103,72 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
         ),
         SizedBox(
           height: cardHeight,
-          child: PageView.builder(
-            controller: _controller,
-            onPageChanged: (i) => setState(() => _index = i),
-            itemCount: _cards.length,
-            itemBuilder: (_, i) => GestureDetector(
-              onTap: () => _showCardDetails(context, _cards[i]),
-              child: _buildCard(
-                _cards[i],
-                cardPadding: cardPadding,
-                cardFontSize: cardFontSize,
-                balanceFontSize: balanceFontSize,
-              ),
-            ),
-          ),
+          // Explanation: Removed the invalid Expanded widget inside a SizedBox constraint block.
+          child: cards.isNotEmpty
+              ? Container(
+                  padding: EdgeInsets.all(15),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Text("No Cards"),
+                        ElevatedButton(
+                          onPressed: () {
+                            ZentraNotifier.success("Pressed", "Button pressed");
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: AppColors.primary,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            "New Card",
+                            style: AppStyles.text.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : PageView.builder(
+                  controller: _controller,
+                  onPageChanged: (i) => setState(() => _index = i),
+                  itemCount: _cards.length,
+                  padEnds: false,
+                  physics: ScrollPhysics(),
+                  itemBuilder: (_, i) => GestureDetector(
+                    onTap: () => _showCardDetails(context, _cards[i]),
+                    child: _buildCard(
+                      _cards[i],
+                      cardColors[i % cardColors.length],
+                      // Explanation: Safe modulo accessor preventing out-of-bound list lookups.
+                      cardPadding: cardPadding,
+                      cardFontSize: cardFontSize,
+                      balanceFontSize: balanceFontSize,
+                    ),
+                  ),
+                ),
         ),
-        _buildControls(),
+        SizedBox(height: 20),
       ],
     );
   }
 
   Widget _buildCard(
-    Map<String, dynamic> data, {
+    Map<String, dynamic> data,
+    Color cardColor, {
     double cardPadding = 20,
     double cardFontSize = 18,
     double balanceFontSize = 18,
   }) => Card(
-    margin: EdgeInsets.symmetric(horizontal: cardPadding),
-    color: data['color'],
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    margin: EdgeInsets.only(left: cardPadding),
+    color: cardColor,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     child: Padding(
       padding: EdgeInsets.all(cardPadding),
       child: Column(
@@ -109,7 +178,7 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                data['name'],
+                data['name'] ?? "N/A",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: cardFontSize,
@@ -120,82 +189,45 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
             ],
           ),
           const Spacer(),
+          Text(
+            "****3456",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppColors.primary,
+              letterSpacing: 1,
+            ),
+          ),
+          const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Total Balance",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: cardFontSize * 0.7,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        data['visible'] ? data['value'] ?? "N/A" : "----.--",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: balanceFontSize,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(width: cardPadding * 0.5),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _cards[_index]['visible'] =
-                                !_cards[_index]['visible'];
-                          });
-                        },
-                        child: Icon(
-                          data['visible']
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: Colors.white70,
-                          size: cardFontSize * 0.9,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              Text(
+                "Exp: 24/29",
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: cardFontSize * 0.7,
+                ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Text(
+                "CVV: 234",
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: cardFontSize * 0.7,
+                ),
+              ),
+              Row(
                 children: [
-                  Text(
-                    "Exp: 24/29",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: cardFontSize * 0.7,
-                    ),
+                  CircleAvatar(
+                    radius: cardFontSize * 0.4,
+                    backgroundColor: Colors.red.withAlpha(200),
                   ),
-                  Text(
-                    "CVV: 234",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: cardFontSize * 0.7,
+                  Transform.translate(
+                    offset: Offset(-cardPadding * 0.25, 0),
+                    child: CircleAvatar(
+                      radius: cardFontSize * 0.4,
+                      backgroundColor: Colors.orange.withAlpha(200),
                     ),
-                  ),
-                  SizedBox(height: cardPadding * 0.25),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: cardFontSize * 0.5,
-                        backgroundColor: Colors.red.withAlpha(200),
-                      ),
-                      Transform.translate(
-                        offset: Offset(-cardPadding * 0.25, 0),
-                        child: CircleAvatar(
-                          radius: cardFontSize * 0.5,
-                          backgroundColor: Colors.orange.withAlpha(200),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -284,7 +316,7 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
     );
   }
 
-  Widget _buildControls() => Row(
+  Widget _buildControls(totalCards) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       IconButton(

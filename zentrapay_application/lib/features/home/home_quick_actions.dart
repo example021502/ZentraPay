@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
+import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'package:zentrapay_application/features/home/pay.dart';
 import 'package:zentrapay_application/main.dart';
 
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import 'history.dart';
 
 /// Home Quick Actions Widget
@@ -119,76 +119,78 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
-    final horizontalPadding = isTablet ? 40.0 : 15.0;
     final iconSize = isTablet ? 28.0 : 22.0;
     final avatarRadius = isTablet ? 32.0 : 26.0;
     final fontSize = isTablet ? 14.0 : 12.0;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 10,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 5,
-        children: [
-          Container(
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AppColors.lightGrey.withAlpha(50)),
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 15, vertical: 20),
+      color: AppColors.primary,
+      elevation: 4,
+      shadowColor: AppColors.textBlack.withAlpha(40),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 5,
+          children: [
+            Container(
+              width: MediaQuery.of(context).size.width,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.lightGrey.withAlpha(50)),
+                ),
               ),
+              child: Text("Quick Actions", style: AppStyles.header),
             ),
-            child: Text("Quick Actions", style: AppStyles.header),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            spacing: 20,
-            children: [
-              _action(
-                context,
-                Icons.nfc,
-                "NFC Pay",
-                () => _onNFCAction(context),
-                iconSize: iconSize,
-                avatarRadius: avatarRadius,
-                fontSize: fontSize,
-              ),
-              _action(
-                context,
-                Icons.send,
-                "Send",
-                () => _onPayAction(context),
-                iconSize: iconSize,
-                avatarRadius: avatarRadius,
-                fontSize: fontSize,
-              ),
-              _action(
-                context,
-                Icons.account_balance,
-                "Receive",
-                () => _onReceiveAction(context),
-                iconSize: iconSize,
-                avatarRadius: avatarRadius,
-                fontSize: fontSize,
-              ),
-              _action(
-                context,
-                Icons.history,
-                "History",
-                () => _onHistoryAction(context),
-                iconSize: iconSize,
-                avatarRadius: avatarRadius,
-                fontSize: fontSize,
-              ),
-            ],
-          ),
-          SizedBox(height: 6),
-        ],
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              spacing: 20,
+              children: [
+                _action(
+                  context,
+                  Icons.nfc,
+                  "NFC Pay",
+                  () => _onNFCAction(context),
+                  iconSize: iconSize,
+                  avatarRadius: avatarRadius,
+                  fontSize: fontSize,
+                ),
+                _action(
+                  context,
+                  Icons.send,
+                  "Send",
+                  () => _onPayAction(context),
+                  iconSize: iconSize,
+                  avatarRadius: avatarRadius,
+                  fontSize: fontSize,
+                ),
+                _action(
+                  context,
+                  Icons.account_balance,
+                  "Receive",
+                  () => _onReceiveAction(context),
+                  iconSize: iconSize,
+                  avatarRadius: avatarRadius,
+                  fontSize: fontSize,
+                ),
+                _action(
+                  context,
+                  Icons.history,
+                  "History",
+                  () => _onHistoryAction(context),
+                  iconSize: iconSize,
+                  avatarRadius: avatarRadius,
+                  fontSize: fontSize,
+                ),
+              ],
+            ),
+            SizedBox(height: 6),
+          ],
+        ),
       ),
     );
   }

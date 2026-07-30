@@ -3,9 +3,9 @@ import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/home/home_wallet_main.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
-import 'package:zentrapay_application/features/payments/zremit_screen.dart';
-import 'package:zentrapay_application/features/payments/zgrow_screen.dart';
-import 'package:zentrapay_application/features/wallet/zbanking_screen.dart';
+import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
+import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
+import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
 
 class ResponsiveNavigation extends StatefulWidget {

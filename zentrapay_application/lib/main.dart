@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Secure storage package for sensitive tokens
 import 'package:privy_flutter/privy_flutter.dart'
     as privy_sdk; // Official Privy Flutter SDK package
 import 'package:toastification/toastification.dart'; // Notification package for toast alerts
@@ -98,9 +97,6 @@ class AppStyles {
 // Root application widget setting up routing, wrapping alerts, and configuring initialization targets
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
-
-  // Global static instance of storage so your login screen can write tokens to it easily
-  static const secureStorage = FlutterSecureStorage();
 
   @override
   Widget build(BuildContext context) {

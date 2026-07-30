@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 
+import 'api_home_wallet_services.dart';
 import 'home_cards_carousel.dart';
 import 'home_header.dart';
 import 'home_quick_actions.dart';
@@ -15,8 +16,36 @@ class HomeWalletMain extends StatefulWidget {
 }
 
 class _HomeWalletMainState extends State<HomeWalletMain> {
-  final PageController _controller = PageController();
-  final int _index = 0;
+  List<Map<String, dynamic>> cards = [];
+  List<Map<String, dynamic>> bills = [];
+  List<Map<String, dynamic>> services = [];
+  List<Map<String, dynamic>> history = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
+
+  void loadData() async {
+    if (!mounted) return;
+    // setState(() => isLoading = true);
+
+    try {
+      final response = await loadHomeData();
+      setState(() {
+        cards = List<Map<String, dynamic>>.from(response?['cards']);
+        bills = List<Map<String, dynamic>>.from(response?['bills']);
+        services = List<Map<String, dynamic>>.from(response?['services']);
+        history = List<Map<String, dynamic>>.from(response?['history']);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint("$e");
+    } finally {
+      // setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +73,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         color: AppColors.primary,
         width: MediaQuery.of(context).size.width,
         child: Column(
+          spacing: 20,
           children: [
             HomeHeader(
               key: ValueKey("fiat_balances"),
@@ -68,9 +98,9 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         child: Column(
           children: [
             const HomeQuickActions(),
-            const HomeCardsCarousel(),
-            const HomeServicesGrid(),
-            const HomeTransactions(),
+            HomeCardsCarousel(cards: cards),
+            HomeServicesGrid(services: services, bills: bills),
+            HomeTransactions(history: history),
             if (!isTablet)
               const SizedBox(
                 height: 120,

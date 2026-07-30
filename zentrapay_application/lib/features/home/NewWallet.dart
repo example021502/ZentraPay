@@ -19,7 +19,7 @@ class CustomInputDialog extends StatefulWidget {
 
   final String type;
   final VoidCallback refresh;
-  final List<dynamic> currencies;
+  final List<String> currencies;
 
   @override
   State<CustomInputDialog> createState() => _CustomInputDialogState();
@@ -34,8 +34,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
   final Map<String, dynamic> newFiatAccount = {
     "fiat_currency": "GHS",
     "fiat_name": "Ghanaian Cedi",
-    "fiat_iso_code": "GH",
   };
+  String fiat_iso_code = "GH";
   final Map<String, dynamic> newCryptoAccount = {
     "crypto_currency": "btc",
     "crypto_name": "Bitcoin",
@@ -44,10 +44,12 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
   };
 
   bool isLoading = false;
+  late List<String> _currencies;
 
   @override
   void initState() {
     _type = widget.type;
+    _currencies = widget.currencies;
     super.initState();
   }
 
@@ -125,10 +127,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
           controller: _fiatAccountNameController,
           decoration: InputDecoration(
             label: const Text("Account Name"),
-            hint: Text(
-              "eg. GHS Account",
-              style: AppStyles.text.copyWith(color: AppColors.lightGrey),
-            ),
+            hintText: "eg. GHS Account",
+            hintStyle: AppStyles.text.copyWith(color: AppColors.lightGrey),
             border: OutlineInputBorder(
               borderSide: BorderSide(
                 color: AppColors.lightGrey.withAlpha(50),
@@ -163,10 +163,9 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                 showFlag: true,
                 showCurrencyName: true,
                 showCurrencyCode: true,
+                currencyFilter: _currencies,
                 theme: CurrencyPickerThemeData(
-                  // Restricting the maximum height of the bottom sheet to exactly half the viewport height
-                  bottomSheetHeight: MediaQuery.sizeOf(context).height * 0.5,
-
+                  bottomSheetHeight: MediaQuery.of(context).size.height * 0.5,
                   shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.vertical(
                       top: Radius.circular(20),
@@ -179,7 +178,7 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                   setState(() {
                     newFiatAccount["fiat_currency"] = currency.code;
                     newFiatAccount["fiat_name"] = currency.name;
-                    newFiatAccount["fiat_iso_code"] = isoCode;
+                    fiat_iso_code = isoCode;
                   });
                 },
               ),
@@ -200,7 +199,7 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                         borderRadius: BorderRadius.circular(200),
                       ),
                       child: CountryFlag.fromCountryCode(
-                        newFiatAccount["fiat_iso_code"] ?? "GH",
+                        fiat_iso_code,
                         shape: const Circle(),
                         width: 40,
                         height: 40,
@@ -262,7 +261,6 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                       final fiatForm = {
                         "accountName": _fiatAccountNameController.text.trim(),
                         "currency": newFiatAccount['fiat_currency'],
-                        "isoCode": newFiatAccount['fiat_iso_code'],
                       };
                       print(fiatForm);
                       try {
@@ -281,9 +279,11 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                           response?['message'] ??
                               "Account created Successfully!",
                         );
+                        final account = response?["data"];
+                        print("THE ACCOUNT IS:: account");
                         Future.delayed(
                           const Duration(seconds: 2),
-                          () => Navigator.pop(context),
+                          () => Navigator.pop(account),
                         );
                       } catch (e) {
                         debugPrint("ERROR:: $e");
@@ -326,10 +326,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
           controller: _cryptoAccountNameController,
           decoration: InputDecoration(
             label: const Text("Account Name"),
-            hint: Text(
-              "eg. BTC Account",
-              style: AppStyles.text.copyWith(color: AppColors.lightGrey),
-            ),
+            hintText: "eg. BTC Account",
+            hintStyle: AppStyles.text.copyWith(color: AppColors.lightGrey),
             border: OutlineInputBorder(
               borderSide: BorderSide(
                 color: AppColors.lightGrey.withAlpha(50),
@@ -415,7 +413,6 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                 ),
               ),
             ),
-
             InkWell(
               splashColor: AppColors.secondary.withAlpha(30),
               highlightColor: Colors.transparent,
@@ -561,7 +558,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
                         onTap: () {
                           setState(() {
                             newCryptoAccount['crypto_name'] = coin['name'];
-                            newCryptoAccount['crypto_code'] = coin['symbol'];
+                            newCryptoAccount['crypto_currency'] =
+                                coin['symbol'];
                             newCryptoAccount['crypto_iso_code'] = coin['image'];
                           });
                           Navigator.pop(context);

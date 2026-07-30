@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+
 import 'app_theme.dart';
 
 /// ============================================================
@@ -34,11 +35,14 @@ class FeatureScreenHeader extends StatelessWidget {
     final subtitleFontSize = isTablet ? 16.0 : 14.0;
 
     return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: BoxBorder.all(color: AppColors.secondary, width: 2),
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: AppTheme.spacingLg,
       ),
-      color: backgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
