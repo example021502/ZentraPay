@@ -1,0 +1,32 @@
+Starting a Gradle Daemon, 5 busy and 1 incompatible and 10 stopped Daemons could not be reused, use --status for details
+
+> Task :compileJava
+C:\Zentrapay_Workspace\zentrapay-backend\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\payments\paystack\PaystackClient.java:8: error: cannot find symbol
+import tools.jackson.core.JsonProcessingException;
+                         ^
+  symbol:   class JsonProcessingException
+  location: package tools.jackson.core
+1 error
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/Zentrapay_Workspace/zentrapay-backend/zentrapay_spring_boot_layer/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava' (registered by plugin class 'org.gradle.api.plugins.JavaBasePlugin').
+> Compilation failed; see the compiler output below.
+  C:\Zentrapay_Workspace\zentrapay-backend\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\payments\paystack\PaystackClient.java:8: error: cannot find symbol
+  import tools.jackson.core.JsonProcessingException;
+                           ^
+    symbol:   class JsonProcessingException
+    location: package tools.jackson.core
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 1m 31s
+1 actionable task: 1 executed
