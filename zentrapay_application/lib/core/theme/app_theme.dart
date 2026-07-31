@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/main.dart';
 
 /// Centralized theme configuration for Zentrapay application.
 /// All feature screens should use these styles for consistency.
@@ -10,7 +9,10 @@ class AppTheme {
   static const Color primaryPink = Color(0xFFF21773);
   static const Color primaryWhite = Color(0xFFFFFFFF);
   static const Color secondaryNavy = Color(0xFF210163);
-  static const Color textBlack = Color(0xFF000000);
+  // Near-black rather than pure black — softer, more modern text color.
+  // Kept under the existing name so every AppTheme.textBlack /
+  // AppColors.textBlack reference across the app benefits automatically.
+  static const Color textBlack = Color(0xFF111827);
   static const Color accentPurple = Color(0xFF661E98);
   static const Color accentBlue = Color(0xFF396FD4);
   static const Color successGreen = Color(0xFF06881C);
@@ -18,6 +20,18 @@ class AppTheme {
   static const Color lightGrey = Color(0x80808080);
   static const Color cardBackground = Color(0xFFF8F9FA);
   static const Color dividerColor = Color(0xFFE0E0E0);
+
+  // Semantic colors
+  static const Color errorRed = Color(0xFFD92D20);
+  static const Color infoBlue = accentBlue;
+
+  // Neutral gray scale — text hierarchy, borders, surfaces
+  static const Color gray900 = Color(0xFF111827);
+  static const Color gray700 = Color(0xFF374151);
+  static const Color gray500 = Color(0xFF6B7280);
+  static const Color gray300 = Color(0xFFD1D5DB);
+  static const Color gray100 = Color(0xFFF3F4F6);
+  static const Color gray50 = Color(0xFFF9FAFB);
 
   // Feature-specific accent colors
   static const Color zpayColor = Color(0xFFF21773);

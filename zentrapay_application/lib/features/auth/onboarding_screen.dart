@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/auth/onboarding_page_widget.dart';
 import 'package:zentrapay_application/features/auth/onboarding_data.dart';
@@ -44,8 +45,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(40),
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        boxShadow: AppTheme.cardShadow,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

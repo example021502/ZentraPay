@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:intl_phone_field/countries.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
-import 'package:zentrapay_application/features/auth/SetPinDialog.dart';
+import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 import 'package:zentrapay_application/features/auth/api_auth_services.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
@@ -51,10 +52,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return ZentraNotifier.error("Invalid value", "Email is invalid");
     }
 
-    String? PIN = await showDialog(
+    String? PIN = await showModalBottomSheet<String>(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => SetPinDialog(pinLength: 4),
+      isScrollControlled: true,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) => const AppPinSheet.set(pinLength: 4),
     );
 
     final Map<String, dynamic> registrationForm = {
@@ -202,9 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Elegant logo
-                      Image.network(
-                        'https://i.ibb.co/tjHXt0D/home-page-image.jpg',
-                      ),
+                      Image.asset('images/home_page_image.jpg'),
                       const SizedBox(height: 10),
                       Text(
                         "Create Account",
@@ -234,13 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.primary.withAlpha(242),
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.secondary.withAlpha(51),
-                              blurRadius: 30,
-                              offset: const Offset(0, 15),
-                            ),
-                          ],
+                          boxShadow: AppTheme.elevatedShadow,
                         ),
                         child: Padding(
                           padding: EdgeInsets.all(isTablet ? 30 : 25),
@@ -350,13 +345,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             decoration: BoxDecoration(
                               color: AppColors.secondary,
                               borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.textBlack.withAlpha(30),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 0),
-                                ),
-                              ],
+                              boxShadow: AppTheme.cardShadow,
                             ),
                             child: Center(
                               child: isLoading

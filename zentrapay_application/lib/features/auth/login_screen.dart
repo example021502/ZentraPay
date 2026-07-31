@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/auth/login_form.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -38,9 +39,7 @@ class LoginScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Elegant logo container with shadow
-                      Image.network(
-                        'https://i.ibb.co/tjHXt0D/home-page-image.jpg',
-                      ),
+                      Image.asset('images/home_page_image.jpg'),
                       const SizedBox(height: 10),
                       // Welcome text with elegant styling
                       Text(
@@ -70,13 +69,7 @@ class LoginScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.secondary.withAlpha(50),
-                              blurRadius: 30,
-                              offset: const Offset(0, 15),
-                            ),
-                          ],
+                          boxShadow: AppTheme.elevatedShadow,
                         ),
                         child: const LoginForm(),
                       ),

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
 
 final dio = ApiClient().dio;
 
@@ -116,17 +117,49 @@ Future<Map<String, dynamic>> getBillProviders() async {
   }
 }
 
-// national transaction =============================
-Future<Map<String, dynamic>?> makeTransfer(Map<String, dynamic> form) async {
+// wallet-to-wallet transfer to another ZentraPay app user =============================
+// Only app-user recipients are supported today: Spring Boot's
+// /api/payments/internal only handles wallet-to-wallet transfers. Bill
+// providers and funding sources need dedicated disbursement/bill-pay
+// endpoints that don't exist yet, so we refuse rather than guess a mapping
+// for those.
+Future<Map<String, dynamic>?> makeTransfer(
+  Map<String, dynamic> form,
+  String pin,
+) async {
+  if (form['recipientType'] != 'app-user') {
+    return {
+      'success': false,
+      'message': 'Sending to this recipient type is not yet supported.',
+    };
+  }
+
+  final senderId = SecureStorageService.getUserId();
+  if (senderId == null) {
+    return {'success': false, 'message': 'Not signed in.'};
+  }
+
+  final payload = {
+    'userId': senderId,
+    'PIN': pin,
+    'recipient': {
+      'phoneNumber': form['phoneNumber'],
+      'zentag': form['zentag'],
+    },
+    'paymentDetails': {
+      'amount': double.tryParse(form['amount'].toString()) ?? 0,
+      'currencyCode': form['currency_code'],
+    },
+  };
+
   try {
-    print("THE PAYMENT FORM:: $form");
-    // Perform the API transaction request
-    final response = await dio.post('/api/payments/initiate', data: form);
-    // Comment: Returns the successful response back to the caller component
+    final response = await dio.post('/api/payments/internal', data: payload);
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
-    debugPrint("ERROR:: ${e.response?.data["message"]}");
-    rethrow;
+    return {
+      'success': false,
+      'message': e.response?.data?['message'] ?? 'Transfer failed.',
+    };
   }
 }
 

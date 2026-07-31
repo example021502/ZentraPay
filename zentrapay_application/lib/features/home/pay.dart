@@ -1,8 +1,9 @@
 import 'dart:async'; // 💡 Required for Timer (Debouncing)
 
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
-import 'package:zentrapay_application/core/utils/Common/EnterPIN.dart';
+import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 import "package:zentrapay_application/main.dart";
 
@@ -28,13 +29,18 @@ class _PaySectionMainState extends State<PaySectionMain> {
     try {
       final payments = await getRecentPaymentsBills();
       debugPrint("The payments: $payments");
-      if (!payments?["success"]) {
+      if (payments?["success"] != true) {
         return;
       }
       if (!mounted) return;
       setState(() {
-        paymentsHistory = [...payments?['transactions']];
-        bills = payments?["bills"] ?? [];
+        paymentsHistory = List<Map<String, dynamic>>.from(
+          payments?['data']?['history'] ?? [],
+        );
+        // No backend for a user's outstanding bills exists yet — the unified
+        // bill-providers catalog is a directory of billers, not a per-user
+        // bill list — so this stays empty until that's built.
+        bills = [];
       });
     } catch (e) {
       debugPrint("Payment Error: $e");
@@ -63,14 +69,29 @@ class _PaySectionMainState extends State<PaySectionMain> {
       try {
         final response = await searchContacts(query);
         print("The searched contacts are: $response");
-        if (!response["success"]) {
+        if (response["success"] != true) {
           return;
         }
 
+        // Spring Boot returns three separate lists keyed by recipient type,
+        // not one flat "contacts" array — flatten them here and tag each
+        // entry with a normalized recipientType so downstream code doesn't
+        // need to know the per-type field names.
+        final data = response["data"] ?? {};
+        final List<Map<String, dynamic>> flattened = [
+          ...List<Map<String, dynamic>>.from(
+            data["appUsers"] ?? [],
+          ).map((c) => {...c, "recipientType": "app-user"}),
+          ...List<Map<String, dynamic>>.from(
+            data["billProviders"] ?? [],
+          ).map((c) => {...c, "recipientType": "billProvider"}),
+          ...List<Map<String, dynamic>>.from(
+            data["fundingSources"] ?? [],
+          ).map((c) => {...c, "recipientType": "fundingSource"}),
+        ];
+
         setState(() {
-          searchedContacts = List<Map<String, dynamic>>.from(
-            response["contacts"] ?? [],
-          );
+          searchedContacts = flattened;
         });
       } catch (e) {
         debugPrint("Search API Error: $e");
@@ -365,17 +386,26 @@ class _PaySectionMainState extends State<PaySectionMain> {
 
   // searched contacts ===============
   Widget _buildSearchedContactItem(Map<String, dynamic> contact) {
+    final isAppUser = contact["recipientType"] == "app-user";
+    final isBillProvider = contact["recipientType"] == "billProvider";
+    final isFundingSource = contact["recipientType"] == "fundingSource";
+
+    // Only app-user recipients carry the phoneNumber/zentag identifiers
+    // /api/payments/internal needs. Bill-provider and funding-source
+    // payments have no real backend yet (see makeTransfer), so their
+    // paymentForm intentionally omits fields that would suggest otherwise.
     Map<String, dynamic> paymentForm = {
       "amount": "",
       "currency_code": "",
-      "name": contact['name'],
-      "type": contact['type'],
-      "recipient_id": contact['id'],
+      "name": isAppUser
+          ? contact['fullName']
+          : isBillProvider
+          ? contact['billerName']
+          : contact['sourceName'],
+      "recipientType": contact['recipientType'],
+      if (isAppUser) "phoneNumber": contact['phoneNumber'],
+      if (isAppUser) "zentag": contact['zentag'],
     };
-
-    final isAppUser = contact["userType"] == "app-user";
-    final isBillProvider = contact["userType"] == "billProvider";
-    final isFundingSource = contact["userType"] == "fundingSource";
 
     return Material(
       color: Colors.transparent,
@@ -385,7 +415,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
             context: context,
             barrierDismissible: false,
             builder: (BuildContext context) =>
-                EnterAmount(recipient: contact["name"] ?? "N/A"),
+                EnterAmount(recipient: paymentForm["name"] ?? "N/A"),
           );
 
           if (!mounted) return;
@@ -396,11 +426,21 @@ class _PaySectionMainState extends State<PaySectionMain> {
           });
           if (!mounted) return;
 
+          if (!isAppUser) {
+            return ZentraNotifier.error(
+              "Not Supported",
+              "Sending to this recipient type is not yet supported.",
+            );
+          }
+
           // confirm PIN
-          await showDialog(
+          await showModalBottomSheet(
             context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) => ConfirmPin(form: paymentForm),
+            isScrollControlled: true,
+            isDismissible: false,
+            backgroundColor: Colors.transparent,
+            builder: (BuildContext context) =>
+                AppPinSheet.confirmTransaction(form: paymentForm),
           );
         },
         child: Container(
@@ -503,10 +543,13 @@ class _PaySectionMainState extends State<PaySectionMain> {
         if (!mounted) return;
 
         // confirm PIN
-        await showDialog(
+        await showModalBottomSheet(
           context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) => ConfirmPin(form: paymentForm),
+          isScrollControlled: true,
+          isDismissible: false,
+          backgroundColor: Colors.transparent,
+          builder: (BuildContext context) =>
+              AppPinSheet.confirmTransaction(form: paymentForm),
         );
       },
       child: Container(

@@ -399,3 +399,284 @@ void showComingSoon(BuildContext context, String feature) {
     ),
   );
 }
+
+/// Standard elevated white card — wraps AppTheme.cardDecoration so the
+/// repeated "Container with white fill + rounded corners + shadow" pattern
+/// (bottom sheets, transaction detail views, amount entry) has one home.
+class AppCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const AppCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppTheme.spacingMd),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding,
+      decoration: AppTheme.cardDecoration,
+      child: child,
+    );
+  }
+}
+
+/// Full-width primary action button using the app's ElevatedButtonTheme.
+class PrimaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  const PrimaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: loading ? null : onPressed,
+      child: loading
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          : Text(label),
+    );
+  }
+}
+
+/// Full-width secondary action button using the app's OutlinedButtonTheme.
+class SecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+
+  const SecondaryButton({super.key, required this.label, this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(onPressed: onPressed, child: Text(label));
+  }
+}
+
+/// Sign-colored bold amount display. Credits render in success green;
+/// debits render in a neutral near-black/navy tone — NOT brand pink and NOT
+/// error red, since a debit is a normal outgoing payment, not a failure.
+/// Reserve errorRed strictly for actual failure states.
+class AmountText extends StatelessWidget {
+  final String amount;
+  final String? currencyCode;
+  final double fontSize;
+
+  const AmountText({
+    super.key,
+    required this.amount,
+    this.currencyCode,
+    this.fontSize = 16,
+  });
+
+  bool get _isCredit => amount.trim().startsWith('+');
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _isCredit ? AppTheme.successGreen : AppTheme.gray900;
+    final display = currencyCode != null ? '$amount $currencyCode' : amount;
+    return Text(
+      display,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        color: color,
+      ),
+    );
+  }
+}
+
+/// Standard transaction row: icon chip + title/subtitle + sign-colored
+/// amount. Replaces bare ListTiles used for transaction history rows.
+class TransactionListItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String amount;
+  final VoidCallback? onTap;
+
+  const TransactionListItem({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCredit = amount.trim().startsWith('+');
+    final chipColor = isCredit ? AppTheme.successGreen : AppTheme.secondaryNavy;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
+        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingSm),
+              decoration: BoxDecoration(
+                color: chipColor.withAlpha(25),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: Icon(icon, color: chipColor, size: 22),
+            ),
+            const SizedBox(width: AppTheme.spacingMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.titleLarge,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppTheme.spacingXs),
+                  Text(
+                    subtitle,
+                    style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            AmountText(amount: amount),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Standard empty-state placeholder (no history, no search results, etc.)
+class EmptyStateWidget extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const EmptyStateWidget({
+    super.key,
+    this.icon = Icons.inbox_outlined,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingXl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 40, color: AppTheme.gray300),
+            const SizedBox(height: AppTheme.spacingSm),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: AppTheme.spacingMd),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Standard text field matching the app's InputDecorationTheme.
+class AppTextField extends StatelessWidget {
+  final TextEditingController? controller;
+  final String? hintText;
+  final String? labelText;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final Widget? prefixIcon;
+  final Widget? suffixIcon;
+  final ValueChanged<String>? onChanged;
+
+  const AppTextField({
+    super.key,
+    this.controller,
+    this.hintText,
+    this.labelText,
+    this.obscureText = false,
+    this.keyboardType,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hintText,
+        labelText: labelText,
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
+      ),
+    );
+  }
+}
+
+/// PIN-entry progress dots — filled count reflects digits entered so far.
+/// Shared by the unified PIN sheet's set/verify/confirm modes.
+class PinDots extends StatelessWidget {
+  final int length;
+  final int filledCount;
+
+  const PinDots({super.key, required this.length, required this.filledCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(length, (index) {
+        final filled = index < filledCount;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: 15,
+          height: 15,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? AppTheme.primaryPink : AppTheme.gray300,
+          ),
+        );
+      }),
+    );
+  }
+}

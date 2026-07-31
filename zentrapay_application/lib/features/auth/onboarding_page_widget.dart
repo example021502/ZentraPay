@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class OnboardingPageWidget extends StatelessWidget {
   final String title;
@@ -37,20 +38,16 @@ class OnboardingPageWidget extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: AppTheme.whiteDisplayMedium,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppTheme.spacingLg),
 
           Text(
             description,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, color: Colors.white70),
+            style: AppTheme.whiteBody.copyWith(fontSize: 18),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppTheme.spacingLg),
         ],
       ),
     );

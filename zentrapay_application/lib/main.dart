@@ -3,6 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:privy_flutter/privy_flutter.dart'
     as privy_sdk; // Official Privy Flutter SDK package
 import 'package:toastification/toastification.dart'; // Notification package for toast alerts
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/material_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/login_screen.dart';
@@ -17,14 +19,12 @@ import 'package:zentrapay_application/features/payments/instant_transfer_screen.
 import 'package:zentrapay_application/features/payments/liquidity_hub_screen.dart';
 import 'package:zentrapay_application/features/payments/milestones_screen.dart';
 import 'package:zentrapay_application/features/payments/voice_recording_screen.dart';
-import 'package:zentrapay_application/features/payments/zinvest_screen.dart';
 import 'package:zentrapay_application/features/profile/profile_screen.dart';
 import 'package:zentrapay_application/features/profile/settings_screen.dart';
 import 'package:zentrapay_application/features/secure/secure_screen.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
-import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart'
-    as zinvest_new;
+import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart';
 import 'package:zentrapay_application/features/zpay/zpay_screen.dart';
 import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
 import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
@@ -66,20 +66,25 @@ void main() async {
   runApp(const MainApp());
 }
 
-// Global UI theme colors matching the Zentrapay design system guidelines
+// Global UI theme colors matching the Zentrapay design system guidelines.
+// These now alias AppTheme's tokens so there's one source of truth for
+// actual values, while every existing AppColors.* reference across the app
+// keeps working unchanged.
 class AppColors {
-  static const Color main = Color(0xFFF21773);
-  static const Color primary = Color(0xFFFFFFFF);
-  static const Color secondary = Color(0xFF210163);
-  static const Color textBlack = Color(0xFF000000);
-  static const Color purple = Color(0xFF661E98);
-  static const Color blue = Color(0xFF396FD4);
-  static const Color green = Color(0xFF06881C);
-  static const Color orange = Color(0xFFF79E1B);
-  static Color lightGrey = const Color(0x80808080);
+  static const Color main = AppTheme.primaryPink;
+  static const Color primary = AppTheme.primaryWhite;
+  static const Color secondary = AppTheme.secondaryNavy;
+  static const Color textBlack = AppTheme.textBlack;
+  static const Color purple = AppTheme.accentPurple;
+  static const Color blue = AppTheme.accentBlue;
+  static const Color green = AppTheme.successGreen;
+  static const Color orange = AppTheme.warningOrange;
+  static Color lightGrey = AppTheme.lightGrey;
 }
 
-// Reusable text styling components used throughout application screens
+// Reusable text styling components used throughout application screens.
+// @deprecated for new code — prefer AppTheme.headlineSmall / bodyMedium etc.
+// Kept as-is since several out-of-scope screens still reference these.
 class AppStyles {
   static final TextStyle header = const TextStyle(
     fontWeight: FontWeight.bold,
@@ -105,7 +110,7 @@ class MainApp extends StatelessWidget {
       child: Center(
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(useMaterial3: true, fontFamily: 'Inter'),
+          theme: buildAppTheme(),
           // Sets the application to load into the splash screen initially upon startup
           home: const ZentrapaySplashScreenMain(),
           // Route settings interceptor to extract dynamically passed arguments safely
@@ -142,7 +147,6 @@ class MainApp extends StatelessWidget {
             '/zbanking': (context) => const ZBankingScreen(),
             '/zremit': (context) => const ZRemitScreen(),
             '/zvoice': (context) => const ZVoiceScreen(),
-            '/zinvest_new': (context) => const zinvest_new.ZInvestScreen(),
             '/zgrow_new': (context) => const ZGrowScreen(),
             '/pay_anywhere': (context) => const PayAnywhereScreen(),
             '/secure': (context) => const SecureScreen(),
