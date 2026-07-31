@@ -12,7 +12,7 @@ public class SearchAppUsersModel {
     @Column(nullable = false, name = "user_id", unique = true)
     private String userId;
 
-    @Column(nullable = false, name = "full_name")
+    @Column(name = "full_name")
     private String fullName;
 
     private String userType = "app user";

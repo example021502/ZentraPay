@@ -1,6 +1,0 @@
-Starting a Gradle Daemon, 6 busy Daemons could not be reused, use --status for details
-> Task :compileJava UP-TO-DATE
-
-BUILD SUCCESSFUL in 1m 29s
-1 actionable task: 1 up-to-date
-Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.5.1/userguide/configuration_cache_enabling.html

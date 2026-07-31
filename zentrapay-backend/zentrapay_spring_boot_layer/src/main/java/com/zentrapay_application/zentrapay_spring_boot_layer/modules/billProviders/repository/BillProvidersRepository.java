@@ -13,4 +13,6 @@ public interface BillProvidersRepository extends JpaRepository<BillProvidersMode
     @Query(value = "SELECT * FROM bill_providers", nativeQuery = true)
     List<BillProvidersModel> getAllProviders();
 
+    List<BillProvidersModel> findByCategory(String category);
+
 }

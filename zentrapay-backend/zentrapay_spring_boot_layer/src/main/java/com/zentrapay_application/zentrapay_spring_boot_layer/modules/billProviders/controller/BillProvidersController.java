@@ -1,35 +1,41 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.dtos.BillProvidersResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.services.BillProvidersServices;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 /**
- * Bill Providers Controller - Pay bills (airtime, data, utilities, TV subscriptions)
+ * Bill Providers Controller - unified catalog for cards/service-providers/bills
+ * (Pay bills: airtime, data, utilities, TV subscriptions)
  */
 @RestController
 @RequestMapping("/api/bill-providers")
+@RequiredArgsConstructor
 public class BillProvidersController {
+
+    private final BillProvidersServices billProvidersServices;
 
     /**
      * Get all bill providers.
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAllProviders() {
-        // TODO: Implement retrieval from database
-        return ResponseEntity.ok(ApiResponse.success(List.of(), "Bill providers retrieved"));
+    public ResponseEntity<ApiResponse<BillProvidersResponseDTO>> getAllProviders() {
+        BillProvidersResponseDTO providers = billProvidersServices.getAllBillProviders();
+        return ResponseEntity.ok(ApiResponse.success(providers, "Bill providers retrieved"));
     }
 
     /**
      * Get bill providers by category.
      */
     @GetMapping("/category/{category}")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getProvidersByCategory(@PathVariable String category) {
-        // TODO: Implement category filtering
-        return ResponseEntity.ok(ApiResponse.success(List.of(), "Providers by category retrieved"));
+    public ResponseEntity<ApiResponse<BillProvidersResponseDTO>> getProvidersByCategory(@PathVariable String category) {
+        BillProvidersResponseDTO providers = billProvidersServices.getProvidersByCategory(category);
+        return ResponseEntity.ok(ApiResponse.success(providers, "Providers by category retrieved"));
     }
 
     /**

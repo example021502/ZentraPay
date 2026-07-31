@@ -7,7 +7,10 @@ final dio = ApiClient().dio;
 
 Future<Response<dynamic>> Authentication(String pin) async {
   try {
-    final response = await dio.post('/api/authentication', data: {"pin": pin});
+    final response = await dio.post(
+      '/api/users/pin/verify',
+      data: {"pin": pin},
+    );
     return response;
   } on DioException catch (e) {
     if (e.response?.statusCode == 401) {

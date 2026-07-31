@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +23,7 @@ private final CryptoBalancesRepository cryptoBalancesRepository;
 //    GETTING ALL BALANCES
     public ResponseDTO getAllCurrencyBalances(@Valid RequestDTO req) {
 
-        List<FiatBalancesModel> fiatBalances = fiatBalancesRepository.findByUserId(req.userId());
+        List<FiatBalancesModel> fiatBalances = fiatBalancesRepository.findByUserId(UUID.fromString(req.userId()));
 if(fiatBalances == null || fiatBalances.isEmpty()){
     throw new RuntimeException("No Fiat accounts found for this user.");
 }
@@ -36,7 +37,7 @@ if(cryptoBalances == null || cryptoBalances.isEmpty()){
 //    GETTING FIAT BALANCES
     public ResponseDTO getFiatCurrencyBalances(@Valid RequestDTO req) {
 
-        List<FiatBalancesModel> fiatBalances = fiatBalancesRepository.findByUserId(req.userId());
+        List<FiatBalancesModel> fiatBalances = fiatBalancesRepository.findByUserId(UUID.fromString(req.userId()));
 if(fiatBalances == null || fiatBalances.isEmpty()){
     throw new RuntimeException("No Fiat accounts found for this user.");
 }

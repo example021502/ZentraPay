@@ -28,7 +28,7 @@ Future<Map<String, dynamic>?> createCryptoAccount(
 ) async {
   try {
     final Response response = await dio.post(
-      '/api/newAccount/crypto',
+      '/api/accounts/newAccount/crypto',
       data: formData,
     );
     print("RESPONSE:: ${response.data}");
@@ -84,7 +84,7 @@ Future<Map<String, dynamic>?> getCryptoBalances() async {
 Future<Map<String, dynamic>?> getRecentPaymentsBills() async {
   try {
     final Response response = await dio.get(
-      '/api/history/getRecentPaymentsBills',
+      '/api/history/paymentsHistory',
     );
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
@@ -96,10 +96,7 @@ Future<Map<String, dynamic>?> getRecentPaymentsBills() async {
 // search contacts =============================
 Future<Map<String, dynamic>> searchContacts(String query) async {
   try {
-    final Response response = await dio.get(
-      '/api/history/searchContacts',
-      queryParameters: {"query": query},
-    );
+    final Response response = await dio.get('/api/searchContacts/$query');
     print("Searched: $response");
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
@@ -111,7 +108,7 @@ Future<Map<String, dynamic>> searchContacts(String query) async {
 // bill providers =============================
 Future<Map<String, dynamic>> getBillProviders() async {
   try {
-    final response = await dio.get('/api/billProviders');
+    final response = await dio.get('/api/bill-providers');
     return Map<String, dynamic>.from(response.data);
   } on DioException catch (e) {
     debugPrint("ERROR:: ${e.response?.data["message"]}");
@@ -175,7 +172,7 @@ Future<Response<dynamic>?> getAccessCode(Map<String, dynamic> form) async {
 Future<Map<String, dynamic>?> getSupportedCurrencies() async {
   try {
     // Perform the API transaction request
-    final response = await dio.get('/api/accounts/supportedCurrencyAccounts');
+    final response = await dio.get('/api/supportedCurrencyAccounts');
     print("THE RESULT FOR SUPPORTED ACCOUNTS:: ${response.data}");
     return Map<String, dynamic>.from(response.data);
   } catch (e) {
@@ -208,31 +205,31 @@ Future<Map<String, dynamic>?> loadHomeData() async {
     // Explanation: Use Future.wait to execute all API requests concurrently in Dart.
     final responses = await Future.wait([
       dio.get('/api/cards/allCards'),
-      dio.get('/api/serviceProviders/allServiceProviders'),
-      dio.get('/api/bills/allBills'),
+      dio.get('/api/bill-providers'),
       dio.get('/api/history/paymentsHistory'),
     ]);
 
     final allCards = responses[0].data;
-    final allServices = responses[1].data;
-    final allBills = responses[2].data;
-    final allPaymentHistory = responses[3].data;
+    final allProviders = responses[1].data;
+    final allPaymentHistory = responses[2].data;
 
     final cards = allCards['data']?['cards'] ?? [];
-    final services = allServices['data']?['services'] ?? [];
-    final bills = allBills['data']?['bills'] ?? [];
+    final providers = allProviders['data']?['providers'] ?? [];
     final paymentHistory = allPaymentHistory['data']?['history'] ?? [];
 
     print("THE HOME DATA LOADED SUCCESSFULLY");
 
     // Return aggregated map containing all fetched home dashboard segments
+    // Note: "services" and "bills" both point at the same unified provider
+    // catalog now (cards/serviceProviders/bills previously called three
+    // separate, mostly-nonexistent endpoints for what is one concept).
     return {
       "success": true,
       "message": "Home data fetched successfully",
       "data": {
         "cards": cards,
-        "services": services,
-        "bills": bills,
+        "services": providers,
+        "bills": providers,
         "history": paymentHistory,
       },
     };

@@ -12,7 +12,7 @@ import java.util.UUID;
 @Data // Requires Lombok dependency
 public class FiatBalancesModel {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(nullable = false, name = "fiat_id", unique = true)
     private String fiatId;
 

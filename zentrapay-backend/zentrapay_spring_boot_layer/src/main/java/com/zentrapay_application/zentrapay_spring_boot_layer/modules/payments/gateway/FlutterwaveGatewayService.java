@@ -191,21 +191,33 @@ public class FlutterwaveGatewayService implements PaymentGatewayService {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("amount", amountInSmallestUnit);
         requestBody.put("reference", reference);
-        requestRequestBody.put("recipient", recipientCode);
+        requestBody.put("recipient", recipientCode);
         requestBody.put("reason", request.paymentDetails().narration() != null
                 ? request.paymentDetails().narration()
                 : "ZentraPay Disbursement");
         requestBody.put("currency", request.paymentDetails().sourceCurrency());
 
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + secretKey);
+        headers.set("Content-Type", "application/json");
 
-        return flutterwaveWebClient.post()
-                .uri("/transfers")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                baseUrl + "/transfers",
+                HttpMethod.POST,
+                entity,
+                Map.class
+        );
+
+        Map<String, Object> body = response.getBody();
+        if (body == null || !Boolean.TRUE.equals(body.get("status"))) {
+            String errorMsg = body != null ? (String) body.get("message") : "No response";
+            log.error("[FLUTTERWAVE_GATEWAY] Transfer request failed: {}", errorMsg);
+            throw new RuntimeException("Failed to initiate Flutterwave transfer: " + errorMsg);
+        }
+
+        return (Map<String, Object>) body.get("data");
     }
 
     private String mapDestinationType(RecipientRequestDetailsDTO recipient) {

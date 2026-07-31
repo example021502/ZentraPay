@@ -16,13 +16,13 @@ import java.util.UUID;
  */
 @Service
 @Transactional
-public class ZRemitService {
+public class RemittanceServices {
 
-    private static final Logger log = LoggerFactory.getLogger(ZRemitService.class);
+    private static final Logger log = LoggerFactory.getLogger(RemittanceServices.class);
 
     private final RemittanceRepository remittanceRepository;
 
-    public ZRemitService(RemittanceRepository remittanceRepository) {
+    public RemittanceServices(RemittanceRepository remittanceRepository) {
         this.remittanceRepository = remittanceRepository;
     }
 

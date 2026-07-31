@@ -10,6 +10,7 @@ import java.util.UUID;
 @Repository
 public interface TransactionRepository extends JpaRepository<TransactionModel, UUID> {
     List<TransactionModel> findByUserId(UUID userId);
+    List<TransactionModel> findByUserIdOrderByCreatedAtDesc(UUID userId);
     List<TransactionModel> findByUserIdAndStatus(UUID userId, String status);
     List<TransactionModel> findByUserIdAndGateway(UUID userId, String gateway);
     List<TransactionModel> findByUserIdAndTransactionType(UUID userId, String transactionType);

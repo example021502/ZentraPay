@@ -19,4 +19,10 @@ public class BillProvidersServices {
 
         return new BillProvidersResponseDTO(providers);
     }
+
+    public BillProvidersResponseDTO getProvidersByCategory(String category) {
+        List<BillProvidersModel> providers = billProvidersRepository.findByCategory(category);
+
+        return new BillProvidersResponseDTO(providers);
+    }
 }

@@ -43,7 +43,9 @@ class _ConfirmPinState extends State<ConfirmPin> {
 
     final response = await Authentication(_pinController.text.trim());
     if (!mounted) return;
-    if (!response.data["success"]) {
+    final bool pinVerified = response.data["success"] == true &&
+        response.data["data"]?["verified"] == true;
+    if (!pinVerified) {
       setState(() {
         loading = false;
       });

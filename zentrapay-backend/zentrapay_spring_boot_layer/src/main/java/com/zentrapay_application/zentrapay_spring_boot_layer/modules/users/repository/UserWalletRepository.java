@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface UserWalletRepository extends JpaRepository<UserWalletsModel, Long> {
+public interface UserWalletRepository extends JpaRepository<UserWalletsModel, UUID> {
     List<UserWalletsModel> findByUserId(UUID user_id);
 
     boolean existsByUserId(UUID userId);

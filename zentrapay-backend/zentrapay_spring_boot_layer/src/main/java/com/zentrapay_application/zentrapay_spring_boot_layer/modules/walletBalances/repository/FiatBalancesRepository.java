@@ -9,8 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface FiatBalancesRepository extends JpaRepository<FiatBalancesModel, Long> {
-    List<FiatBalancesModel> findByUserId(String userId);
-    List<FiatBalancesModel> findByUserIdAndCurrencyCode(String userId, String currencyCode);
+public interface FiatBalancesRepository extends JpaRepository<FiatBalancesModel, String> {
+    List<FiatBalancesModel> findByUserId(UUID userId);
+    List<FiatBalancesModel> findByUserIdAndCurrencyCode(UUID userId, String currencyCode);
     Optional<FiatBalancesModel> findByUserIdAndCurrency(UUID userId, String currency);
 }

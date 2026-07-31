@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface SearchAppUsersRepository extends JpaRepository<SearchAppUsersModel, Long>, JpaSpecificationExecutor<SearchAppUsersModel> {
+public interface SearchAppUsersRepository extends JpaRepository<SearchAppUsersModel, String>, JpaSpecificationExecutor<SearchAppUsersModel> {
 
     // Query to match substring across fullName, zentag, or phoneNumber case-insensitively
     @Query("SELECT u FROM SearchAppUsersModel u WHERE " +

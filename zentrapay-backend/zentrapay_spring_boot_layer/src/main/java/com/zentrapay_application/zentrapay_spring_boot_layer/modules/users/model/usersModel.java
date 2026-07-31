@@ -17,6 +17,12 @@ public class usersModel {
     @Column(nullable = false, name = "email", unique = true)
     private String email;
 
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
     @Column(nullable = false, name = "country")
     private String country;
 

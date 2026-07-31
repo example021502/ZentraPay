@@ -38,10 +38,10 @@ dependencies {
 	// JJWT for JWT token handling
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
-	// Use Jackson 3.x provided by Spring Boot 4.x instead of jjwt's bundled Jackson 2.x
-	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6") {
-		exclude(group = "com.fasterxml.jackson.core")
-	}
+	// jjwt-jackson needs its own Jackson 2.x (com.fasterxml.jackson.*), which lives in a
+	// different package namespace than Spring Boot 4's Jackson 3.x (tools.jackson.*),
+	// so the two coexist on the classpath without conflict.
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
 	// Lombok
 	compileOnly("org.projectlombok:lombok:1.18.36")

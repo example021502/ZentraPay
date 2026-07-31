@@ -33,13 +33,18 @@ class SecureStorageService {
 
     Future<void> refresh() async {
       try {
-        final result = await dio.post('/api/refreshToken');
+        final result = await dio.post(
+          '/api/users/refresh',
+          options: Options(
+            headers: {"Authorization": "Bearer ${getToken()}"},
+          ),
+        );
 
         debugPrint("REFRESH TOKEN:: $result");
         if (!result.data['success']) {
           return debugPrint("ERROR:: ${result.data['message']}");
         }
-        final newToken = result.data["token"];
+        final newToken = result.data["data"]["token"];
         await deleteToken();
         await saveToken(newToken);
         ZentraNotifier.success("Success", "Token refreshed!");

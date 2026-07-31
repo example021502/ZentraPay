@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/searchContacts")
 @RequiredArgsConstructor
-public class searchContactsController {
+public class SearchContactsController {
     private final SearchContactsService searchContactsService;
 
-    @GetMapping("/")
+    @GetMapping("/{query}")
     public ResponseEntity<ApiResponse<SearchResponseDTO>> searchContacts(@PathVariable("query") String query) {
         SearchRequestDTO request = new SearchRequestDTO(query, 20);
         System.out.println("[SPRING_CTRL] search contacts hit by " + request);

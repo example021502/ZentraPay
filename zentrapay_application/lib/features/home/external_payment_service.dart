@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
 
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
@@ -52,92 +51,6 @@ class ExternalPaymentService {
       };
     } catch (e) {
       print("CATCH ERROR: $e");
-      return {'success': false, 'message': 'Error: ${e.toString()}'};
-    }
-  }
-
-  /// Verify external payment
-  /// @description Checks the status of a payment with Paystack
-  /// @param {String} reference - Transaction reference to verify
-  /// @returns {Future<Map<String, dynamic>>} Verification response
-  Future<Map<String, dynamic>> verifyExternalPayment(String reference) async {
-    try {
-      if (reference.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Transaction reference is required',
-        };
-      }
-
-      // Dio gracefully maps the dynamic query parameters into structured formatting
-      final response = await dio.get(
-        '/api/payments/external/verify',
-        queryParameters: {'reference': reference},
-      );
-
-      final responseData = response.data;
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        return {
-          'success': true,
-          'status': responseData['status'],
-          'message': responseData['message'],
-          'data': responseData['data'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to verify payment',
-        };
-      }
-    } on DioException catch (de) {
-      return {
-        'success': false,
-        'message':
-            de.response?.data?['message'] ?? 'Verification request failed.',
-      };
-    } catch (e) {
-      return {'success': false, 'message': 'Error: ${e.toString()}'};
-    }
-  }
-
-  /// Get transaction status
-  /// @description Retrieves the status of a specific transaction
-  /// @param {String} reference - Transaction reference
-  /// @returns {Future<Map<String, dynamic>>} Transaction status
-  Future<Map<String, dynamic>> getTransactionStatus({
-    required String reference,
-  }) async {
-    try {
-      if (reference.isEmpty) {
-        return {
-          'success': false,
-          'message': 'Transaction reference is required',
-        };
-      }
-
-      final response = await dio.get(
-        '/api/payments/external/status/$reference',
-      );
-
-      final responseData = response.data;
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        debugPrint("THE BANKS ARE:: $responseData");
-        return {'success': true, 'data': responseData['data']};
-      } else {
-        return {
-          'success': false,
-          'message':
-              responseData['message'] ?? 'Failed to get transaction status',
-        };
-      }
-    } on DioException catch (de) {
-      return {
-        'success': false,
-        'message': de.response?.data?['message'] ?? 'Status request failed.',
-      };
-    } catch (e) {
       return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }

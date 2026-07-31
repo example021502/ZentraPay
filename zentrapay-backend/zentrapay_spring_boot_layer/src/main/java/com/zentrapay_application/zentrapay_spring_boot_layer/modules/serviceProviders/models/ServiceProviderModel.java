@@ -1,4 +1,4 @@
-package com.zentrapay_application.zentrapay_spring_boot_layer.modules.cards.models;
+package com.zentrapay_application.zentrapay_spring_boot_layer.modules.serviceProviders.models;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -6,42 +6,59 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "cards")
+@Table(name = "service_providers")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CardsModel {
+public class ServiceProviderModel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "card_id", nullable = false, unique = true)
-    private UUID cardId;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "provider_id", nullable = false, unique = true, updatable = false)
+    private UUID providerId;
 
-    @Column(name = "brand", nullable = false)
-    private String brand;
+    @Column(name = "provider_code", nullable = false, unique = true, length = 50)
+    private String providerCode;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "provider_name", nullable = false, length = 100)
+    private String providerName;
 
-    @Column(name = "created_at", nullable = false)
-    private String createdAt;
+    @Column(name = "category", nullable = false, length = 50)
+    private String category;
 
-    @Column(name = "expiry_month", nullable = false)
-    private Integer expiryMonth;
+    @Column(name = "aggregator_gateway", nullable = false, length = 50)
+    private String aggregatorGateway;
 
-    @Column(name = "expiry_year", nullable = false)
-    private Integer expiryYear;
+    @Column(name = "region", nullable = false, length = 50)
+    private String region;
 
-    @Column(name = "last4", nullable = false)
-    private String last4Digits;
+    @Column(name = "logo_url", columnDefinition = "TEXT")
+    private String logoUrl;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Column(name = "metadata", columnDefinition = "jsonb", nullable = false)
+    private String metadata;
 
-    @Column(name = "type", nullable = false)
-    private String type;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive;
+
+    @Column(name = "is_maintenance_mode", nullable = false)
+    private Boolean isMaintenanceMode;
+
+    @Column(name = "min_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal minAmount;
+
+    @Column(name = "max_amount", precision = 19, scale = 2)
+    private BigDecimal maxAmount;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
 }

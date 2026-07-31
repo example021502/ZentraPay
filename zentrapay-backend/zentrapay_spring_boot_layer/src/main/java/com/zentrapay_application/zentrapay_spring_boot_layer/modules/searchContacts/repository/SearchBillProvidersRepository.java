@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-    public interface SearchBillProvidersRepository extends JpaRepository<SearchBillProvidersModel, Long> {
+    public interface SearchBillProvidersRepository extends JpaRepository<SearchBillProvidersModel, String> {
     @Query("SELECT p FROM SearchBillProvidersModel p WHERE " +
             "LOWER(p.billerName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(p.category) LIKE LOWER(CONCAT('%', :query, '%')) OR " +

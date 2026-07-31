@@ -1,7 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.service.ZRemitService;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.service.RemittanceServices;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -15,11 +15,11 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/remittance")
-public class ZRemitController {
+public class RemittanceController {
 
-    private final ZRemitService zRemitService;
+    private final RemittanceServices zRemitService;
 
-    public ZRemitController(ZRemitService zRemitService) {
+    public RemittanceController(RemittanceServices zRemitService) {
         this.zRemitService = zRemitService;
     }
 

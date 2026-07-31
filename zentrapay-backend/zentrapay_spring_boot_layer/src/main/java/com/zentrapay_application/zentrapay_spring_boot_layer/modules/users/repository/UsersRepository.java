@@ -6,9 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-    public interface UsersRepository extends JpaRepository<usersModel, Long> {
+    public interface UsersRepository extends JpaRepository<usersModel, UUID> {
         Optional<usersModel> findByEmailOrPhoneNumber(String email, String phone_number);
         Boolean existsByEmail(@Email(message = "Invalid email format") String email);
         Boolean existsByPhoneNumber(String phoneNumber);

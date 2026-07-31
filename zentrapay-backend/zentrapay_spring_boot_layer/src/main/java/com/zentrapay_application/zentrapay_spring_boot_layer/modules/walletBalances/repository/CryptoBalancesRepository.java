@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-    public interface CryptoBalancesRepository extends JpaRepository<CryptoBalancesModel, Long> {
+    public interface CryptoBalancesRepository extends JpaRepository<CryptoBalancesModel, String> {
         List<CryptoBalancesModel> findByUserId(String userId);
     }

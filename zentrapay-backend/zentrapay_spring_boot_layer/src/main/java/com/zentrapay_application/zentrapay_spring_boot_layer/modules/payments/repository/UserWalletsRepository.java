@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Repository
-public interface UserWalletsRepository extends JpaRepository<UsersWalletsModel, Long> {
+public interface UserWalletsRepository extends JpaRepository<UsersWalletsModel, UUID> {
 
     @Query("SELECT u FROM PaymentsUsersModel u WHERE u.userId = :userId OR u.phoneNumber = :phoneNumber OR u.zentag = :zentag")
     PaymentsUsersModel existsByUserIdOrPhoneNumber(
