@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 
 import 'transfer_user_selection.dart';
-import 'zremit_header.dart';
+import 'package:zentrapay_application/features/zremit/zremit_header.dart';
 
 class InstantTransferScreen extends StatelessWidget {
   const InstantTransferScreen({super.key});

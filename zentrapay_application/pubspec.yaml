@@ -51,7 +51,6 @@ dependencies:
   paystack_flutter_sdk: ^0.0.1-alpha.2
   web_socket_channel: ^3.0.3
   privy_flutter: ^0.10.0
-  flutter_riverpod: ^2.5.0
 
 dev_dependencies:
   flutter_test:

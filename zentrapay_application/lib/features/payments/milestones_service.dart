@@ -1,20 +1,13 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class MilestonesService {
-  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
+  final _dio = ApiClient().dio;
 
   Future<List<Map<String, dynamic>>> getGoals() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/milestones/goals'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('Failed to load goals');
-      }
+      final response = await _dio.get('/api/milestones/goals');
+      final List<dynamic> data = response.data;
+      return data.cast<Map<String, dynamic>>();
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -22,17 +15,11 @@ class MilestonesService {
 
   Future<Map<String, dynamic>> createGoal(Map<String, dynamic> goalData) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/milestones/goals'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(goalData),
+      final response = await _dio.post(
+        '/api/milestones/goals',
+        data: goalData,
       );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to create goal');
-      }
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -43,17 +30,11 @@ class MilestonesService {
     Map<String, dynamic> updates,
   ) async {
     try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/milestones/goals/$goalId'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(updates),
+      final response = await _dio.put(
+        '/api/milestones/goals/$goalId',
+        data: updates,
       );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to update goal');
-      }
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -61,13 +42,7 @@ class MilestonesService {
 
   Future<void> deleteGoal(String goalId) async {
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/milestones/goals/$goalId'),
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete goal');
-      }
+      await _dio.delete('/api/milestones/goals/$goalId');
     } catch (e) {
       throw Exception('Error: $e');
     }

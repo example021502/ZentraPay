@@ -1,21 +1,12 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class SettingsService {
-  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
+  final _dio = ApiClient().dio;
 
   Future<Map<String, dynamic>> getSecurityScore() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/settings/security-score'),
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to load security score');
-      }
+      final response = await _dio.get('/api/settings/security-score');
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -23,17 +14,11 @@ class SettingsService {
 
   Future<Map<String, dynamic>> updateBiometricAuth(bool enabled) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/settings/biometric'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'enabled': enabled}),
+      final response = await _dio.post(
+        '/api/settings/biometric',
+        data: {'enabled': enabled},
       );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to update biometric auth');
-      }
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -41,17 +26,11 @@ class SettingsService {
 
   Future<Map<String, dynamic>> updateFraudProtection(bool enabled) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/settings/fraud-protection'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'enabled': enabled}),
+      final response = await _dio.post(
+        '/api/settings/fraud-protection',
+        data: {'enabled': enabled},
       );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to update fraud protection');
-      }
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -59,16 +38,9 @@ class SettingsService {
 
   Future<List<Map<String, dynamic>>> getProtectionHistory() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/settings/protection-history'),
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('Failed to load protection history');
-      }
+      final response = await _dio.get('/api/settings/protection-history');
+      final List<dynamic> data = response.data;
+      return data.cast<Map<String, dynamic>>();
     } catch (e) {
       throw Exception('Error: $e');
     }

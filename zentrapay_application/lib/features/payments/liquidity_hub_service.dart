@@ -1,19 +1,12 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class LiquidityHubService {
-  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
+  final _dio = ApiClient().dio;
 
   Future<Map<String, dynamic>> getLiquidityProfile() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/liquidity/profile'));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to load liquidity profile');
-      }
+      final response = await _dio.get('/api/liquidity/profile');
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -21,13 +14,8 @@ class LiquidityHubService {
 
   Future<Map<String, dynamic>> getFinancialTrend() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/liquidity/trend'));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to load financial trend');
-      }
+      final response = await _dio.get('/api/liquidity/trend');
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -35,14 +23,9 @@ class LiquidityHubService {
 
   Future<List<Map<String, dynamic>>> getTopRisks() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/liquidity/risks'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('Failed to load risks');
-      }
+      final response = await _dio.get('/api/liquidity/risks');
+      final List<dynamic> data = response.data;
+      return data.cast<Map<String, dynamic>>();
     } catch (e) {
       throw Exception('Error: $e');
     }
@@ -50,14 +33,9 @@ class LiquidityHubService {
 
   Future<List<Map<String, dynamic>>> getRecentAlerts() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/liquidity/alerts'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.cast<Map<String, dynamic>>();
-      } else {
-        throw Exception('Failed to load alerts');
-      }
+      final response = await _dio.get('/api/liquidity/alerts');
+      final List<dynamic> data = response.data;
+      return data.cast<Map<String, dynamic>>();
     } catch (e) {
       throw Exception('Error: $e');
     }

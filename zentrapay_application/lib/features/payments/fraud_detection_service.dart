@@ -1,18 +1,12 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class FraudDetectionService {
-  static String get baseUrl => '${dotenv.get('BASE_URL')}/api';
+  final _dio = ApiClient().dio;
 
   Future<Map<String, dynamic>> getFraudAlerts() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/fraud/alerts'));
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Failed to load fraud alerts');
-      }
+      final response = await _dio.get('/api/fraud/alerts');
+      return Map<String, dynamic>.from(response.data);
     } catch (e) {
       throw Exception('Error: $e');
     }
