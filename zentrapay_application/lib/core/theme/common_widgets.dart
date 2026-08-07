@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -35,10 +37,7 @@ class FeatureScreenHeader extends StatelessWidget {
     final subtitleFontSize = isTablet ? 16.0 : 14.0;
 
     return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: BoxBorder.all(color: AppColors.secondary, width: 2),
-      ),
+      decoration: BoxDecoration(color: backgroundColor),
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: AppTheme.spacingLg,
@@ -65,7 +64,7 @@ class FeatureScreenHeader extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.textBlack,
               fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
             ),
@@ -75,7 +74,7 @@ class FeatureScreenHeader extends StatelessWidget {
             Text(
               subtitle,
               style: TextStyle(
-                color: Colors.white70,
+                color: AppColors.textBlack,
                 fontSize: subtitleFontSize,
               ),
             ),
@@ -154,7 +153,7 @@ class ActionItemCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingMd,
+          horizontal: 0,
           vertical: AppTheme.spacingSm,
         ),
         padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -179,7 +178,10 @@ class ActionItemCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppTheme.headlineSmall),
+                  Text(
+                    title,
+                    style: AppTheme.headlineSmall.copyWith(fontSize: 14),
+                  ),
                   const SizedBox(height: AppTheme.spacingXs),
                   Text(
                     subtitle,
@@ -215,15 +217,15 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actionColor = color ?? AppColors.main;
+    final actionColor = color ?? AppColors.primary;
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: actionColor.withAlpha(25),
-            child: Icon(icon, color: actionColor, size: 22),
+            backgroundColor: AppColors.secondary.withAlpha(20),
+            child: Icon(icon, color: AppColors.secondary, size: 22),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
@@ -357,28 +359,31 @@ class SearchBarWidget extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
 
   const SearchBarWidget({
     super.key,
     required this.controller,
     this.hintText = 'Search...',
     this.onChanged,
+    this.focusNode,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       onChanged: onChanged,
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+        contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 5),
         prefixIcon: const Icon(Icons.search, size: 20),
         hintText: hintText,
         border: InputBorder.none,
         filled: true,
-        fillColor: AppColors.lightGrey.withAlpha(40),
+        fillColor: AppColors.primary,
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.main, width: 1),
+          borderSide: BorderSide(color: AppColors.secondary, width: 2),
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
         ),
         enabledBorder: OutlineInputBorder(
@@ -590,24 +595,42 @@ class EmptyStateWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingXl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 40, color: AppTheme.gray300),
-            const SizedBox(height: AppTheme.spacingSm),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 40, color: AppTheme.gray300),
+          const SizedBox(height: AppTheme.spacingSm),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          if (actionLabel != null && onAction != null) ...[
+            GestureDetector(
+              onTap: onAction,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15.0,
+                    vertical: 10,
+                  ),
+                  child: Text(
+                    actionLabel!,
+                    style: TextStyle(
+                      color: AppTheme.primaryWhite,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: AppTheme.spacingMd),
-              TextButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -677,6 +700,78 @@ class PinDots extends StatelessWidget {
           ),
         );
       }),
+    );
+  }
+}
+
+/// Paints [AppTheme.heroGradient] (deep electric blue -> hot pink) as a
+/// full-bleed screen background, per the wireframe brief. Wrap a screen's
+/// body in this instead of setting `Scaffold.backgroundColor` when the
+/// screen should use the app's hero gradient + glassmorphism look.
+class GradientScreenBackground extends StatelessWidget {
+  final Widget child;
+  final Gradient gradient;
+
+  const GradientScreenBackground({
+    super.key,
+    required this.child,
+    this.gradient = AppTheme.heroGradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(gradient: gradient),
+      child: child,
+    );
+  }
+}
+
+/// Frosted-glass card: semi-transparent surface + subtle white border, for
+/// use over [GradientScreenBackground] per the wireframe brief's
+/// glassmorphism spec. Distinct from the opaque [AppCard] used elsewhere.
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
+  final double borderRadius;
+  final bool strong;
+
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppTheme.spacingLg),
+    this.margin,
+    this.borderRadius = AppTheme.radiusXl,
+    this.strong = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: AppTheme.glassBlurSigma,
+            sigmaY: AppTheme.glassBlurSigma,
+          ),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: strong
+                  ? AppTheme.glassSurfaceStrong
+                  : AppTheme.glassSurface,
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(color: AppTheme.glassBorder, width: 1),
+            ),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/bill_service_provider.dart';
+import 'package:zentrapay_application/core/repositories/cards_repository.dart';
+import 'package:zentrapay_application/core/repositories/payments_service.dart';
+import 'package:zentrapay_application/core/repositories/providers_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
+import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/home/pay.dart';
+import 'package:zentrapay_application/features/home/provider_picker_sheet.dart';
 import 'package:zentrapay_application/main.dart';
 
 import 'history.dart';
@@ -56,7 +63,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
   /// Handle NFC Pay action
   /// @description Initiates NFC payment flow
   void _onNFCAction(BuildContext context) {
-    // TODO: Implement NFC payment
+    // No NFC hardware integration in this pass — nothing to wire to a
+    // backend endpoint yet.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('NFC Pay - Coming Soon!'),
@@ -65,18 +73,60 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  /// Handle To Bank action
-  /// @description Navigates to external payment screen
+  /// Handle To Bank/Receive action
+  /// @description Requests a Paystack access code to fund the wallet
   void _onReceiveAction(BuildContext context) async {
     final Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) => EnterAmount(recipient: ''),
     );
-    final response = await getAccessCode(amount!);
+    if (amount == null || !context.mounted) return;
 
-    //THIS IS FOR SENDING TO BANK =========================
-    // Navigator.pushNamed(context, '/external_payment');
+    try {
+      final data = await PaymentsService.getPaystackAccessCode(
+        amount: amount['amount'],
+        currencyCode: amount['currency_code'],
+      );
+      if (!context.mounted) return;
+      _showAccessCodeDialog(context, data);
+    } catch (e) {
+      ZentraNotifier.error(
+        "Error",
+        "Could not start funding, please try again.",
+      );
+    }
+  }
+
+  void _showAccessCodeDialog(BuildContext context, Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Complete Funding'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Reference: ${data['reference'] ?? '-'}'),
+            const SizedBox(height: 8),
+            Text(
+              'Authorization URL:\n${data['authorizationUrl'] ?? '-'}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Complete the payment via the link above to fund your wallet.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Show History bottom sheet
@@ -118,81 +168,203 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width >= 600;
-    final iconSize = isTablet ? 28.0 : 22.0;
-    final avatarRadius = isTablet ? 32.0 : 26.0;
-    final fontSize = isTablet ? 14.0 : 12.0;
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          QuickActionButton(
+            icon: Icons.nfc,
+            label: "NFC Pay",
+            onTap: () => _onNFCAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.send,
+            label: "Send",
+            onTap: () => _onPayAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.account_balance,
+            label: "Receive",
+            onTap: () => _onReceiveAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.history,
+            label: "History",
+            onTap: () => _onHistoryAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.more_horiz,
+            label: "More",
+            onTap: () => _onMoreAction(context),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 15, vertical: 20),
-      color: AppColors.primary,
-      elevation: 4,
-      shadowColor: AppColors.textBlack.withAlpha(40),
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 5,
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width,
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppColors.lightGrey.withAlpha(50)),
-                ),
+  Future<List<Map<String, dynamic>>> _loadBillProviders() async {
+    final providers =
+        await BillProvidersRepository.instance.ensureLoaded() ??
+        <BillProvider>[];
+    return providers
+        .map(
+          (p) => {
+            'billerName': p.billerName,
+            'logoUrl': p.logoUrl ?? '',
+            'category': p.categoryCode,
+          },
+        )
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadServiceProviders() async {
+    final providers =
+        await ServiceProvidersRepository.instance.ensureLoaded() ??
+        <ServiceProvider>[];
+    return providers
+        .map(
+          (p) => {
+            'providerName': p.providerName,
+            'logoUrl': p.logoUrl ?? '',
+            'category': p.categoryCode,
+          },
+        )
+        .toList();
+  }
+
+  late final List<Map<String, dynamic>> options = [
+    {
+      "text": "New Bill Providers",
+      "title": "Bill Providers",
+      "loader": _loadBillProviders,
+      "nameKey": "billerName",
+      "icon": Icons.receipt_long,
+      "id": "Bill Providers",
+    },
+    {
+      "text": "New Service Providers",
+      "title": "Service Providers",
+      "loader": _loadServiceProviders,
+      "nameKey": "providerName",
+      "icon": Icons.store,
+      "id": "Service Providers",
+    },
+    {
+      "text": "New Card",
+      "title": "New Card",
+      "icon": Icons.credit_card,
+      "id": "Cards",
+    },
+  ];
+
+  /// Shows the "More" popup with New Bill Provider / New Service Provider,
+  /// each opening a searchable catalog sourced from the real backend, plus
+  /// New Card which creates a virtual card directly via [CardsRepository].
+  void _onMoreAction(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+          // Wrapped in Column with shrinkWrap ListView
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ListView.builder syntax for a dynamic list
+              ListView.builder(
+                // Make the list wrap its content height to prevent layout crashes
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                // 1. Total number of items in the list (Required)
+                itemCount: options.length,
+
+                // 2. Builder callback that creates a widget for each index (Required)
+                itemBuilder: (BuildContext context, int i) {
+                  final option = options[i];
+                  // Return the widget for the specific item at this index
+                  return ListTile(
+                    leading: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(200),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Icon(option["icon"], color: AppColors.secondary),
+                      ),
+                    ),
+                    title: Text(option["text"]),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (option["id"] == "Cards") {
+                        _createVirtualCard(context);
+                        return;
+                      }
+                      ProviderPickerSheet.show(
+                        context,
+                        title: option["title"],
+                        loader: option["loader"]!,
+                        nameKey: option["nameKey"],
+                        id: option["id"],
+                      );
+                    },
+                  );
+                },
               ),
-              child: Text("Quick Actions", style: AppStyles.header),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createVirtualCard(BuildContext context) async {
+    final brand = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(AppTheme.spacingMd),
+              child: Text("Choose Card Brand", style: AppTheme.headlineSmall),
             ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              spacing: 20,
-              children: [
-                _action(
-                  context,
-                  Icons.nfc,
-                  "NFC Pay",
-                  () => _onNFCAction(context),
-                  iconSize: iconSize,
-                  avatarRadius: avatarRadius,
-                  fontSize: fontSize,
-                ),
-                _action(
-                  context,
-                  Icons.send,
-                  "Send",
-                  () => _onPayAction(context),
-                  iconSize: iconSize,
-                  avatarRadius: avatarRadius,
-                  fontSize: fontSize,
-                ),
-                _action(
-                  context,
-                  Icons.account_balance,
-                  "Receive",
-                  () => _onReceiveAction(context),
-                  iconSize: iconSize,
-                  avatarRadius: avatarRadius,
-                  fontSize: fontSize,
-                ),
-                _action(
-                  context,
-                  Icons.history,
-                  "History",
-                  () => _onHistoryAction(context),
-                  iconSize: iconSize,
-                  avatarRadius: avatarRadius,
-                  fontSize: fontSize,
-                ),
-              ],
+            ListTile(
+              leading: const Icon(Icons.credit_card),
+              title: const Text("Visa"),
+              onTap: () => Navigator.pop(context, "VISA"),
             ),
-            SizedBox(height: 6),
+            ListTile(
+              leading: const Icon(Icons.credit_card),
+              title: const Text("Mastercard"),
+              onTap: () => Navigator.pop(context, "MASTERCARD"),
+            ),
           ],
         ),
       ),
     );
+    if (brand == null || !context.mounted) return;
+
+    try {
+      await CardsRepository.instance.createVirtualCard(brand);
+      if (context.mounted) {
+        ZentraNotifier.success("Success", "Virtual card created!");
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ZentraNotifier.error("Error", "Could not create card, try again.");
+      }
+    }
   }
 
   /// Show Pay bottom sheet
@@ -205,9 +377,9 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       isScrollControlled: true,
       useSafeArea: true,
       barrierColor: Colors.black.withValues(alpha: 0.2),
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.primary,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return ConstrainedBox(
@@ -226,7 +398,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingSm),
               const Expanded(child: PaySectionMain()),
             ],
           ),
@@ -234,44 +406,4 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       },
     );
   }
-
-  /// Build action button widget
-  /// @param {BuildContext} context - Build context
-  /// @param {IconData} icon - Icon to display
-  /// @param {String} label - Button label
-  /// @param {VoidCallback} onTapping - Callback function
-  Widget _action(
-    BuildContext context,
-    IconData icon,
-    String label,
-    VoidCallback onTapping, {
-    double iconSize = 16,
-    double avatarRadius = 20,
-    double fontSize = 12,
-  }) => GestureDetector(
-    onTap: onTapping,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircleAvatar(
-          radius: avatarRadius,
-          backgroundColor: AppColors.lightGrey.withAlpha(50),
-          child: Icon(icon, color: AppColors.textBlack, size: iconSize),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
-            color: AppColors.textBlack,
-          ),
-        ),
-      ],
-    ),
-  );
 }

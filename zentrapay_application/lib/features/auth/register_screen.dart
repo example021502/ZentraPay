@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:intl_phone_field/countries.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
-import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 import 'package:zentrapay_application/features/auth/api_auth_services.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
@@ -22,8 +21,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _first_nameController = TextEditingController();
   final TextEditingController _last_nameController = TextEditingController();
   bool _isPhoneValid = false;
+  String pin = "";
 
-  Map<String, dynamic> contactForm = {"phone_number": "", "country": ""};
+  Map<String, dynamic> contactForm = {"phone_number": "", "country_code": ""};
 
   bool isLoading = false;
 
@@ -37,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "All fields are required",
       );
     }
+
     if (!_isPhoneValid) {
       return ZentraNotifier.error("Invalid value", "Invalid Phone number");
     }
@@ -52,22 +53,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return ZentraNotifier.error("Invalid value", "Email is invalid");
     }
 
-    String? PIN = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) => const AppPinSheet.set(pinLength: 4),
-    );
+    if (pin == "") {
+      String? PIN = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext context) => const AppPinSheet.set(pinLength: 4),
+      );
+      setState(() {
+        pin = PIN!;
+      });
+    }
 
+    final String zentag = "${contactForm['phone_number']}@zentrapay";
     final Map<String, dynamic> registrationForm = {
-      "first_name": _first_nameController.text.trim(),
-      "last_name": _last_nameController.text.trim(),
+      "firstName": _first_nameController.text.trim(),
+      "lastName": _last_nameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
-      "phone_number": contactForm['phone_number']!,
-      "country": contactForm['country']!,
-      "pin": PIN,
+      "phoneNumber": contactForm['phone_number']!,
+      "countryCode": contactForm['country_code']!,
+      "zentag": zentag,
+      "pin": pin,
     };
 
     setState(() {
@@ -313,13 +321,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     contactForm['phone_number'] =
                                         phone.completeNumber;
                                     _isPhoneValid = phone.isValidNumber();
-
-                                    // Look up country safely and update the correct 'country' key
-                                    final country = countries.firstWhere(
-                                      (element) =>
-                                          element.code == phone.countryISOCode,
-                                    );
-                                    contactForm['country'] = country.name;
+                                    contactForm['country_code'] =
+                                        phone.countryISOCode;
                                   });
                                 },
                               ),

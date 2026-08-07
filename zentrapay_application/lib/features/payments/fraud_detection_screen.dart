@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/models/security.dart';
+import 'package:zentrapay_application/core/repositories/security_repository.dart';
 
 class FraudDetectionScreen extends StatefulWidget {
   const FraudDetectionScreen({super.key});
@@ -11,6 +14,8 @@ class FraudDetectionScreen extends StatefulWidget {
 class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
   bool fraudDetectionEnabled = true;
 
+  // Feature-category rows shown regardless of alert history — there is no
+  // backend concept for "monitored categories" yet, only raised alerts.
   final List<Map<String, dynamic>> fraudItems = [
     {
       'icon': Icons.shield,
@@ -34,29 +39,11 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
     },
   ];
 
-  final List<Map<String, dynamic>> recentAlerts = [
-    {
-      'icon': Icons.warning,
-      'title': 'transaction blocked',
-      'amount': '-GHS 250 000.00',
-      'time': 'Today, 09:20',
-      'color': AppColors.main,
-    },
-    {
-      'icon': Icons.phone_iphone,
-      'title': 'Received from Lucky',
-      'device': 'iphone 15 pro',
-      'time': 'Today, 09:20',
-      'color': AppColors.orange,
-    },
-    {
-      'icon': Icons.check_circle,
-      'title': 'Voice verified',
-      'time': 'Today, 09:20',
-      'color': AppColors.green,
-      'status': 'Secure',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    FraudAlertsRepository.instance.ensureLoaded();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,13 +220,62 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...recentAlerts.map((alert) => _buildAlertItem(alert)),
+          ListenableBuilder(
+            listenable: FraudAlertsRepository.instance,
+            builder: (context, _) {
+              final repo = FraudAlertsRepository.instance;
+              if (repo.isLoading && repo.data == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (repo.error != null && repo.data == null) {
+                return const Text(
+                  "Couldn't load fraud alerts. Pull to refresh later.",
+                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+                );
+              }
+              final alerts = repo.data ?? [];
+              if (alerts.isEmpty) {
+                return const Text(
+                  "No fraud alerts — you're all clear.",
+                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+                );
+              }
+              return Column(
+                children: alerts.map((alert) => _buildAlertItem(alert)).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAlertItem(Map<String, dynamic> alert) {
+  Color _severityColor(String severity) {
+    switch (severity.toUpperCase()) {
+      case 'CRITICAL':
+      case 'HIGH':
+        return AppTheme.errorRed;
+      case 'MEDIUM':
+        return AppTheme.warningOrange;
+      default:
+        return AppTheme.secureColor;
+    }
+  }
+
+  String _humanizeAlertType(String alertType) {
+    if (alertType.isEmpty) return 'Alert';
+    return alertType
+        .split('_')
+        .map(
+          (w) => w.isEmpty
+              ? w
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  Widget _buildAlertItem(FraudAlert alert) {
+    final color = _severityColor(alert.severity);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -252,10 +288,14 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: alert['color'],
+              color: color,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(alert['icon'], color: AppColors.primary, size: 20),
+            child: const Icon(
+              Icons.warning,
+              color: AppColors.primary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -267,7 +307,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        alert['title'],
+                        _humanizeAlertType(alert.alertType),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -275,37 +315,29 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
                         ),
                       ),
                     ),
-                    if (alert.containsKey('amount'))
-                      Text(
-                        alert['amount'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textBlack,
-                        ),
-                      )
-                    else if (alert.containsKey('device'))
-                      Text(
-                        alert['device'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textBlack,
-                        ),
-                      )
-                    else if (alert.containsKey('status'))
-                      Text(
-                        alert['status'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.green,
-                        ),
+                    Text(
+                      alert.isResolved ? "Resolved" : alert.severity,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: alert.isResolved
+                            ? AppTheme.successGreen
+                            : color,
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  alert['time'],
+                  alert.message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textBlack,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  alert.createdAt,
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textBlack,

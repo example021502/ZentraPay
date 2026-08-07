@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/theme/custom_keypad.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/features/auth/custom_keypad.dart';
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 
-import 'api_authentication.dart';
-
+// Define the operational modes for the PIN sheet component
 enum PinMode { set, verify, confirmTransaction }
 
 /// Unified PIN entry sheet, replacing SetPinDialog, PinSheet+PinVerifySheet,
@@ -39,36 +37,37 @@ class _AppPinSheetState extends State<AppPinSheet> {
   String _pin = '';
   String _firstPin = '';
   int _step = 0; // 0 = enter, 1 = confirm (PinMode.set only)
-  bool _processing = false;
-  bool? _resultSuccess; // confirmTransaction only
-  String? _resultMessage;
+  final bool _processing = false;
 
+  // Handles digit press on the custom keypad
   void _onDigit(String digit) {
     if (_processing || _pin.length >= widget.pinLength) return;
     setState(() => _pin += digit);
     if (_pin.length == widget.pinLength) _onComplete();
   }
 
+  // Handles backspace/delete press on the custom keypad
   void _onDelete() {
     if (_processing || _pin.isEmpty) return;
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
+  // Triggers action upon reaching the required PIN length
   Future<void> _onComplete() async {
     switch (widget.mode) {
       case PinMode.set:
-        await _handleSetStep();
+        _handleSetStep();
         break;
       case PinMode.verify:
-        await _handleVerify();
-        break;
       case PinMode.confirmTransaction:
-        await _handleConfirmTransaction();
+        // Send back the entered PIN string to the caller screen
+        Navigator.of(context).pop(_pin);
         break;
     }
   }
 
-  Future<void> _handleSetStep() async {
+  // Manages the two-step PIN confirmation logic for PinMode.set
+  void _handleSetStep() {
     if (_step == 0) {
       setState(() {
         _firstPin = _pin;
@@ -78,6 +77,7 @@ class _AppPinSheetState extends State<AppPinSheet> {
       return;
     }
     if (_pin == _firstPin) {
+      // PIN matches, return the confirmed PIN back to caller
       Navigator.of(context).pop(_pin);
     } else {
       ZentraNotifier.error("Mismatch", "PIN don't match");
@@ -89,77 +89,7 @@ class _AppPinSheetState extends State<AppPinSheet> {
     }
   }
 
-  Future<void> _handleVerify() async {
-    setState(() => _processing = true);
-    final response = await Authentication(_pin);
-    if (!mounted) return;
-    final verified =
-        response.data["success"] == true &&
-        response.data["data"]?["verified"] == true;
-    if (verified) {
-      Navigator.of(context).pop(true);
-    } else {
-      setState(() {
-        _processing = false;
-        _pin = '';
-      });
-      ZentraNotifier.error(
-        "Authentication",
-        response.data['message'] ?? "Authentication Failed!",
-      );
-    }
-  }
-
-  Future<void> _handleConfirmTransaction() async {
-    setState(() => _processing = true);
-
-    final authResponse = await Authentication(_pin);
-    if (!mounted) return;
-    final pinVerified =
-        authResponse.data["success"] == true &&
-        authResponse.data["data"]?["verified"] == true;
-    if (!pinVerified) {
-      setState(() {
-        _processing = false;
-        _pin = '';
-      });
-      return ZentraNotifier.error(
-        "Authentication",
-        authResponse.data['message'] ?? "Authentication Failed!",
-      );
-    }
-
-    try {
-      final response = await makeTransfer(widget.form!, _pin);
-      if (!mounted) return;
-      final ok = response?["success"] == true;
-      setState(() {
-        _resultSuccess = ok;
-        _resultMessage = response?['message'];
-      });
-      if (!ok) {
-        ZentraNotifier.error(
-          "Error",
-          response?['message'] ?? 'Transfer failed',
-        );
-      }
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) Navigator.of(context).pop(ok);
-      });
-    } catch (e) {
-      debugPrint("Error: $e");
-      if (mounted) {
-        setState(() {
-          _resultSuccess = false;
-          _resultMessage = e.toString();
-        });
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) Navigator.of(context).pop(false);
-        });
-      }
-    }
-  }
-
+  // Returns the appropriate headline text based on the mode and step
   String get _headline {
     switch (widget.mode) {
       case PinMode.set:
@@ -171,6 +101,7 @@ class _AppPinSheetState extends State<AppPinSheet> {
     }
   }
 
+  // Returns the appropriate subtitle description based on the mode and form context
   String get _subtitle {
     switch (widget.mode) {
       case PinMode.set:
@@ -189,13 +120,10 @@ class _AppPinSheetState extends State<AppPinSheet> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.mode == PinMode.confirmTransaction &&
-        (_processing || _resultSuccess != null)) {
-      return _buildTransactionResult();
-    }
     return _buildEntrySheet(context);
   }
 
+  // Builds the interactive PIN input UI sheet
   Widget _buildEntrySheet(BuildContext context) {
     return AnimatedPadding(
       padding: EdgeInsets.only(
@@ -246,9 +174,7 @@ class _AppPinSheetState extends State<AppPinSheet> {
               if (_processing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppTheme.spacingXl),
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryPink,
-                  ),
+                  child: CircularProgressIndicator(color: AppTheme.primaryPink),
                 )
               else
                 CustomKeypad(onDigitPress: _onDigit, onDelete: _onDelete),
@@ -265,87 +191,6 @@ class _AppPinSheetState extends State<AppPinSheet> {
                   child: const Text("Back"),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransactionResult() {
-    final isSuccess = _resultSuccess == true;
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacingXxl),
-        color: AppTheme.primaryWhite,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: AppTheme.spacingXl,
-            children: [
-              if (_resultSuccess == null)
-                const CircularProgressIndicator(
-                  color: AppTheme.primaryPink,
-                  strokeWidth: 5,
-                )
-              else
-                Column(
-                  children: [
-                    Icon(
-                      isSuccess ? Icons.check_circle : Icons.cancel,
-                      size: 30,
-                      color: isSuccess
-                          ? AppTheme.successGreen
-                          : AppTheme.errorRed,
-                    ),
-                    Text(
-                      isSuccess
-                          ? "Transaction was successful!"
-                          : (_resultMessage ?? "Transaction Failed!"),
-                      textAlign: TextAlign.center,
-                      style: AppTheme.headlineMedium.copyWith(
-                        color: isSuccess
-                            ? AppTheme.successGreen
-                            : AppTheme.errorRed,
-                      ),
-                    ),
-                  ],
-                ),
-              Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXxl),
-                  color: AppTheme.secondaryNavy,
-                ),
-                child: Center(
-                  child: Column(
-                    spacing: AppTheme.spacingSm,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "sending:",
-                        style: AppTheme.whiteBody.copyWith(fontSize: 16),
-                      ),
-                      Text(
-                        "${widget.form?["currency_code"] ?? "Code"} ${widget.form?["amount"] ?? "Amount"}",
-                        style: AppTheme.whiteHeadline.copyWith(fontSize: 20),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppTheme.spacingSm),
-                      Text(
-                        'To:',
-                        style: AppTheme.whiteBody.copyWith(fontSize: 16),
-                      ),
-                      Text(
-                        widget.form?["name"] ?? "N/A",
-                        style: AppTheme.whiteHeadline,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/zinvest_repository.dart';
 
 class LiquidityHubScreen extends StatefulWidget {
   const LiquidityHubScreen({super.key});
@@ -10,12 +13,45 @@ class LiquidityHubScreen extends StatefulWidget {
 
 class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   int currentCurrencyIndex = 0;
+  bool isLoading = true;
 
   final List<Map<String, dynamic>> currencies = [
     {'code': 'GHSC', 'name': 'Ghanaian Cedi', 'flag': '🇬🇭'},
     {'code': 'USDC', 'name': 'US Dollar', 'flag': '🇺🇸'},
     {'code': 'KShC', 'name': 'Kenyan Shilling', 'flag': '🇰🇪'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiquidityData();
+  }
+
+  Future<void> _loadLiquidityData() async {
+    try {
+      await Future.wait([
+        LiquidityProfileRepository.instance.ensureLoaded(),
+        LiquidityTrendRepository.instance.ensureLoaded(),
+        InvestmentRisksRepository.instance.ensureLoaded(),
+        InvestmentAlertsRepository.instance.ensureLoaded(),
+      ]);
+    } catch (_) {
+      // Keep zeroed/empty state on failure rather than fabricating data.
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  double _riskProfileScore(String profile) {
+    switch (profile) {
+      case 'AGGRESSIVE':
+        return 0.9;
+      case 'MODERATE':
+        return 0.6;
+      default:
+        return 0.3;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,48 +100,56 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   }
 
   Widget _buildHeaderSection() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.main, AppColors.purple],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "ZentraPay Global\nLiquidity Hub",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+    return ListenableBuilder(
+      listenable: LiquidityProfileRepository.instance,
+      builder: (context, _) {
+        final profile = LiquidityProfileRepository.instance.data;
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.main, AppColors.purple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            "ZentraPay Unified Wallet",
-            style: TextStyle(fontSize: 14, color: AppColors.primary),
-          ),
-          const SizedBox(height: 12),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "GHSC 3,378,345,245.90",
+                "ZentraPay Global\nLiquidity Hub",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                "ZentraPay Unified Wallet",
+                style: TextStyle(fontSize: 14, color: AppColors.primary),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    profile == null
+                        ? "GHSC ..."
+                        : "GHSC ${formatMoney(profile.totalValue)}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -216,41 +260,53 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   }
 
   Widget _buildLiquidityProfile() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Global Liquidity Profile",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
+    return ListenableBuilder(
+      listenable: LiquidityProfileRepository.instance,
+      builder: (context, _) {
+        final profile = LiquidityProfileRepository.instance.data;
+        final gainLoss = profile?.totalGainLossPercent.toAmount() ?? 0;
+        final riskProfile = profile?.riskProfile ?? 'CONSERVATIVE';
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCircularMetric(
-                "90.1%",
-                "Trapped Liquidity\nMinimized",
-                0.901,
+              const Text(
+                "Global Liquidity Profile",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textBlack,
+                ),
               ),
-              _buildCircularMetric("88.0%", "Capital Efficiency", 0.88),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildCircularMetric(
+                    "${gainLoss.toStringAsFixed(1)}%",
+                    "Portfolio\nReturn",
+                    ((gainLoss + 50) / 100).clamp(0.0, 1.0),
+                  ),
+                  _buildCircularMetric(
+                    riskProfile,
+                    "Risk Profile",
+                    _riskProfileScore(riskProfile),
+                  ),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -293,43 +349,73 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   }
 
   Widget _buildFinancialTrend() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Financial Exposure Trend (2026)",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
+    return ListenableBuilder(
+      listenable: LiquidityTrendRepository.instance,
+      builder: (context, _) {
+        final points = LiquidityTrendRepository.instance.data ?? [];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 20),
-          Container(
-            height: 150,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.lightGrey),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.show_chart,
-              size: 100,
-              color: AppColors.main,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Financial Exposure Trend",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textBlack,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 150,
+                child: points.length < 2
+                    ? const Center(
+                        child: Icon(
+                          Icons.show_chart,
+                          size: 100,
+                          color: AppColors.main,
+                        ),
+                      )
+                    : LineChart(
+                        LineChartData(
+                          gridData: const FlGridData(show: false),
+                          titlesData: const FlTitlesData(show: false),
+                          borderData: FlBorderData(show: false),
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: [
+                                for (var i = 0; i < points.length; i++)
+                                  FlSpot(
+                                    i.toDouble(),
+                                    points[i].totalValue.toAmount(),
+                                  ),
+                              ],
+                              isCurved: true,
+                              color: AppColors.main,
+                              barWidth: 3,
+                              dotData: const FlDotData(show: false),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: AppColors.main.withAlpha(30),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -458,53 +544,56 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   }
 
   Widget _buildTopRisks() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Top Risks",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
+    return ListenableBuilder(
+      listenable: InvestmentRisksRepository.instance,
+      builder: (context, _) {
+        final topRisks = InvestmentRisksRepository.instance.data ?? [];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 16),
-          _buildRiskItem(
-            Icons.trending_up,
-            "Market Volatility",
-            "Risk Score",
-            74,
-            AppColors.orange,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Top Risks",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textBlack,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (topRisks.isEmpty)
+                const Text(
+                  "No concentration risks detected.",
+                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+                )
+              else
+                ...topRisks.map(
+                  (risk) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildRiskItem(
+                      Icons.warning,
+                      risk.type,
+                      risk.message,
+                      risk.severity,
+                      AppColors.orange,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _buildRiskItem(
-            Icons.account_balance,
-            "Credit Default",
-            "Risk Score",
-            45,
-            AppColors.orange,
-          ),
-          const SizedBox(height: 12),
-          _buildRiskItem(
-            Icons.warning,
-            "Reports",
-            "Risk Score",
-            23,
-            AppColors.main,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -512,7 +601,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
     IconData icon,
     String title,
     String subtitle,
-    int score,
+    String severity,
     Color color,
   ) {
     return Row(
@@ -542,9 +631,9 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           ),
         ),
         Text(
-          "$score",
+          severity,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -554,43 +643,55 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   }
 
   Widget _buildRecentAlerts() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Recent Alerts",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
+    return ListenableBuilder(
+      listenable: InvestmentAlertsRepository.instance,
+      builder: (context, _) {
+        final recentAlerts = InvestmentAlertsRepository.instance.data ?? [];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+              bottom: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 16),
-          _buildAlertItem(
-            Icons.notifications,
-            "Critical Notification",
-            "3 Minutes ago",
-            AppColors.main,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Recent Alerts",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textBlack,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (recentAlerts.isEmpty)
+                const Text(
+                  "No recent alerts.",
+                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+                )
+              else
+                ...recentAlerts.map(
+                  (alert) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildAlertItem(
+                      Icons.notifications,
+                      "${alert.symbol} down ${alert.changePercent}%",
+                      "Price drop alert",
+                      AppColors.main,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _buildAlertItem(
-            Icons.notifications,
-            "Critical Notification",
-            "3 Minutes ago",
-            AppColors.main,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

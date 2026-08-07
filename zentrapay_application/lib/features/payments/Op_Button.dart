@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class Op_Button extends StatelessWidget {
   const Op_Button({
@@ -24,7 +25,7 @@ class Op_Button extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.main : Colors.grey.withAlpha(5),
+          color: isActive ? AppTheme.primaryPink : Colors.grey.withAlpha(5),
           borderRadius: BorderRadius.circular(200),
         ),
         child: Row(
@@ -36,8 +37,8 @@ class Op_Button extends StatelessWidget {
               icn,
               size: 25,
               color: isActive
-                  ? AppColors.primary
-                  : AppColors.textBlack.withAlpha(80),
+                  ? AppTheme.primaryWhite
+                  : AppTheme.textBlack.withAlpha(80),
             ),
             Text(
               label,
@@ -45,8 +46,8 @@ class Op_Button extends StatelessWidget {
                 fontWeight: FontWeight.normal,
                 fontSize: 14,
                 color: isActive
-                    ? AppColors.primary
-                    : AppColors.textBlack.withAlpha(80),
+                    ? AppTheme.primaryWhite
+                    : AppTheme.textBlack.withAlpha(80),
               ),
             ),
           ],

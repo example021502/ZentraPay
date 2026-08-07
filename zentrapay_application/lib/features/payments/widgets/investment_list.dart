@@ -1,64 +1,134 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/models/zinvest.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
-class InvestmentList extends StatelessWidget {
-  const InvestmentList({super.key});
+/// Renders the real portfolio from [InvestmentsRepository] — one row per
+/// [Investment] with a Sell action for still-active positions. Replaces the
+/// old hardcoded three-fund list that never touched the network.
+class InvestmentList extends StatefulWidget {
+  final List<Investment> investments;
+  final Future<void> Function(String investmentId) onSell;
+
+  const InvestmentList({
+    super.key,
+    required this.investments,
+    required this.onSell,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Your Investments",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+  State<InvestmentList> createState() => _InvestmentListState();
+}
+
+class _InvestmentListState extends State<InvestmentList> {
+  String? _sellingId;
+
+  bool _isActive(String status) => status.toUpperCase() == 'ACTIVE';
+
+  Future<void> _confirmSell(Investment investment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Sell investment?"),
+        content: Text(
+          "Sell your position in ${investment.name}"
+          "${investment.symbol != null ? ' (${investment.symbol})' : ''}?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
           ),
-          const SizedBox(height: 15),
-          _item("ZGrowth Fund", "+6.4%", "GHS 140.00"),
-          _item("ZBalanced Fund", "-6.4%", "GHS 1, 230.00"),
-          _item("ZMoney Market", "+6.4%", "GHS 2, 040.00"),
-          const SizedBox(height: 20),
-          _buildExploreButton(),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Sell"),
+          ),
         ],
       ),
     );
+    if (confirmed != true) return;
+
+    setState(() => _sellingId = investment.investmentId);
+    try {
+      await widget.onSell(investment.investmentId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to sell: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sellingId = null);
+    }
   }
 
-  Widget _item(String title, String percent, String amount) => ListTile(
-    contentPadding: EdgeInsets.zero,
-    leading: const CircleAvatar(
-      backgroundColor: Colors.white,
-      child: Icon(Icons.show_chart, size: 18, color: Colors.grey),
-    ),
-    title: Text(
-      title,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-    ),
-    subtitle: Text(
-      percent,
-      style: TextStyle(
-        color: percent.startsWith("+") ? Colors.green : Colors.red,
-        fontSize: 12,
-      ),
-    ),
-    trailing: Text(amount, style: const TextStyle(fontWeight: FontWeight.bold)),
-  );
+  @override
+  Widget build(BuildContext context) {
+    if (widget.investments.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          "No investments yet.",
+          style: TextStyle(fontSize: 13, color: Colors.black54),
+        ),
+      );
+    }
 
-  Widget _buildExploreButton() => Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 120),
-    child: ElevatedButton(
-      onPressed: () {},
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF210163),
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-      ),
-      child: const Text(
-        "Explore Market",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-      ),
-    ),
-  );
+    return Column(
+      children: widget.investments.map((investment) {
+        final buyAmount = investment.buyPrice.toAmount();
+        final currentAmount = investment.currentPrice.toAmount();
+        final gainLoss = currentAmount - buyAmount;
+        final isUp = gainLoss >= 0;
+        final active = _isActive(investment.status);
+        final selling = _sellingId == investment.investmentId;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.zinvestColor.withAlpha(25),
+              child: Icon(
+                Icons.show_chart,
+                size: 18,
+                color: AppTheme.zinvestColor,
+              ),
+            ),
+            title: Text(
+              investment.symbol != null
+                  ? "${investment.name} (${investment.symbol})"
+                  : investment.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            subtitle: Text(
+              "Qty ${investment.quantity} · "
+              "${formatMoney(investment.buyPrice)} -> "
+              "${formatMoney(investment.currentPrice)} "
+              "${investment.currencyCode} · ${investment.status}",
+              style: TextStyle(
+                color: isUp ? AppTheme.successGreen : AppTheme.errorRed,
+                fontSize: 12,
+              ),
+            ),
+            trailing: active
+                ? (selling
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : TextButton(
+                          onPressed: () => _confirmSell(investment),
+                          child: const Text("Sell"),
+                        ))
+                : Text(
+                    investment.status,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 }

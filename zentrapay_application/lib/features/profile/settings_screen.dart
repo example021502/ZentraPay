@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/repositories/security_repository.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,32 +12,77 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool biometricEnabled = false;
   bool fraudProtection = true;
+  double securityScorePercent = 0;
+  bool isLoading = true;
 
-  final List<Map<String, dynamic>> protectionHistory = [
-    {
-      'type': 'blocked',
-      'title': 'transaction blocked',
-      'amount': '-GHS 250 000.00',
-      'time': 'Today, 09:20',
-      'icon': Icons.warning,
-      'color': AppColors.main,
-    },
-    {
-      'type': 'device',
-      'title': 'New Device Logged in',
-      'device': 'iphone 15 pro',
-      'time': 'Today, 09:20',
-      'icon': Icons.phone_iphone,
-      'color': AppColors.orange,
-    },
-    {
-      'type': 'secure',
-      'title': 'Voice verified',
-      'time': 'Today, 09:20',
-      'icon': Icons.check_circle,
-      'color': AppColors.green,
-    },
-  ];
+  List<Map<String, dynamic>> protectionHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settings = await SecuritySettingsRepository.instance
+          .ensureLoaded();
+      if (settings != null) {
+        setState(() {
+          biometricEnabled = settings.biometricEnabled;
+          fraudProtection = settings.fraudProtectionEnabled;
+          final activeChecks = [
+            settings.biometricEnabled,
+            settings.twoFactorEnabled,
+            settings.fraudProtectionEnabled,
+          ].where((c) => c).length;
+          securityScorePercent = activeChecks / 3;
+        });
+      }
+    } catch (_) {
+      // Keep defaults on failure.
+    }
+
+    try {
+      final history = await LoginHistoryRepository.instance.ensureLoaded();
+      setState(() {
+        protectionHistory = (history ?? []).map((h) {
+          return {
+            'type': 'login',
+            'title': h.success ? 'Successful login' : 'Failed login attempt',
+            'device': h.deviceInfo ?? '',
+            'time': h.createdAt,
+            'icon': Icons.shield,
+            'color': h.success ? AppColors.green : AppColors.main,
+          };
+        }).toList();
+      });
+    } catch (_) {
+      // Keep an empty list on failure rather than fabricating history.
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _toggleBiometric() async {
+    final newValue = !biometricEnabled;
+    setState(() => biometricEnabled = newValue);
+    try {
+      await SecuritySettingsRepository.instance.setBiometric(newValue);
+    } catch (_) {
+      if (mounted) setState(() => biometricEnabled = !newValue);
+    }
+  }
+
+  Future<void> _toggleFraudProtection() async {
+    final newValue = !fraudProtection;
+    setState(() => fraudProtection = newValue);
+    try {
+      await SecuritySettingsRepository.instance.setFraudProtection(newValue);
+    } catch (_) {
+      if (mounted) setState(() => fraudProtection = !newValue);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 width: 180,
                 height: 180,
                 child: CircularProgressIndicator(
-                  value: 0.9,
+                  value: securityScorePercent,
                   strokeWidth: 12,
                   backgroundColor: AppColors.primary.withAlpha(50),
                   valueColor: const AlwaysStoppedAnimation<Color>(
@@ -109,9 +155,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    "90%",
-                    style: TextStyle(
+                  Text(
+                    "${(securityScorePercent * 100).toStringAsFixed(0)}%",
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -148,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: "Biometric Authentication",
             trailing: biometricEnabled ? "Enabled" : "Disabled",
             trailingColor: biometricEnabled ? AppColors.green : AppColors.main,
-            onTap: () => setState(() => biometricEnabled = !biometricEnabled),
+            onTap: _toggleBiometric,
           ),
           const SizedBox(height: 16),
           _buildOptionTile(
@@ -166,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailingColor: fraudProtection
                 ? AppColors.green
                 : AppColors.textBlack,
-            onTap: () => setState(() => fraudProtection = !fraudProtection),
+            onTap: _toggleFraudProtection,
           ),
           const SizedBox(height: 16),
           _buildOptionTile(
@@ -259,7 +305,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...protectionHistory.map((item) => _buildHistoryItem(item)),
+          if (isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (protectionHistory.isEmpty)
+            const Text(
+              "No protection events recorded yet.",
+              style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+            )
+          else
+            ...protectionHistory.map((item) => _buildHistoryItem(item)),
         ],
       ),
     );

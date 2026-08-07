@@ -1,11 +1,14 @@
-import 'dart:async'; // 💡 Required for Timer (Debouncing)
+import 'dart:async'; // Required for Timer (Debouncing)
 
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/search_result.dart';
+import 'package:zentrapay_application/core/models/transaction.dart';
+import 'package:zentrapay_application/core/repositories/search_repository.dart';
+import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
-import "package:zentrapay_application/main.dart";
 
 class PaySectionMain extends StatefulWidget {
   const PaySectionMain({super.key});
@@ -17,44 +20,29 @@ class PaySectionMain extends StatefulWidget {
 class _PaySectionMainState extends State<PaySectionMain> {
   final TextEditingController _searchController = TextEditingController();
 
-  List<Map<String, dynamic>> paymentsHistory = [];
-  List<Map<String, dynamic>> bills = [];
-
-  // 💡 Search state tracking variables
-  List<Map<String, dynamic>> searchedContacts = [];
+  // Search state tracking variables
+  ContactSearchResult _searchResult = ContactSearchResult.empty();
   bool isSearching = false;
   Timer? _debounceTimer;
 
-  void _getRecentPayments_Bills() async {
-    try {
-      final payments = await getRecentPaymentsBills();
-      debugPrint("The payments: $payments");
-      if (payments?["success"] != true) {
-        return;
-      }
-      if (!mounted) return;
-      setState(() {
-        paymentsHistory = List<Map<String, dynamic>>.from(
-          payments?['data']?['history'] ?? [],
-        );
-        // No backend for a user's outstanding bills exists yet — the unified
-        // bill-providers catalog is a directory of billers, not a per-user
-        // bill list — so this stays empty until that's built.
-        bills = [];
-      });
-    } catch (e) {
-      debugPrint("Payment Error: $e");
-    }
-  }
+  /// Recent payments shown here are simply the most-recent transactions that
+  /// went to a named counterparty — there is no dedicated "recent contacts"
+  /// endpoint, so this reuses the shared TransactionsRepository cache.
+  List<AppTransaction> get _recentPayments => TransactionsRepository
+      .instance
+      .items
+      .where((t) => (t.counterpartyName ?? '').isNotEmpty)
+      .take(10)
+      .toList();
 
-  // 💡 Professional Debouncer implementation
+  // Professional Debouncer implementation
   void _onSearchChanged(String query) {
     // Cancel the previous timer if the user types another character within 500ms
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
     if (query.trim().isEmpty) {
       setState(() {
-        searchedContacts = [];
+        _searchResult = ContactSearchResult.empty();
         isSearching = false;
       });
       return;
@@ -67,39 +55,15 @@ class _PaySectionMainState extends State<PaySectionMain> {
       });
 
       try {
-        final response = await searchContacts(query);
-        print("The searched contacts are: $response");
-        if (response["success"] != true) {
-          return;
-        }
-
-        // Spring Boot returns three separate lists keyed by recipient type,
-        // not one flat "contacts" array — flatten them here and tag each
-        // entry with a normalized recipientType so downstream code doesn't
-        // need to know the per-type field names.
-        final data = response["data"] ?? {};
-        final List<Map<String, dynamic>> flattened = [
-          ...List<Map<String, dynamic>>.from(
-            data["appUsers"] ?? [],
-          ).map((c) => {...c, "recipientType": "app-user"}),
-          ...List<Map<String, dynamic>>.from(
-            data["billProviders"] ?? [],
-          ).map((c) => {...c, "recipientType": "billProvider"}),
-          ...List<Map<String, dynamic>>.from(
-            data["fundingSources"] ?? [],
-          ).map((c) => {...c, "recipientType": "fundingSource"}),
-        ];
-
+        final result = await SearchRepository.search(query);
+        if (!mounted) return;
         setState(() {
-          searchedContacts = flattened;
+          _searchResult = result;
         });
       } catch (e) {
         debugPrint("Search API Error: $e");
-        if (mounted) setState(() => isSearching = false);
       } finally {
-        setState(() {
-          isSearching = false;
-        });
+        if (mounted) setState(() => isSearching = false);
       }
     });
   }
@@ -107,48 +71,41 @@ class _PaySectionMainState extends State<PaySectionMain> {
   @override
   void initState() {
     super.initState();
-    _getRecentPayments_Bills();
+    TransactionsRepository.instance.ensureLoaded();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _debounceTimer?.cancel(); // 💡 Always cancel timers to avoid memory leaks
+    _debounceTimer?.cancel(); // Always cancel timers to avoid memory leaks
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppTheme.primaryWhite,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: SizedBox(
         height: 100,
         child: FloatingActionButton(
           onPressed: () {},
           elevation: 0,
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppTheme.primaryWhite,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(10),
+                padding: const EdgeInsets.all(AppTheme.spacingSm),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.textBlack.withAlpha(20),
-                      offset: Offset(0, 0),
-                      spreadRadius: 2.0,
-                      blurRadius: 5.0,
-                    ),
-                  ],
+                  color: AppTheme.primaryWhite,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  boxShadow: AppTheme.cardShadow,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.qr_code_2_outlined,
-                  color: AppColors.main,
+                  color: AppTheme.primaryPink,
                   size: 35,
                 ),
               ),
@@ -157,8 +114,8 @@ class _PaySectionMainState extends State<PaySectionMain> {
                 child: Text(
                   "Scan",
                   textAlign: TextAlign.center,
-                  style: AppStyles.text.copyWith(
-                    color: AppColors.main,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.primaryPink,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
                   ),
@@ -169,343 +126,302 @@ class _PaySectionMainState extends State<PaySectionMain> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Search Section Wrapper
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15.0,
-                  vertical: 15.0,
-                ),
-                child: Column(
-                  spacing: 10,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SearchBar(
-                      controller: _searchController,
-                      hintText: "Search @zentag, phone, bank ac. no. etc",
-                      hintStyle: WidgetStateProperty.all(
-                        TextStyle(color: AppColors.lightGrey, fontSize: 14),
-                      ),
-                      leading: const Icon(Icons.search, color: Colors.grey),
-                      trailing: [
-                        if (isSearching)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 8.0),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.main,
+        child: ListenableBuilder(
+          listenable: TransactionsRepository.instance,
+          builder: (context, _) {
+            final recentPayments = _recentPayments;
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Search Section Wrapper
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingMd,
+                      vertical: AppTheme.spacingMd,
+                    ),
+                    child: Column(
+                      spacing: AppTheme.spacingSm,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          spacing: AppTheme.spacingSm,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pop(context);
+                              },
+                              child: Icon(
+                                Icons.arrow_back,
+                                size: 22,
+                                color: AppTheme.textBlack,
                               ),
                             ),
+
+                            Text("Send Money", style: AppTheme.headlineSmall),
+                          ],
+                        ),
+                        const SizedBox(height: AppTheme.spacingLg),
+                        SearchBar(
+                          controller: _searchController,
+                          hintText: "Search @zentag, phone, bank ac. no. etc",
+                          hintStyle: WidgetStateProperty.all(
+                            TextStyle(color: AppTheme.gray500, fontSize: 14),
+                          ),
+                          leading: const Icon(
+                            Icons.search,
+                            color: AppTheme.gray500,
+                          ),
+                          trailing: [
+                            if (isSearching)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8.0),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppTheme.primaryPink,
+                                  ),
+                                ),
+                              ),
+                          ],
+                          elevation: WidgetStateProperty.all(0),
+                          backgroundColor: WidgetStateProperty.all(
+                            AppTheme.gray100,
+                          ),
+                          padding: WidgetStateProperty.all(
+                            const EdgeInsets.symmetric(horizontal: 15.0),
+                          ),
+                          shape: WidgetStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull,
+                              ),
+                            ),
+                          ),
+                          onChanged: _onSearchChanged, // Trigger debouncer here
+                        ),
+
+                        // Dynamic Fit and Scrollable Search Matches Box Layout
+                        if (_searchController.text.isNotEmpty)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxHeight: 250, // Hard ceiling cap rule context
+                            ),
+                            child: _hasSearchResults
+                                ? SingleChildScrollView(
+                                    scrollDirection: Axis.vertical,
+                                    physics: const BouncingScrollPhysics(),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        ..._searchResult.appUsers.map(
+                                          (u) => _buildSearchedAppUser(u),
+                                        ),
+                                        ..._searchResult.billProviders.map(
+                                          (b) => _buildSearchedBillProvider(b),
+                                        ),
+                                        ..._searchResult.fundingSources.map(
+                                          (f) => _buildSearchedFundingSource(f),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12.0,
+                                      ),
+                                      child: Text(
+                                        isSearching
+                                            ? "Searching system records..."
+                                            : "No matches found",
+                                        style: AppTheme.bodyMedium.copyWith(
+                                          color: AppTheme.gray500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                           ),
                       ],
-                      elevation: WidgetStateProperty.all(0),
-                      backgroundColor: WidgetStateProperty.all(
-                        AppColors.lightGrey.withAlpha(40),
-                      ),
-                      padding: WidgetStateProperty.all(
-                        const EdgeInsets.symmetric(horizontal: 15.0),
-                      ),
-                      shape: WidgetStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(200),
-                        ),
-                      ),
-                      onChanged: _onSearchChanged, // 💡 Trigger debouncer here
                     ),
+                  ),
 
-                    // 💡 Dynamic Fit and Scrollable Search Matches Box Layout
-                    if (_searchController.text.isNotEmpty)
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxHeight: 250, // 💡 Hard ceiling cap rule context
-                        ),
-                        child: searchedContacts.isNotEmpty
-                            ? SingleChildScrollView(
-                                scrollDirection: Axis.vertical,
-                                physics: const BouncingScrollPhysics(),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: searchedContacts
-                                      .map(
-                                        (contact) =>
-                                            _buildSearchedContactItem(contact),
-                                      )
-                                      .toList(),
-                                ),
-                              )
-                            : Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12.0,
-                                  ),
-                                  child: Text(
-                                    isSearching
-                                        ? "Searching system records..."
-                                        : "No matches found",
-                                    style: AppStyles.text.copyWith(
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
+                  // 2. Recent Payments Header Row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingLg,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Recent Payments", style: AppTheme.labelLarge),
+                      ],
+                    ),
+                  ),
+
+                  // 3. Horizontal Recents ListView Row
+                  SizedBox(
+                    height: 95,
+                    child: recentPayments.isNotEmpty
+                        ? ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.only(
+                              left: 16.0,
+                              right: 8.0,
+                            ),
+                            itemCount: recentPayments.length,
+                            itemBuilder: (context, index) {
+                              return _buildRecentContactItem(
+                                recentPayments[index],
+                              );
+                            },
+                          )
+                        : Center(
+                            child: Text(
+                              "No recent contacts",
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.gray500,
                               ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // 2. Recent Payments Header Row
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Recent Payments", style: AppStyles.header),
-                    TextButton(
-                      onPressed: paymentsHistory.length > 10 ? () {} : null,
-                      child: const Text(
-                        "See All",
-                        style: TextStyle(color: AppColors.main, fontSize: 14),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 3. Horizontal Recents ListView Row
-              SizedBox(
-                height: 95,
-                child: paymentsHistory.isNotEmpty
-                    ? ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.only(left: 16.0, right: 8.0),
-                        itemCount: paymentsHistory.length,
-                        itemBuilder: (context, index) {
-                          return _buildRecentContactItem(
-                            paymentsHistory[index],
-                          );
-                        },
-                      )
-                    : Center(
-                        child: Text(
-                          "No recent contacts",
-                          style: AppStyles.text.copyWith(
-                            color: AppColors.lightGrey,
-                          ),
-                        ),
-                      ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // 4. Billers Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Pay Bills", style: AppStyles.header),
-                    const SizedBox(height: 10),
-
-                    if (bills.isNotEmpty)
-                      ...List.generate(
-                        bills.length,
-                        (index) => Container(
-                          margin: const EdgeInsets.only(bottom: 15),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withAlpha(40),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: ListTile(
-                            leading: const Icon(
-                              Icons.receipt_long,
-                              color: AppColors.secondary,
-                            ),
-                            title: Text(
-                              bills[index]["provider_name"] ??
-                                  "Utility Option #${index + 1}",
-                            ),
-                            subtitle: const Text("Tap to view details"),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      bills[index]["amount"] ?? "No value",
-                                      style: AppStyles.header.copyWith(
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      "Due: ${bills[index]["due"] ?? "No value"}",
-                                      style: AppStyles.text.copyWith(
-                                        fontSize: 11,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
                             ),
                           ),
-                        ),
-                      )
-                    else
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Text(
-                            "No Providers yet",
-                            style: AppStyles.text.copyWith(
-                              color: AppColors.lightGrey,
-                            ),
-                          ),
-                        ),
-                      ),
+                  ),
 
-                    const SizedBox(height: 100),
-                  ],
-                ),
+                  const SizedBox(height: AppTheme.spacingLg),
+
+                  // 4. Billers Section — the unified bill-providers catalog
+                  // is a directory of billers, not a per-user outstanding
+                  // bill list, so there's no real "your bills" data to show
+                  // here yet; the New/More menu (Quick Actions) is where a
+                  // user browses and pays a biller.
+                  const SizedBox(height: 100),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // searched contacts ===============
-  Widget _buildSearchedContactItem(Map<String, dynamic> contact) {
-    final isAppUser = contact["recipientType"] == "app-user";
-    final isBillProvider = contact["recipientType"] == "billProvider";
-    final isFundingSource = contact["recipientType"] == "fundingSource";
+  bool get _hasSearchResults =>
+      _searchResult.appUsers.isNotEmpty ||
+      _searchResult.billProviders.isNotEmpty ||
+      _searchResult.fundingSources.isNotEmpty;
 
-    // Only app-user recipients carry the phoneNumber/zentag identifiers
-    // /api/payments/internal needs. Bill-provider and funding-source
-    // payments have no real backend yet (see makeTransfer), so their
-    // paymentForm intentionally omits fields that would suggest otherwise.
-    Map<String, dynamic> paymentForm = {
-      "amount": "",
-      "currency_code": "",
-      "name": isAppUser
-          ? contact['fullName']
-          : isBillProvider
-          ? contact['billerName']
-          : contact['sourceName'],
-      "recipientType": contact['recipientType'],
-      if (isAppUser) "phoneNumber": contact['phoneNumber'],
-      if (isAppUser) "zentag": contact['zentag'],
-    };
+  // searched app users — the only recipient type with a real payment path.
+  Widget _buildSearchedAppUser(SearchAppUser user) {
+    final recipientDetails = Map<String, dynamic>.from(
+      user as Map<dynamic, dynamic>,
+    );
+    print("THE RECIPIENT DETAILS ARE:: $recipientDetails");
+    return _searchResultTile(
+      title: user.zentag,
+      subtitle: user.fullName,
+      dimmed: false,
+      onTap: () => _startPaymentFlow(recipientDetails),
+    );
+  }
 
+  // Searched bill providers — dimmed since there's no live pay-a-biller
+  // endpoint wired into this sheet yet (that lives behind Quick Actions'
+  // "New Bill Provider" picker instead).
+  Widget _buildSearchedBillProvider(SearchBillProvider provider) {
+    return _searchResultTile(
+      title: provider.billerName,
+      subtitle: "${provider.categoryCode} · Coming soon",
+      dimmed: true,
+      onTap: () => ZentraNotifier.error(
+        "Not Supported",
+        "Paying bill providers from here is not yet supported.",
+      ),
+    );
+  }
+
+  Widget _buildSearchedFundingSource(SearchFundingSource source) {
+    return _searchResultTile(
+      title: source.sourceName,
+      subtitle: "${source.accountIdentifier} · Coming soon",
+      dimmed: true,
+      onTap: () => ZentraNotifier.error(
+        "Not Supported",
+        "Sending to this recipient type is not yet supported.",
+      ),
+    );
+  }
+
+  Widget _searchResultTile({
+    required String title,
+    required String subtitle,
+    required bool dimmed,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () async {
-          Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) =>
-                EnterAmount(recipient: paymentForm["name"] ?? "N/A"),
-          );
-
-          if (!mounted) return;
-
-          setState(() {
-            paymentForm["amount"] = amount?["amount"];
-            paymentForm["currency_code"] = amount?["currency_code"];
-          });
-          if (!mounted) return;
-
-          if (!isAppUser) {
-            return ZentraNotifier.error(
-              "Not Supported",
-              "Sending to this recipient type is not yet supported.",
-            );
-          }
-
-          // confirm PIN
-          await showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            isDismissible: false,
-            backgroundColor: Colors.transparent,
-            builder: (BuildContext context) =>
-                AppPinSheet.confirmTransaction(form: paymentForm),
-          );
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 20.0),
-          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
-          decoration: BoxDecoration(
-            color: AppColors.secondary.withAlpha(20),
-            borderRadius: BorderRadius.circular(200),
-          ),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
-                  child: Icon(Icons.person, size: 30),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 0,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isAppUser
-                            ? contact["zentag"]
-                            : isBillProvider
-                            ? contact["billerName"]
-                            : isFundingSource
-                            ? contact["accountIdentifier"]
-                            : contact["name"] ?? "N/A",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textBlack,
-                        ),
-                      ),
-
-                      Text(
-                        isAppUser
-                            ? contact["phoneNumber"]
-                            : isBillProvider
-                            ? contact["category"]
-                            : isFundingSource
-                            ? contact["sourceName"]
-                            : contact["bankCode"] ?? "N/A",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w200,
-                          color: AppColors.textBlack,
-                        ),
-                      ),
-                    ],
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        onTap: onTap,
+        child: Opacity(
+          opacity: dimmed ? 0.55 : 1.0,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: AppTheme.spacingLg),
+            padding: const EdgeInsets.symmetric(
+              vertical: AppTheme.spacingSm,
+              horizontal: AppTheme.spacingMd,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.gray100,
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            ),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppTheme.secondaryNavy.withValues(
+                      alpha: 0.1,
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      size: 30,
+                      color: AppTheme.secondaryNavy,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: AppTheme.spacingSm),
+                  Expanded(
+                    flex: 0,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: AppTheme.labelLarge,
+                        ),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.gray500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -514,44 +430,26 @@ class _PaySectionMainState extends State<PaySectionMain> {
   }
 
   // Recent payments contacts ========================
-  Widget _buildRecentContactItem(Map<String, dynamic> contact) {
-    final String displayName = contact["name"] ?? "N/A";
-    print("THE CONTACT:: $contact");
-    Map<String, dynamic> paymentForm = {
+  Widget _buildRecentContactItem(AppTransaction transaction) {
+    final displayName = transaction.counterpartyName ?? "Unknown";
+    // Zentags in this app are shaped like "<phone>@zentrapay" — use that to
+    // tell apart a zentag identifier from a bare phone number, since the
+    // transaction record itself doesn't tag which one counterpartyIdentifier
+    // is.
+    final identifier = transaction.counterpartyIdentifier;
+    final isZentag = identifier?.contains('@') ?? false;
+
+    final paymentForm = {
       "amount": "",
       "currency_code": "",
-      "name": contact['name'],
-      "type": contact['type'],
-      "identifier": contact['identifier'],
-      "recipient_id": contact['id'],
+      "name": displayName,
+      "recipientType": "app-user",
+      if (isZentag) "zentag": identifier,
+      if (!isZentag) "phoneNumber": identifier,
     };
 
     return GestureDetector(
-      onTap: () async {
-        Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) =>
-              EnterAmount(recipient: displayName),
-        );
-
-        setState(() {
-          paymentForm["amount"] = amount?["amount"];
-          paymentForm["currency_code"] = amount?["currency_code"];
-        });
-
-        if (!mounted) return;
-
-        // confirm PIN
-        await showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          isDismissible: false,
-          backgroundColor: Colors.transparent,
-          builder: (BuildContext context) =>
-              AppPinSheet.confirmTransaction(form: paymentForm),
-        );
-      },
+      onTap: () => _startPaymentFlow(paymentForm),
       child: Container(
         margin: const EdgeInsets.only(bottom: 15.0),
         child: Column(
@@ -560,8 +458,12 @@ class _PaySectionMainState extends State<PaySectionMain> {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
-              child: Icon(Icons.person, size: 30),
+              backgroundColor: AppTheme.secondaryNavy.withValues(alpha: 0.1),
+              child: const Icon(
+                Icons.person,
+                size: 30,
+                color: AppTheme.secondaryNavy,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -570,16 +472,46 @@ class _PaySectionMainState extends State<PaySectionMain> {
                 displayName,
                 maxLines: 1,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textBlack,
-                ),
+                style: AppTheme.labelLarge,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _startPaymentFlow(Map<String, dynamic> recipientDetails) async {
+    final amount = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) =>
+          EnterAmount(recipient: recipientDetails["fullName"] ?? "Unknown"),
+    );
+    if (amount == null || !mounted) return;
+    final amountDetails = {
+      "amount": amount['amount'],
+      "currencyCode": amount['currency_code'],
+    };
+
+    if (!mounted) return;
+
+    // confirm PIN
+    final pin = await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) =>
+          AppPinSheet.confirmTransaction(form: recipientDetails),
+    );
+
+    final paymentForm = {
+      "recipientDetails": recipientDetails,
+      "pin": pin,
+      "amountDetails": amountDetails,
+    };
+
+    // final transaction = await
   }
 }

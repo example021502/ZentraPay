@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/cards_repository.dart';
+import 'package:zentrapay_application/core/repositories/providers_repository.dart';
+import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
-import 'api_home_wallet_services.dart';
 import 'home_cards_carousel.dart';
 import 'home_header.dart';
 import 'home_quick_actions.dart';
 import 'home_services_grid.dart';
 import 'home_transactions.dart';
+
+const _creditTypes = {
+  'WALLET_FUNDING',
+  'SAVINGS_WITHDRAWAL',
+  'LOAN_DISBURSEMENT',
+  'INVESTMENT_SELL',
+  'REWARD_CREDIT',
+  'REFUND',
+};
 
 class HomeWalletMain extends StatefulWidget {
   const HomeWalletMain({super.key});
@@ -16,97 +28,132 @@ class HomeWalletMain extends StatefulWidget {
 }
 
 class _HomeWalletMainState extends State<HomeWalletMain> {
-  List<Map<String, dynamic>> cards = [];
-  List<Map<String, dynamic>> bills = [];
-  List<Map<String, dynamic>> services = [];
-  List<Map<String, dynamic>> history = [];
-
   @override
   void initState() {
     super.initState();
-    loadData();
-  }
-
-  void loadData() async {
-    if (!mounted) return;
-    // setState(() => isLoading = true);
-
-    try {
-      final response = await loadHomeData();
-      setState(() {
-        cards = List<Map<String, dynamic>>.from(response?['cards']);
-        bills = List<Map<String, dynamic>>.from(response?['bills']);
-        services = List<Map<String, dynamic>>.from(response?['services']);
-        history = List<Map<String, dynamic>>.from(response?['history']);
-      });
-    } catch (e) {
-      if (!mounted) return;
-      debugPrint("$e");
-    } finally {
-      // setState(() => isLoading = false);
-    }
+    // Fires once per app session — each repository is a load-once cache, so
+    // revisiting this tab (it stays mounted via IndexedStack) never refetches.
+    CardsRepository.instance.ensureLoaded();
+    BillProvidersRepository.instance.ensureLoaded();
+    ServiceProvidersRepository.instance.ensureLoaded();
+    TransactionsRepository.instance.ensureLoaded();
   }
 
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
 
-    // ======================================================
-    // THE CARDS MAP TO BE IMPLEMENTED LATER
-    // ======================================================
-
-    // final headers = [
-    //   {
-    //     "key": "fiat_balances_card",
-    //     "title": "Your Fiat Balances",
-    //     "id": "fiat",
-    //   },
-    //   {
-    //     "key": "crypto_balances_card",
-    //     "title": "Your Crypto Balances",
-    //     "id": "crypto",
-    //   },
-    // ];
-
     return SingleChildScrollView(
-      child: Container(
-        color: AppColors.primary,
-        width: MediaQuery.of(context).size.width,
-        child: Column(
-          spacing: 20,
-          children: [
-            HomeHeader(
-              key: ValueKey("fiat_balances"),
-              title: "You wallet balances",
-              id: "fiat",
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height,
+        ),
+        child: Container(
+          decoration: BoxDecoration(color: AppTheme.gray50),
+          width: MediaQuery.of(context).size.width,
+          child: Padding(
+            padding: EdgeInsets.all(15.0),
+            child: Column(
+              spacing: 12,
+              children: [
+                HomeHeader(
+                  key: ValueKey("fiat_balances"),
+                  title: "You wallet balances",
+                  id: "fiat",
+                ),
+                SizedBox(height: AppTheme.spacingSm),
+                _buildContent(isTablet),
+              ],
             ),
-            _buildWhiteSheet(isTablet),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildWhiteSheet(bool isTablet) {
-    final maxWidth = isTablet ? 800.0 : double.infinity;
-    final horizontalPadding = isTablet ? 40.0 : 0.0;
+  Widget _buildContent(bool isTablet) {
+    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
 
-    return Container(
+    return SizedBox(
       width: maxWidth,
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Center(
-        child: Column(
-          children: [
-            const HomeQuickActions(),
-            HomeCardsCarousel(cards: cards),
-            HomeServicesGrid(services: services, bills: bills),
-            HomeTransactions(history: history),
-            if (!isTablet)
-              const SizedBox(
-                height: 120,
-              ), // Space for floating bottom nav on mobile
-          ],
-        ),
+      child: Column(
+        children: [
+          const HomeQuickActions(),
+          SizedBox(height: AppTheme.spacingMd),
+
+          ListenableBuilder(
+            listenable: CardsRepository.instance,
+            builder: (context, _) => HomeCardsCarousel(
+              cards: (CardsRepository.instance.data ?? [])
+                  .map(
+                    (c) => {
+                      'cardId': c.cardId,
+                      'cardName': c.brand,
+                      'type': c.cardType,
+                      'last4': c.last4,
+                      'expiry':
+                          '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
+                      'status': c.status,
+                    },
+                  )
+                  .toList(),
+            ),
+          ),
+          ListenableBuilder(
+            listenable: Listenable.merge([
+              BillProvidersRepository.instance,
+              ServiceProvidersRepository.instance,
+            ]),
+            builder: (context, _) => HomeServicesGrid(
+              services: (ServiceProvidersRepository.instance.data ?? [])
+                  .map(
+                    (p) => {
+                      'providerName': p.providerName,
+                      'logoUrl': p.logoUrl ?? '',
+                      'category': p.categoryCode,
+                    },
+                  )
+                  .toList(),
+              bills: (BillProvidersRepository.instance.data ?? [])
+                  .map(
+                    (p) => {
+                      'billerName': p.billerName,
+                      'logoUrl': p.logoUrl ?? '',
+                      'category': p.categoryCode,
+                    },
+                  )
+                  .toList(),
+            ),
+          ),
+          SizedBox(height: AppTheme.spacingSm),
+
+          ListenableBuilder(
+            listenable: TransactionsRepository.instance,
+            builder: (context, _) => HomeTransactions(
+              history: TransactionsRepository.instance.items
+                  .map(
+                    (t) => {
+                      'title': t.counterpartyName ?? t.typeCode,
+                      'time': t.createdAt,
+                      'amount': formatMoney(
+                        t.amount,
+                        symbol: '${t.currencyCode} ',
+                      ),
+                      'icon': _creditTypes.contains(t.typeCode)
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                      'type': t.typeCode,
+                    },
+                  )
+                  .toList(),
+            ),
+          ),
+          SizedBox(height: AppTheme.spacingSm),
+
+          const SizedBox(
+            height: 120,
+          ), // Space for floating bottom nav on mobile
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class AiCouch extends StatelessWidget {
   const AiCouch({super.key});
@@ -59,7 +60,7 @@ class AiCouch extends StatelessWidget {
             ),
           ),
         ),
-        Icon(Icons.send, color: AppColors.secondary, size: 20),
+        Icon(Icons.send, color: AppTheme.secondaryNavy, size: 20),
       ],
     ),
   );

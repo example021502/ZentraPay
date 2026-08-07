@@ -1,6 +1,19 @@
+import 'package:curved_navigation_bar_pro/curved_navigation_bar_pro.dart';
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
+/// Bottom navigation: icons only when inactive. The active tab's icon
+/// sits inside a small navy chip nested in the bar's curved notch, and
+/// its label sits below, centered on the navy bar surface (not inside
+/// the curve itself). The notch is kept shallow — just enough to
+/// separate the icon from its label. Home sits in the middle and is
+/// active on launch.
+///
+/// [selectedIndex] / [onItemSelected] use the *semantic* tab index that
+/// matches `ResponsiveNavigation._pages` (0 Home, 1 Remit, 2 Grow, 3 Bank,
+/// 4 Merchant). Internally this widget reorders them so Home renders in
+/// the middle slot; callers don't need to know about that reordering.
 class NavigationBarMain extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -11,124 +24,89 @@ class NavigationBarMain extends StatelessWidget {
     required this.onItemSelected,
   });
 
+  // Semantic index -> (icon, label). Order here is display order along
+  // the bar, with Home (semantic 0) placed in the middle.
+  static const List<int> _visualOrder = [1, 2, 0, 3, 4];
+  static const double _cornerRadius = 30;
+
+  static const Map<int, (IconData, String)> _tabs = {
+    0: (Icons.home_rounded, "Home"),
+    1: (Icons.compare_arrows, "Remit"),
+    2: (Icons.trending_up, "Grow"),
+    3: (Icons.account_balance, "Bank"),
+    4: (Icons.settings, "Settings"),
+  };
+
   @override
   Widget build(BuildContext context) {
+    final currentVisualIndex = _visualOrder.indexOf(selectedIndex);
+
     return Material(
-      color: AppColors.primary,
+      color: AppTheme.gray50,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(15, 0, 15, 25),
-        child: Container(
-          height: 70,
-          decoration: BoxDecoration(
-            color: AppColors.main.withAlpha(230),
-            borderRadius: BorderRadius.circular(200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(20),
-                blurRadius: 30,
-                spreadRadius: 2,
-                offset: const Offset(0, 0),
-              ),
-            ],
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(_cornerRadius),
+            bottomRight: Radius.circular(_cornerRadius),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNavItem(0, "Home", Icons.home),
-              _buildNavItem(1, "ZRemit", Icons.compare_arrows),
-              _buildNavItem(2, "ZGrow", Icons.trending_up),
-              _buildNavItem(3, "ZBank", Icons.account_balance),
-            ],
+          child: CurvedNavigationBarPro(
+            currentIndex: currentVisualIndex,
+            onTap: (visualIndex) => onItemSelected(_visualOrder[visualIndex]),
+            backgroundColor: AppTheme.primaryPink.withAlpha(230),
+            activeColor: AppTheme.primaryWhite,
+            inactiveColor: AppTheme.primaryWhite,
+            fabColor: AppTheme.primaryWhite,
+            barHeight: 65,
+            fabRadius: 20,
+            fabGap: 6,
+            fabSink: 14,
+            notchShoulderRadius: 20,
+            cornerRadius: _cornerRadius,
+            showLabel: true,
+            inactiveIconSize: 22,
+            shadowColor: AppColors.textBlack.withAlpha(30),
+            elevation: 12,
+            items: List.generate(_visualOrder.length, (visualIndex) {
+              final semanticIndex = _visualOrder[visualIndex];
+              final (icon, label) = _tabs[semanticIndex]!;
+
+              return CurvedNavigationItemPro(
+                inactiveIcon: icon,
+                // Only the active tab carries a label — it renders
+                // centered on the navy bar surface below the notch,
+                // never inside the curve/bubble itself.
+                // label: isActive ? label : "",
+                label: label,
+                activeWidget: _ActiveTabContent(icon: icon),
+              );
+            }),
           ),
         ),
       ),
     );
   }
-
-  Widget _buildNavItem(int index, String label, IconData icon) {
-    return NavButton(
-      label: label,
-      icon: icon,
-      isActive: selectedIndex == index,
-      onTap: () => onItemSelected(index),
-    );
-  }
 }
 
-class NavButton extends StatelessWidget {
-  final String label;
+/// Icon shown inside the bubble sitting in the bar's small curve — a
+/// compact navy chip nested in the white bubble. No label is ever drawn
+/// here; labels are rendered by the bar itself on the flat navy surface.
+class _ActiveTabContent extends StatelessWidget {
   final IconData icon;
-  final bool isActive;
-  final VoidCallback onTap;
 
-  const NavButton({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
+  const _ActiveTabContent({required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    final Color color = isActive ? AppColors.main : AppColors.primary;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.secondaryNavy,
+        shape: BoxShape.circle,
+      ),
 
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 70,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            isActive
-                ? AnimatedScale(
-                    duration: const Duration(milliseconds: 200),
-                    scale: isActive ? 1.2 : 1.0,
-                    child: Container(
-                      padding: EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(200)),
-                        color: isActive
-                            ? AppColors.primary
-                            : Colors.transparent,
-                      ),
-                      child: Icon(icon, color: color, size: 20),
-                    ),
-                  )
-                : Column(
-                    spacing: 5,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(icon, size: 20, color: AppColors.primary),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 10,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          letterSpacing: 0.2,
-                        ),
-                        child: Text(label),
-                      ),
-                    ],
-                  ),
-            // const SizedBox(height: 4),
-            // const SizedBox(height: 6),
-            // AnimatedContainer(
-            //   duration: const Duration(milliseconds: 200),
-            //   height: 3,
-            //   width: isActive ? 16 : 0,
-            //   decoration: BoxDecoration(
-            //     color: AppColors.main,
-            //     borderRadius: BorderRadius.circular(2),
-            //   ),
-            // ),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Icon(icon, color: AppTheme.primaryWhite, size: 22),
       ),
     );
   }

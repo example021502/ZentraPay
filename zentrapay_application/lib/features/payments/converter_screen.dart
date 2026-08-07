@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/repositories/converter_repository.dart';
 
 class ConverterScreen extends StatefulWidget {
   const ConverterScreen({super.key});
@@ -12,9 +13,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
   String fromCurrency = 'GHS';
   String toCurrency = 'USD';
   double fromAmount = 1000.00;
-  double toAmount = 87.03;
-  double exchangeRate = 0.087;
+  double toAmount = 0;
+  double exchangeRate = 0;
   bool isSmartConversion = true;
+  bool isLoading = false;
+  String? errorMessage;
 
   final List<Map<String, dynamic>> currencies = [
     {'code': 'GHS', 'symbol': '₵', 'name': 'Ghanaian Cedi', 'flag': '🇬🇭'},
@@ -22,6 +25,38 @@ class _ConverterScreenState extends State<ConverterScreen> {
     {'code': 'KES', 'symbol': 'KSh', 'name': 'Kenyan Shilling', 'flag': '🇰🇪'},
     {'code': 'NGN', 'symbol': '₦', 'name': 'Nigerian Naira', 'flag': '🇳🇬'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _performConversion();
+  }
+
+  Future<void> _performConversion() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+    try {
+      final result = await ConverterService.convert(
+        from: fromCurrency,
+        to: toCurrency,
+        amount: fromAmount.toStringAsFixed(2),
+      );
+      final converted = double.tryParse(result.convertedAmount);
+      final rate = double.tryParse(result.rate);
+      if (converted != null) {
+        setState(() {
+          toAmount = converted;
+          exchangeRate = rate ?? (fromAmount == 0 ? 0 : converted / fromAmount);
+        });
+      }
+    } catch (e) {
+      setState(() => errorMessage = 'Could not fetch live rates');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,9 +114,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
             amount: fromAmount,
             onCurrencyChanged: (value) {
               setState(() => fromCurrency = value);
+              _performConversion();
             },
             onAmountChanged: (value) {
               setState(() => fromAmount = value);
+              _performConversion();
             },
           ),
           const SizedBox(height: 20),
@@ -104,6 +141,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             isReadOnly: true,
             onCurrencyChanged: (value) {
               setState(() => toCurrency = value);
+              _performConversion();
             },
           ),
         ],
@@ -248,7 +286,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'GHS 1 = USD ${exchangeRate.toStringAsFixed(3)}',
+                '$fromCurrency 1 = $toCurrency ${exchangeRate.toStringAsFixed(3)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -300,18 +338,19 @@ class _ConverterScreenState extends State<ConverterScreen> {
           _buildOptionTile(
             title: "Smart Conversion",
             subtitle: "(Recommended)",
-            description: "Best rate with lowest fees",
-            amount: "USD 87.03",
-            fee: "GHS 5.00",
+            description: "Best available live rate",
+            amount: '$toCurrency ${toAmount.toStringAsFixed(2)}',
+            fee: '$fromCurrency ${(fromAmount * 0.005).toStringAsFixed(2)}',
             isSelected: isSmartConversion,
             onTap: () => setState(() => isSmartConversion = true),
           ),
           const SizedBox(height: 12),
           _buildOptionTile(
             title: "Low fee",
-            subtitle: "Lower fee Standard rate",
-            amount: "USD 80.00",
-            fee: "GHS 2.00",
+            subtitle: "Slightly wider spread, lower fee",
+            amount:
+                '$toCurrency ${(toAmount * 0.98).toStringAsFixed(2)}',
+            fee: '$fromCurrency ${(fromAmount * 0.002).toStringAsFixed(2)}',
             isSelected: !isSmartConversion,
             onTap: () => setState(() => isSmartConversion = false),
           ),
@@ -436,11 +475,20 @@ class _ConverterScreenState extends State<ConverterScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow("Exchange rate:", "GHS 1 = USD 0.087"),
+          _buildSummaryRow(
+            "Exchange rate:",
+            "1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency",
+          ),
           const SizedBox(height: 8),
-          _buildSummaryRow("Transfer fee", "-GHS 5.00", isNegative: true),
-          const SizedBox(height: 8),
-          _buildSummaryRow("You receive", "USD 87.03", isHighlighted: true),
+          _buildSummaryRow(
+            "You receive",
+            "$toCurrency ${toAmount.toStringAsFixed(2)}",
+            isHighlighted: true,
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
         ],
       ),
     );
@@ -478,21 +526,30 @@ class _ConverterScreenState extends State<ConverterScreen> {
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: isLoading ? null : _performConversion,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.purple,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
-          "Convert Now",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
-        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              )
+            : const Text(
+                "Convert Now",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
       ),
     );
   }

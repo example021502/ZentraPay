@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/repositories/voice_command_repository.dart';
 
 class VoiceRecordingScreen extends StatefulWidget {
   const VoiceRecordingScreen({super.key});
@@ -10,6 +11,22 @@ class VoiceRecordingScreen extends StatefulWidget {
 
 class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
   bool isRecording = false;
+
+  // On-device speech-to-text isn't wired up yet (no transcription package in
+  // this app), so a stopped recording is logged as a voice session with the
+  // backend rather than fabricating transcript text. There's no client-side
+  // fraud heuristic on this screen, so fraudAlert/fraudReason are left at
+  // their defaults (false/none) rather than fabricated.
+  Future<void> _onRecordingStopped() async {
+    try {
+      await VoiceCommandHistoryRepository.instance.sendCommand(
+        commandType: 'VOICE',
+        transcript: '(no transcription available)',
+      );
+    } catch (_) {
+      // Best-effort — recording UI state already reflects the stop.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +60,11 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
             const SizedBox(height: 40),
             GestureDetector(
               onTap: () {
+                final wasRecording = isRecording;
                 setState(() => isRecording = !isRecording);
+                if (wasRecording) {
+                  _onRecordingStopped();
+                }
               },
               child: Container(
                 width: 200,
@@ -75,7 +96,7 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
             ),
             const SizedBox(height: 40),
             IconButton(
-              onPressed: () {},
+              onPressed: () => Navigator.pushNamed(context, '/ai_assistance'),
               icon: Container(
                 width: 50,
                 height: 50,

@@ -25,7 +25,6 @@ import 'package:zentrapay_application/features/secure/secure_screen.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
 import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart';
-import 'package:zentrapay_application/features/zpay/zpay_screen.dart';
 import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
 import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
 
@@ -143,7 +142,6 @@ class MainApp extends StatelessWidget {
             '/settings': (context) => const SettingsScreen(),
             '/fraud_detection': (context) => const FraudDetectionScreen(),
             '/external_payment': (context) => const ExternalPaymentScreen(),
-            '/zpay': (context) => const ZPayScreen(),
             '/zbanking': (context) => const ZBankingScreen(),
             '/zremit': (context) => const ZRemitScreen(),
             '/zvoice': (context) => const ZVoiceScreen(),

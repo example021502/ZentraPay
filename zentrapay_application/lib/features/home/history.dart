@@ -1,145 +1,72 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/transaction.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
 import 'package:zentrapay_application/main.dart';
-
-import 'package:zentrapay_application/features/home/api_home_wallet_services.dart';
 
 class PaymentHistory extends StatefulWidget {
   const PaymentHistory({super.key});
 
   @override
-  State<PaymentHistory> createState() => _PaySectionMainState();
+  State<PaymentHistory> createState() => _PaymentHistoryState();
 }
 
-class _PaySectionMainState extends State<PaymentHistory> {
+class _PaymentHistoryState extends State<PaymentHistory> {
   final TextEditingController _searchController = TextEditingController();
-  Timer? _debounceTimer;
-  bool isSearching = false;
-
-  // Comment: Master list holding all immutable payment records fetched from your database backend
-  List<Map<String, dynamic>> paymentHistory = [];
-
-  // Comment: Dynamic tracking list that feeds the UI list builder component directly
-  List<Map<String, dynamic>> displayedHistory = [];
+  final ScrollController _scrollController = ScrollController();
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    TransactionsRepository.instance.ensureLoaded();
+    _scrollController.addListener(_onScroll);
   }
 
-  // Comment: Async pipeline assembling national and international records into state structures cleanly
-  // Comment: Async pipeline assembling national and international records into state structures cleanly
-  void _loadHistory() async {
-    try {
-      // 1. Fetch the raw Dio Response object from your API caller
-      final response = await getHistory();
-      if (!mounted) return;
-
-      // 2. Check if the response or its internal payload body data is completely missing
-      if (response == null || response.data == null) {
-        debugPrint("History payload returned empty or invalid response.");
-        return;
-      }
-
-      // 3. Extract the map data safely from the response payload body
-      final Map<String, dynamic> history = Map<String, dynamic>.from(
-        response.data,
-      );
-
-      setState(() {
-        // Comment: Explicitly casting values with safe null collection fallbacks to avoid map crashes
-        final List<dynamic> national = history['national'] ?? [];
-        final List<dynamic> international = history['international'] ?? [];
-
-        paymentHistory = List<Map<String, dynamic>>.from([
-          ...national,
-          ...international,
-        ]);
-
-        // Comment: Make sure to fill the UI layout stream with initial values on launch state
-        displayedHistory = List.from(paymentHistory);
-      });
-    } catch (e) {
-      debugPrint("ERROR OCCURRED!: $e");
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      TransactionsRepository.instance.loadNextPage();
     }
   }
 
-  // Comment: Timed debounce processing layer reducing overhead operations on target system architectures
   void _onSearchChanged(String query) {
-    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-
-    if (query.trim().isEmpty) {
-      setState(() {
-        displayedHistory = List.from(paymentHistory);
-        isSearching = false;
-      });
-      return;
-    }
-
-    setState(() {
-      isSearching = true;
-    });
-
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      // Comment: Polymorphic evaluation filtering out record objects matching the target query input
-      final filtered = paymentHistory.where((item) {
-        final name = (item["name"] ?? "").toString().toLowerCase();
-        final identifier = (item["identifier"] ?? "").toString().toLowerCase();
-        return name.contains(query.toLowerCase()) ||
-            identifier.contains(query.toLowerCase());
-      }).toList();
-
-      setState(() {
-        displayedHistory = filtered;
-        isSearching = false;
-      });
-    });
+    setState(() => _query = query.trim().toLowerCase());
   }
 
-  // Comment: Dynamic graphic lookup mapping specific icon assets to backend entity type parameters
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'bill_provider':
+  List<AppTransaction> _filter(List<AppTransaction> items) {
+    if (_query.isEmpty) return items;
+    return items.where((t) {
+      final name = (t.counterpartyName ?? '').toLowerCase();
+      final identifier = (t.counterpartyIdentifier ?? '').toLowerCase();
+      final description = (t.description ?? '').toLowerCase();
+      return name.contains(_query) ||
+          identifier.contains(_query) ||
+          description.contains(_query);
+    }).toList();
+  }
+
+  IconData _getIconForType(String typeCode) {
+    switch (typeCode) {
+      case 'BILL_PAYMENT':
         return Icons.receipt_long;
-      case 'linked_bank':
+      case 'BANK_TRANSFER':
+      case 'WALLET_FUNDING':
         return Icons.account_balance;
-      case 'app_user':
+      case 'CARD_PAYMENT':
+        return Icons.credit_card;
+      case 'REMITTANCE_SEND':
+        return Icons.public;
       default:
         return Icons.person;
-    }
-  }
-
-  // Comment: Gateway navigation router identifying target transaction flows using metadata structures
-  void _handleOnContactTap(Map<String, dynamic> contact) {
-    final String type = contact["type"] ?? "app_user";
-    final String targetName = contact["name"] ?? "N/A";
-    final String targetIdentifier = contact["identifier"] ?? "";
-
-    switch (type) {
-      case 'bill_provider':
-        debugPrint(
-          "Routing to Paystack payment sheet configuration for $targetName ($targetIdentifier)",
-        );
-        break;
-      case 'linked_bank':
-        debugPrint(
-          "Routing to Bank withdrawal validation screen for account: $targetName",
-        );
-        break;
-      case 'app_user':
-        debugPrint(
-          "Routing to Peer-To-Peer local payment balance validation screen for $targetName",
-        );
-        break;
     }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _debounceTimer?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -156,25 +83,11 @@ class _PaySectionMainState extends State<PaymentHistory> {
             children: [
               SearchBar(
                 controller: _searchController,
-                hintText: "Search recent payments...",
+                hintText: "Search transaction history...",
                 hintStyle: WidgetStateProperty.all(
                   TextStyle(color: AppColors.lightGrey, fontSize: 14),
                 ),
                 leading: const Icon(Icons.search, color: Colors.grey),
-                trailing: [
-                  if (isSearching)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 12.0),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.main,
-                        ),
-                      ),
-                    ),
-                ],
                 elevation: WidgetStateProperty.all(0),
                 backgroundColor: WidgetStateProperty.all(
                   AppColors.lightGrey.withValues(alpha: 0.15),
@@ -191,34 +104,63 @@ class _PaySectionMainState extends State<PaymentHistory> {
               ),
 
               const SizedBox(height: 20),
-              Text("Recent Payments", style: AppStyles.header),
+              Text("Transaction History", style: AppStyles.header),
               const SizedBox(height: 10),
 
-              // Comment: Main vertical list displaying filtered data or a safe empty fallback widget layout
               Expanded(
-                child: displayedHistory.isNotEmpty
-                    ? ListView.builder(
-                        scrollDirection: Axis.vertical,
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: displayedHistory.length,
-                        itemBuilder: (context, index) {
-                          return _buildRecentContactItem(
-                            displayedHistory[index],
-                          );
-                        },
-                      )
-                    : Container(
+                child: ListenableBuilder(
+                  listenable: TransactionsRepository.instance,
+                  builder: (context, _) {
+                    final repo = TransactionsRepository.instance;
+                    final displayed = _filter(repo.items);
+
+                    if (repo.isLoading && repo.items.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.main,
+                        ),
+                      );
+                    }
+
+                    if (displayed.isEmpty) {
+                      return Container(
                         alignment: Alignment.center,
                         height: 100,
                         child: Text(
-                          isSearching
-                              ? "Searching records..."
-                              : "No history found",
+                          "No history found",
                           style: AppStyles.text.copyWith(
                             color: AppColors.lightGrey,
                           ),
                         ),
-                      ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      scrollDirection: Axis.vertical,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: displayed.length + (repo.hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= displayed.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16.0),
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.main,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return _buildTransactionItem(displayed[index]);
+                      },
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -228,10 +170,10 @@ class _PaySectionMainState extends State<PaymentHistory> {
   }
 
   // Comment: Standardized design container blueprint rendering unified payment node cards
-  Widget _buildRecentContactItem(Map<String, dynamic> contact) {
-    final String displayName = contact["name"] ?? "N/A";
-    final String displayIdentifier = contact["identifier"] ?? "";
-    final String type = contact["type"] ?? "app_user";
+  Widget _buildTransactionItem(AppTransaction transaction) {
+    final displayName =
+        transaction.counterpartyName ?? transaction.description ?? "N/A";
+    final displayIdentifier = transaction.counterpartyIdentifier ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
@@ -244,7 +186,7 @@ class _PaySectionMainState extends State<PaymentHistory> {
           radius: 22,
           backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
           child: Icon(
-            _getIconForType(type),
+            _getIconForType(transaction.typeCode),
             size: 22,
             color: AppColors.secondary,
           ),
@@ -267,13 +209,69 @@ class _PaySectionMainState extends State<PaymentHistory> {
             color: AppColors.lightGrey,
           ),
         ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: AppColors.lightGrey,
-          size: 20,
+        trailing: Text(
+          formatMoney(transaction.amount, symbol: '${transaction.currencyCode} '),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textBlack,
+          ),
         ),
-        onTap: () => _handleOnContactTap(contact),
+        onTap: () => _showTransactionDetails(transaction),
       ),
     );
   }
+
+  void _showTransactionDetails(AppTransaction transaction) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              transaction.counterpartyName ?? transaction.typeCode,
+              style: AppStyles.header,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              formatMoney(
+                transaction.amount,
+                symbol: '${transaction.currencyCode} ',
+              ),
+              style: AppStyles.header.copyWith(fontSize: 24),
+            ),
+            const SizedBox(height: 12),
+            _detailRow("Status", transaction.status),
+            _detailRow("Reference", transaction.reference),
+            _detailRow("Date", transaction.createdAt),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: AppColors.lightGrey)),
+        Text(value, style: const TextStyle(color: AppColors.textBlack)),
+      ],
+    ),
+  );
 }

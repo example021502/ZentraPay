@@ -3,8 +3,8 @@ import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart'; // Ensure intl dependency is in pubspec.yaml
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/main.dart';
 
 import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 
@@ -56,18 +56,7 @@ class _EnterAmountState extends State<EnterAmount> {
               maxHeight: MediaQuery.of(context).size.height * 0.5,
             ),
             width: MediaQuery.of(context).size.width * 0.95,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.lightGrey.withAlpha(50),
-                  spreadRadius: 2.0,
-                  blurRadius: 10.0,
-                  offset: const Offset(0, 0),
-                ),
-              ],
-            ),
+            decoration: AppTheme.cardDecoration,
             // 1. Wrap the core container body inside a Stack
             child: Stack(
               children: [
@@ -75,9 +64,9 @@ class _EnterAmountState extends State<EnterAmount> {
                 Padding(
                   padding: const EdgeInsets.only(
                     top: 25,
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
+                    bottom: AppTheme.spacingLg,
+                    left: AppTheme.spacingLg,
+                    right: AppTheme.spacingLg,
                   ),
                   child: SingleChildScrollView(
                     child: Column(
@@ -91,33 +80,33 @@ class _EnterAmountState extends State<EnterAmount> {
                             leading: Container(
                               padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(
-                                color: AppColors.secondary.withAlpha(20),
-                                borderRadius: BorderRadius.circular(200),
+                                color: AppTheme.secondaryNavy.withValues(
+                                  alpha: 0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusFull,
+                                ),
                               ),
-                              child: Icon(
+                              child: const Icon(
                                 Icons.person,
                                 size: 30,
-                                color: AppColors.secondary,
+                                color: AppTheme.secondaryNavy,
                               ),
                             ),
                             title: Text(
                               "Send To: ${widget.recipient}",
-                              style: AppStyles.header,
+                              style: AppTheme.headlineSmall,
                             ),
                             subtitle: Text(
                               "Confirm Amount below and Send",
-                              style: AppStyles.text.copyWith(
-                                color: AppColors.lightGrey,
-                                fontSize: 12,
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.gray500,
                               ),
                             ),
                           ),
-                        const SizedBox(height: 10),
-                        Text(
-                          "Enter Amount",
-                          style: AppStyles.header.copyWith(fontSize: 16),
-                        ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppTheme.spacingSm),
+                        const Text("Enter Amount", style: AppTheme.headlineSmall),
+                        const SizedBox(height: AppTheme.spacingLg),
                         TextField(
                           controller: _amountController,
                           focusNode: _focusNode,
@@ -137,16 +126,20 @@ class _EnterAmountState extends State<EnterAmount> {
                               fontSize: 30,
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: AppColors.lightGrey.withAlpha(100),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMd,
+                              ),
+                              borderSide: const BorderSide(
+                                color: AppTheme.gray300,
                                 width: 1.0,
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusXl,
+                              ),
                               borderSide: const BorderSide(
-                                color: AppColors.secondary,
+                                color: AppTheme.secondaryNavy,
                                 width: 1.5,
                               ),
                             ),
@@ -180,10 +173,8 @@ class _EnterAmountState extends State<EnterAmount> {
                                   ),
                                   Text(
                                     currency_code,
-                                    style: TextStyle(
-                                      color: AppColors.lightGrey,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+                                    style: AppTheme.labelLarge.copyWith(
+                                      color: AppTheme.gray500,
                                     ),
                                   ),
                                   const SizedBox(width: 2),
@@ -192,15 +183,20 @@ class _EnterAmountState extends State<EnterAmount> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: AppTheme.spacingLg),
                         SizedBox(
                           width: MediaQuery.of(context).size.width,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: AppColors.secondary,
-                              borderRadius: BorderRadius.circular(10),
+                              color: AppTheme.secondaryNavy,
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMd,
+                              ),
                             ),
                             child: InkWell(
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusMd,
+                              ),
                               onTap: () {
                                 final String finalAmount = _amountController
                                     .text
@@ -222,8 +218,8 @@ class _EnterAmountState extends State<EnterAmount> {
                                 child: Center(
                                   child: Text(
                                     "Confirm",
-                                    style: AppStyles.header.copyWith(
-                                      color: AppColors.primary,
+                                    style: AppTheme.headlineSmall.copyWith(
+                                      color: AppTheme.primaryWhite,
                                     ),
                                   ),
                                 ),
@@ -245,10 +241,14 @@ class _EnterAmountState extends State<EnterAmount> {
                     onPressed: () {
                       Navigator.of(context).pop(null);
                     },
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppTheme.primaryWhite,
                     elevation: 2,
                     shape: const CircleBorder(),
-                    child: Icon(Icons.close, color: AppColors.main, size: 18),
+                    child: const Icon(
+                      Icons.close,
+                      color: AppTheme.primaryPink,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],

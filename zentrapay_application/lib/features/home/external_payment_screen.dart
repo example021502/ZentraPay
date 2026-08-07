@@ -1,4 +1,4 @@
-// Always put comments on all responses.
+﻿// Always put comments on all responses.
 import 'dart:async';
 
 import 'package:country_flags/country_flags.dart';
@@ -6,11 +6,11 @@ import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
-import 'external_payment_service.dart';
+import 'package:zentrapay_application/core/repositories/payment_channels_repository.dart';
+import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
 
 /// External Payment Screen
 ///
@@ -20,15 +20,6 @@ import 'external_payment_service.dart';
 /// @description UI for initiating and managing external bank transfers with inline debounced bank search
 /// @version 1.1.2
 /// @author ZentraPay Team
-
-class _ExternalPaymentColors {
-  static const Color main = Color(0xFFF21773);
-  static const Color primary = Color(0xFFFFFFFF);
-  static const Color textBlack = Color(0xFF000000);
-  static const Color green = Color(0xFF06881C);
-  static const Color lightGrey = Color(0x80808080);
-  static const Color secondary = Color(0xFF210163);
-}
 
 class ExternalPaymentScreen extends StatefulWidget {
   const ExternalPaymentScreen({super.key});
@@ -69,8 +60,6 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
   String? country = '';
   String _countryFlag = "GH";
 
-  final ExternalPaymentService _paymentService = ExternalPaymentService();
-
   @override
   void initState() {
     super.initState();
@@ -106,34 +95,35 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
     });
 
     try {
-      final response = await _paymentService.getSupportedBanks();
+      final channels = await PaymentChannelsRepository.instance.load(
+        countryCode: _countryFlag,
+        type: 'BANK',
+      );
+      final allBanks = channels
+          .map(
+            (c) => {
+              'name': c.channelName,
+              'code': c.channelCode,
+              'country': c.countryCode,
+            },
+          )
+          .toList();
 
-      if (response['success'] == true) {
-        final allBanks = List<Map<String, dynamic>>.from(response['data']);
-
-        if (mounted) {
-          setState(() {
-            _filteredBanks = allBanks
-                .where(
-                  (bank) =>
-                      bank['name'].toString().toLowerCase().contains(
-                        query.toLowerCase(),
-                      ) ||
-                      bank['code'].toString().toLowerCase().contains(
-                        query.toLowerCase(),
-                      ),
-                )
-                .toList();
-            _isLoadingBanks = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _errorMessage = response['message'] ?? 'Failed to match banks';
-            _isLoadingBanks = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _filteredBanks = allBanks
+              .where(
+                (bank) =>
+                    bank['name'].toString().toLowerCase().contains(
+                      query.toLowerCase(),
+                    ) ||
+                    bank['code'].toString().toLowerCase().contains(
+                      query.toLowerCase(),
+                    ),
+              )
+              .toList();
+          _isLoadingBanks = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -156,26 +146,28 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
       _errorMessage = null;
     });
 
-    try {
-      final response = await _paymentService.initializeExternalPayment(
-        paymentData: paymentDetails,
-      );
-      if (response?['success'] == true) {
-        if (mounted) {
-          _showPaymentOptions(response?['data']);
-        }
-      } else {
-        setState(() {
-          ZentraNotifier.error("Error", response?['message']);
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isLoading = false;
-      });
-    }
+    setState(() => _isLoading = false);
+    if (!mounted) return;
+
+    final form = {
+      'recipientType': 'external-bank',
+      'channelCode': paymentDetails['bank_code'],
+      'accountNumber': paymentDetails['account_number'],
+      'accountName': paymentDetails['account_name'],
+      'amount': paymentDetails['amount'].toString(),
+      'currency_code': paymentDetails['currency_code'],
+      'description': (paymentDetails['description'] as String).isEmpty
+          ? null
+          : paymentDetails['description'],
+    };
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AppPinSheet.confirmTransaction(form: form),
+    );
   }
 
   bool _validateForm() {
@@ -207,54 +199,8 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
         content: Text(message),
         padding: const EdgeInsets.all(2),
         showCloseIcon: true,
-        closeIconColor: AppColors.primary,
-        backgroundColor: _ExternalPaymentColors.main,
-      ),
-    );
-  }
-
-  void _showPaymentOptions(Map<String, dynamic> paymentData) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment Initialized'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Amount: ${paymentDetails['currency_code']} ${paymentData['amount']}',
-            ),
-            Text('Reference: ${paymentData['reference']}'),
-            const SizedBox(height: 16),
-            const Text('Please complete the payment to proceed.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openPaymentUrl(paymentData['authorization_url']);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _ExternalPaymentColors.main,
-            ),
-            child: const Text('Pay Now'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openPaymentUrl(String url) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening payment gateway...'),
-        backgroundColor: _ExternalPaymentColors.green,
+        closeIconColor: AppTheme.primaryWhite,
+        backgroundColor: AppTheme.primaryPink,
       ),
     );
   }
@@ -262,19 +208,19 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _ExternalPaymentColors.primary,
+      backgroundColor: AppTheme.primaryWhite,
       appBar: AppBar(
-        backgroundColor: _ExternalPaymentColors.main,
+        backgroundColor: AppTheme.primaryPink,
         leading: IconButton(
           icon: const Icon(
             Icons.chevron_left,
-            color: _ExternalPaymentColors.primary,
+            color: AppTheme.primaryWhite,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Send To Bank',
-          style: TextStyle(color: _ExternalPaymentColors.primary, fontSize: 18),
+          style: TextStyle(color: AppTheme.primaryWhite, fontSize: 18),
         ),
       ),
       // Cleaned up body structure to remove restrictive IntrinsicHeight calculations entirely
@@ -320,21 +266,21 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _initializePayment,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _ExternalPaymentColors.main,
+                  backgroundColor: AppTheme.primaryPink,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(
-                        color: _ExternalPaymentColors.secondary,
+                        color: AppTheme.secondaryNavy,
                       )
                     : const Text(
                         'Pay Now',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: _ExternalPaymentColors.primary,
+                          color: AppTheme.primaryWhite,
                         ),
                       ),
               ),
@@ -362,15 +308,15 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
         labelText: label,
         hintText: hint,
         contentPadding: const EdgeInsets.all(15),
-        prefixIcon: Icon(icon, color: _ExternalPaymentColors.textBlack),
+        prefixIcon: Icon(icon, color: AppTheme.textBlack),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _ExternalPaymentColors.lightGrey),
+          borderSide: const BorderSide(color: AppTheme.gray300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(
-            color: _ExternalPaymentColors.secondary,
+            color: AppTheme.secondaryNavy,
             width: 1,
           ),
         ),
@@ -397,13 +343,13 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(
-            color: _ExternalPaymentColors.secondary,
+            color: AppTheme.secondaryNavy,
             width: 1,
           ),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _ExternalPaymentColors.lightGrey),
+          borderSide: const BorderSide(color: AppTheme.gray300),
         ),
         prefixIcon: GestureDetector(
           onTap: () => showCurrencyPicker(
@@ -425,7 +371,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
               const SizedBox(width: 10),
               const Icon(
                 Icons.arrow_drop_down,
-                color: _ExternalPaymentColors.textBlack,
+                color: AppTheme.textBlack,
               ),
               const SizedBox(width: 4),
               CountryFlag.fromCountryCode(
@@ -438,7 +384,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
               Text(
                 paymentDetails['currency_code'],
                 style: const TextStyle(
-                  color: _ExternalPaymentColors.textBlack,
+                  color: AppTheme.textBlack,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -466,7 +412,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
             contentPadding: const EdgeInsets.all(15),
             prefixIcon: const Icon(
               Icons.account_balance_outlined,
-              color: _ExternalPaymentColors.textBlack,
+              color: AppTheme.textBlack,
             ),
             suffixIcon: _isLoadingBanks
                 ? const SizedBox(
@@ -476,7 +422,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
                       padding: EdgeInsets.all(12.0),
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: _ExternalPaymentColors.main,
+                        color: AppTheme.primaryPink,
                       ),
                     ),
                   )
@@ -496,23 +442,32 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
                   )
                 : const Icon(
                     Icons.arrow_drop_down,
-                    color: _ExternalPaymentColors.textBlack,
+                    color: AppTheme.textBlack,
                   ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
-                color: _ExternalPaymentColors.lightGrey,
+                color: AppTheme.gray300,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
-                color: _ExternalPaymentColors.secondary,
+                color: AppTheme.secondaryNavy,
                 width: 1,
               ),
             ),
           ),
         ),
+
+        if (_errorMessage != null && !_showDropdown)
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: AppTheme.primaryPink, fontSize: 12),
+            ),
+          ),
 
         // Normal conditional statement is now completely safe because IntrinsicHeight was removed
         if (_showDropdown)
@@ -521,7 +476,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
             constraints: const BoxConstraints(maxHeight: 250),
             margin: const EdgeInsets.only(top: 5),
             decoration: BoxDecoration(
-              color: _ExternalPaymentColors.primary,
+              color: AppTheme.primaryWhite,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.grey.shade300),
               boxShadow: [
@@ -556,18 +511,18 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
                             leading: Icon(
                               Icons.account_balance_outlined,
                               size: 20,
-                              color: AppColors.textBlack,
+                              color: AppTheme.textBlack,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                               side: BorderSide(
-                                color: _ExternalPaymentColors.lightGrey
+                                color: AppTheme.gray300
                                     .withAlpha(50),
                               ),
                             ),
                             tileColor: isSelected
-                                ? _ExternalPaymentColors.main.withAlpha(10)
-                                : _ExternalPaymentColors.secondary.withAlpha(
+                                ? AppTheme.primaryPink.withAlpha(10)
+                                : AppTheme.secondaryNavy.withAlpha(
                                     10,
                                   ),
                             title: Text(

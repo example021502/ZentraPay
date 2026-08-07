@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class SavingChallenges extends StatelessWidget {
   const SavingChallenges({super.key});
@@ -22,7 +23,7 @@ class SavingChallenges extends StatelessWidget {
               },
               icon: const Icon(
                 Icons.add_circle,
-                color: AppColors.secondary,
+                color: AppTheme.secondaryNavy,
                 size: 40,
               ),
             ),
@@ -56,10 +57,12 @@ class SavingChallenges extends StatelessWidget {
     String reward,
     String isActive,
   ) {
-    return Card(
-      elevation: 0,
-      color: Colors.grey[100],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: AppTheme.cardShadow,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(
@@ -79,7 +82,7 @@ class SavingChallenges extends StatelessWidget {
               borderRadius: BorderRadius.circular(200),
               value: progress,
               backgroundColor: Colors.grey[300],
-              valueColor: const AlwaysStoppedAnimation(AppColors.main),
+              valueColor: const AlwaysStoppedAnimation(AppTheme.primaryPink),
             ),
             const SizedBox(height: 5),
             Wrap(
@@ -90,7 +93,7 @@ class SavingChallenges extends StatelessWidget {
                   "Reward: $reward",
                   style: const TextStyle(
                     fontSize: 11,
-                    color: AppColors.main,
+                    color: AppTheme.primaryPink,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -111,13 +114,13 @@ class SavingChallenges extends StatelessWidget {
                           padding: EdgeInsets.only(left: 10, right: 10),
 
                           decoration: BoxDecoration(
-                            color: AppColors.green,
+                            color: AppTheme.successGreen,
                             borderRadius: BorderRadius.circular(200),
                           ),
                           child: Text(
                             "Accept",
                             style: TextStyle(
-                              color: AppColors.primary,
+                              color: AppTheme.primaryWhite,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -135,13 +138,13 @@ class SavingChallenges extends StatelessWidget {
                         child: Container(
                           padding: EdgeInsets.only(left: 10, right: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.main,
+                            color: AppTheme.primaryPink,
                             borderRadius: BorderRadius.circular(200),
                           ),
                           child: Text(
                             "Ignore",
                             style: TextStyle(
-                              color: AppColors.primary,
+                              color: AppTheme.primaryWhite,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -155,7 +158,7 @@ class SavingChallenges extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.normal,
-                      color: AppColors.green,
+                      color: AppTheme.successGreen,
                     ),
                   ),
           ],

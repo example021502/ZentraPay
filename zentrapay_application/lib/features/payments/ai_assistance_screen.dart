@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/repositories/voice_command_repository.dart';
+import 'package:intl/intl.dart';
 
 class AIAssistanceScreen extends StatefulWidget {
   const AIAssistanceScreen({super.key});
@@ -14,9 +16,67 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
     ChatMessage(
       text: "Hello there, how may i be of help today?",
       isUser: false,
-      time: "02 April 2022, 09:29",
+      time: "",
     ),
   ];
+  bool _isSending = false;
+
+  // `VoiceCommandResult` (the shared /api/zvoice/history shape) has no
+  // commandType field, so CHAT turns can't be filtered out of the shared
+  // history cache client-side — it would mix in VOICE entries from the
+  // recording screen. Rather than render a misleading merged history, this
+  // screen keeps its own local, session-only chat transcript and appends to
+  // it directly from each sendCommand() round trip (user bubble immediately,
+  // assistant bubble once the real reply comes back).
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return;
+
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          text: text,
+          isUser: true,
+          time: DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now()),
+        ),
+      );
+      _messageController.clear();
+      _isSending = true;
+    });
+
+    try {
+      final result = await VoiceCommandHistoryRepository.instance.sendCommand(
+        commandType: 'CHAT',
+        transcript: text,
+      );
+      if (!mounted) return;
+      final reply = result.responseText;
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: (reply != null && reply.isNotEmpty)
+                ? reply
+                : "Sorry, I couldn't come up with a reply for that.",
+            isUser: false,
+            time: DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now()),
+          ),
+        );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: "Something went wrong reaching the assistant. Please try again.",
+            isUser: false,
+            time: DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now()),
+          ),
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +160,7 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
           Expanded(
             child: TextField(
               controller: _messageController,
+              enabled: !_isSending,
               decoration: const InputDecoration(
                 hintText: "Ask anything...",
                 border: OutlineInputBorder(),
@@ -112,28 +173,22 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
           ),
           const SizedBox(width: 12),
           FloatingActionButton(
-            onPressed: _sendMessage,
+            onPressed: _isSending ? null : _sendMessage,
             backgroundColor: AppColors.green,
-            child: const Icon(Icons.send, color: AppColors.primary),
+            child: _isSending
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : const Icon(Icons.send, color: AppColors.primary),
           ),
         ],
       ),
     );
-  }
-
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    setState(() {
-      _messages.add(
-        ChatMessage(
-          text: _messageController.text,
-          isUser: true,
-          time: "02 April 2022, 09:29",
-        ),
-      );
-      _messageController.clear();
-    });
   }
 }
 

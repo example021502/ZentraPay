@@ -9,6 +9,7 @@ class AppTheme {
   static const Color primaryPink = Color(0xFFF21773);
   static const Color primaryWhite = Color(0xFFFFFFFF);
   static const Color secondaryNavy = Color(0xFF210163);
+
   // Near-black rather than pure black — softer, more modern text color.
   // Kept under the existing name so every AppTheme.textBlack /
   // AppColors.textBlack reference across the app benefits automatically.
@@ -42,11 +43,13 @@ class AppTheme {
   static const Color zgrowColor = Color(0xFF06881C);
   static const Color payAnywhereColor = Color(0xFFF21773);
   static const Color secureColor = Color(0xFF210163);
+  static const Color merchantColor = Color(0xFF0D9488);
 
   // ============================================================
   // TYPOGRAPHY
   // ============================================================
   static const TextStyle displayLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 32,
     fontWeight: FontWeight.w900,
     color: textBlack,
@@ -54,42 +57,49 @@ class AppTheme {
   );
 
   static const TextStyle displayMedium = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 26,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
   static const TextStyle displaySmall = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 22,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
   static const TextStyle headlineLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 20,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
   static const TextStyle headlineMedium = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 18,
     fontWeight: FontWeight.w600,
     color: textBlack,
   );
 
   static const TextStyle headlineSmall = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.w600,
     color: textBlack,
   );
 
   static const TextStyle titleLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: textBlack,
   );
 
   static const TextStyle bodyLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.normal,
     color: textBlack,
@@ -97,6 +107,7 @@ class AppTheme {
   );
 
   static const TextStyle bodyMedium = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: FontWeight.normal,
     color: textBlack,
@@ -104,18 +115,21 @@ class AppTheme {
   );
 
   static const TextStyle bodySmall = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: textBlack,
   );
 
   static const TextStyle labelLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: FontWeight.w500,
     color: textBlack,
   );
 
   static const TextStyle labelSmall = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 11,
     fontWeight: FontWeight.w500,
     color: textBlack,
@@ -123,30 +137,35 @@ class AppTheme {
 
   // White text variants for dark backgrounds
   static const TextStyle whiteDisplayLarge = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 32,
     fontWeight: FontWeight.w900,
     color: primaryWhite,
   );
 
   static const TextStyle whiteDisplayMedium = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 26,
     fontWeight: FontWeight.bold,
     color: primaryWhite,
   );
 
   static const TextStyle whiteHeadline = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 20,
     fontWeight: FontWeight.bold,
     color: primaryWhite,
   );
 
   static const TextStyle whiteBody = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: FontWeight.normal,
     color: primaryWhite,
   );
 
   static const TextStyle whiteBodySmall = TextStyle(
+    fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: Colors.white70,
@@ -177,15 +196,15 @@ class AppTheme {
   // ============================================================
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.08),
-      blurRadius: 10,
-      offset: const Offset(0, 4),
+      color: Colors.black.withAlpha(30),
+      blurRadius: 15,
+      offset: const Offset(0, 0),
     ),
   ];
 
   static List<BoxShadow> get elevatedShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.12),
+      color: Colors.black.withAlpha(12),
       blurRadius: 15,
       offset: const Offset(0, 6),
     ),
@@ -200,9 +219,43 @@ class AppTheme {
     boxShadow: cardShadow,
   );
 
+  static BoxConstraints constraintsXs(BuildContext context) => BoxConstraints(
+    maxWidth: MediaQuery.of(context).size.width,
+    // maxHeight: 20,
+  );
+
+  // Returns a custom BoxDecoration using the provided color, radius, and shadow settings
+  static BoxDecoration coloredCardDecoration(Color color) {
+    return BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(radiusXl),
+      boxShadow: cardShadow,
+    );
+  }
+
   static BoxDecoration get primaryCardDecoration => BoxDecoration(
     color: primaryPink,
     borderRadius: BorderRadius.circular(radiusXl),
+  );
+
+  static Container divider(BuildContext context, Color color) => Container(
+    width: MediaQuery.of(context).size.width,
+    margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+    height: 0.5,
+    decoration: BoxDecoration(
+      color: color.withAlpha(50),
+      borderRadius: BorderRadius.circular(radiusXl),
+    ),
+  );
+
+  static Container dot(Color color) => Container(
+    width: 6,
+    margin: EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+    height: 6,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(200),
+    ),
   );
 
   static BoxDecoration get inputDecoration => BoxDecoration(
@@ -230,6 +283,26 @@ class AppTheme {
     end: Alignment.bottomRight,
     colors: [successGreen, Color(0xFF0AD42E)],
   );
+
+  // Deep electric blue (left) -> vivid hot pink (right), per the ZPay wireframe
+  // brief's core screen background spec. Distinct from primaryGradient (which
+  // runs pink -> purple) — this is the full-bleed hero/screen background.
+  static const Color electricBlue = Color(0xFF1230D8);
+  static const LinearGradient heroGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [electricBlue, primaryPink],
+  );
+
+  // ============================================================
+  // GLASSMORPHISM
+  // Semi-transparent frosted-glass surfaces used over heroGradient, per the
+  // wireframe brief ("frosted glass with a subtle white border").
+  // ============================================================
+  static final Color glassSurface = Colors.white.withValues(alpha: 0.14);
+  static final Color glassSurfaceStrong = Colors.white.withValues(alpha: 0.22);
+  static final Color glassBorder = Colors.white.withValues(alpha: 0.30);
+  static const double glassBlurSigma = 18.0;
 
   // ============================================================
   // RESPONSIVE HELPERS

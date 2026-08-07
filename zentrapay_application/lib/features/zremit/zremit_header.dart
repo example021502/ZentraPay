@@ -1,114 +1,223 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/converter.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/converter_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
-class ZRemitHeader extends StatelessWidget {
-  final String title;
-  final String AmountSend = "GHS 1000";
-  final String AmountReceived = "USD 11.49";
-  final String rate = "1 USD = 87.03 GHS";
+/// Live example conversion (1000 GHS -> USD) card sourced from the cached
+/// [RatesRepository] — shows the real, live exchange rate for GHS. No
+/// transfer-fee figure is shown since the backend doesn't expose one for
+/// plain conversion; asserting a fee policy here would be unverified.
+class ZRemitHeader extends StatefulWidget {
+  // Optional heading, kept for callers (e.g. InstantTransferScreen) that
+  // still want a title bar above the rate card. The redesigned ZRemitScreen
+  // carries its own heading in a separate hero card, so it omits these.
+  final String? title;
   final bool showBack;
 
-  const ZRemitHeader({super.key, required this.title, this.showBack = false});
+  const ZRemitHeader({super.key, this.title, this.showBack = false});
+
+  @override
+  State<ZRemitHeader> createState() => _ZRemitHeaderState();
+}
+
+class _ZRemitHeaderState extends State<ZRemitHeader> {
+  static const String _exampleSendAmount = '1000';
+  static const String _quoteCurrency = 'USD';
+  static const String _baseCurrency = 'GHS';
+
+  @override
+  void initState() {
+    super.initState();
+    RatesRepository.instance.loadForBase(_baseCurrency);
+  }
 
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
-    final horizontalPadding = isTablet ? 40.0 : 15.0;
-    final titleFontSize = isTablet ? 32.0 : 26.0;
-    final subtitleFontSize = isTablet ? 16.0 : 14.0;
     final contentFontSize = isTablet ? 18.0 : 16.0;
     final rateFontSize = isTablet ? 16.0 : 12.0;
 
+    return ListenableBuilder(
+      listenable: RatesRepository.instance,
+      builder: (context, _) {
+        final RatesSnapshot? snapshot = RatesRepository.instance.data;
+        final bool isLoading = RatesRepository.instance.isLoading;
+        final Object? error = RatesRepository.instance.error;
+        final String? rate = snapshot?.rates[_quoteCurrency];
+
+        final amountSendText = "$_baseCurrency $_exampleSendAmount";
+        String amountReceivedText;
+        String rateText;
+        if (rate != null) {
+          final converted = _exampleSendAmount.toAmount() * rate.toAmount();
+          amountReceivedText = formatMoney(
+            converted.toString(),
+            symbol: '$_quoteCurrency ',
+          );
+          rateText = "1 $_baseCurrency = ${rate.toAmount().toStringAsFixed(4)} $_quoteCurrency";
+        } else if (error != null) {
+          amountReceivedText = "--";
+          rateText = "Rate unavailable";
+        } else {
+          amountReceivedText = isLoading ? "..." : "--";
+          rateText = isLoading ? "Loading..." : "--";
+        }
+
+        return _buildCard(
+          context,
+          isTablet: isTablet,
+          contentFontSize: contentFontSize,
+          rateFontSize: rateFontSize,
+          amountSendText: amountSendText,
+          amountReceivedText: amountReceivedText,
+          rateText: rateText,
+          error: error,
+        );
+      },
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context, {
+    required bool isTablet,
+    required double contentFontSize,
+    required double rateFontSize,
+    required String amountSendText,
+    required String amountReceivedText,
+    required String rateText,
+    required Object? error,
+  }) {
     return Container(
       width: MediaQuery.of(context).size.width,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        // image: DecorationImage(
-        //   image: AssetImage('images/remittance.png'),
-        //   fit: BoxFit.cover,
-        //   opacity: 0.50,
-        // ),
-      ),
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: AppTheme.coloredCardDecoration(AppColors.secondary),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        spacing: 5,
+        spacing: 12,
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: AppColors.main,
-                  fontSize: titleFontSize,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                "Instant, Secure and affordable",
-                style: TextStyle(
-                  color: AppColors.main,
-                  fontSize: subtitleFontSize,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              spacing: 10,
+          if (widget.title != null)
+            Row(
               children: [
-                Text(
-                  "You Send $AmountSend",
-                  style: TextStyle(
-                    color: AppColors.textBlack,
-                    fontWeight: FontWeight.w700,
-                    fontSize: contentFontSize,
+                if (widget.showBack)
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.arrow_back_ios,
+                      color: AppColors.main,
+                      size: 18,
+                    ),
                   ),
-                ),
-                SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Exchange Rate: $rate",
-                        style: TextStyle(
-                          color: AppColors.textBlack,
-                          fontWeight: FontWeight.bold,
-                          fontSize: rateFontSize,
-                        ),
-                      ),
-                      Text(
-                        "Updated: just now",
-                        style: TextStyle(
-                          color: AppColors.textBlack,
-                          fontSize: rateFontSize,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Text(
-                  "They Receive $AmountReceived",
-                  style: TextStyle(
-                    color: AppColors.textBlack,
-                    fontWeight: FontWeight.w700,
-                    fontSize: contentFontSize,
+                if (widget.showBack) const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title!,
+                    style: TextStyle(
+                      color: AppColors.main,
+                      fontSize: isTablet ? 24.0 : 20.0,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Live Exchange Rates",
+                style: AppTheme.headlineSmall.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(20),
+                  borderRadius: BorderRadius.circular(200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Icon(Icons.bolt, color: AppColors.primary, size: 20),
+                ),
+              ),
+            ],
           ),
+          _rateRow("You send", amountSendText, contentFontSize),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Exchange rate",
+                style: TextStyle(
+                  color: AppTheme.primaryWhite,
+                  fontSize: rateFontSize,
+                ),
+              ),
+              Text(
+                rateText,
+                style: TextStyle(
+                  color: AppTheme.primaryWhite,
+                  fontWeight: FontWeight.w600,
+                  fontSize: rateFontSize,
+                ),
+              ),
+            ],
+          ),
+          _rateRow("They receive", amountReceivedText, contentFontSize),
+          if (error != null)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "Couldn't load live rates.",
+                    style: TextStyle(color: AppTheme.primaryWhite, fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      RatesRepository.instance.loadForBase(_baseCurrency),
+                  child: Text(
+                    "Retry",
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              "Rates update live. Compare before you send.",
+              style: TextStyle(color: AppTheme.primaryWhite, fontSize: 12),
+            ),
         ],
       ),
     );
   }
+
+  Widget _rateRow(String label, String value, double fontSize) => SizedBox(
+    width: double.infinity,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppTheme.primaryWhite,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          value,
+          style: AppTheme.titleLarge.copyWith(color: AppColors.primary),
+        ),
+      ],
+    ),
+  );
 }

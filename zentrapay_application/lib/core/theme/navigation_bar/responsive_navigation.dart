@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
-import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/features/home/home_wallet_main.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
-import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
-import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
-import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
+import 'package:zentrapay_application/features/Settings/settings.dart';
+import 'package:zentrapay_application/features/home/closeConfirmation.dart';
+import 'package:zentrapay_application/features/home/home_wallet_main.dart';
+import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
+import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
+import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
+import 'package:zentrapay_application/main.dart';
 
 class ResponsiveNavigation extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -21,11 +23,16 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // 5 tabs: Home, Remit, Grow, Bank, Merchant.
+  // ZPay's card visuals were merged into Home; ZInvest is reached from
+  // Grow; ZVoice/Secure are folded into Home's "More" access — see
+  // _showMoreSheet(). Merchant is a placeholder pending content.
   final List<Widget> _pages = [
     const HomeWalletMain(),
     const ZRemitScreen(),
     const ZGrowScreen(),
     const ZBankingScreen(),
+    const Settings(),
   ];
 
   // Create a local class property for Paystack
@@ -68,7 +75,11 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       appBar: _isTablet ? null : _buildAppBar(),
       // Show bottom nav only on mobile
       bottomNavigationBar: _isTablet ? null : _buildBottomNav(),
-      body: _pages[_selectedIndex],
+      // IndexedStack keeps all four tabs mounted and alive at once, only
+      // toggling visibility — so each tab's initState()/data-fetch runs once
+      // per app session instead of re-running (and re-fetching) every time
+      // the user switches back to it.
+      body: IndexedStack(index: _selectedIndex, children: _pages),
     );
   }
 
@@ -128,6 +139,11 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
 
   List<Widget> _buildActions() => [
     IconButton(
+      onPressed: _showMoreSheet,
+      icon: const Icon(Icons.apps, color: AppColors.primary),
+      tooltip: 'More',
+    ),
+    IconButton(
       onPressed: () {},
       icon: const Icon(Icons.notifications, color: AppColors.primary),
     ),
@@ -140,6 +156,45 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       icon: const Icon(Icons.logout, color: AppColors.primary),
     ),
   ];
+
+  // ZVoice AI and Secure don't have a dedicated bottom tab, so this gives
+  // mobile users the same one-tap reach the tablet drawer already has.
+  // ZBank Lite now has its own "Bank" tab and ZInvest is reached from Grow,
+  // so neither needs a spot here anymore.
+  void _showMoreSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.primaryWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusXl),
+        ),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMoreItem(Icons.mic, "ZVoice AI", '/zvoice'),
+              _buildMoreItem(Icons.security, "Secure", '/secure'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreItem(IconData icon, String label, String route) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.main),
+      title: Text(label),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, route);
+      },
+    );
+  }
 
   Widget _buildBottomNav() {
     return NavigationBarMain(
@@ -171,7 +226,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                   ),
                   _buildDrawerItem(
                     icon: Icons.compare_arrows,
-                    label: "ZRemit",
+                    label: "Remit",
                     isSelected: _selectedIndex == 1,
                     onTap: () {
                       setState(() => _selectedIndex = 1);
@@ -180,7 +235,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                   ),
                   _buildDrawerItem(
                     icon: Icons.trending_up,
-                    label: "ZGrow",
+                    label: "Grow",
                     isSelected: _selectedIndex == 2,
                     onTap: () {
                       setState(() => _selectedIndex = 2);
@@ -189,11 +244,37 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                   ),
                   _buildDrawerItem(
                     icon: Icons.account_balance,
-                    label: "ZBanking",
+                    label: "Bank",
                     isSelected: _selectedIndex == 3,
                     onTap: () {
                       setState(() => _selectedIndex = 3);
                       Navigator.pop(context);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.storefront,
+                    label: "Merchant",
+                    isSelected: _selectedIndex == 4,
+                    onTap: () {
+                      setState(() => _selectedIndex = 4);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  const Divider(),
+                  _buildDrawerItem(
+                    icon: Icons.mic,
+                    label: "ZVoice AI",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/zvoice');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    icon: Icons.security,
+                    label: "Secure",
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/secure');
                     },
                   ),
                   const Divider(),

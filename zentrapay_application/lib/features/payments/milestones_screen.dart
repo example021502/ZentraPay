@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
 
+// "Goals" are ZBank Lite savings accounts — there's no separate goals
+// concept backend-side, this screen is just a savings-focused view.
 class MilestonesScreen extends StatefulWidget {
   const MilestonesScreen({super.key});
 
@@ -9,22 +13,116 @@ class MilestonesScreen extends StatefulWidget {
 }
 
 class _MilestonesScreenState extends State<MilestonesScreen> {
-  final List<Map<String, dynamic>> goals = [
-    {
-      'name': 'New Macbook Computer',
-      'target': 1728.28,
-      'saved': 1728.28,
-      'icon': Icons.laptop_mac,
-      'autoSave': true,
-    },
-    {
-      'name': 'New House',
-      'target': 2530.00,
-      'saved': 2530.00,
-      'icon': Icons.home,
-      'autoSave': true,
-    },
-  ];
+  bool isLoading = true;
+  List<Map<String, dynamic>> goals = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoals();
+  }
+
+  Future<void> _loadGoals({bool forceRefresh = false}) async {
+    setState(() => isLoading = true);
+    try {
+      final savingsAccounts = await SavingsRepository.instance.ensureLoaded(
+        forceRefresh: forceRefresh,
+      );
+      setState(() {
+        goals = (savingsAccounts ?? []).map((s) {
+          final saved = s.balance.toAmount();
+          final target = s.targetAmount?.toAmount();
+          return {
+            'id': s.savingsId,
+            'name': s.savingsName,
+            'target': target ?? (saved == 0 ? 1.0 : saved),
+            'saved': saved,
+            'icon': Icons.savings,
+            'autoSave': false,
+          };
+        }).toList();
+      });
+    } catch (_) {
+      // Keep an empty list on failure rather than fabricating goals.
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _showCreateGoalDialog() async {
+    final nameController = TextEditingController();
+    final amountController = TextEditingController();
+    final targetController = TextEditingController();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New savings goal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Goal name'),
+            ),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Initial deposit (GHS)'),
+            ),
+            TextField(
+              controller: targetController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Target amount (optional)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    if (created != true || nameController.text.trim().isEmpty) return;
+
+    final initialDeposit = double.tryParse(amountController.text) ?? 10.0;
+    final targetAmount = double.tryParse(targetController.text);
+    try {
+      await SavingsRepository.instance.create(
+        savingsName: nameController.text.trim(),
+        currencyCode: 'GHS',
+        initialDeposit: initialDeposit.toStringAsFixed(2),
+        targetAmount: targetAmount?.toStringAsFixed(2),
+      );
+      // The repository already applied the create() response into its
+      // cache; re-derive the local `goals` view from it (no refetch).
+      _loadGoals();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not create goal. Try again.')),
+        );
+      }
+    }
+  }
+
+  double get _totalSaved =>
+      goals.fold(0.0, (sum, g) => sum + (g['saved'] as double));
+
+  double get _topGoalProgress {
+    if (goals.isEmpty) return 0;
+    final top = goals.first;
+    final target = top['target'] as double;
+    if (target == 0) return 0;
+    return ((top['saved'] as double) / target).clamp(0.0, 1.0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +190,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "GHS 1,728.28",
+                    "GHS ${_totalSaved.toStringAsFixed(2)}",
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -115,7 +213,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                 width: 180,
                 height: 180,
                 child: CircularProgressIndicator(
-                  value: 0.69,
+                  value: _topGoalProgress,
                   strokeWidth: 12,
                   backgroundColor: AppColors.primary.withAlpha(50),
                   valueColor: const AlwaysStoppedAnimation<Color>(
@@ -124,19 +222,19 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                 ),
               ),
               Column(
-                children: const [
+                children: [
                   Text(
-                    "69.0%",
-                    style: TextStyle(
+                    "${(_topGoalProgress * 100).toStringAsFixed(1)}%",
+                    style: const TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    "New Macbook Computer",
-                    style: TextStyle(fontSize: 12, color: AppColors.primary),
+                    goals.isEmpty ? "No goals yet" : goals.first['name'],
+                    style: const TextStyle(fontSize: 12, color: AppColors.primary),
                   ),
                 ],
               ),
@@ -147,7 +245,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: _showCreateGoalDialog,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.purple,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -213,7 +311,15 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ...goals.map((goal) => _buildGoalCard(goal)),
+          if (isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (goals.isEmpty)
+            const Text(
+              "No savings goals yet — tap + New to start one.",
+              style: TextStyle(fontSize: 13, color: AppColors.textBlack),
+            )
+          else
+            ...goals.map((goal) => _buildGoalCard(goal)),
         ],
       ),
     );

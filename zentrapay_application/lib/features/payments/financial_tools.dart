@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class FinancialTools extends StatelessWidget {
   const FinancialTools({super.key});
@@ -26,7 +27,7 @@ class FinancialTools extends StatelessWidget {
     child: ListTile(
       contentPadding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
-      leading: Icon(icon, color: AppColors.main, size: 20),
+      leading: Icon(icon, color: AppTheme.primaryPink, size: 20),
       title: Text(label, style: const TextStyle(fontSize: 14)),
       trailing: const Icon(Icons.chevron_right, size: 20),
     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 final List<Map<String, String>> tutorials = [
   {"desc": "Compound Interest...", "duration": "3 mins"},
@@ -43,7 +44,7 @@ class LearnAndEarn extends StatelessWidget {
       width: 200,
 
       decoration: BoxDecoration(
-        color: AppColors.secondary,
+        color: AppTheme.secondaryNavy,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -65,7 +66,7 @@ class LearnAndEarn extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-              border: Border.all(color: AppColors.secondary, width: 1.5),
+              border: Border.all(color: AppTheme.secondaryNavy, width: 1.5),
             ),
             child: Text(
               title,

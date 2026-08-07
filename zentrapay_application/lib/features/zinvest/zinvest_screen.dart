@@ -1,82 +1,184 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/zinvest_repository.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/payments/widgets/investment_list.dart';
+import 'package:zentrapay_application/main.dart';
 
 import '../../core/theme/app_theme.dart';
 
+const List<String> _investmentTypes = ['STOCK', 'CRYPTO', 'COMMODITY', 'OTHER'];
+const List<String> _currencyCodes = ['GHS', 'USD', 'KES'];
+
 // ZInvest Screen - Micro-investments (stocks, crypto, commodities)
-// and AI-guided portfolios with a modernized, professional UI.
-class ZInvestScreen extends StatelessWidget {
+// and AI-guided portfolios. Reached from ZGrow, not the bottom nav.
+class ZInvestScreen extends StatefulWidget {
   const ZInvestScreen({super.key});
 
   @override
+  State<ZInvestScreen> createState() => _ZInvestScreenState();
+}
+
+class _ZInvestScreenState extends State<ZInvestScreen> {
+  @override
+  void initState() {
+    super.initState();
+    InvestmentsRepository.instance.ensureLoaded();
+    LiquidityProfileRepository.instance.ensureLoaded();
+  }
+
+  void _openInvestSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _InvestForm(),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.primaryWhite,
-      body: CustomScrollView(
-        slivers: [
-          _buildModernHeader(context),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingLg,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppTheme.spacingMd),
-                  _buildPortfolioCard(),
-                  const SizedBox(height: AppTheme.spacingXl),
-                  _buildSectionHeader("Quick Actions"),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  _buildQuickActions(context),
-                  const SizedBox(height: AppTheme.spacingXl),
-                  _buildSectionHeader("Market & AI Portfolios"),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  _buildInvestmentFeatures(context),
-                  const SizedBox(height: AppTheme.spacingXl * 2),
-                ],
-              ),
+    final horizontalPadding = AppTheme.responsivePadding(context);
+
+    return Container(
+      color: AppTheme.gray50,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              AppTheme.spacingMd,
+              horizontalPadding,
+              AppTheme.responsiveBottomPadding(context),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTopBar(context),
+                const SizedBox(height: AppTheme.spacingLg),
+                _buildHeroCard(),
+                const SizedBox(height: AppTheme.spacingXl),
+                _buildPortfolioCard(),
+                const SizedBox(height: AppTheme.spacingXl),
+                const SectionTitle(title: "Quick Actions"),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildQuickActions(context),
+                const SizedBox(height: AppTheme.spacingXl),
+                SectionTitle(
+                  title: "Your Investments",
+                  trailing: IconButton(
+                    icon: const Icon(Icons.add_circle_outline),
+                    color: AppTheme.zinvestColor,
+                    onPressed: _openInvestSheet,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildInvestmentsSection(),
+                const SizedBox(height: AppTheme.spacingXl),
+                const SectionTitle(title: "Market & AI Portfolios"),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildInvestmentFeatures(context),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // Modern Sliver App Bar Header
-  Widget _buildModernHeader(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 120.0,
-      floating: false,
-      pinned: true,
-      elevation: 0,
-      backgroundColor: AppTheme.zinvestColor,
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingLg,
-          vertical: AppTheme.spacingMd,
+  Widget _buildTopBar(BuildContext context) {
+    return Row(
+      children: [
+        Material(
+          color: Colors.white,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => Navigator.pop(context),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(Icons.arrow_back_ios_new, size: 18),
+            ),
+          ),
         ),
-        title: Row(
+        const SizedBox(width: AppTheme.spacingMd),
+        Text("ZInvest", style: AppTheme.headlineLarge),
+      ],
+    );
+  }
+
+  // Hero card with a placeholder image area (fades into the text below) —
+  // swap the Container's decoration for a real Image.asset/DecorationImage
+  // once an investing-themed asset is added to the project.
+  Widget _buildHeroCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+      child: Container(
+        decoration: BoxDecoration(boxShadow: AppTheme.cardShadow),
+        child: Stack(
           children: [
+            // >>> IMAGE PLACEHOLDER — replace with Image.asset('images/...')
             Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(40),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              height: 190,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: AppTheme.primaryGradient,
               ),
-              child: const Icon(
-                Icons.trending_up,
-                color: Colors.white,
-                size: 20,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.show_chart_rounded,
+                    size: 90,
+                    color: Colors.white.withAlpha(60),
+                  ),
+                  Positioned(
+                    left: 20,
+                    top: 30,
+                    child: Icon(
+                      Icons.currency_bitcoin,
+                      size: 32,
+                      color: Colors.white.withAlpha(90),
+                    ),
+                  ),
+                  Positioned(
+                    right: 24,
+                    top: 50,
+                    child: Icon(
+                      Icons.diamond_outlined,
+                      size: 28,
+                      color: Colors.white.withAlpha(90),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: AppTheme.spacingSm),
-            const Text(
-              "ZInvest",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            // Bottom fade so the heading below reads clearly.
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withAlpha(140)],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: AppTheme.spacingLg,
+              right: AppTheme.spacingLg,
+              bottom: AppTheme.spacingLg,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Grow your wealth", style: AppTheme.whiteHeadline),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Micro-invest in stocks, crypto and commodities — start small, grow steadily.",
+                    style: AppTheme.whiteBodySmall,
+                  ),
+                ],
               ),
             ),
           ],
@@ -85,146 +187,179 @@ class ZInvestScreen extends StatelessWidget {
     );
   }
 
-  // Section Header with clean typography
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
-    );
-  }
-
-  // Modernized Portfolio Card with subtle shadow and glassmorphic stats
   Widget _buildPortfolioCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.spacingXl),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.zinvestColor.withAlpha(50),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+    return ListenableBuilder(
+      listenable: LiquidityProfileRepository.instance,
+      builder: (context, _) {
+        final repo = LiquidityProfileRepository.instance;
+        final profile = repo.data;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppTheme.spacingXl),
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient,
+            borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+            boxShadow: AppTheme.elevatedShadow,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Total Portfolio Value",
-                style: TextStyle(
-                  color: Colors.white.withAlpha(180),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Icon(
-                Icons.visibility_outlined,
-                color: Colors.white70,
-                size: 20,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingSm),
-          const Text(
-            "GHS 3,728.28",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingSm,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.greenAccent.withAlpha(30),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.arrow_upward_rounded,
-                      color: Colors.greenAccent,
-                      size: 14,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Total Portfolio Value",
+                    style: TextStyle(
+                      color: Colors.white.withAlpha(180),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(width: 4),
+                  ),
+                  if (repo.isLoading && profile == null)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white70,
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.visibility_outlined,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingSm),
+              if (repo.error != null && profile == null)
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        "Couldn't load portfolio value.",
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => repo.ensureLoaded(forceRefresh: true),
+                      child: const Text(
+                        "Retry",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  profile == null
+                      ? "—"
+                      : formatMoney(profile.totalValue, symbol: "GHS "),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              const SizedBox(height: AppTheme.spacingLg),
+              if (profile != null)
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingSm,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (profile.totalGainLossPercent.toAmount() >= 0
+                                    ? Colors.greenAccent
+                                    : AppTheme.warningOrange)
+                                .withAlpha(30),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusFull,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            profile.totalGainLossPercent.toAmount() >= 0
+                                ? Icons.arrow_upward_rounded
+                                : Icons.arrow_downward_rounded,
+                            color: profile.totalGainLossPercent.toAmount() >= 0
+                                ? Colors.greenAccent
+                                : AppTheme.warningOrange,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${profile.totalGainLossPercent.toAmount().toStringAsFixed(1)}%",
+                            style: TextStyle(
+                              color:
+                                  profile.totalGainLossPercent.toAmount() >= 0
+                                  ? Colors.greenAccent
+                                  : AppTheme.warningOrange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingSm),
                     Text(
-                      "+35.6%",
+                      "Risk profile: ${profile.riskProfile}",
                       style: TextStyle(
-                        color: Colors.greenAccent,
-                        fontWeight: FontWeight.bold,
+                        color: Colors.white.withAlpha(200),
                         fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: AppTheme.spacingSm),
-              Text(
-                "+GHS 978.42 All time",
-                style: TextStyle(
-                  color: Colors.white.withAlpha(200),
-                  fontSize: 12,
-                ),
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // Refined Quick Actions Grid/Row
   Widget _buildQuickActions(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildActionTile(
-          context,
-          Icons.add_rounded,
-          "Deposit",
-          () => showComingSoon(context, "Deposit"),
-        ),
-        _buildActionTile(
-          context,
-          Icons.arrow_downward_rounded,
-          "Withdraw",
-          () => showComingSoon(context, "Withdraw"),
-        ),
-        _buildActionTile(
-          context,
-          Icons.swap_horiz_rounded,
-          "Trade",
-          () => showComingSoon(context, "Trade"),
-        ),
-        _buildActionTile(
-          context,
-          Icons.bar_chart_rounded,
-          "Analytics",
-          () => showComingSoon(context, "Analytics"),
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildActionTile(
+            context,
+            Icons.add_rounded,
+            "Deposit",
+            () => showComingSoon(context, "Deposit"),
+          ),
+          _buildActionTile(
+            context,
+            Icons.arrow_downward_rounded,
+            "Withdraw",
+            () => showComingSoon(context, "Withdraw"),
+          ),
+          _buildActionTile(
+            context,
+            Icons.swap_horiz_rounded,
+            "Trade",
+            _openInvestSheet,
+          ),
+          _buildActionTile(
+            context,
+            Icons.bar_chart_rounded,
+            "Analytics",
+            () => showComingSoon(context, "Analytics"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -241,10 +376,10 @@ class ZInvestScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppTheme.spacingMd),
             decoration: BoxDecoration(
-              color: AppTheme.zinvestColor.withAlpha(15),
+              color: AppColors.main.withAlpha(15),
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             ),
-            child: Icon(icon, color: AppTheme.zinvestColor, size: 24),
+            child: Icon(icon, color: AppColors.main, size: 24),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
@@ -260,7 +395,60 @@ class ZInvestScreen extends StatelessWidget {
     );
   }
 
-  // Modern List of Investment Features using Custom Cards
+  Widget _buildInvestmentsSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: ListenableBuilder(
+        listenable: InvestmentsRepository.instance,
+        builder: (context, _) {
+          final repo = InvestmentsRepository.instance;
+          final investments = repo.data;
+
+          if (repo.isLoading && investments == null) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (repo.error != null && investments == null) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                children: [
+                  const Text(
+                    "Couldn't load your investments.",
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  TextButton(
+                    onPressed: () => repo.ensureLoaded(forceRefresh: true),
+                    child: const Text("Retry"),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (investments == null || investments.isEmpty) {
+            return EmptyStateWidget(
+              icon: Icons.show_chart,
+              message: "No investments yet.",
+              actionLabel: "Buy your first investment",
+              onAction: _openInvestSheet,
+            );
+          }
+
+          return InvestmentList(
+            investments: investments,
+            onSell: (id) => InvestmentsRepository.instance.sell(id),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildInvestmentFeatures(BuildContext context) {
     final features = [
       {
@@ -272,7 +460,7 @@ class ZInvestScreen extends StatelessWidget {
       {
         'icon': Icons.currency_bitcoin,
         'title': "Crypto",
-        'subtitle': "Trade Bitcoin, Ethereum & more",
+        'subtitle': "Coming soon — Trade Bitcoin, Ethereum & more",
         'onTap': () => showComingSoon(context, "Crypto"),
       },
       {
@@ -299,17 +487,7 @@ class ZInvestScreen extends StatelessWidget {
       children: features.map((feature) {
         return Container(
           margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(5),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
+          decoration: AppTheme.cardDecoration,
           child: Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -323,12 +501,12 @@ class ZInvestScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.zinvestColor.withAlpha(15),
+                        color: AppColors.purple.withAlpha(15),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                       ),
                       child: Icon(
                         feature['icon'] as IconData,
-                        color: AppTheme.zinvestColor,
+                        color: AppColors.purple,
                         size: 24,
                       ),
                     ),
@@ -368,6 +546,195 @@ class ZInvestScreen extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+/// Buy/invest bottom sheet. Collects the fields
+/// `InvestmentsRepository.invest()` needs and posts through it directly —
+/// the repo applies the resulting investment into the cache, so no
+/// forceRefresh is needed afterwards.
+///
+/// CRYPTO is kept selectable (per product copy, it's "coming soon" rather
+/// than hidden) but submission is disabled while it's selected: the backend
+/// intentionally returns HTTP 501 for `investmentType: CRYPTO` this pass,
+/// and that's not something to route around client-side.
+class _InvestForm extends StatefulWidget {
+  const _InvestForm();
+
+  @override
+  State<_InvestForm> createState() => _InvestFormState();
+}
+
+class _InvestFormState extends State<_InvestForm> {
+  final _nameController = TextEditingController();
+  final _symbolController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _buyPriceController = TextEditingController();
+
+  String _investmentType = _investmentTypes.first;
+  String _currencyCode = _currencyCodes.first;
+  bool _submitting = false;
+  String? _error;
+
+  bool get _isCrypto => _investmentType == 'CRYPTO';
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _symbolController.dispose();
+    _quantityController.dispose();
+    _buyPriceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    final quantity = _quantityController.text.trim();
+    final buyPrice = _buyPriceController.text.trim();
+
+    if (name.isEmpty ||
+        quantity.isEmpty ||
+        buyPrice.isEmpty ||
+        double.tryParse(quantity) == null ||
+        double.tryParse(buyPrice) == null) {
+      setState(() => _error = "Enter a name, valid quantity and buy price.");
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      await InvestmentsRepository.instance.invest(
+        name: name,
+        investmentType: _investmentType,
+        symbol: _symbolController.text.trim().isEmpty
+            ? null
+            : _symbolController.text.trim(),
+        quantity: quantity,
+        buyPrice: buyPrice,
+        currencyCode: _currencyCode,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      setState(() => _error = "Couldn't complete purchase: $e");
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Buy Investment", style: AppTheme.headlineLarge),
+              const SizedBox(height: AppTheme.spacingLg),
+              AppTextField(controller: _nameController, labelText: "Name"),
+              const SizedBox(height: AppTheme.spacingMd),
+              DropdownButtonFormField<String>(
+                initialValue: _investmentType,
+                decoration: const InputDecoration(labelText: "Investment type"),
+                items: _investmentTypes
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(type == 'CRYPTO' ? '$type (coming soon)' : type),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _investmentType = value);
+                },
+              ),
+              if (_isCrypto) ...[
+                const SizedBox(height: AppTheme.spacingSm),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: AppTheme.warningOrange,
+                    ),
+                    const SizedBox(width: AppTheme.spacingXs),
+                    const Expanded(
+                      child: Text(
+                        "Crypto investing is coming soon and can't be submitted yet.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.warningOrange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: AppTheme.spacingMd),
+              AppTextField(
+                controller: _symbolController,
+                labelText: "Symbol (optional)",
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              AppTextField(
+                controller: _quantityController,
+                labelText: "Quantity",
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              AppTextField(
+                controller: _buyPriceController,
+                labelText: "Buy price",
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              DropdownButtonFormField<String>(
+                initialValue: _currencyCode,
+                decoration: const InputDecoration(labelText: "Currency"),
+                items: _currencyCodes
+                    .map(
+                      (code) => DropdownMenuItem(value: code, child: Text(code)),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _currencyCode = value);
+                },
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: AppTheme.spacingSm),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: AppTheme.errorRed, fontSize: 13),
+                ),
+              ],
+              const SizedBox(height: AppTheme.spacingLg),
+              PrimaryButton(
+                label: "Invest",
+                loading: _submitting,
+                onPressed: _isCrypto ? null : _submit,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

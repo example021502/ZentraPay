@@ -2,6 +2,7 @@ import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 import 'Op_Button.dart';
 
@@ -111,7 +112,7 @@ class _SendingFormState extends State<SendingForm> {
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
+                    color: AppTheme.secondaryNavy,
                     borderRadius: BorderRadius.circular(200),
                   ),
                   child: Row(
@@ -122,10 +123,10 @@ class _SendingFormState extends State<SendingForm> {
                       Text(
                         "Send Now",
                         style: AppStyles.header.copyWith(
-                          color: AppColors.primary,
+                          color: AppTheme.primaryWhite,
                         ),
                       ),
-                      Icon(Icons.send, color: AppColors.primary, size: 20),
+                      Icon(Icons.send, color: AppTheme.primaryWhite, size: 20),
                     ],
                   ),
                 ),
@@ -226,14 +227,14 @@ class _SendingFormState extends State<SendingForm> {
             ),
             decoration: InputDecoration(
               labelText: label,
-              fillColor: AppColors.primary,
+              fillColor: AppTheme.primaryWhite,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(200),
-                borderSide: BorderSide(color: AppColors.lightGrey, width: 0.5),
+                borderSide: BorderSide(color: AppTheme.lightGrey, width: 0.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(200),
-                borderSide: BorderSide(color: AppColors.lightGrey, width: 0.5),
+                borderSide: BorderSide(color: AppTheme.lightGrey, width: 0.5),
               ),
             ),
             initialCountryCode: 'GH',
@@ -290,11 +291,11 @@ class _SendingFormState extends State<SendingForm> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(200),
-                borderSide: BorderSide(color: AppColors.lightGrey, width: 0.5),
+                borderSide: BorderSide(color: AppTheme.lightGrey, width: 0.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(200),
-                borderSide: BorderSide(color: AppColors.lightGrey, width: 0.5),
+                borderSide: BorderSide(color: AppTheme.lightGrey, width: 0.5),
               ),
             ),
           );
