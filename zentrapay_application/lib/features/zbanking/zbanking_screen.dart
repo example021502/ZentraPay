@@ -39,9 +39,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
           children: [
             _buildHeader(context),
             _buildQuickActions(context),
-            _buildSavingsSection(context),
-            _buildLoansSection(context),
-            _buildBudgetSection(context),
+            _buildAccountOptionsSection(context),
             _buildAiInsights(context),
             const SizedBox(height: 80),
           ],
@@ -280,412 +278,78 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   }
 
   // ============================================================
-  // SAVINGS
+  // ACCOUNT OPTIONS (Digital Savings / Micro-Loans / Budget Tracker)
   // ============================================================
+  // Simple navigation-style rows for now — dedicated per-feature screens
+  // are still to be introduced. Tapping one opens the same quick dialog
+  // the header's quick-action buttons use.
 
-  Widget _buildSavingsSection(BuildContext context) {
-    return ListenableBuilder(
-      listenable: SavingsRepository.instance,
-      builder: (context, _) {
-        final repo = SavingsRepository.instance;
-        final accounts = repo.data;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Digital Savings",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showCreateSavingsDialog(context),
-                  icon: const Icon(Icons.add, size: 18, color: AppTheme.zbankColor),
-                  label: const Text(
-                    "New",
-                    style: TextStyle(color: AppTheme.zbankColor),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingSm),
-            if (accounts == null && repo.isLoading)
-              const AppCard(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              )
-            else if (accounts == null && repo.error != null)
-              _errorCard(
-                message: "Couldn't load your savings accounts.",
-                onRetry: () => repo.ensureLoaded(forceRefresh: true),
-              )
-            else if (accounts == null || accounts.isEmpty)
-              AppCard(
-                child: EmptyStateWidget(
-                  icon: Icons.savings_outlined,
-                  message: "No savings accounts yet. Start saving toward a goal.",
-                  actionLabel: "Start Saving",
-                  onAction: () => _showCreateSavingsDialog(context),
-                ),
-              )
-            else
-              Column(
-                children: [
-                  for (final account in accounts) _savingsCard(account),
-                ],
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _savingsCard(SavingsAccount account) {
-    final target = account.targetAmount;
-    final targetValue = target?.toAmount() ?? 0;
-    final progress = (target != null && targetValue > 0)
-        ? (account.balance.toAmount() / targetValue).clamp(0.0, 1.0)
-        : null;
+  Widget _buildAccountOptionsSection(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    account.savingsName,
-                    style: AppTheme.titleLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                _statusBadge(account.status),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingXs),
-            Text(
-              formatMoney(account.balance, symbol: '${account.currencyCode} '),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.zbankColor,
-              ),
-            ),
-            if (progress != null) ...[
-              const SizedBox(height: AppTheme.spacingSm),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(200),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: AppTheme.gray100,
-                  valueColor: const AlwaysStoppedAnimation(AppTheme.zbankColor),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingXs),
-              Text(
-                'Target: ${formatMoney(target!, symbol: '${account.currencyCode} ')}'
-                '${account.targetDate != null ? ' by ${account.targetDate}' : ''}',
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-              ),
-            ],
-            const SizedBox(height: AppTheme.spacingSm),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _showAmountDialog(
-                      context,
-                      title: 'Deposit to ${account.savingsName}',
-                      actionLabel: 'Deposit',
-                      onSubmit: (amount) =>
-                          _deposit(account, amount),
-                    ),
-                    child: const Text('Deposit'),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacingSm),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _showAmountDialog(
-                      context,
-                      title: 'Withdraw from ${account.savingsName}',
-                      actionLabel: 'Withdraw',
-                      onSubmit: (amount) =>
-                          _withdraw(account, amount),
-                    ),
-                    child: const Text('Withdraw'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deposit(SavingsAccount account, String amount) async {
-    await SavingsRepository.instance.deposit(account.savingsId, amount);
-    ZentraNotifier.success(
-      'Deposit Successful',
-      'Added GHS $amount to ${account.savingsName}.',
-    );
-  }
-
-  Future<void> _withdraw(SavingsAccount account, String amount) async {
-    await SavingsRepository.instance.withdraw(account.savingsId, amount);
-    ZentraNotifier.success(
-      'Withdrawal Successful',
-      'Withdrew GHS $amount from ${account.savingsName}.',
-    );
-  }
-
-  // ============================================================
-  // LOANS
-  // ============================================================
-
-  Widget _buildLoansSection(BuildContext context) {
-    return ListenableBuilder(
-      listenable: LoansRepository.instance,
-      builder: (context, _) {
-        final repo = LoansRepository.instance;
-        final loans = repo.data;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Micro-Loans",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showLoanApplyDialog(context),
-                  icon: const Icon(Icons.add, size: 18, color: AppTheme.zbankColor),
-                  label: const Text(
-                    "Apply",
-                    style: TextStyle(color: AppTheme.zbankColor),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingSm),
-            if (loans == null && repo.isLoading)
-              const AppCard(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              )
-            else if (loans == null && repo.error != null)
-              _errorCard(
-                message: "Couldn't load your loans.",
-                onRetry: () => repo.ensureLoaded(forceRefresh: true),
-              )
-            else if (loans == null || loans.isEmpty)
-              AppCard(
-                child: EmptyStateWidget(
-                  icon: Icons.handshake_outlined,
-                  message: "No active loans. Apply for a micro-loan anytime.",
-                  actionLabel: "Apply Now",
-                  onAction: () => _showLoanApplyDialog(context),
-                ),
-              )
-            else
-              Column(
-                children: [for (final loan in loans) _loanCard(loan)],
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _loanCard(Loan loan) {
-    final status = loan.status.toUpperCase();
-    final canRepay =
-        loan.outstandingBalance.toAmount() > 0 &&
-        status != 'PAID' &&
-        status != 'REJECTED' &&
-        status != 'PENDING';
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Loan • ${loan.termMonths} mo', style: AppTheme.titleLarge),
-                _statusBadge(loan.status),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingXs),
-            Text(
-              'Outstanding: ${formatMoney(loan.outstandingBalance)}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.zbankColor,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingXs),
-            Text(
-              'Principal ${formatMoney(loan.principalAmount)} · '
-              '${loan.interestRate}% APR'
-              '${loan.dueDate != null ? ' · Due ${loan.dueDate}' : ''}',
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-            ),
-            if (canRepay) ...[
-              const SizedBox(height: AppTheme.spacingSm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _showAmountDialog(
-                    context,
-                    title: 'Repay Loan',
-                    actionLabel: 'Repay',
-                    onSubmit: (amount) => _repayLoan(loan, amount),
-                  ),
-                  child: const Text('Repay'),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _repayLoan(Loan loan, String amount) async {
-    await LoansRepository.instance.repay(loan.loanId, amount);
-    ZentraNotifier.success(
-      'Repayment Successful',
-      'Repaid GHS $amount towards your loan.',
-    );
-  }
-
-  // ============================================================
-  // BUDGET
-  // ============================================================
-
-  Widget _buildBudgetSection(BuildContext context) {
-    return ListenableBuilder(
-      listenable: BudgetRepository.instance,
-      builder: (context, _) {
-        final repo = BudgetRepository.instance;
-        final summary = repo.data;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Budget Tracker",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showBudgetLimitDialog(context),
-                  icon: const Icon(Icons.edit, size: 16, color: AppTheme.zbankColor),
-                  label: const Text(
-                    "Edit Limit",
-                    style: TextStyle(color: AppTheme.zbankColor),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingSm),
-            if (summary == null && repo.isLoading)
-              const AppCard(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              )
-            else if (summary == null && repo.error != null)
-              _errorCard(
-                message: "Couldn't load your budget.",
-                onRetry: () => repo.ensureLoaded(forceRefresh: true),
-              )
-            else if (summary == null)
-              AppCard(
-                child: EmptyStateWidget(
-                  icon: Icons.track_changes,
-                  message: "Set a monthly budget to start tracking your spend.",
-                  actionLabel: "Set Budget",
-                  onAction: () => _showBudgetLimitDialog(context),
-                ),
-              )
-            else
-              _budgetCard(summary),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _budgetCard(BudgetSummary summary) {
-    final limit = summary.monthlyLimit.toAmount();
-    final spent = summary.spentThisMonth.toAmount();
-    final progress = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
-    final overBudget = limit > 0 && spent > limit;
-    return AppCard(
+      decoration: AppTheme.cardDecoration,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Spent: ${formatMoney(summary.spentThisMonth)}',
-                style: AppTheme.titleLarge,
-              ),
-              Text(
-                'Limit: ${formatMoney(summary.monthlyLimit)}',
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-              ),
-            ],
+          _accountOptionTile(
+            context,
+            icon: Icons.savings,
+            label: "Digital Savings",
+            onTap: () => _showCreateSavingsDialog(context),
           ),
-          const SizedBox(height: AppTheme.spacingSm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(200),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: AppTheme.gray100,
-              valueColor: AlwaysStoppedAnimation(
-                overBudget ? AppTheme.errorRed : AppTheme.zbankColor,
-              ),
-            ),
+          const SizedBox(height: 8),
+          _accountOptionTile(
+            context,
+            icon: Icons.account_balance_wallet_outlined,
+            label: "Micro-Loans",
+            onTap: () => _showLoanApplyDialog(context),
           ),
-          const SizedBox(height: AppTheme.spacingXs),
-          Text(
-            overBudget
-                ? 'Over budget by ${formatMoney((spent - limit).toStringAsFixed(2))}'
-                : 'Remaining: ${formatMoney(summary.remaining)}',
-            style: AppTheme.bodySmall.copyWith(
-              color: overBudget ? AppTheme.errorRed : AppTheme.gray500,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 8),
+          _accountOptionTile(
+            context,
+            icon: Icons.track_changes,
+            label: "Budget Tracker",
+            onTap: () => _showBudgetLimitDialog(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _accountOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Icon(icon, color: AppColors.secondary, size: 22),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
@@ -794,115 +458,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
     );
   }
 
-  Widget _statusBadge(String status) {
-    final color = _statusColor(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(200),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  Color _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'ACTIVE':
-      case 'APPROVED':
-      case 'PAID':
-        return AppTheme.successGreen;
-      case 'PENDING':
-        return AppTheme.warningOrange;
-      case 'REJECTED':
-      case 'DEFAULTED':
-      case 'CLOSED':
-        return AppTheme.errorRed;
-      default:
-        return AppTheme.gray500;
-    }
-  }
-
   // ============================================================
   // DIALOGS / BOTTOM SHEETS
   // ============================================================
-
-  Future<void> _showAmountDialog(
-    BuildContext context, {
-    required String title,
-    required String actionLabel,
-    required Future<void> Function(String amount) onSubmit,
-  }) async {
-    final controller = TextEditingController();
-    bool submitting = false;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setState) {
-            return AlertDialog(
-              title: Text(title),
-              content: TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  hintText: 'Amount',
-                  prefixText: 'GHS ',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: submitting ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: submitting
-                      ? null
-                      : () async {
-                          final amount = controller.text.trim();
-                          final parsed = double.tryParse(amount);
-                          if (amount.isEmpty || parsed == null || parsed <= 0) {
-                            ZentraNotifier.error(
-                              'Invalid Amount',
-                              'Enter a valid amount greater than zero.',
-                            );
-                            return;
-                          }
-                          setState(() => submitting = true);
-                          try {
-                            await onSubmit(amount);
-                            if (dialogContext.mounted) Navigator.pop(dialogContext);
-                          } catch (e) {
-                            setState(() => submitting = false);
-                            ZentraNotifier.error('Action Failed', e.toString());
-                          }
-                        },
-                  child: submitting
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(actionLabel),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   Future<void> _showCreateSavingsDialog(BuildContext context) async {
     final nameController = TextEditingController();

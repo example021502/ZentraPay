@@ -10,7 +10,11 @@ class SecureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Wrapped in a Material ancestor — this screen is pushed directly via
+    // MaterialPageRoute without its own Scaffold, so without this the text
+    // widgets below render with the debug-mode "missing Material" yellow
+    // underline.
+    return Material(
       color: AppTheme.secureColor,
       child: SingleChildScrollView(
         child: Column(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/main.dart';
 
 /// Placeholder for the Merchant tab — content to be added later.
 class Settings extends StatelessWidget {
@@ -35,16 +34,14 @@ class Settings extends StatelessWidget {
           children: [
             Container(
               width: double.infinity,
-              decoration: BoxDecoration(color: AppColors.main.withAlpha(20)),
+              color: Colors.transparent,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   vertical: 30.0,
                   horizontal: 15.0,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     GestureDetector(
                       onTap: () {},
@@ -54,7 +51,7 @@ class Settings extends StatelessWidget {
                         color: AppTheme.textBlack,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingXl),
+                    const SizedBox(width: AppTheme.spacingLg),
                     Text("Settings", style: AppTheme.headlineLarge),
                   ],
                 ),

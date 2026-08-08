@@ -94,10 +94,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildActiveChallengesHeader(),
-                  const SizedBox(height: 16),
-                  _buildChallengesSection(),
-                  const SizedBox(height: 16),
+                  _buildChallengesBlock(),
                   _buildQuickActionButtons(),
                   const SizedBox(height: 32),
                   const Text(
@@ -107,27 +104,8 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
                   const SizedBox(height: 10),
                   _buildFinancialTools(context),
                   const SizedBox(height: 32),
-                  const Text(
-                    "Rewards",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildRewardsSection(),
-
-                  const SizedBox(height: 32),
-                  const Text(
-                    "Learn & Earn",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildLearnAndEarnCarousel(),
-                  const SizedBox(height: 32),
-                  const Text(
-                    "AI Couch",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildAiCouchCard(),
+                  _buildRewardsBlock(),
+                  _buildLearnAndEarnBlock(),
                 ],
               ),
             ),
@@ -271,131 +249,99 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
     );
   }
 
-  // Derived "points over time" visualization built from RewardsRepository's
-  // recentLedger — there's no dedicated chart-backing endpoint for zgrow, so
-  // this reconstructs a running-total timeline from the ledger deltas
-  // (recentLedger is assumed newest-first, so it's reversed to walk it
-  // chronologically). Falls back to a plain summary when there's no ledger
-  // activity to plot yet.
+  // TEMP: dummy points-over-time chart until RewardsRepository's ledger is
+  // reliably populated by the backend. Swap back to a ledger-driven series
+  // (see git history for the previous implementation) once that data is
+  // consistently available.
+  static const List<FlSpot> _dummyPointsSpots = [
+    FlSpot(0, 40),
+    FlSpot(1, 65),
+    FlSpot(2, 58),
+    FlSpot(3, 90),
+    FlSpot(4, 120),
+    FlSpot(5, 150),
+  ];
+
   Widget _buildPointsChart() {
-    return ListenableBuilder(
-      listenable: RewardsRepository.instance,
-      builder: (context, _) {
-        final rewards = RewardsRepository.instance.data;
-        if (rewards == null) {
-          if (RewardsRepository.instance.isLoading) {
-            return const SizedBox(
-              height: 160,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (RewardsRepository.instance.error != null) {
-            return SizedBox(
-              height: 160,
-              child: EmptyStateWidget(
-                icon: Icons.error_outline,
-                message: "Could not load your points activity.",
-                actionLabel: "Retry",
-                onAction: () =>
-                    RewardsRepository.instance.ensureLoaded(forceRefresh: true),
+    return Column(
+      children: [
+        SizedBox(
+          height: 160,
+          child: LineChart(
+            LineChartData(
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: Colors.grey.withAlpha(50),
+                  strokeWidth: 0.8,
+                ),
               ),
-            );
-          }
-          return const SizedBox.shrink();
-        }
-
-        final entries = rewards.recentLedger;
-        if (entries.isEmpty) {
-          return SizedBox(
-            height: 160,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "${rewards.totalPoints} pts",
-                    style: AppTheme.displaySmall,
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    "No recent points activity yet.",
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        // Walk the ledger oldest -> newest, reconstructing a running total so
-        // the earliest plotted point is the balance before these entries.
-        final chronological = entries.reversed.toList();
-        final deltaSum = entries.fold<int>(0, (sum, e) => sum + e.points);
-        double running = (rewards.totalPoints - deltaSum).toDouble();
-        final spots = <FlSpot>[FlSpot(0, running)];
-        for (var i = 0; i < chronological.length; i++) {
-          running += chronological[i].points;
-          spots.add(FlSpot((i + 1).toDouble(), running));
-        }
-
-        return Column(
-          children: [
-            SizedBox(
-              height: 160,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    getDrawingHorizontalLine: (value) => FlLine(
-                      color: Colors.grey.withAlpha(50),
-                      strokeWidth: 0.8,
-                    ),
-                  ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) => Text(
-                          value.toInt().toString(),
-                          style: const TextStyle(
-                            color: AppColors.textBlack,
-                            fontSize: 9,
-                          ),
-                        ),
+              titlesData: FlTitlesData(
+                show: true,
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(
+                        color: AppColors.textBlack,
+                        fontSize: 9,
                       ),
                     ),
                   ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: AppTheme.zgrowColor,
-                      barWidth: 2,
-                      dotData: const FlDotData(show: true),
-                    ),
-                  ],
                 ),
               ),
+              borderData: FlBorderData(show: false),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: _dummyPointsSpots,
+                  isCurved: true,
+                  color: AppTheme.zgrowColor,
+                  barWidth: 2,
+                  dotData: const FlDotData(show: true),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              "Points earned over time (${rewards.totalPoints} pts total, ${rewards.tier} tier)",
-              style: const TextStyle(color: AppColors.textBlack, fontSize: 11),
-              textAlign: TextAlign.center,
-            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          "Points earned over time (sample data)",
+          style: TextStyle(color: AppColors.textBlack, fontSize: 11),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  // Active saving challenges header + list, collapsed entirely until
+  // ChallengesRepository actually has data — no loading/error placeholder
+  // shown in this section's place while that's pending.
+  Widget _buildChallengesBlock() {
+    return ListenableBuilder(
+      listenable: ChallengesRepository.instance,
+      builder: (context, _) {
+        if (ChallengesRepository.instance.data == null) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildActiveChallengesHeader(),
+            const SizedBox(height: 16),
+            _buildChallengesSection(),
+            const SizedBox(height: 16),
           ],
         );
       },
@@ -652,6 +598,31 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
     );
   }
 
+  // "Rewards" header + summary, collapsed entirely until RewardsRepository
+  // actually has data.
+  Widget _buildRewardsBlock() {
+    return ListenableBuilder(
+      listenable: RewardsRepository.instance,
+      builder: (context, _) {
+        if (RewardsRepository.instance.data == null) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Rewards",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            _buildRewardsSection(),
+            const SizedBox(height: 32),
+          ],
+        );
+      },
+    );
+  }
+
   // RewardsRepository-backed summary: totalPoints, tier, and recent ledger.
   Widget _buildRewardsSection() {
     return ListenableBuilder(
@@ -768,6 +739,30 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // "Learn & Earn" header + carousel, collapsed entirely until
+  // LiteracyRepository actually has data.
+  Widget _buildLearnAndEarnBlock() {
+    return ListenableBuilder(
+      listenable: LiteracyRepository.instance,
+      builder: (context, _) {
+        if (LiteracyRepository.instance.data == null) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Learn & Earn",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            _buildLearnAndEarnCarousel(),
+          ],
+        );
+      },
     );
   }
 
@@ -983,102 +978,4 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
     );
   }
 
-  // Build AI coach interaction card container.
-  // NOTE: This remains static sample copy — there is no zgrow-scoped
-  // AI-coach/chat endpoint to back it in this pass.
-  Widget _buildAiCouchCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CircleAvatar(
-                backgroundColor: Color(0xFFEFE6FF),
-                child: Icon(
-                  Icons.smart_toy,
-                  color: Color(0xFF4A00E0),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F2F7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    "Hi Desire! You successfully avoided weekend splurges. You have an extra \$15 left over. Should we tuck this into your project vault or look over your budget lines for next week?",
-                    style: TextStyle(fontSize: 13, color: Colors.black87),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                constraints: const BoxConstraints(maxWidth: 240),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4EDDA),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  "How can i effectively manage my financial wellbeing",
-                  style: TextStyle(fontSize: 13, color: Colors.black87),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey,
-                child: Text(
-                  "You",
-                  style: TextStyle(fontSize: 9, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F7),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: "Ask your couch anything",
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                  ),
-                ),
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1A0059),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 16),
-                    onPressed: () {},
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
