@@ -7,17 +7,21 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
- * {@code POST /api/payments/internal} amount shape (API contract §6):
- * {@code {amount,currencyCode}} — internal transfers move within a single
- * currency, so unlike {@link ExternalAmountDTO} there's no destination
- * currency conversion.
+ * External payment amount details (API contract §6):
+ * {@code {amount, currencyCode, destinationCurrencyCode?, description?}}
+ * <p>
+ * Standardized payload structure: recipientDetails, amountDetails, pin
  */
-public record InternalAmountDTO(
+public record ExternalAmountDTO(
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.01", message = "Amount must be positive")
         BigDecimal amount,
 
         @NotBlank(message = "Currency code is required")
-        String currencyCode
+        String currencyCode,
+
+        String destinationCurrencyCode,
+
+        String description
 ) {
 }
