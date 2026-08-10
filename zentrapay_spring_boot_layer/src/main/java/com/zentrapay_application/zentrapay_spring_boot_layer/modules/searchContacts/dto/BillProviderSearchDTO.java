@@ -9,7 +9,7 @@ public record BillProviderSearchDTO(
         UUID providerId,
         String billerName,
         String categoryCode,
-        String logUrl,
+        String logoUrl,
         String userType
 ) {
 }

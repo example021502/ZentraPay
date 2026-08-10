@@ -1,16 +1,11 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.ChallengeDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.ChallengeResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.CompleteResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.LiteracyContentDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.PointsLedgerEntryDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.RewardsSummaryDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.ChallengeModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.ChallengeParticipant;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.ContentCompletion;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.FinancialLiteracyContent;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.PointsLedger;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.UserRewardBalance;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.model.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.repository.ChallengeParticipantRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.repository.ChallengeRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.repository.ContentCompletionRepository;
@@ -24,8 +19,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * ZGrow: gamified savings challenges, financial literacy, and the points/
@@ -50,39 +48,26 @@ public class ZGrowService {
     // ========================================================================
 
     @Transactional(readOnly = true)
-    public List<ChallengeDTO> getActiveChallenges(UUID userId) {
-        return toDtos(challengeRepository.findByStatus("ACTIVE"), userId);
+    public ChallengeResponseDTO getActiveChallenges(UUID userId) {
+        final List<ChallengeModel> otherChallenges = challengeRepository.findByStatus("active");
+        final List<JoinedChallenges> joinedChallenges = challengeRepository.findByUserId(userId);
+
+        // Extract challenge information for joined challenges using getChallengeByChallengeId
+        final List<ChallengeModel> enrichedJoinedChallenges = joinedChallenges.stream()
+                .map(c -> challengeRepository.getChallengeByChallengeId(c.getChallengeId()))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+
+        return new ChallengeResponseDTO(enrichedJoinedChallenges, otherChallenges);
     }
 
     @Transactional(readOnly = true)
-    public List<ChallengeDTO> getChallengesByCategory(UUID userId, String category) {
-        return toDtos(challengeRepository.findByCategoryAndStatus(category, "ACTIVE"), userId);
-    }
-
-    private List<ChallengeDTO> toDtos(List<ChallengeModel> challenges, UUID userId) {
-        return challenges.stream().map(c -> toDto(c, userId)).toList();
-    }
-
-    private ChallengeDTO toDto(ChallengeModel challenge, UUID userId) {
-        long participantsCount = challengeParticipantRepository.countByChallengeId(challenge.getChallengeId());
-        var participation = challengeParticipantRepository
-                .findByChallengeIdAndUserId(challenge.getChallengeId(), userId);
-        return new ChallengeDTO(
-                challenge.getChallengeId(),
-                challenge.getTitle(),
-                challenge.getDescription(),
-                challenge.getCategory(),
-                challenge.getDurationDays(),
-                challenge.getPointsReward(),
-                challenge.getDifficulty(),
-                participantsCount,
-                participation.isPresent(),
-                participation.map(p -> (int) p.getProgressPercent()).orElse(0)
-        );
+    public ChallengeResponseDTO getChallengesByCategory(UUID userId, String category) {
+        return new ChallengeResponseDTO(null, null);
     }
 
     // POST /api/zgrow/challenges/{challengeId}/join
-    public ChallengeDTO joinChallenge(UUID userId, UUID challengeId) {
+    public ChallengeResponseDTO joinChallenge(UUID userId, UUID challengeId) {
         ChallengeModel challenge = challengeRepository.findById(challengeId)
                 .orElseThrow(() -> new RuntimeException("Challenge not found"));
 
@@ -96,6 +81,10 @@ public class ZGrowService {
 
         return toDto(challenge, userId);
     }
+
+    private ChallengeResponseDTO toDto(ChallengeModel challenge, UUID userId) {
+        return null;
+    };
 
     // ========================================================================
     // FINANCIAL LITERACY — GET /api/zgrow/literacy, POST .../complete

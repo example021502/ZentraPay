@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.converter.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.converter.dto.ConversionHistoryDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.converter.dto.ConvertRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.converter.dto.ConvertResponseDTO;

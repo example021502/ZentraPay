@@ -1,9 +1,9 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.ExternalPaymentRequestDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InternalPaymentRequestDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentsRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaystackAccessCodeResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.services.PaymentsServices;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dto.TransactionResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class PaymentsController {
 
+    // Initialize logger for tracking payment requests and debugging
     private static final Logger log = LoggerFactory.getLogger(PaymentsController.class);
 
     private final PaymentsServices paymentsServices;
@@ -39,7 +40,7 @@ public class PaymentsController {
     @PostMapping("/internal")
     public ResponseEntity<ApiResponse<TransactionResponseDTO>> internalPayment(
             @CurrentUser AuthenticatedUser user,
-            @RequestBody @Valid InternalPaymentRequestDTO request) {
+            @RequestBody @Valid PaymentsRequestDTO request) {
         log.info("[PAYMENTS_CTRL] Internal transfer initiated by userId={}, amountDetails={}, recipientDetails={}",
                 user.userId(), request.amountDetails(), request.recipientDetails());
         TransactionResponseDTO transaction = paymentsServices.makeInternalPayment(user.userId(), request);

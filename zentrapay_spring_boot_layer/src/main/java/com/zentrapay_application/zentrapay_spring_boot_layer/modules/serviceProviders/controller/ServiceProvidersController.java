@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.serviceProviders.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.serviceProviders.dtos.ServiceProviderDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.serviceProviders.services.ServiceProvidersServices;
 import lombok.RequiredArgsConstructor;

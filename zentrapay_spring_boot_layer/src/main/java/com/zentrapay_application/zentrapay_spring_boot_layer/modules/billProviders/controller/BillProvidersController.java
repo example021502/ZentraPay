@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.service.BillProvidersService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;

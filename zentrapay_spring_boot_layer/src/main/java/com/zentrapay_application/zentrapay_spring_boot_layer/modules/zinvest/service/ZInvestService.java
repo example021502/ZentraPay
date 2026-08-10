@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.service;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.model.InvestmentModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zinvest.repository.InvestmentRepository;
 import org.slf4j.Logger;
@@ -90,11 +91,9 @@ public class ZInvestService {
         log.info("[ZINVEST] Closing investment={} for userId={}", investmentId, userId);
 
         InvestmentModel investment = investmentRepository.findById(investmentId)
-                .orElseThrow(() -> new com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException(
-                        "Investment not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Investment not found"));
         if (!investment.getUserId().equals(userId)) {
-            throw new com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException(
-                    "Investment not found");
+            throw new ResourceNotFoundException("Investment not found");
         }
 
         investment.setStatus("CLOSED");

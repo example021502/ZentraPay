@@ -1,7 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.ChallengeDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.ChallengeResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.CompleteResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.LiteracyContentDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.RewardsSummaryDTO;
@@ -26,18 +26,18 @@ public class ZGrowController {
     private final ZGrowService zGrowService;
 
     @GetMapping("/challenges")
-    public ResponseEntity<ApiResponse<List<ChallengeDTO>>> getChallenges(
+    public ResponseEntity<ApiResponse<ChallengeResponseDTO>> getChallenges(
             Authentication authentication,
             @RequestParam(required = false) String category) {
         UUID userId = UUID.fromString(authentication.getName());
-        List<ChallengeDTO> challenges = category == null
+        ChallengeResponseDTO challenges = category == null
                 ? zGrowService.getActiveChallenges(userId)
                 : zGrowService.getChallengesByCategory(userId, category);
         return ResponseEntity.ok(ApiResponse.success(challenges, "Challenges retrieved"));
     }
 
     @PostMapping("/challenges/{challengeId}/join")
-    public ResponseEntity<ApiResponse<ChallengeDTO>> joinChallenge(
+    public ResponseEntity<ApiResponse<ChallengeResponseDTO>> joinChallenge(
             Authentication authentication,
             @PathVariable UUID challengeId) {
         UUID userId = UUID.fromString(authentication.getName());

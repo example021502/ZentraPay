@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.dto.PaymentChannelDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.dto.ResolveAccountResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.service.PaymentChannelsService;

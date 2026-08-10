@@ -5,6 +5,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -24,32 +25,32 @@ public class ChallengeModel {
     @Column(name = "challenge_id", nullable = false)
     private UUID challengeId;
 
-    @Column(nullable = false, length = 120)
-    private String title;
+    @Column(name = "category", nullable = false)
+    private String category;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(length = 40)
-    private String category; // SAVINGS, SPENDING, INVESTING
-
-    @Column(name = "duration_days", nullable = false)
-    private Integer durationDays;
+    @Column(name = "difficulty", nullable = false)
+    private String difficulty;
 
     @Column(name = "points_reward", nullable = false)
     private Integer pointsReward = 0;
 
-    @Column(length = 20)
-    private String difficulty; // EASY, MEDIUM, HARD
+    @Column(name = "duration_days", nullable = false)
+    private Integer durationDays = 1;
 
-    @Column(nullable = false, length = 20)
-    private String status = "ACTIVE"; // ACTIVE, ARCHIVED
+    @Column(name = "status", nullable = false)
+    private String status = "active";
+
+    @Column(name = "title", nullable = false)
+    private String title;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 }

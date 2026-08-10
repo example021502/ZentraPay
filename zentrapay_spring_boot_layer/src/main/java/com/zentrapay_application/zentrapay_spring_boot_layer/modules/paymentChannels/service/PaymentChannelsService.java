@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.PaymentChannel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.PaymentChannelRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.dto.PaymentChannelDTO;

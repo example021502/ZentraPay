@@ -1,6 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.services;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentsRequestDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.*;
@@ -43,10 +44,20 @@ public class PaymentsServices {
     @Value("${app.pin.pepper}")
     private String pinPepper;
 
-    public TransactionResponseDTO makeInternalPayment(UUID senderId, @Valid InternalPaymentRequestDTO request) {
+    public TransactionResponseDTO makeInternalPayment(UUID senderId, @Valid PaymentsRequestDTO request) {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sender not found"));
         verifyPin(sender, request.pin());
+
+        String destinationType = request.destinationDetails().destinationType();
+        if (!"INTERNAL_WALLET".equalsIgnoreCase(destinationType)) {
+            // Every other destination already has its own endpoint with a shape suited to it:
+            // bank/mobile-money -> POST /api/payments/bank-transfer|mobile-money (see
+            // makeBankTransfer/makeMobileMoneyTransfer), bill providers -> POST
+            // /api/bill-providers/pay (providerId+customerReference, not accountNumber/network).
+            // This endpoint only ever handles wallet-to-wallet transfers between app users.
+            throw new RuntimeException("Unsupported destination type for /api/payments/internal: " + destinationType);
+        }
 
         String phoneNumber = request.recipientDetails().phoneNumber();
         String zentag = request.recipientDetails().zentag();

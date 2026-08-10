@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zbanking.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zbanking.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zbanking.service.ZBankingService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;

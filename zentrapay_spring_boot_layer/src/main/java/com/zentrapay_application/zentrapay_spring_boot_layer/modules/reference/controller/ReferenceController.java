@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.reference.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.reference.dto.CountryDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.reference.dto.CurrencyDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.reference.dto.ProviderCategoryDTO;

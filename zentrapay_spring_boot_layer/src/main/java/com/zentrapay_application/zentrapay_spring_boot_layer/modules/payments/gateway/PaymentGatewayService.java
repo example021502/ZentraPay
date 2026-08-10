@@ -3,8 +3,6 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.g
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.DisbursementRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentsResponseDTO;
 
-import java.math.BigDecimal;
-
 /**
  * Common interface for all payment gateway integrations.
  * <p>

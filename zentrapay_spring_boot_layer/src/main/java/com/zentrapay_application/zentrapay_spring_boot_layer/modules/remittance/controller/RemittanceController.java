@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.dtos.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.service.RemittanceService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;

@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.secure.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.secure.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.secure.model.SecuritySettingsModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.secure.service.SecureService;

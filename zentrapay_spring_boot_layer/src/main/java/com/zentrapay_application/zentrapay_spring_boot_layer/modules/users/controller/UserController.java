@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.service.UsersService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
@@ -68,6 +68,12 @@ public class UserController {
                                                                                  @RequestBody UserProfileDetailsDTO request) {
         UserProfileDetailsDTO profile = userService.upsertKycProfile(user.userId(), request);
         return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile updated"));
+    }
+
+    @GetMapping("/me/receive")
+    public ResponseEntity<ApiResponse<ReceiveInfoDTO>> getReceiveInfo(@CurrentUser AuthenticatedUser user) {
+        ReceiveInfoDTO info = userService.getReceiveInfo(user.userId());
+        return ResponseEntity.ok(ApiResponse.success(info, "Receive info retrieved"));
     }
 
     @GetMapping("/me/merchant-profile")

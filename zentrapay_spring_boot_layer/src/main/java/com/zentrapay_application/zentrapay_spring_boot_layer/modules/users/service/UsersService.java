@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*;
@@ -30,6 +30,7 @@ public class UsersService {
     private final WalletRepository walletRepository;
     private final CountryRepository countryRepository;
     private final LoginHistoryRepository loginHistoryRepository;
+    private final LinkedFundingSourceRepository linkedFundingSourceRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -179,6 +180,38 @@ public class UsersService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return toProfileDTO(user);
+    }
+
+    /**
+     * Backs the Home "Receive" sheet: zentag + a QR payload the client renders
+     * locally, plus the user's own linked funding sources (bank accounts) so a
+     * sender paying by bank transfer can see where it lands. No server-side QR
+     * image generation — {@code qrPayload} is a deep link the app's QR widget
+     * encodes client-side.
+     */
+    @Transactional(readOnly = true)
+    public ReceiveInfoDTO getReceiveInfo(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        var linkedAccounts = linkedFundingSourceRepository.findByUserId(userId).stream()
+                .map(f -> new ReceiveInfoDTO.LinkedAccountDTO(
+                        f.getSourceId().toString(),
+                        f.getSourceName(),
+                        f.getAccountIdentifier(),
+                        f.getSourceType(),
+                        f.isVerified()))
+                .toList();
+
+        String qrPayload = "zentrapay://receive?zentag=" + user.getZentag() + "&userId=" + user.getUserId();
+
+        return new ReceiveInfoDTO(
+                user.getUserId().toString(),
+                user.getFullName(),
+                user.getZentag(),
+                qrPayload,
+                linkedAccounts
+        );
     }
 
     @Transactional

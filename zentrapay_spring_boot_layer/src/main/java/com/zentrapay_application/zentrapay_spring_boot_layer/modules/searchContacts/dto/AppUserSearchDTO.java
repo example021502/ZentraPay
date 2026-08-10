@@ -9,6 +9,7 @@ public record AppUserSearchDTO(
         String lastName,
         String phoneNumber,
         String zentag,
-        String userType
+        String userType,
+        String email
 ) {
 }

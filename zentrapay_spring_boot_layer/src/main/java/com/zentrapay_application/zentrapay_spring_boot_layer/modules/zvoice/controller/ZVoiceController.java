@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.dto.CommandRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.dto.CommandResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zvoice.dto.HistoryItemDTO;

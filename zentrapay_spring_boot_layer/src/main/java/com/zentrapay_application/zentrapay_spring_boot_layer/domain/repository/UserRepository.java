@@ -26,7 +26,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByZentag(String zentag);
 
 
-    // Searches users by text query while explicitly excluding the current user's ID
+    // Searches users by text query while explicitly excluding the current user's ID.
+    // Restricted to users sharing the searching user's country — either the same
+    // stored countryCode, or (for diaspora users whose profile country lags their
+    // actual number) the same phone dial-code prefix.
     @Query("""
             SELECT u FROM User u
             WHERE (
@@ -36,9 +39,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                 OR LOWER(u.zentag) LIKE LOWER(CONCAT('%', :query, '%'))
             )
             AND u.userId != :userId
+            AND (
+                u.countryCode = :countryCode
+                OR u.phoneNumber LIKE CONCAT(:dialCode, '%')
+            )
             """)
     List<User> searchByQuery(
             @Param("query") String query,
-            @Param("userId") UUID userId
+            @Param("userId") UUID userId,
+            @Param("countryCode") String countryCode,
+            @Param("dialCode") String dialCode
     );
 }

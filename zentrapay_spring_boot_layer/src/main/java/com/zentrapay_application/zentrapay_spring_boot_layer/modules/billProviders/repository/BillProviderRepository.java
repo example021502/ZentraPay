@@ -20,10 +20,12 @@ public interface BillProviderRepository extends JpaRepository<BillProvider, UUID
 
     Optional<BillProvider> findByBillerCode(String billerCode);
 
-    // Searches bill providers by query while excluding a specific provider ID (e.g., if needed)
+    // Searches bill providers by query, restricted to the searching user's country —
+    // a provider only listed for another market isn't payable by this user anyway.
     @Query("""
             SELECT p FROM BillProvider p
             WHERE p.active = True
+            AND p.countryCode = :countryCode
             AND (
                 LOWER(p.billerName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(p.categoryCode) LIKE LOWER(CONCAT('%', :query, '%'))
@@ -32,6 +34,7 @@ public interface BillProviderRepository extends JpaRepository<BillProvider, UUID
             """)
     List<BillProvider> searchByQuery(
             @Param("query") String query,
-            @Param("excludeId") UUID excludeId
+            @Param("excludeId") UUID excludeId,
+            @Param("countryCode") String countryCode
     );
 }

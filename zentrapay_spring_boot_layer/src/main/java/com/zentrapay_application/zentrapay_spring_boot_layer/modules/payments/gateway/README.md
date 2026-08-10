@@ -178,7 +178,7 @@ flutterwave.secret-key=your_flutterwave_secret_key
 flutterwave.base-url=https://api.flutterwave.com/v1
 
 # Onafriq (International)
-onafriq.api-key=your_onafriq_api_key
+onafriq.secret-key=your_onafriq_secret_key
 onafriq.base-url=https://api.onafriq.com/v1
 onafriq.partner-id=your_partner_id
 ```

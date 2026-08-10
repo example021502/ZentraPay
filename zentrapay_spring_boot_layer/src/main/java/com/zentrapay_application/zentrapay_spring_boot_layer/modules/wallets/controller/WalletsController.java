@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.controller;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Currency;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dto.CreateCryptoWalletRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dto.CreateFiatWalletRequestDTO;

@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittance.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FraudAlert;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Transaction;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.User;
