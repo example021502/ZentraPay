@@ -110,9 +110,14 @@ class _PaySectionMainState extends State<PaySectionMain> {
     final isFundingSource = userType == "funding-source";
     final isBillProvider = userType == "bill-provider";
 
+    final isCrossBorder =
+        sender.countryCode.toLowerCase() ==
+        recipientDetails["countryCode"].toString().toLowerCase();
+
     final payload = {
       "TXN_REF": txnRef,
       "pin": pin,
+      "isCrossBorder": isCrossBorder,
       "senderDetails": {
         "sender_id": sender.userId,
         "name": "${sender.firstName} ${sender.lastName}",
