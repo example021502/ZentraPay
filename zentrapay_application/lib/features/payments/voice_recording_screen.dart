@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/repositories/voice_command_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class VoiceRecordingScreen extends StatefulWidget {
   const VoiceRecordingScreen({super.key});
@@ -31,19 +32,17 @@ class _VoiceRecordingScreenState extends State<VoiceRecordingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
         backgroundColor: AppColors.main,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: AppColors.primary),
-            onPressed: () {},
-          ),
-        ],
+        title: const Text(
+          "Voice Recording",
+          style: TextStyle(color: AppColors.primary, fontSize: 18),
+        ),
       ),
       body: Center(
         child: Column(

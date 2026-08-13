@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
+import 'package:zentrapay_application/core/utils/Common/AppSetPinSheet.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/main.dart';
 
 class VerifyScreen extends StatelessWidget {
   const VerifyScreen({super.key});
@@ -96,12 +96,7 @@ class VerifyScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(color: AppTheme.gray300),
         ),
-        child: Center(
-          child: Text(
-            "${i + 1}",
-            style: AppTheme.headlineLarge,
-          ),
-        ),
+        child: Center(child: Text("${i + 1}", style: AppTheme.headlineLarge)),
       ),
     ),
   );
@@ -137,7 +132,7 @@ class VerifyScreen extends StatelessWidget {
               isScrollControlled: true,
               isDismissible: false,
               backgroundColor: Colors.transparent,
-              builder: (context) => const AppPinSheet.set(pinLength: 4),
+              builder: (context) => const AppSetPinSheet(pinLength: 4),
             );
             if (pin == null || !context.mounted) return;
             ZentraNotifier.success(

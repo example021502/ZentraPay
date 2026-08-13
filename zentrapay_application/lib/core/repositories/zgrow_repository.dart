@@ -24,6 +24,14 @@ class ChallengesRepository extends CachedListResource<Challenge> {
     final updated = Challenge.fromJson(response.data['data']);
     replaceItem((c) => c.challengeId == challengeId, updated);
   }
+
+  Future<void> decline(String challengeId) async {
+    final response = await _dio.post(
+      '/api/zgrow/challenges/$challengeId/decline',
+    );
+    final updated = Challenge.fromJson(response.data['data']);
+    replaceItem((c) => c.challengeId == challengeId, updated);
+  }
 }
 
 class LiteracyRepository extends CachedListResource<LiteracyContent> {

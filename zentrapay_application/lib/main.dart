@@ -8,8 +8,8 @@ import 'package:zentrapay_application/core/theme/material_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/login_screen.dart';
+import 'package:zentrapay_application/features/home/HomePayments/pay.dart';
 import 'package:zentrapay_application/features/home/external_payment_screen.dart';
-import 'package:zentrapay_application/features/home/pay.dart';
 import 'package:zentrapay_application/features/home/zentrapay_splash_screen_main.dart';
 import 'package:zentrapay_application/features/payanywhere/payanywhere_screen.dart';
 import 'package:zentrapay_application/features/payments/ai_assistance_screen.dart';
@@ -20,8 +20,6 @@ import 'package:zentrapay_application/features/payments/liquidity_hub_screen.dar
 import 'package:zentrapay_application/features/payments/milestones_screen.dart';
 import 'package:zentrapay_application/features/payments/voice_recording_screen.dart';
 import 'package:zentrapay_application/features/profile/profile_screen.dart';
-import 'package:zentrapay_application/features/profile/settings_screen.dart';
-import 'package:zentrapay_application/features/secure/secure_screen.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
 import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart';
@@ -139,7 +137,6 @@ class MainApp extends StatelessWidget {
             '/profile': (context) => const ProfileScreen(),
             '/liquidity_hub': (context) => const LiquidityHubScreen(),
             '/voice_recording': (context) => const VoiceRecordingScreen(),
-            '/settings': (context) => const SettingsScreen(),
             '/fraud_detection': (context) => const FraudDetectionScreen(),
             '/external_payment': (context) => const ExternalPaymentScreen(),
             '/zbanking': (context) => const ZBankingScreen(),
@@ -147,7 +144,6 @@ class MainApp extends StatelessWidget {
             '/zvoice': (context) => const ZVoiceScreen(),
             '/zgrow_new': (context) => const ZGrowScreen(),
             '/pay_anywhere': (context) => const PayAnywhereScreen(),
-            '/secure': (context) => const SecureScreen(),
           },
         ),
       ),

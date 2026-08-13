@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/models/security.dart';
 import 'package:zentrapay_application/core/repositories/security_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/main.dart';
 
 class FraudDetectionScreen extends StatefulWidget {
   const FraudDetectionScreen({super.key});
@@ -48,7 +48,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
         backgroundColor: AppColors.main,
         leading: IconButton(
@@ -241,7 +241,9 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
                 );
               }
               return Column(
-                children: alerts.map((alert) => _buildAlertItem(alert)).toList(),
+                children: alerts
+                    .map((alert) => _buildAlertItem(alert))
+                    .toList(),
               );
             },
           ),
@@ -320,9 +322,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: alert.isResolved
-                            ? AppTheme.successGreen
-                            : color,
+                        color: alert.isResolved ? AppTheme.successGreen : color,
                       ),
                     ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/repositories/voice_command_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
 class AIAssistanceScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
         backgroundColor: AppColors.main,
         leading: IconButton(

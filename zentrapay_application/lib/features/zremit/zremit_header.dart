@@ -56,7 +56,8 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
             converted.toString(),
             symbol: '$_quoteCurrency ',
           );
-          rateText = "1 $_baseCurrency = ${rate.toAmount().toStringAsFixed(4)} $_quoteCurrency";
+          rateText =
+              "1 $_baseCurrency = ${rate.toAmount().toStringAsFixed(4)} $_quoteCurrency";
         } else if (error != null) {
           amountReceivedText = "--";
           rateText = "Rate unavailable";
@@ -92,38 +93,13 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
     return Container(
       width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: AppTheme.coloredCardDecoration(AppColors.secondary),
+      decoration: AppTheme.coloredCardDecoration(
+        AppColors.secondary,
+      ).copyWith(gradient: AppTheme.secondaryGradient),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
-          if (widget.title != null)
-            Row(
-              children: [
-                if (widget.showBack)
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.arrow_back_ios,
-                      color: AppColors.main,
-                      size: 18,
-                    ),
-                  ),
-                if (widget.showBack) const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.title!,
-                    style: TextStyle(
-                      color: AppColors.main,
-                      fontSize: isTablet ? 24.0 : 20.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -145,28 +121,42 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
               ),
             ],
           ),
-          _rateRow("You send", amountSendText, contentFontSize),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Exchange rate",
-                style: TextStyle(
-                  color: AppTheme.primaryWhite,
-                  fontSize: rateFontSize,
-                ),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: AppColors.secondary, width: 2),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                children: [
+                  _rateRow("You send", amountSendText, contentFontSize),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Exchange rate",
+                        style: TextStyle(
+                          color: AppTheme.textBlack,
+                          fontSize: rateFontSize,
+                        ),
+                      ),
+                      Text(
+                        rateText,
+                        style: TextStyle(
+                          color: AppTheme.textBlack,
+                          fontWeight: FontWeight.w600,
+                          fontSize: rateFontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                  _rateRow("They receive", amountReceivedText, contentFontSize),
+                ],
               ),
-              Text(
-                rateText,
-                style: TextStyle(
-                  color: AppTheme.primaryWhite,
-                  fontWeight: FontWeight.w600,
-                  fontSize: rateFontSize,
-                ),
-              ),
-            ],
+            ),
           ),
-          _rateRow("They receive", amountReceivedText, contentFontSize),
           if (error != null)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -174,7 +164,10 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
                 Expanded(
                   child: Text(
                     "Couldn't load live rates.",
-                    style: TextStyle(color: AppTheme.primaryWhite, fontSize: 12),
+                    style: TextStyle(
+                      color: AppTheme.primaryWhite,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 TextButton(
@@ -208,14 +201,18 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
         Text(
           label,
           style: TextStyle(
-            color: AppTheme.primaryWhite,
+            color: AppTheme.textBlack,
             fontSize: fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
+        const SizedBox(width: 5),
         Text(
           value,
-          style: AppTheme.titleLarge.copyWith(color: AppColors.primary),
+          style: AppTheme.titleLarge.copyWith(
+            color: AppColors.green,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     ),

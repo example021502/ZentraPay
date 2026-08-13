@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
-import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 /// Money-movement operations (internal transfer, bank disbursement, card
 /// funding via Paystack). These aren't cached resources themselves — each
@@ -13,24 +13,9 @@ class PaymentsService {
   static final Dio _dio = ApiClient().dio;
 
   static Future<AppTransaction> payInternal({
-    required String pin,
-    String? recipientPhoneNumber,
-    String? recipientZentag,
-    required String amount,
-    required String currencyCode,
+    required Map<String, dynamic> payload,
   }) async {
-    final response = await _dio.post(
-      '/api/payments/internal',
-      data: {
-        'pin': pin,
-        'recipient': {
-          'phoneNumber': ?recipientPhoneNumber,
-          'zentag': ?recipientZentag,
-        },
-        'amount': amount,
-        'currencyCode': currencyCode,
-      },
-    );
+    final response = await _dio.post('/api/payments', data: payload);
     return _applyTransactionResult(response.data['data']);
   }
 

@@ -121,12 +121,11 @@ class RewardsSummary {
     required this.recentLedger,
   });
 
-  factory RewardsSummary.fromJson(Map<String, dynamic> json) =>
-      RewardsSummary(
-        totalPoints: json['totalPoints'] ?? 0,
-        tier: json['tier'] ?? 'BRONZE',
-        recentLedger: ((json['recentLedger'] as List?) ?? [])
-            .map((e) => PointsLedgerEntry.fromJson(e))
-            .toList(),
-      );
+  factory RewardsSummary.fromJson(Map<String, dynamic> json) => RewardsSummary(
+    totalPoints: json['totalPoints'] ?? 0,
+    tier: json['tier'] ?? 'BRONZE',
+    recentLedger: ((json['recentLedger'] as List?) ?? [])
+        .map((e) => PointsLedgerEntry.fromJson(e))
+        .toList(),
+  );
 }

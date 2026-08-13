@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
+import 'package:zentrapay_application/core/utils/Common/AppSetPinSheet.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/api_auth_services.dart';
@@ -59,7 +59,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         isScrollControlled: true,
         isDismissible: false,
         backgroundColor: Colors.transparent,
-        builder: (BuildContext context) => const AppPinSheet.set(pinLength: 4),
+        builder: (BuildContext context) => const AppSetPinSheet(pinLength: 4),
       );
       setState(() {
         pin = PIN!;

@@ -23,7 +23,9 @@ class _HomeHeaderState extends State<HomeHeader> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: AppTheme.coloredCardDecoration(AppColors.secondary),
+      decoration: AppTheme.coloredCardDecoration(
+        AppColors.secondary,
+      ).copyWith(gradient: AppTheme.secondaryGradient),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20),
         child: Column(

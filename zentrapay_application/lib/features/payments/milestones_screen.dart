@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 // "Goals" are ZBank Lite savings accounts — there's no separate goals
 // concept backend-side, this screen is just a savings-focused view.
@@ -127,7 +128,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
         backgroundColor: AppColors.main,
         leading: IconButton(

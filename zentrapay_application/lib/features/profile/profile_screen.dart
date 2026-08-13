@@ -4,6 +4,8 @@ import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/repositories/profile_repository.dart';
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/features/home/closeConfirmation.dart';
+import 'package:zentrapay_application/main.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -195,26 +197,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        backgroundColor: AppTheme.gray50,
+        backgroundColor: AppColors.main,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textBlack),
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "PSP Complete Dossier",
-          style: AppTheme.headlineSmall,
+          "Profile",
+          style: TextStyle(color: AppColors.primary),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.security, color: AppTheme.successGreen),
-            onPressed: () => _showSecurityAuditModal(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: AppTheme.textBlack),
-            onPressed: () => Navigator.pushNamed(context, '/settings'),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -240,6 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildAccountInformationSection(),
                   const SizedBox(height: AppTheme.spacingLg),
                   _buildImportantBusinessSection(),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  _buildLogoutButton(),
                 ],
               ),
             ),
@@ -794,43 +788,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showSecurityAuditModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.primaryWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radiusXl),
+  // The close/logout action that used to live on the main Scaffold's AppBar
+  // now lives here in Profile instead.
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.errorRed,
+          side: const BorderSide(color: AppTheme.errorRed),
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
         ),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "PSP Security & Audit Logs",
-              style: AppTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppTheme.spacingMd),
-            Text(
-              "• Two-Factor Authentication (2FA): Active\n• Device Fingerprint: Trusted (Android 14)\n• API Secret Key Rotated: 14 days ago\n• Transaction Velocity Limit: Optimal",
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray700),
-            ),
-            const SizedBox(height: AppTheme.spacingLg),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.successGreen,
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Close Audit"),
-              ),
-            ),
-          ],
-        ),
+        onPressed: () async {
+          final confirmed = await showCloseConfirmationDialog(context);
+          if (!mounted || !confirmed) return;
+          Navigator.pushReplacementNamed(context, "/login");
+        },
+        icon: const Icon(Icons.logout),
+        label: const Text("Logout"),
       ),
     );
   }

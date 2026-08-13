@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -56,24 +56,19 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
     final bool isTablet = MediaQuery.of(context).size.width > 470;
     final headerWidth = isTablet ? 400.0 : double.infinity;
     return Container(
-      decoration: AppTheme.coloredCardDecoration(AppColors.secondary),
+      decoration: AppTheme.coloredCardDecoration(
+        AppColors.secondary,
+      ).copyWith(gradient: AppTheme.secondaryGradient),
       width: headerWidth,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  "ZBank Lite",
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                const Text("ZBank Lite", style: AppTheme.whiteHeadline),
                 Row(
                   children: [
                     Container(
@@ -171,7 +166,8 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                     },
                   ),
                   GestureDetector(
-                    onTap: () => setState(() => _balanceHidden = !_balanceHidden),
+                    onTap: () =>
+                        setState(() => _balanceHidden = !_balanceHidden),
                     child: Container(
                       decoration: BoxDecoration(
                         color: AppColors.primary.withAlpha(20),
@@ -408,7 +404,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
           "AI Insights",
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
+        const SizedBox(height: AppTheme.spacingSm),
         child,
       ],
     );
@@ -613,7 +609,10 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                       ),
                     ),
                     const SizedBox(height: AppTheme.spacingMd),
-                    Text('Term: $termMonths months', style: AppTheme.bodyMedium),
+                    Text(
+                      'Term: $termMonths months',
+                      style: AppTheme.bodyMedium,
+                    ),
                     Slider(
                       value: termMonths.toDouble(),
                       min: 1,
@@ -652,7 +651,10 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                           );
                         } catch (e) {
                           setState(() => submitting = false);
-                          ZentraNotifier.error('Application Failed', e.toString());
+                          ZentraNotifier.error(
+                            'Application Failed',
+                            e.toString(),
+                          );
                         }
                       },
                     ),
@@ -680,7 +682,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               content: TextField(
                 controller: controller,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'Monthly limit',
                   prefixText: 'GHS ',
@@ -688,7 +692,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: submitting ? null : () => Navigator.pop(dialogContext),
+                  onPressed: submitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -706,8 +712,11 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                           }
                           setState(() => submitting = true);
                           try {
-                            await BudgetRepository.instance.setMonthlyLimit(limit);
-                            if (dialogContext.mounted) Navigator.pop(dialogContext);
+                            await BudgetRepository.instance.setMonthlyLimit(
+                              limit,
+                            );
+                            if (dialogContext.mounted)
+                              Navigator.pop(dialogContext);
                             ZentraNotifier.success(
                               'Budget Updated',
                               'Your monthly limit is now GHS $limit.',

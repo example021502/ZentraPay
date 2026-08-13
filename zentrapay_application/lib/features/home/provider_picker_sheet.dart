@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/models/transaction.dart';
+import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
+import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
+import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/main.dart';
 
 /// Searchable bottom sheet listing providers fetched from [loader].
@@ -94,10 +100,188 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
     }).toList();
   }
 
+  // Bill providers have a real pay-a-biller endpoint (/api/bill-providers/pay)
+  // to submit against, so selecting one opens the actual payment form.
+  // Service providers don't have an equivalent backend endpoint yet, so
+  // that path still falls back to "coming soon" rather than pretending.
   void _showProviderDetails(Map<String, dynamic> provider) {
     final name = provider[widget.nameKey] ?? 'Provider';
+    if (widget.id == "Bill Providers") {
+      // Shown on top of this still-open picker sheet (stacked modal routes
+      // are fine) rather than popping first — that would leave us without
+      // a reliably-mounted context to open the next sheet from.
+      _showBillPaymentForm(provider);
+      return;
+    }
     Navigator.pop(context);
     showComingSoon(context, name.toString());
+  }
+
+  void _showBillPaymentForm(Map<String, dynamic> provider) {
+    final providerId = (provider['providerId'] ?? '').toString();
+    final name = (provider[widget.nameKey] ?? 'Provider').toString();
+    if (providerId.isEmpty) {
+      ZentraNotifier.error(
+        "Missing Provider",
+        "This provider can't be paid right now — try again later.",
+      );
+      return;
+    }
+
+    final referenceController = TextEditingController();
+    final amountController = TextEditingController();
+    bool submitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+            left: AppTheme.spacingLg,
+            right: AppTheme.spacingLg,
+            top: AppTheme.spacingLg,
+          ),
+          child: StatefulBuilder(
+            builder: (sheetContext, setSheetState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Pay $name", style: AppTheme.headlineSmall),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  AppTextField(
+                    controller: referenceController,
+                    labelText: 'Customer reference',
+                    hintText: 'e.g. meter or account number',
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  AppTextField(
+                    controller: amountController,
+                    labelText: 'Amount (GHS)',
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: submitting
+                          ? null
+                          : () async {
+                              final reference = referenceController.text.trim();
+                              final amount = amountController.text.trim();
+                              final parsedAmount = double.tryParse(amount);
+                              if (reference.isEmpty) {
+                                ZentraNotifier.error(
+                                  'Missing Reference',
+                                  'Enter your customer reference for $name.',
+                                );
+                                return;
+                              }
+                              if (parsedAmount == null || parsedAmount <= 0) {
+                                ZentraNotifier.error(
+                                  'Invalid Amount',
+                                  'Enter a valid amount greater than zero.',
+                                );
+                                return;
+                              }
+
+                              final pin = await showModalBottomSheet<String>(
+                                context: sheetContext,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => AppConfirmPinSheet(
+                                  name: 'Placeholder',
+                                  currencyCode: 'Placeholder',
+                                  amount: 'Placeholder',
+                                ),
+                              );
+                              if (pin == null || pin.isEmpty) return;
+
+                              setSheetState(() => submitting = true);
+                              try {
+                                await _payBillProvider(
+                                  pin: pin,
+                                  providerId: providerId,
+                                  customerReference: reference,
+                                  amount: amount,
+                                  currencyCode: 'GHS',
+                                );
+                                if (sheetContext.mounted) {
+                                  // Close the payment form...
+                                  Navigator.pop(sheetContext);
+                                }
+                                if (mounted) {
+                                  // ...and the provider picker underneath it.
+                                  Navigator.pop(context);
+                                }
+                                ZentraNotifier.success(
+                                  'Payment Successful',
+                                  'Paid GHS $amount to $name.',
+                                );
+                              } catch (e) {
+                                setSheetState(() => submitting = false);
+                                ZentraNotifier.error(
+                                  'Payment Failed',
+                                  'Could not complete this bill payment. Try again.',
+                                );
+                              }
+                            },
+                      child: submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Pay Now'),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _payBillProvider({
+    required String pin,
+    required String providerId,
+    required String customerReference,
+    required String amount,
+    required String currencyCode,
+  }) async {
+    final dio = ApiClient().dio;
+    final response = await dio.post(
+      '/api/bill-providers/pay',
+      data: {
+        'pin': pin,
+        'providerId': providerId,
+        'customerReference': customerReference,
+        'amount': amount,
+        'currencyCode': currencyCode,
+      },
+    );
+    final data = response.data['data'];
+    final transactionJson = data?['transaction'];
+    if (transactionJson != null) {
+      TransactionsRepository.instance.prepend(
+        AppTransaction.fromJson(transactionJson),
+      );
+    }
+    WalletsRepository.instance.ensureLoaded(forceRefresh: true);
   }
 
   @override

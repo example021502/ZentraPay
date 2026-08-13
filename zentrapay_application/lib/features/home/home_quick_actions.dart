@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/bill_service_provider.dart';
 import 'package:zentrapay_application/core/repositories/cards_repository.dart';
-import 'package:zentrapay_application/core/repositories/payments_service.dart';
 import 'package:zentrapay_application/core/repositories/providers_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/features/home/pay.dart';
+import 'package:zentrapay_application/features/home/HomePayments/pay.dart';
 import 'package:zentrapay_application/features/home/provider_picker_sheet.dart';
+import 'package:zentrapay_application/features/home/receive_sheet.dart';
+import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
 import 'history.dart';
@@ -73,31 +73,18 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  /// Handle To Bank/Receive action
-  /// @description Requests a Paystack access code to fund the wallet
-  void _onReceiveAction(BuildContext context) async {
-    final Map<String, dynamic>? amount = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => EnterAmount(recipient: ''),
-    );
-    if (amount == null || !context.mounted) return;
-
-    try {
-      final data = await PaymentsService.getPaystackAccessCode(
-        amount: amount['amount'],
-        currencyCode: amount['currency_code'],
-      );
-      if (!context.mounted) return;
-      _showAccessCodeDialog(context, data);
-    } catch (e) {
-      ZentraNotifier.error(
-        "Error",
-        "Could not start funding, please try again.",
-      );
-    }
+  /// Handle Receive action — shows the user's zentag, QR receive link, and
+  /// linked bank accounts (ReceiveSheet), so a sender can identify how to
+  /// pay this user. This used to trigger a Paystack wallet-funding flow;
+  /// that flow is preserved below (_showAccessCodeDialog) for reuse from
+  /// the wallet balance card's "+" (fund wallet) action instead, since that's
+  /// a different action ("add money from my own card/bank") than "receive
+  /// money from someone else".
+  void _onReceiveAction(BuildContext context) {
+    ReceiveSheet.show(context);
   }
 
+  // ignore: unused_element
   void _showAccessCodeDialog(BuildContext context, Map<String, dynamic> data) {
     showDialog(
       context: context,
@@ -212,6 +199,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     return providers
         .map(
           (p) => {
+            'providerId': p.providerId,
             'billerName': p.billerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
@@ -227,6 +215,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     return providers
         .map(
           (p) => {
+            'providerId': p.providerId,
             'providerName': p.providerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
@@ -258,11 +247,15 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       "icon": Icons.credit_card,
       "id": "Cards",
     },
+    {"text": "ZVoice AI", "icon": Icons.mic, "id": "ZVoice AI"},
   ];
 
-  /// Shows the "More" popup with New Bill Provider / New Service Provider,
-  /// each opening a searchable catalog sourced from the real backend, plus
-  /// New Card which creates a virtual card directly via [CardsRepository].
+  /// Shows the "More" popup: New Bill Provider / New Service Provider (each
+  /// opening a searchable catalog sourced from the real backend), New Card
+  /// (creates a virtual card via [CardsRepository]), ZVoice AI, and
+  /// Settings & Security. This absorbed what used to be the main Scaffold
+  /// AppBar's separate "More" menu (ZVoice AI + Secure) — that appbar entry
+  /// point is gone now, this is the one place to reach all of it.
   void _onMoreAction(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -303,9 +296,18 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                     title: Text(option["text"]),
                     onTap: () {
                       Navigator.pop(context);
-                      if (option["id"] == "Cards") {
-                        _createVirtualCard(context);
-                        return;
+                      switch (option["id"]) {
+                        case "Cards":
+                          _createVirtualCard(context);
+                          return;
+                        case "ZVoice AI":
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ZVoiceScreen(),
+                            ),
+                          );
+                          return;
                       }
                       ProviderPickerSheet.show(
                         context,

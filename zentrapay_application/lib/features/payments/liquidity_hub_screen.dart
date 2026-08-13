@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/repositories/zinvest_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class LiquidityHubScreen extends StatefulWidget {
   const LiquidityHubScreen({super.key});
@@ -56,7 +57,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
         backgroundColor: AppColors.main,
         leading: IconButton(

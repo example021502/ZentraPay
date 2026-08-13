@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
 import 'package:zentrapay_application/features/Settings/settings.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
@@ -33,6 +32,16 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     const ZGrowScreen(),
     const ZBankingScreen(),
     const Settings(),
+  ];
+
+  // Section titles for every tab but Home (index 0), which gets the
+  // profile/greeting AppBar instead — see _buildAppBar().
+  static const List<String> _tabTitles = [
+    "Home",
+    "ZRemit",
+    "ZGrow",
+    "ZBank",
+    "Settings",
   ];
 
   // Create a local class property for Paystack
@@ -83,12 +92,30 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     );
   }
 
+  // Only the Home tab gets the profile icon + fullname/email greeting +
+  // notifications AppBar. Every other tab just shows its section name — no
+  // leading icon (there's nothing to "go back" to from a bottom-nav tab)
+  // and no actions.
   PreferredSizeWidget _buildAppBar() {
+    if (_selectedIndex == 0) {
+      return AppBar(
+        backgroundColor: AppColors.main,
+        leading: _buildProfileIcon(),
+        title: _buildGreeting(),
+        actions: _buildActions(),
+      );
+    }
     return AppBar(
       backgroundColor: AppColors.main,
-      leading: _buildProfileIcon(),
-      title: _buildGreeting(),
-      actions: _buildActions(),
+      centerTitle: false,
+      title: Text(
+        _tabTitles[_selectedIndex],
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -137,64 +164,16 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     );
   }
 
+  // Only notifications live on the AppBar now — the "More" overlay (apps
+  // icon) moved to Home's own Quick Actions row (see HomeQuickActions'
+  // _onMoreAction, which now also carries ZVoice AI and Settings/Security),
+  // and the close/logout action moved into the Profile section.
   List<Widget> _buildActions() => [
-    IconButton(
-      onPressed: _showMoreSheet,
-      icon: const Icon(Icons.apps, color: AppColors.primary),
-      tooltip: 'More',
-    ),
     IconButton(
       onPressed: () {},
       icon: const Icon(Icons.notifications, color: AppColors.primary),
     ),
-    IconButton(
-      onPressed: () async {
-        bool isConfirm = await showCloseConfirmationDialog(context);
-        if (!mounted) return;
-        isConfirm ? Navigator.pushReplacementNamed(context, "/login") : null;
-      },
-      icon: const Icon(Icons.logout, color: AppColors.primary),
-    ),
   ];
-
-  // ZVoice AI and Secure don't have a dedicated bottom tab, so this gives
-  // mobile users the same one-tap reach the tablet drawer already has.
-  // ZBank Lite now has its own "Bank" tab and ZInvest is reached from Grow,
-  // so neither needs a spot here anymore.
-  void _showMoreSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.primaryWhite,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radiusXl),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildMoreItem(Icons.mic, "ZVoice AI", '/zvoice'),
-              _buildMoreItem(Icons.security, "Secure", '/secure'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoreItem(IconData icon, String label, String route) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.main),
-      title: Text(label),
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.pushNamed(context, route);
-      },
-    );
-  }
 
   Widget _buildBottomNav() {
     return NavigationBarMain(
@@ -269,14 +248,8 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                       Navigator.pushNamed(context, '/zvoice');
                     },
                   ),
-                  _buildDrawerItem(
-                    icon: Icons.security,
-                    label: "Secure",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/secure');
-                    },
-                  ),
+                  // "Secure" is folded into Settings now (tab index 4,
+                  // "Merchant" above) — no standalone destination left.
                   const Divider(),
                   _buildDrawerItem(
                     icon: Icons.person,
@@ -291,7 +264,10 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Settings",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/settings');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const Settings()),
+                      );
                     },
                   ),
                   _buildDrawerItem(

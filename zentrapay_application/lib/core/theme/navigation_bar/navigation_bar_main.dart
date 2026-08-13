@@ -46,10 +46,11 @@ class NavigationBarMain extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
         child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(_cornerRadius),
-            bottomRight: Radius.circular(_cornerRadius),
-          ),
+          // Rounded on all four corners — this bar floats with padding on
+          // every side (it never touches a screen edge), so leaving the top
+          // corners square looked like a flat-topped mistake against the
+          // rounded bottom.
+          borderRadius: BorderRadius.circular(_cornerRadius),
           child: CurvedNavigationBarPro(
             currentIndex: currentVisualIndex,
             onTap: (visualIndex) => onItemSelected(_visualOrder[visualIndex]),

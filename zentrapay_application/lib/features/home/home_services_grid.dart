@@ -26,6 +26,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
     return (providers ?? [])
         .map(
           (p) => {
+            'providerId': p.providerId,
             'billerName': p.billerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
@@ -40,6 +41,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
     return (providers ?? [])
         .map(
           (p) => {
+            'providerId': p.providerId,
             'providerName': p.providerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
@@ -92,6 +94,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                             iconSize: iconSize,
                             fontSize: fontSize,
                             isTablet: isTablet,
+                            placeholderIcon: Icons.receipt_long,
                           );
                         },
                       ),
@@ -136,6 +139,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                             iconSize: iconSize,
                             fontSize: fontSize,
                             isTablet: isTablet,
+                            placeholderIcon: Icons.account_balance,
                           );
                         },
                       ),
@@ -190,6 +194,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
     double iconSize = 24,
     double fontSize = 12,
     required bool isTablet,
+    IconData placeholderIcon = Icons.storefront,
   }) {
     final itemWidth =
         (MediaQuery.of(context).size.width - (isTablet ? 40 : 20) * 2 - 30) / 4;
@@ -202,8 +207,18 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
           mainAxisSize: MainAxisSize.min,
           children: [
             imgUrl != ""
-                ? Image.network(imgUrl)
-                : Icon(Icons.grid_3x3, color: Colors.black54, size: iconSize),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(200),
+                    child: Image.network(
+                      imgUrl,
+                      width: iconSize,
+                      height: iconSize,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(placeholderIcon, color: Colors.black54, size: iconSize),
+                    ),
+                  )
+                : Icon(placeholderIcon, color: Colors.black54, size: iconSize),
 
             const SizedBox(height: 8),
             Text(

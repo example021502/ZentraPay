@@ -5,6 +5,7 @@ import 'package:zentrapay_application/main.dart';
 
 import 'zremit_header.dart';
 
+/// Screen for handling international remittances and currency transfers.
 class ZRemitScreen extends StatefulWidget {
   const ZRemitScreen({super.key});
 
@@ -18,6 +19,7 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
 
   @override
   void dispose() {
+    // Dispose controllers and focus nodes to prevent memory leaks
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -30,16 +32,16 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
         child: Column(
-          spacing: 20,
+          // Ensure column takes minimum vertical space to avoid unbounded layout conflicts
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ZRemitHeader(),
+            ZRemitHeader(),
+            const SizedBox(height: 15),
             _buildHeroCard(),
-            // SearchBarWidget(
-            //   controller: _searchController,
-            //   focusNode: _searchFocusNode,
-            //   hintText: "Search Recipient...",
-            // ),
-            ZRemitForm(),
+            const SizedBox(height: 20),
+            // Wrapped form widget ensuring it doesn't contain unconstrained inner widgets
+            const ZRemitForm(),
             const SizedBox(height: 100),
           ],
         ),
@@ -47,26 +49,26 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
     );
   }
 
+  // Builds the hero feature cards horizontally
   Widget _buildHeroCard() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Flexible(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(200),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(15.0, 8, 20, 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
+    return GestureDetector(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, "/converter");
+            },
+            child: Container(
+              decoration: AppTheme.cardDecoration,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(15.0, 10, 20, 10),
+                child: Row(
+                  children: [
+                    Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
+                        color: AppColors.secondary.withAlpha(20),
                         borderRadius: BorderRadius.circular(200),
                       ),
                       child: Padding(
@@ -74,39 +76,36 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
                         child: Icon(
                           Icons.currency_exchange,
                           size: 22,
-                          color: AppColors.primary,
+                          color: AppColors.secondary,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  Text(
-                    "Currency\nConversion",
-                    style: AppTheme.labelSmall.copyWith(
-                      color: AppColors.primary,
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Text(
+                      "Currency\nConversion",
+                      style: AppTheme.labelSmall.copyWith(
+                        color: AppColors.secondary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: AppTheme.spacingSm),
-        Flexible(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(200),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10.0, 5, 15, 5),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
+          const SizedBox(width: AppTheme.spacingLg),
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, "/instant_transfer");
+            },
+            child: Container(
+              decoration: AppTheme.cardDecoration,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10.0, 10, 15, 10),
+                child: Row(
+                  children: [
+                    Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
+                        color: AppColors.secondary.withAlpha(20),
                         borderRadius: BorderRadius.circular(200),
                       ),
                       child: Padding(
@@ -114,25 +113,24 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
                         child: Icon(
                           Icons.bolt,
                           size: 22,
-                          color: AppColors.primary,
+                          color: AppColors.secondary,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  Text(
-                    "Instant transfer",
-                    style: AppTheme.labelSmall.copyWith(
-                      color: AppColors.primary,
+                    const SizedBox(width: AppTheme.spacingSm),
+                    Text(
+                      "Instant transfer",
+                      style: AppTheme.labelSmall.copyWith(
+                        color: AppColors.secondary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-
 }

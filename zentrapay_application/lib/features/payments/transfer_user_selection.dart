@@ -6,9 +6,10 @@ import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/repositories/search_repository.dart';
 import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
 
-/// The recipient the user picked, either from a live search hit or from
-/// "Recent history". Carries exactly one of [phoneNumber]/[zentag] — the
-/// same either/or shape PaymentsService.payInternal expects.
+import '../../core/theme/app_theme.dart';
+import '../../main.dart';
+
+/// Carrier model for picked recipient details.
 class SelectedRecipient {
   final String displayName;
   final String? phoneNumber;
@@ -20,8 +21,6 @@ class SelectedRecipient {
     this.zentag,
   });
 
-  /// Zentag is the app's own @handle for wallet-to-wallet transfers, so it's
-  /// preferred over phone number when a search hit carries both.
   factory SelectedRecipient.fromSearch(SearchAppUser user) => SelectedRecipient(
     displayName: user.fullName,
     zentag: user.zentag.isNotEmpty ? user.zentag : null,
@@ -29,21 +28,16 @@ class SelectedRecipient {
   );
 }
 
-/// In-app transfer recipient picker: live search over ZentraPay users plus a
-/// "Recent history" strip derived from past internal-transfer transactions.
-///
-/// NOTE on "Recent history": AppTransaction only stores a flattened
-/// `counterpartyIdentifier` (the backend collapses phoneNumber/zentag into
-/// one column once the transaction is recorded), so there's no clean way to
-/// know which of the two it originally was. Rather than falling back to
-/// session-only "recently searched" (which would lose recents across app
-/// restarts), this uses the real transaction history and applies a small
-/// heuristic — digits/+/spaces only reads as a phone number, anything else
-/// is treated as a zentag — to route it back into payInternal correctly.
+/// Recipient selection widget updated to handle different payout options contextually.
 class TransferUserSelection extends StatefulWidget {
   final ValueChanged<SelectedRecipient> onRecipientSelected;
+  final String payoutOption;
 
-  const TransferUserSelection({super.key, required this.onRecipientSelected});
+  const TransferUserSelection({
+    super.key,
+    required this.onRecipientSelected,
+    required this.payoutOption,
+  });
 
   @override
   State<TransferUserSelection> createState() => _TransferUserSelectionState();
@@ -62,10 +56,11 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
   @override
   void initState() {
     super.initState();
-    // Best-effort: recent history is a nice-to-have, not the primary
-    // function of this screen, so a failed fetch shouldn't surface an error
-    // over the recipient search.
-    TransactionsRepository.instance.ensureLoaded().catchError((_) {});
+    // Wrap ensureLoaded in a post-frame callback to prevent calling
+    // setState or notifying listeners during the active build phase.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
+    });
   }
 
   @override
@@ -75,6 +70,19 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
     super.dispose();
   }
 
+  /// Returns dynamic hint text based on the selected payout channel.
+  String _getHintText() {
+    if (widget.payoutOption == 'Zentrapay Wallet') {
+      return "Search by name, phone or @zentag";
+    } else if (widget.payoutOption.contains('Mobile Money') ||
+        widget.payoutOption == 'M-Pesa') {
+      return "Enter mobile number or recipient name";
+    } else {
+      return "Enter bank account number or name";
+    }
+  }
+
+  /// Handles debounce search input for users.
   void _onSearchChanged(String query) {
     _debounce?.cancel();
     if (query.trim().isEmpty) {
@@ -110,7 +118,10 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
   SelectedRecipient? _recentFromTransaction(AppTransaction tx) {
     final identifier = tx.counterpartyIdentifier;
     final name = tx.counterpartyName;
-    if (identifier == null || identifier.isEmpty || name == null || name.isEmpty) {
+    if (identifier == null ||
+        identifier.isEmpty ||
+        name == null ||
+        name.isEmpty) {
       return null;
     }
     final isPhone = _phoneLike.hasMatch(identifier);
@@ -138,31 +149,32 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _searchBar(),
-          const SizedBox(height: 15),
-          if (_hasQuery) _searchResults() else _recentHistory(),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _searchBar(),
+        const SizedBox(height: 15),
+        if (_hasQuery) _searchResults() else _recentHistory(),
+      ],
     );
   }
 
+  /// Builds the search input text field.
   Widget _searchBar() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 15),
     decoration: BoxDecoration(
-      color: Colors.grey[100],
+      color: AppTheme.gray50,
       borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.lightGrey),
     ),
     child: TextField(
       controller: _searchController,
       onChanged: _onSearchChanged,
       decoration: InputDecoration(
-        icon: const Icon(Icons.search, size: 20),
-        hintText: "Search by name, phone or @zentag",
+        icon: const Icon(Icons.search, size: 20, color: AppColors.textBlack),
+        contentPadding: EdgeInsets.zero,
+        hintText: _getHintText(),
+        hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
         border: InputBorder.none,
         suffixIcon: _searching
             ? const Padding(
@@ -178,6 +190,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
     ),
   );
 
+  /// Builds the search results list container.
   Widget _searchResults() {
     if (_searching && _results.isEmpty) {
       return const Padding(
@@ -186,11 +199,31 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
       );
     }
     if (_results.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(
-          child: Text("No matches found", style: TextStyle(color: Colors.grey)),
-        ),
+      return Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              "No direct internal user matched. Use manual target info:",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
+          _userTile(
+            title: _searchController.text,
+            subtitle: widget.payoutOption,
+            onTap: () {
+              final query = _searchController.text.trim();
+              final isPhone = _phoneLike.hasMatch(query);
+              widget.onRecipientSelected(
+                SelectedRecipient(
+                  displayName: query,
+                  phoneNumber: isPhone ? query : null,
+                  zentag: isPhone ? null : query,
+                ),
+              );
+            },
+          ),
+        ],
       );
     }
     return Column(
@@ -199,14 +232,16 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
             (user) => _userTile(
               title: user.fullName,
               subtitle: user.zentag.isNotEmpty ? user.zentag : user.phoneNumber,
-              onTap: () =>
-                  widget.onRecipientSelected(SelectedRecipient.fromSearch(user)),
+              onTap: () => widget.onRecipientSelected(
+                SelectedRecipient.fromSearch(user),
+              ),
             ),
           )
           .toList(),
     );
   }
 
+  /// Builds recent transaction history items.
   Widget _recentHistory() {
     return ListenableBuilder(
       listenable: TransactionsRepository.instance,
@@ -230,7 +265,10 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
           children: [
             const Text(
               "Recent history",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textBlack,
+              ),
             ),
             const SizedBox(height: 15),
             Row(
@@ -255,6 +293,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
     );
   }
 
+  /// Reusable user list tile UI element.
   Widget _userTile({
     required String title,
     required String subtitle,
@@ -262,27 +301,35 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
   }) => Container(
     margin: const EdgeInsets.only(bottom: 10),
     decoration: BoxDecoration(
-      color: Colors.grey[100],
+      color: AppTheme.gray50,
       borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.lightGrey),
     ),
     child: ListTile(
-      leading: const Icon(Icons.person_outline),
-      title: Text(title, style: const TextStyle(fontSize: 14)),
+      leading: const Icon(Icons.person_outline, color: AppColors.textBlack),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+      ),
       subtitle: subtitle.isNotEmpty
-          ? Text(subtitle, style: const TextStyle(fontSize: 12))
+          ? Text(
+              subtitle,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            )
           : null,
       onTap: onTap,
     ),
   );
 
+  /// Reusable recent contact avatar bubble.
   Widget _recent(String name, {required VoidCallback onTap}) => GestureDetector(
     onTap: onTap,
     child: Column(
       children: [
         const CircleAvatar(
           radius: 25,
-          backgroundColor: Color(0xFFF5F5F5),
-          child: Icon(Icons.person_outline, color: Colors.black54),
+          backgroundColor: AppTheme.gray50,
+          child: Icon(Icons.person_outline, color: AppColors.textBlack),
         ),
         const SizedBox(height: 5),
         SizedBox(
@@ -292,7 +339,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12),
+            style: const TextStyle(fontSize: 12, color: AppColors.textBlack),
           ),
         ),
       ],

@@ -6,11 +6,10 @@ import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
-
-import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 import 'package:zentrapay_application/core/repositories/payment_channels_repository.dart';
-import 'package:zentrapay_application/core/utils/Common/AppPinSheet.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
+import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 
 /// External Payment Screen
 ///
@@ -166,7 +165,11 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
       isScrollControlled: true,
       isDismissible: false,
       backgroundColor: Colors.transparent,
-      builder: (context) => AppPinSheet.confirmTransaction(form: form),
+      builder: (context) => AppConfirmPinSheet(
+        name: 'Placeholder',
+        currencyCode: 'Placeholder',
+        amount: 'Placeholder',
+      ),
     );
   }
 
@@ -212,10 +215,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.primaryPink,
         leading: IconButton(
-          icon: const Icon(
-            Icons.chevron_left,
-            color: AppTheme.primaryWhite,
-          ),
+          icon: const Icon(Icons.chevron_left, color: AppTheme.primaryWhite),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -315,10 +315,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: AppTheme.secondaryNavy,
-            width: 1,
-          ),
+          borderSide: const BorderSide(color: AppTheme.secondaryNavy, width: 1),
         ),
       ),
     );
@@ -342,10 +339,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
         contentPadding: const EdgeInsets.all(15),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: AppTheme.secondaryNavy,
-            width: 1,
-          ),
+          borderSide: const BorderSide(color: AppTheme.secondaryNavy, width: 1),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -369,10 +363,7 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(width: 10),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: AppTheme.textBlack,
-              ),
+              const Icon(Icons.arrow_drop_down, color: AppTheme.textBlack),
               const SizedBox(width: 4),
               CountryFlag.fromCountryCode(
                 _countryFlag,
@@ -440,15 +431,10 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
                       });
                     },
                   )
-                : const Icon(
-                    Icons.arrow_drop_down,
-                    color: AppTheme.textBlack,
-                  ),
+                : const Icon(Icons.arrow_drop_down, color: AppTheme.textBlack),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: AppTheme.gray300,
-              ),
+              borderSide: const BorderSide(color: AppTheme.gray300),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -516,15 +502,12 @@ class _ExternalPaymentScreenState extends State<ExternalPaymentScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                               side: BorderSide(
-                                color: AppTheme.gray300
-                                    .withAlpha(50),
+                                color: AppTheme.gray300.withAlpha(50),
                               ),
                             ),
                             tileColor: isSelected
                                 ? AppTheme.primaryPink.withAlpha(10)
-                                : AppTheme.secondaryNavy.withAlpha(
-                                    10,
-                                  ),
+                                : AppTheme.secondaryNavy.withAlpha(10),
                             title: Text(
                               bank['name'] ?? 'Name',
                               style: const TextStyle(

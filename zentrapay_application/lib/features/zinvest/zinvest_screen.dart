@@ -7,11 +7,12 @@ import 'package:zentrapay_application/main.dart';
 
 import '../../core/theme/app_theme.dart';
 
+// Constants defining available investment types and currency choices
 const List<String> _investmentTypes = ['STOCK', 'CRYPTO', 'COMMODITY', 'OTHER'];
 const List<String> _currencyCodes = ['GHS', 'USD', 'KES'];
 
-// ZInvest Screen - Micro-investments (stocks, crypto, commodities)
-// and AI-guided portfolios. Reached from ZGrow, not the bottom nav.
+/// ZInvest Screen - Micro-investments (stocks, crypto, commodities)
+/// and AI-guided portfolios. Reached from ZGrow, not the bottom nav.
 class ZInvestScreen extends StatefulWidget {
   const ZInvestScreen({super.key});
 
@@ -23,10 +24,12 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
   @override
   void initState() {
     super.initState();
+    // Ensure repository data is fetched on screen initialization
     InvestmentsRepository.instance.ensureLoaded();
     LiquidityProfileRepository.instance.ensureLoaded();
   }
 
+  // Opens the bottom sheet form to create a new investment
   void _openInvestSheet() {
     showModalBottomSheet(
       context: context,
@@ -40,45 +43,58 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
   Widget build(BuildContext context) {
     final horizontalPadding = AppTheme.responsivePadding(context);
 
-    return Container(
-      color: AppTheme.gray50,
-      child: SafeArea(
-        child: SingleChildScrollView(
+    return Scaffold(
+      // Fixed appBar syntax error by wrapping the custom top bar inside PreferredSize
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight + 10),
+        child: SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              AppTheme.spacingMd,
-              horizontalPadding,
-              AppTheme.responsiveBottomPadding(context),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 8,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTopBar(context),
-                const SizedBox(height: AppTheme.spacingLg),
-                _buildHeroCard(),
-                const SizedBox(height: AppTheme.spacingXl),
-                _buildPortfolioCard(),
-                const SizedBox(height: AppTheme.spacingXl),
-                const SectionTitle(title: "Quick Actions"),
-                const SizedBox(height: AppTheme.spacingMd),
-                _buildQuickActions(context),
-                const SizedBox(height: AppTheme.spacingXl),
-                SectionTitle(
-                  title: "Your Investments",
-                  trailing: IconButton(
-                    icon: const Icon(Icons.add_circle_outline),
-                    color: AppTheme.zinvestColor,
-                    onPressed: _openInvestSheet,
+            child: _buildTopBar(context),
+          ),
+        ),
+      ),
+      body: Container(
+        color: AppTheme.gray50,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                AppTheme.spacingMd,
+                horizontalPadding,
+                AppTheme.responsiveBottomPadding(context),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeroCard(),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  _buildPortfolioCard(),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  const SectionTitle(title: "Quick Actions"),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  _buildQuickActions(context),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  SectionTitle(
+                    title: "Your Investments",
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      color: AppTheme.zinvestColor,
+                      onPressed: _openInvestSheet,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppTheme.spacingMd),
-                _buildInvestmentsSection(),
-                const SizedBox(height: AppTheme.spacingXl),
-                const SectionTitle(title: "Market & AI Portfolios"),
-                const SizedBox(height: AppTheme.spacingMd),
-                _buildInvestmentFeatures(context),
-              ],
+                  const SizedBox(height: AppTheme.spacingMd),
+                  _buildInvestmentsSection(),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  const SectionTitle(title: "Market & AI Portfolios"),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  _buildInvestmentFeatures(context),
+                ],
+              ),
             ),
           ),
         ),
@@ -86,100 +102,61 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Builds the top navigation bar with a custom back button and screen title
   Widget _buildTopBar(BuildContext context) {
     return Row(
       children: [
         Material(
-          color: Colors.white,
+          color: AppColors.primary,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: () => Navigator.pop(context),
             child: const Padding(
               padding: EdgeInsets.all(8),
-              child: Icon(Icons.arrow_back_ios_new, size: 18),
+              child: Icon(Icons.arrow_back, size: 22),
             ),
           ),
         ),
-        const SizedBox(width: AppTheme.spacingMd),
-        Text("ZInvest", style: AppTheme.headlineLarge),
+        const SizedBox(width: AppTheme.spacingSm),
+        Text("ZInvest", style: AppTheme.headlineSmall),
       ],
     );
   }
 
-  // Hero card with a placeholder image area (fades into the text below) —
-  // swap the Container's decoration for a real Image.asset/DecorationImage
-  // once an investing-themed asset is added to the project.
+  // Hero card with a gradient background and promotional text overlay
   Widget _buildHeroCard() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-      child: Container(
-        decoration: BoxDecoration(boxShadow: AppTheme.cardShadow),
-        child: Stack(
+    return Container(
+      decoration: AppTheme.coloredCardDecoration(
+        AppColors.secondary,
+      ).copyWith(gradient: AppTheme.secondaryGradient),
+      child: Padding(
+        padding: const EdgeInsets.all(15.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // >>> IMAGE PLACEHOLDER — replace with Image.asset('images/...')
-            Container(
-              height: 190,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    Icons.show_chart_rounded,
-                    size: 90,
-                    color: Colors.white.withAlpha(60),
-                  ),
-                  Positioned(
-                    left: 20,
-                    top: 30,
-                    child: Icon(
-                      Icons.currency_bitcoin,
-                      size: 32,
-                      color: Colors.white.withAlpha(90),
-                    ),
-                  ),
-                  Positioned(
-                    right: 24,
-                    top: 50,
-                    child: Icon(
-                      Icons.diamond_outlined,
-                      size: 28,
-                      color: Colors.white.withAlpha(90),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Bottom fade so the heading below reads clearly.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withAlpha(140)],
-                  ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  Icons.currency_bitcoin_outlined,
+                  size: 90,
+                  color: Colors.white.withAlpha(60),
                 ),
-              ),
+                Icon(
+                  Icons.diamond_outlined,
+                  size: 90,
+                  color: Colors.white.withAlpha(60),
+                ),
+              ],
             ),
-            Positioned(
-              left: AppTheme.spacingLg,
-              right: AppTheme.spacingLg,
-              bottom: AppTheme.spacingLg,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Grow your wealth", style: AppTheme.whiteHeadline),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Micro-invest in stocks, crypto and commodities — start small, grow steadily.",
-                    style: AppTheme.whiteBodySmall,
-                  ),
-                ],
-              ),
+            const SizedBox(height: AppTheme.spacingSm),
+            // Bottom gradient fade to ensure high text legibility
+            Text("Grow your wealth", style: AppTheme.whiteHeadline),
+            const SizedBox(height: 4),
+            Text(
+              "Micro-invest in stocks, crypto and commodities — start small, grow steadily.",
+              style: AppTheme.whiteBodySmall,
             ),
           ],
         ),
@@ -187,6 +164,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Portfolio summary card displaying total valuation and risk parameters
   Widget _buildPortfolioCard() {
     return ListenableBuilder(
       listenable: LiquidityProfileRepository.instance,
@@ -196,7 +174,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(AppTheme.spacingXl),
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
           decoration: BoxDecoration(
             gradient: AppTheme.primaryGradient,
             borderRadius: BorderRadius.circular(AppTheme.radiusXl),
@@ -327,6 +305,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Quick actions toolbar for primary account functions
   Widget _buildQuickActions(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -363,6 +342,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Reusable action tile builder component
   Widget _buildActionTile(
     BuildContext context,
     IconData icon,
@@ -395,6 +375,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Dynamic investments list view container
   Widget _buildInvestmentsSection() {
     return Container(
       width: double.infinity,
@@ -449,6 +430,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
     );
   }
 
+  // Market categories and features section listing
   Widget _buildInvestmentFeatures(BuildContext context) {
     final features = [
       {
@@ -550,15 +532,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
   }
 }
 
-/// Buy/invest bottom sheet. Collects the fields
-/// `InvestmentsRepository.invest()` needs and posts through it directly —
-/// the repo applies the resulting investment into the cache, so no
-/// forceRefresh is needed afterwards.
-///
-/// CRYPTO is kept selectable (per product copy, it's "coming soon" rather
-/// than hidden) but submission is disabled while it's selected: the backend
-/// intentionally returns HTTP 501 for `investmentType: CRYPTO` this pass,
-/// and that's not something to route around client-side.
+/// Bottom sheet form widget used to collect user inputs for purchasing investments.
 class _InvestForm extends StatefulWidget {
   const _InvestForm();
 
@@ -588,6 +562,7 @@ class _InvestFormState extends State<_InvestForm> {
     super.dispose();
   }
 
+  // Validates inputs and triggers investment purchase through repository
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     final quantity = _quantityController.text.trim();
@@ -654,7 +629,9 @@ class _InvestFormState extends State<_InvestForm> {
                     .map(
                       (type) => DropdownMenuItem(
                         value: type,
-                        child: Text(type == 'CRYPTO' ? '$type (coming soon)' : type),
+                        child: Text(
+                          type == 'CRYPTO' ? '$type (coming soon)' : type,
+                        ),
                       ),
                     )
                     .toList(),
@@ -711,7 +688,8 @@ class _InvestFormState extends State<_InvestForm> {
                 decoration: const InputDecoration(labelText: "Currency"),
                 items: _currencyCodes
                     .map(
-                      (code) => DropdownMenuItem(value: code, child: Text(code)),
+                      (code) =>
+                          DropdownMenuItem(value: code, child: Text(code)),
                     )
                     .toList(),
                 onChanged: (value) {
@@ -722,7 +700,10 @@ class _InvestFormState extends State<_InvestForm> {
                 const SizedBox(height: AppTheme.spacingSm),
                 Text(
                   _error!,
-                  style: const TextStyle(color: AppTheme.errorRed, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppTheme.errorRed,
+                    fontSize: 13,
+                  ),
                 ),
               ],
               const SizedBox(height: AppTheme.spacingLg),

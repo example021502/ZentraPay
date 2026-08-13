@@ -46,11 +46,11 @@ class ZRemitFormState extends State<ZRemitForm> {
     text: "0.00",
   );
   final TextEditingController _recipientValueController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _accountDetailController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController _countryCodeController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
 
@@ -241,7 +241,7 @@ class ZRemitFormState extends State<ZRemitForm> {
 
     bool isSameCurrency =
         amountDetails["sourceCurrencyCode"] ==
-            amountDetails["destinationCurrencyCode"];
+        amountDetails["destinationCurrencyCode"];
 
     return Form(
       key: _formKey,
@@ -288,8 +288,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                             value: amountDetails["sourceCurrencyCode"],
                             items: _currencies
                                 .map(
-                                  (c) =>
-                                  DropdownMenuItem(
+                                  (c) => DropdownMenuItem(
                                     value: c,
                                     child: Text(
                                       c,
@@ -298,7 +297,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                                       ),
                                     ),
                                   ),
-                            )
+                                )
                                 .toList(),
                             onChanged: (val) {
                               if (val != null) {
@@ -351,8 +350,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                             value: amountDetails["destinationCurrencyCode"],
                             items: _currencies
                                 .map(
-                                  (c) =>
-                                  DropdownMenuItem(
+                                  (c) => DropdownMenuItem(
                                     value: c,
                                     child: Text(
                                       c,
@@ -361,7 +359,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                                       ),
                                     ),
                                   ),
-                            )
+                                )
                                 .toList(),
                             onChanged: (val) {
                               if (val != null) {
@@ -420,7 +418,7 @@ class ZRemitFormState extends State<ZRemitForm> {
               ),
             ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
+          const SizedBox(height: 30),
           Container(
             decoration: AppTheme.cardDecoration,
             child: Padding(
@@ -454,8 +452,9 @@ class ZRemitFormState extends State<ZRemitForm> {
                               onChanged: (val) {
                                 recipientDetails["firstName"] = val;
                               },
-                              validator: (val) =>
-                              val == null || val.isEmpty ? "Required" : null,
+                              validator: (val) => val == null || val.isEmpty
+                                  ? "Required"
+                                  : null,
                             ),
                           ],
                         ),
@@ -482,8 +481,9 @@ class ZRemitFormState extends State<ZRemitForm> {
                               onChanged: (val) {
                                 recipientDetails["lastName"] = val;
                               },
-                              validator: (val) =>
-                              val == null || val.isEmpty ? "Required" : null,
+                              validator: (val) => val == null || val.isEmpty
+                                  ? "Required"
+                                  : null,
                             ),
                           ],
                         ),
@@ -493,10 +493,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                   const SizedBox(height: AppTheme.spacingMd),
                   const Text(
                     "Payout Option",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
@@ -504,12 +501,11 @@ class ZRemitFormState extends State<ZRemitForm> {
                     decoration: _inputDecoration(),
                     items: ["Mobile Money", "Bank", "Wallet"]
                         .map(
-                          (option) =>
-                          DropdownMenuItem(
+                          (option) => DropdownMenuItem(
                             value: option,
                             child: Text(option),
                           ),
-                    )
+                        )
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -539,8 +535,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                     onChanged: (val) {
                       destinationDetails["accountIdentifier"] = val;
                     },
-                    validator: (val) =>
-                    val == null || val.isEmpty
+                    validator: (val) => val == null || val.isEmpty
                         ? "This field is required"
                         : null,
                   ),
@@ -548,7 +543,7 @@ class ZRemitFormState extends State<ZRemitForm> {
               ),
             ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
+          const SizedBox(height: 30),
           Container(
             decoration: AppTheme.cardDecoration,
             child: Padding(
@@ -561,10 +556,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                 children: [
                   const Text(
                     "Reason / Purpose",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   TextFormField(
@@ -578,8 +570,7 @@ class ZRemitFormState extends State<ZRemitForm> {
                       amountDetails["purpose"] = val;
                       destinationDetails["purpose"] = val;
                     },
-                    validator: (val) =>
-                    val == null || val.isEmpty
+                    validator: (val) => val == null || val.isEmpty
                         ? "Please provide a reason"
                         : null,
                   ),
