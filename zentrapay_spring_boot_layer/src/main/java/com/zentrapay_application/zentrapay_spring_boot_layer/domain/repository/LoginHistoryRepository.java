@@ -1,11 +1,11 @@
-package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
+package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.repositories;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LoginHistory;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LoginHistoryModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.UUID;
 
-public interface LoginHistoryRepository extends JpaRepository<LoginHistory, UUID> {
-    List<LoginHistory> findByUserIdOrderByCreatedAtDesc(UUID userId);
+public interface LoginHistoryRepository extends JpaRepository<LoginHistoryModel, UUID> {
+    List<LoginHistoryModel> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }

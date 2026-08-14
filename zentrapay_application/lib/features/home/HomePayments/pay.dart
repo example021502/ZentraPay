@@ -155,7 +155,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
       },
     };
 
-    final response = await PaymentsService.payInternal(payload: payload);
+    final response = await PaymentsService.payment(payload: payload);
   }
 
   @override

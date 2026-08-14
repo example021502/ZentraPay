@@ -12,11 +12,8 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 class PaymentsService {
   static final Dio _dio = ApiClient().dio;
 
-<<<<<<< HEAD
   static Future<AppTransaction> payment({
-=======
-  static Future<AppTransaction> payInternal({
->>>>>>> de611eff0a3f97bbcf3af5ec6cd63cdf956d869d
+
     required Map<String, dynamic> payload,
   }) async {
     final response = await _dio.post('/api/payments', data: payload);
