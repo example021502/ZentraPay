@@ -24,25 +24,24 @@ public class BillProvidersController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<BillProviderDTO>>> listProviders(
-            @RequestParam(required = false) String countryCode,
-            @RequestParam(required = false) String categoryCode) {
+            @RequestParam(required = false) String countryCode) {
         return ResponseEntity.ok(ApiResponse.success(
-                billProvidersService.listProviders(countryCode, categoryCode), "Bill providers retrieved"));
+                billProvidersService.listProviders(countryCode), "Bill providers retrieved"));
     }
-
-    @PostMapping("/validate")
-    public ResponseEntity<ApiResponse<ValidateResponseDTO>> validate(@Valid @RequestBody ValidateRequestDTO request) {
-        return ResponseEntity.ok(ApiResponse.success(billProvidersService.validate(request), "Validation completed"));
-    }
-
-    @PostMapping("/pay")
-    public ResponseEntity<ApiResponse<PayResponseDTO>> pay(@CurrentUser AuthenticatedUser user,
-                                                            @Valid @RequestBody PayRequestDTO request) {
-        return ResponseEntity.ok(ApiResponse.success(billProvidersService.pay(user.userId(), request), "Bill payment processed"));
-    }
-
-    @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<BillPaymentHistoryDTO>>> history(@CurrentUser AuthenticatedUser user) {
-        return ResponseEntity.ok(ApiResponse.success(billProvidersService.history(user.userId()), "Bill payment history retrieved"));
-    }
+//
+//    @PostMapping("/validate")
+//    public ResponseEntity<ApiResponse<ValidateResponseDTO>> validate(@Valid @RequestBody ValidateRequestDTO request) {
+//        return ResponseEntity.ok(ApiResponse.success(billProvidersService.validate(request), "Validation completed"));
+//    }
+//
+//    @PostMapping("/pay")
+//    public ResponseEntity<ApiResponse<PayResponseDTO>> pay(@CurrentUser AuthenticatedUser user,
+//                                                            @Valid @RequestBody PayRequestDTO request) {
+//        return ResponseEntity.ok(ApiResponse.success(billProvidersService.pay(user.userId(), request), "Bill payment processed"));
+//    }
+//
+//    @GetMapping("/history")
+//    public ResponseEntity<ApiResponse<List<BillPaymentHistoryDTO>>> history(@CurrentUser AuthenticatedUser user) {
+//        return ResponseEntity.ok(ApiResponse.success(billProvidersService.history(user.userId()), "Bill payment history retrieved"));
+//    }
 }

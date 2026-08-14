@@ -1,6 +1,5 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.dto.PaymentChannelDTO;
 
 import java.util.List;
 
@@ -11,10 +10,9 @@ import java.util.List;
  * synced from Paystack/Flutterwave/Onafriq, filtered to that same country.
  */
 public record SearchResponseDTO(
-        AppUserSearchDTO senderDetails,
-        List<AppUserSearchDTO> appUsers,
+        UserSearchDTO senderDetails,
+        List<UserSearchDTO> appUsers,
         List<BillProviderSearchDTO> billProviders,
-        List<FundingSourceSearchDTO> fundingSources,
-        List<PaymentChannelDTO> banks
+        List<FundingSourceSearchDTO> fundingSources
 ) {
 }

@@ -12,7 +12,7 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "user_profiles")
-public class UserProfile {
+public class UserProfileModel {
     @Id
     @Column(name = "user_id", nullable = false)
     private UUID userId;

@@ -10,18 +10,15 @@ import java.util.UUID;
 
 @Entity
 @Data
-@Table(name = "linked_funding_sources")
+@Table(name = "funding_sources")
 public class LinkedFundingSource {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "source_id", nullable = false)
     private UUID sourceId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
-
     @Column(name = "source_type", nullable = false, length = 20)
-    private String sourceType; // BANK, MOBILE_MONEY
+    private String sourceType;
 
     @Column(name = "source_name", nullable = false, length = 120)
     private String sourceName;
@@ -29,12 +26,13 @@ public class LinkedFundingSource {
     @Column(name = "account_identifier", nullable = false, length = 60)
     private String accountIdentifier;
 
-    @Column(name = "channel_code", length = 30)
+    @Column(name = "channel_code")
     private String channelCode;
 
+    @Transient
     private String userType = "funding-source";
 
-    @Column(name = "country_code", nullable = false, length = 2)
+    @Column(name = "country_code", nullable = false, length = 3)
     private String countryCode;
 
     @Column(name = "is_verified", nullable = false)

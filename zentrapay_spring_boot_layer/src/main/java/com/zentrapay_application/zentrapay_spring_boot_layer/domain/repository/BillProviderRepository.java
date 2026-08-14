@@ -1,7 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.BillProviderModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.BillProviderSearchDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,8 +8,10 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.UUID;
 
-public interface BillProvidersRepository extends JpaRepository<BillProviderModel, UUID> {
+public interface BillProviderRepository extends JpaRepository<BillProviderModel, UUID> {
 
+    @Query("SELECT p FROM BillProviderModel p WHERE p.countryCode = :countryCode")
+    List<BillProviderModel> getAllBillProviders(@Param("countryCode") String countryCode);
 
     @Query("""
             SELECT p FROM BillProviderModel p
@@ -21,7 +22,7 @@ public interface BillProvidersRepository extends JpaRepository<BillProviderModel
             )
             AND p.providerId IN (:providerIds) AND p.countryCode = :countryCode
             """)
-    List<BillProviderSearchDTO> getBillProvidersByQueryCountryCodeAndProviderIds(
+    List<BillProviderModel> getBillProvidersByQueryCountryCodeAndProviderIds(
             @Param("query") String query,
             @Param("countryCode") String countryCode,
             @Param("providerIds") List<UUID> providerIds

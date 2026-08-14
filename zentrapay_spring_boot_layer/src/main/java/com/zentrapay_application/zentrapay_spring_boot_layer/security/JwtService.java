@@ -32,7 +32,7 @@ public class JwtService {
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
-                .claim("full_name", fullName)
+                .claim("fullName", fullName)
                 .claim("zentag", zentag)
                 .issuedAt(now)
                 .expiration(expiry)

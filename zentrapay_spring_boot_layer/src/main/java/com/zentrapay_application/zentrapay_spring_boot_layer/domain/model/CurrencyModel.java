@@ -6,7 +6,7 @@ import lombok.Data;
 @Entity
 @Data
 @Table(name = "currencies")
-public class Currency {
+public class CurrencyModel {
     @Id
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;

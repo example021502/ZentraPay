@@ -33,15 +33,15 @@ public class SearchContactsController {
     ) {
         // Extract the user UUID from the principal name (assuming your JWT subject stores the user UUID string)
         UUID userId = user.getUserId();
-        System.out.println("THE USER ID:: userId={}" + userId);
+        System.out.println("THE USER ID:: userId::" + userId);
         // Alternatively, if your SecurityContext stores the UUID directly as the principal object, use:
         // UUID userId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         // Build the request DTO using the query and the authenticated user's ID
-        SearchRequestDTO request = new SearchRequestDTO(userId, query, 20);
+        SearchRequestDTO request = new SearchRequestDTO(query, 20);
 
         // Perform the search operation
-        SearchResponseDTO contacts = searchContactsService.searchContacts(request);
+        SearchResponseDTO contacts = searchContactsService.searchContacts(request, userId);
 
         // Return the success response
         return ResponseEntity.ok(ApiResponse.success(contacts, "Search Successful"));

@@ -15,33 +15,45 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "wallets")
-public class WalletModel {
+@Table(name = "funding_sources")
+public class FundingSourceModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "wallet_id", nullable = false)
-    private UUID walletId;
+    @Column(name = "source_id", nullable = false)
+    private UUID sourceId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "account_identifier", nullable = false, length = 60)
+    private String accountIdentifier;
 
-    @Column(name = "wallet_name", nullable = false, length = 60)
-    private String walletName;
-
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
+    @Column(name = "channel_code", nullable = false, length = 3)
+    private String channelCode;
 
     @Column(name = "country_code", length = 3)
     private String countryCode;
 
-    @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal balance = BigDecimal.ZERO;
+    @Column(name = "is_verified", nullable = false)
+    private boolean isVerified;
 
-    @Column(name = "is_default", nullable = false)
-    private boolean isDefault;
+    @Column(name = "source_name", nullable = false)
+    private String sourceName;
 
-    @Column(nullable = false, length = 20)
-    private String status = "active";
+    @Column(name = "source_type", nullable = false)
+    private String sourceType;
+
+    @Column(name = "account_name", nullable = false)
+    private String accountName;
+
+    @Column(name = "funding_source_code", nullable = false)
+    private String fundingSourceCode;
+
+    @Column(name = "currency", nullable = false)
+    private String currency;
+
+    @Column(name = "funding_type", nullable = false)
+    private String fundingType;
+
+    @Column(name = "is_primary", nullable = false)
+    private Boolean isPrimary;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

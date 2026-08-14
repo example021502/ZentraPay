@@ -1,4 +1,4 @@
-package com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.model;
+package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -21,7 +21,7 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "bill_providers")
-public class BillProvider {
+public class BillProviderModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "provider_id", nullable = false)

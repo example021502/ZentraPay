@@ -6,16 +6,14 @@ import java.util.UUID;
  * Response shape for {@code GET/PATCH /api/users/me} (API contract §1):
  * {@code {userId,firstName,lastName,email,phoneNumber,countryCode,zentag,userType,status,kycTier}}.
  */
-public record UserProfileDTO(
+public record UserDTO(
         UUID userId,
         String firstName,
         String lastName,
+        String fullName,
         String email,
         String phoneNumber,
-        String countryCode,
         String zentag,
-        String userType,
-        String status,
-        short kycTier
+        String passwordHash
 ) {
 }

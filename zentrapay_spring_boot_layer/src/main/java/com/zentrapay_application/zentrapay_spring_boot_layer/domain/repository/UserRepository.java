@@ -1,7 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.User;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.AppUserSearchDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,44 +9,36 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByEmail(String email);
+public interface UserRepository extends JpaRepository<UserModel, UUID> {
 
-    Optional<User> findByPhoneNumber(String phoneNumber);
+    // Resolves a login identifier (either email or phone number). The derived method
+    // name "findByEmailOrPhoneNumber" cannot be reliably parsed by Spring Data, so an
+    // explicit query is used.
+    @Query("SELECT u FROM UserModel u WHERE u.email = :email OR u.phoneNumber = :phoneNumber")
+    Optional<UserModel> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
 
-    Optional<User> findByZentag(String zentag);
-
-    AppUserSearchDTO getByUserId(UUID userId);
 
     boolean existsByEmail(String email);
 
     boolean existsByPhoneNumber(String phoneNumber);
 
-    boolean existsByZentag(String zentag);
+    //  getting the sender details ======
+    @Query("SELECT u FROM UserModel u WHERE u.userId = :userId")
+    Optional<UserModel> getUserById(@Param("userId") UUID userId);
 
-
-    // Searches users by text query while explicitly excluding the current user's ID.
-    // Restricted to users sharing the searching user's country — either the same
-    // stored countryCode, or (for diaspora users whose profile country lags their
-    // actual number) the same phone dial-code prefix.
+    //  getting the users matched contacts
     @Query("""
-            SELECT u FROM User u
+            SELECT u FROM UserModel u
             WHERE (
                 LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
-                OR u.phoneNumber LIKE CONCAT('%', :query, '%')
+                OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.zentag) LIKE LOWER(CONCAT('%', :query, '%'))
             )
-            AND u.userId != :userId
-            AND (
-                u.countryCode = :countryCode
-                OR u.phoneNumber LIKE CONCAT(:dialCode, '%')
-            )
+            AND u.countryCode = :countryCode
             """)
-    List<User> searchByQuery(
+    List<UserModel> searchByQueryAndCountryCode(
             @Param("query") String query,
-            @Param("userId") UUID userId,
-            @Param("countryCode") String countryCode,
-            @Param("dialCode") String dialCode
+            @Param("countryCode") String countryCode
     );
 }

@@ -1,5 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LinkedFundingSource;
+
 import java.util.List;
 
 /**
@@ -13,14 +15,6 @@ public record ReceiveInfoDTO(
         String fullName,
         String zentag,
         String qrPayload,
-        List<LinkedAccountDTO> linkedAccounts
+        List<LinkedFundingSource> linkedAccounts
 ) {
-    public record LinkedAccountDTO(
-            String sourceId,
-            String sourceName,
-            String accountIdentifier,
-            String sourceType,
-            boolean verified
-    ) {
-    }
 }

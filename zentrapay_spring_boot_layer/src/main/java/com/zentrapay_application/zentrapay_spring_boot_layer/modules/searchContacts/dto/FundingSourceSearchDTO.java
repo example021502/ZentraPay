@@ -4,13 +4,23 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
-public record UserSearchDTO(
+import java.time.LocalDateTime;
+import java.util.UUID;
 
-        @NotBlank(message = "Search query cannot be blank")
-        String query,
-
-        @Min(value = 0)
-        @Max(value = 20, message = "Limit cannot exceed 20")
-        int limit
+public record FundingSourceSearchDTO(
+        UUID sourceId,
+        String accountIdentifier,
+        String channelCode,
+        String countryCode,
+        Boolean is_verified,
+        String sourceName,
+        String sourceType,
+        String accountName,
+        String fundingSourceCode,
+        String currency,
+        String fundingType,
+        Boolean isPrimary,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 }

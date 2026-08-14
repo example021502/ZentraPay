@@ -5,7 +5,6 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,49 +14,25 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "funding_sources")
-public class FundingSourceModel {
+@Table(name = "user_funding_sources")
+public class UserFundingSourceModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "user_funding_source_id", nullable = false)
+    private UUID userFundingSourceId;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
     @Column(name = "source_id", nullable = false)
     private UUID sourceId;
-
-    @Column(name = "account_identifier", nullable = false, length = 60)
-    private String accountIdentifier;
-
-    @Column(name = "channel_code", nullable = false, length = 3)
-    private String channelCode;
-
-    @Column(name = "country_code", length = 3)
-    private String countryCode;
-
-    @Column(name = "is_verified", nullable = false)
-    private boolean isVerified;
-
-    @Column(name = "source_name", nullable = false)
-    private String sourceName;
-
-    @Column(name = "source_type", nullable = false)
-    private String sourceType;
-
-    @Column(name = "account_name", nullable = false)
-    private String accountName;
-
-    @Column(name = "funding_source_code", nullable = false)
-    private String fundingSourceCode;
-
-    @Column(name = "currency", nullable = false)
-    private String currency;
-
-    @Column(name = "funding_type", nullable = false)
-    private String fundingType;
 
     @Column(name = "is_primary", nullable = false)
     private Boolean isPrimary;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "linked_at", nullable = false)
+    private LocalDateTime linkedAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)

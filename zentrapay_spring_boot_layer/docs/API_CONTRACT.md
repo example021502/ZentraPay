@@ -25,8 +25,8 @@ Conventions:
 | POST | `/api/users/pin/verify` | Bearer | `{pin}` | `{valid:boolean}` |
 | GET | `/api/users/me` | Bearer | — | `{userId,firstName,lastName,email,phoneNumber,countryCode,zentag,userType,status,kycTier}` |
 | PATCH | `/api/users/me` | Bearer | `{firstName?,lastName?}` (only self-service editable fields) | same as GET |
-| GET | `/api/users/me/profile` | Bearer | — | `UserProfile` (see `user_profiles`): `{dateOfBirth,idDocumentType,idDocumentNumber,idDocumentCountryCode,addressLine1,addressLine2,city,regionState,postalCode,occupation,amlStatus,isPep}` — nulls until KYC submitted |
-| PUT | `/api/users/me/profile` | Bearer | same shape as GET (upsert) | updated `UserProfile` |
+| GET | `/api/users/me/profile` | Bearer | — | `UserProfileModel` (see `user_profiles`): `{dateOfBirth,idDocumentType,idDocumentNumber,idDocumentCountryCode,addressLine1,addressLine2,city,regionState,postalCode,occupation,amlStatus,isPep}` — nulls until KYC submitted |
+| PUT | `/api/users/me/profile` | Bearer | same shape as GET (upsert) | updated `UserProfileModel` |
 | GET | `/api/users/me/merchant-profile` | Bearer | — | `{businessName,businessRegistrationNumber,taxIdentificationNumber,businessCategoryCode,businessCountryCode,businessAddress}` or `null` if not a merchant |
 | PUT | `/api/users/me/merchant-profile` | Bearer | same shape (upsert; sets `userType=MERCHANT`) | updated merchant profile |
 

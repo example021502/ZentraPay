@@ -1,20 +1,18 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.BillProviderModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LinkedFundingSource;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.User;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.LinkedFundingSourceRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.model.BillProvider;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.repository.BillProviderRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.paymentChannels.service.PaymentChannelsService;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Search across app users, bill providers, linked funding sources, and gateway-synced
@@ -30,68 +28,85 @@ public class SearchContactsService {
 
     private final UserRepository userRepository;
     private final BillProviderRepository billProviderRepository;
-    private final LinkedFundingSourceRepository linkedFundingSourceRepository;
-    private final PaymentChannelsService paymentChannelsService;
+    private final FundingSourceRepository fundingSourceRepository;
+    private final UserBillProvidersRepository userBillProvidersRepository;
+    private final UserFundingSourcesRepository userFundingSourcesRepository;
 
-    // ISO 3166-1 alpha-2 -> E.164 dial code, for the corridors this app serves. The
-    // live `countries` table doesn't carry a dial-code column, so this stays a small
-    // in-code map rather than a query — extend alongside PaymentChannelSyncService's
-    // SYNC_COUNTRIES list when a new corridor is added.
-    private static final Map<String, String> DIAL_CODES = Map.of(
-            "GH", "+233",
-            "NG", "+234",
-            "KE", "+254",
-            "US", "+1"
-    );
 
-    public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req) {
+    public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
         int limit = req.limit() > 0 ? req.limit() : 20;
 
-        User searchingUser = userRepository.findById(req.userId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + req.userId()));
-        String countryCode = searchingUser.getCountryCode();
-        String dialCode = DIAL_CODES.getOrDefault(countryCode, "");
+        UserModel sender = userRepository.getUserById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        AppUserSearchDTO senderDetails = userRepository.getByUserId(req.userId());
+        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.getCountryCode()).stream()
+                .limit(limit).map(this::toUserSearchDTO).toList();
 
-        var users = userRepository.searchByQuery(req.query(), req.userId(), countryCode, dialCode).stream()
-                .limit(limit)
-                .map(this::toAppUserDTO)
-                .toList();
 
-        var providers = billProviderRepository.searchByQuery(req.query(), req.userId(), countryCode).stream()
-                .limit(limit)
-                .map(this::toBillProviderDTO)
-                .toList();
+        List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
+        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.getCountryCode(), billProviderIds).stream().limit(limit)
+                .map(this::toBillProviderSearchDTO).toList();
 
-        var sources = linkedFundingSourceRepository.searchByQuery(req.query(), req.userId()).stream()
-                .limit(limit)
-                .map(this::toFundingSourceDTO)
-                .toList();
+        List<UUID> fundingSourcesIds = userFundingSourcesRepository.getFundingSourcesIdsByUserId(userId);
+        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.getCountryCode(), fundingSourcesIds).stream().limit(limit)
+                .map(this::toFundingSourceSearchDTO).toList();
 
-        // Live directory read, not a gateway call per keystroke — payment_channels is
-        // kept fresh by PaymentChannelSyncService's three per-gateway scheduled jobs.
-        var banks = paymentChannelsService.listChannels(countryCode, "BANK").stream()
-                .filter(c -> matchesQuery(c.channelName(), req.query()))
-                .limit(limit)
-                .toList();
 
-        return new SearchResponseDTO(senderDetails, users, providers, sources, banks);
+        return new SearchResponseDTO(toUserSearchDTO(sender), appUsers, billProviders, fundingSources);
     }
 
-    private boolean matchesQuery(String name, String query) {
-        return name != null && query != null && name.toLowerCase().contains(query.toLowerCase());
+    private UserSearchDTO toUserSearchDTO(UserModel u) {
+        return new UserSearchDTO(
+                u.getUserId(),
+                u.getCountryCode(),
+                null, // no country-name source on UserModel
+                u.getEmail(),
+                u.getFirstName(),
+                u.getLastName(),
+                u.getPhoneNumber(),
+                u.getStatus(),
+                u.getUserType(),
+                u.getZentag(),
+                u.getUpdatedAt(),
+                u.getCreatedAt()
+        );
     }
 
-    private AppUserSearchDTO toAppUserDTO(User u) {
-        return new AppUserSearchDTO(u.getUserId(), u.getFullName(), u.getFirstName(), u.getLastName(), u.getPhoneNumber(), u.getZentag(), u.getUserType(), u.getEmail());
+    private BillProviderSearchDTO toBillProviderSearchDTO(BillProviderModel p) {
+        return new BillProviderSearchDTO(
+                p.getProviderId(),
+                p.getBillerCode(),
+                p.getBillerName(),
+                p.getCategoryCode(),
+                p.getCountryCode(),
+                p.getFetchRequirement(),
+                p.getCustomerParamsSchema(),
+                p.getLogoUrl(),
+                p.getUpdatedAt(),
+                p.getChannelCode(),
+                p.getIsCrossBorderAllowed(),
+                p.getActive(),
+                p.getCreatedAt()
+        );
     }
 
-    private BillProviderSearchDTO toBillProviderDTO(BillProvider p) {
-        return new BillProviderSearchDTO(p.getProviderId(), p.getBillerName(), p.getCategoryCode(), p.getLogoUrl(), p.getUserType());
-    }
-
-    private FundingSourceSearchDTO toFundingSourceDTO(LinkedFundingSource f) {
-        return new FundingSourceSearchDTO(f.getSourceId(), f.getSourceName(), f.getAccountIdentifier(), f.isVerified(), f.getUserType());
+    private FundingSourceSearchDTO toFundingSourceSearchDTO(LinkedFundingSource f) {
+        return new FundingSourceSearchDTO(
+                f.getSourceId(),
+                f.getAccountIdentifier(),
+                f.getChannelCode(),
+                f.getCountryCode(),
+                f.isVerified(),
+                f.getSourceName(),
+                f.getSourceType(),
+                null, // accountName not modelled on LinkedFundingSource
+                null, // fundingSourceCode
+                null, // currency
+                null, // fundingType
+                null, // isPrimary
+                f.getCreatedAt(),
+                f.getUpdatedAt()
+        );
     }
 }
+

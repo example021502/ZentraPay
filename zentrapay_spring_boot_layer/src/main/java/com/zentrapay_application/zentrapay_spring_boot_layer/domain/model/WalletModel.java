@@ -16,7 +16,7 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "wallets")
-public class Wallet {
+public class WalletModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "wallet_id", nullable = false)
@@ -31,7 +31,7 @@ public class Wallet {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "country_code", length = 2)
+    @Column(name = "country_code", length = 3)
     private String countryCode;
 
     @Column(nullable = false, precision = 19, scale = 4)
@@ -41,7 +41,7 @@ public class Wallet {
     private boolean isDefault;
 
     @Column(nullable = false, length = 20)
-    private String status = "ACTIVE";
+    private String status = "active";
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
