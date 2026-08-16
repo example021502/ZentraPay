@@ -43,18 +43,14 @@ public class UserModel {
     @Column(name = "transaction_pin_hash", nullable = false, length = 120)
     private String transactionPinHash;
 
-    @Column(name = "zentag", nullable = false, unique = true, length = 40)
-    private String zentag;
-
     @Column(name = "user_type", nullable = false, length = 20)
-    private String userType = "INDIVIDUAL"; // INDIVIDUAL, MERCHANT
+    private String userType = "app-user"; // INDIVIDUAL, MERCHANT
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE"; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
+    private String status = "active"; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
 
     @Column(name = "kyc_tier", nullable = false)
     private short kycTier = 0;
-
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

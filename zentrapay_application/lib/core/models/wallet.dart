@@ -1,34 +1,41 @@
-class FiatWallet {
-  final String walletId;
-  final String walletName;
+class FiatAccount {
+  final String accountId; // Comment: Stored as String for UUID in Dart
+  final String accountName;
   final String currencyCode;
-  final String? countryCode;
-  final String balance;
+  final String zentag;
+
+  // Comment: BigDecimal in Java maps to double or num in Dart
+  final double balance;
   final bool isDefault;
   final String status;
-  final int decimalDigits;
+  final DateTime createdAt;
 
-  FiatWallet({
-    required this.walletId,
-    required this.walletName,
+  FiatAccount({
+    required this.accountId,
+    required this.accountName,
     required this.currencyCode,
-    this.countryCode,
+    required this.zentag,
     required this.balance,
     required this.isDefault,
     required this.status,
-    required this.decimalDigits,
+    required this.createdAt,
   });
 
-  factory FiatWallet.fromJson(Map<String, dynamic> json) => FiatWallet(
-    walletId: json['walletId'] ?? '',
-    walletName: json['walletName'] ?? '',
-    currencyCode: json['currencyCode'] ?? '',
-    countryCode: json['countryCode'],
-    balance: (json['balance'] ?? '0').toString(),
-    isDefault: json['isDefault'] ?? false,
-    status: json['status'] ?? 'ACTIVE',
-    decimalDigits: json['decimalDigits'] ?? 2,
-  );
+  // Comment: Factory constructor to parse JSON response from the Spring Boot API
+  factory FiatAccount.fromJson(Map<String, dynamic> json) {
+    return FiatAccount(
+      accountId: json['accountId'] ?? '',
+      accountName: json['accountName'] ?? '',
+      currencyCode: json['currencyCode'] ?? '',
+      balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
+      isDefault: json['isDefault'] ?? false,
+      status: json['status'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      zentag: json["zentag"],
+    );
+  }
 }
 
 /// Represents a single supported currency configuration item.
@@ -58,67 +65,78 @@ class SupportedCurrencies {
       );
 }
 
-class CryptoWalletSummary {
-  final String cryptoWalletId;
+class CryptoAccount {
+  final String cryptoAccountId; // Comment: Stored as String for UUID in Dart
   final String currencyCode;
-  final String? network;
+  final String network;
   final String walletAddress;
-  final String balance;
+  final bool isDefault;
+  final String
+  balance; // Comment: Maintained as String to preserve high-precision crypto decimals
   final String status;
-  final int decimalDigits;
+  final DateTime createdAt;
 
-  CryptoWalletSummary({
-    required this.cryptoWalletId,
+  CryptoAccount({
+    required this.cryptoAccountId,
     required this.currencyCode,
-    this.network,
+    required this.network,
     required this.walletAddress,
+    required this.isDefault,
     required this.balance,
     required this.status,
-    required this.decimalDigits,
+    required this.createdAt,
   });
 
-  factory CryptoWalletSummary.fromJson(Map<String, dynamic> json) =>
-      CryptoWalletSummary(
-        cryptoWalletId: json['cryptoWalletId'] ?? '',
-        currencyCode: json['currencyCode'] ?? '',
-        network: json['network'],
-        walletAddress: json['walletAddress'] ?? '',
-        balance: (json['balance'] ?? '0').toString(),
-        status: json['status'] ?? 'ACTIVE',
-        decimalDigits: json['decimalDigits'] ?? 8,
-      );
+  // Comment: Factory constructor to parse JSON response from the Spring Boot API
+  factory CryptoAccount.fromJson(Map<String, dynamic> json) {
+    return CryptoAccount(
+      cryptoAccountId: json['cryptoAccountId'] ?? '',
+      currencyCode: json['currencyCode'] ?? '',
+      network: json['network'] ?? '',
+      walletAddress: json['walletAddress'] ?? '',
+      isDefault: json['isDefault'] ?? false,
+      balance: json['balance']?.toString() ?? '0',
+      status: json['status'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+    );
+  }
 }
 
-class WalletsSnapshot {
-  final List<FiatWallet> fiatWallets;
-  final List<CryptoWalletSummary> cryptoWallets;
+class WalletsAccountsSnapshot {
+  final List<FiatAccount> fiatAccounts;
+  final List<CryptoAccount> cryptoAccounts;
 
-  WalletsSnapshot({required this.fiatWallets, required this.cryptoWallets});
+  WalletsAccountsSnapshot({
+    required this.fiatAccounts,
+    required this.cryptoAccounts,
+  });
 
-  factory WalletsSnapshot.fromJson(Map<String, dynamic> json) =>
-      WalletsSnapshot(
-        fiatWallets: ((json['fiatWallets'] as List?) ?? [])
-            .map((e) => FiatWallet.fromJson(e))
+  factory WalletsAccountsSnapshot.fromJson(Map<String, dynamic> json) =>
+      WalletsAccountsSnapshot(
+        fiatAccounts: ((json['fiatAccounts'] as List?) ?? [])
+            .map((e) => FiatAccount.fromJson(e))
             .toList(),
-        cryptoWallets: ((json['cryptoWallets'] as List?) ?? [])
-            .map((e) => CryptoWalletSummary.fromJson(e))
+        cryptoAccounts: ((json['cryptoAccounts'] as List?) ?? [])
+            .map((e) => CryptoAccount.fromJson(e))
             .toList(),
       );
 
-  WalletsSnapshot copyWith({
-    List<FiatWallet>? fiatWallets,
-    List<CryptoWalletSummary>? cryptoWallets,
-  }) => WalletsSnapshot(
-    fiatWallets: fiatWallets ?? this.fiatWallets,
-    cryptoWallets: cryptoWallets ?? this.cryptoWallets,
+  WalletsAccountsSnapshot copyWith({
+    List<FiatAccount>? fiatAccounts,
+    List<CryptoAccount>? cryptoAccounts,
+  }) => WalletsAccountsSnapshot(
+    fiatAccounts: fiatAccounts ?? this.fiatAccounts,
+    cryptoAccounts: cryptoAccounts ?? this.cryptoAccounts,
   );
 
   /// Replaces (by id) or appends a fiat wallet — used to apply a POST
   /// response into the cached snapshot without a full refetch.
-  WalletsSnapshot withUpsertedFiatWallet(FiatWallet wallet) {
+  WalletsAccountsSnapshot withUpsertedFiatWallet(FiatAccount account) {
     final next =
-        fiatWallets.where((w) => w.walletId != wallet.walletId).toList()
-          ..add(wallet);
-    return copyWith(fiatWallets: next);
+        fiatAccounts.where((a) => a.accountId != account.accountId).toList()
+          ..add(account);
+    return copyWith(fiatAccounts: next);
   }
 }

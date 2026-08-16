@@ -90,12 +90,8 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
     required String rateText,
     required Object? error,
   }) {
-    return Container(
-      width: MediaQuery.of(context).size.width,
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
-      ).copyWith(gradient: AppTheme.secondaryGradient),
+    return Padding(
+      padding: const EdgeInsets.all(15.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
@@ -121,41 +117,32 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
               ),
             ],
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: AppColors.secondary, width: 2),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
+          AppTheme.divider(context, AppColors.primary),
+          Column(
+            children: [
+              _rateRow("You send", amountSendText, contentFontSize),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _rateRow("You send", amountSendText, contentFontSize),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Exchange rate",
-                        style: TextStyle(
-                          color: AppTheme.textBlack,
-                          fontSize: rateFontSize,
-                        ),
-                      ),
-                      Text(
-                        rateText,
-                        style: TextStyle(
-                          color: AppTheme.textBlack,
-                          fontWeight: FontWeight.w600,
-                          fontSize: rateFontSize,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    "Exchange rate",
+                    style: TextStyle(
+                      color: AppTheme.primaryWhite,
+                      fontSize: rateFontSize,
+                    ),
                   ),
-                  _rateRow("They receive", amountReceivedText, contentFontSize),
+                  Text(
+                    rateText,
+                    style: TextStyle(
+                      color: AppTheme.primaryWhite,
+                      fontWeight: FontWeight.w600,
+                      fontSize: rateFontSize,
+                    ),
+                  ),
                 ],
               ),
-            ),
+              _rateRow("They receive", amountReceivedText, contentFontSize),
+            ],
           ),
           if (error != null)
             Row(
@@ -201,7 +188,7 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
         Text(
           label,
           style: TextStyle(
-            color: AppTheme.textBlack,
+            color: AppTheme.primaryWhite,
             fontSize: fontSize,
             fontWeight: FontWeight.bold,
           ),
@@ -210,7 +197,7 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
         Text(
           value,
           style: AppTheme.titleLarge.copyWith(
-            color: AppColors.green,
+            color: AppColors.primary,
             fontWeight: FontWeight.bold,
           ),
         ),

@@ -10,7 +10,6 @@ public record UserDTO(
         UUID userId,
         String firstName,
         String lastName,
-        String fullName,
         String email,
         String phoneNumber,
         String zentag,

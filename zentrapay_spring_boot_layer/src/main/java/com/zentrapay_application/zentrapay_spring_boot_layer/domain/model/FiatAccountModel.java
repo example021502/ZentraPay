@@ -15,27 +15,27 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "wallets")
-public class WalletModel {
+@Table(name = "accounts")
+public class FiatAccountModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "account_id", nullable = false)
+    private UUID accountId;
+
     @Column(name = "wallet_id", nullable = false)
     private UUID walletId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
-
-    @Column(name = "wallet_name", nullable = false, length = 60)
-    private String walletName;
+    @Column(name = "account_name", nullable = false)
+    private String accountName;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "country_code", length = 3)
-    private String countryCode;
+    @Column(name = "zentag", nullable = false, length = 3)
+    private String zentag;
 
-    @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal balance = BigDecimal.ZERO;
+    @Column(name = "balance", nullable = false)
+    private BigDecimal balance;
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;

@@ -7,7 +7,7 @@ import 'package:zentrapay_application/features/zgrow/widgets/financial_tools_sec
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_section.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/quick_actions_row.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/rewards_section.dart';
-import 'package:zentrapay_application/features/zgrow/widgets/zgrow_header_section.dart';
+import 'package:zentrapay_application/features/zgrow/widgets/zgrow_hero_card.dart';
 
 /// ZGrow tab — savings, challenges, rewards, and financial tools. Purely an
 /// orchestrator: every section below is its own component under
@@ -33,30 +33,43 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.gray50,
+    final bool isTablet = MediaQuery.of(context).size.width > 470;
+    final double maxWidth = isTablet ? 400 : MediaQuery.of(context).size.width;
+    return SizedBox(
+      width: maxWidth,
       child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 15.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const ZGrowHeaderSection(),
-              const SizedBox(height: AppTheme.spacingMd),
-              const QuickActionsRow(),
-              const SizedBox(height: AppTheme.spacingMd),
-              const ChallengesSection(),
-              const SizedBox(height: AppTheme.spacingMd),
-              const Text("Financial Tools", style: AppTheme.headlineSmall),
-              const SizedBox(height: AppTheme.spacingMd),
-              const FinancialToolsSection(),
-              const SizedBox(height: AppTheme.spacingMd),
-              const RewardsSection(),
-              const SizedBox(height: AppTheme.spacingMd),
-              const LearnEarnSection(),
-              const SizedBox(height: 100),
-            ],
-          ),
+        scrollDirection: Axis.vertical,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ZGrowHeroCard(),
+            const SizedBox(height: AppTheme.spacingMd),
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.gray50,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: const Column(
+                  children: [
+                    QuickActionsRow(),
+                    SizedBox(height: AppTheme.spacingMd),
+                    ChallengesSection(),
+                    SizedBox(height: AppTheme.spacingMd),
+                    Text("Financial Tools", style: AppTheme.headlineSmall),
+                    SizedBox(height: AppTheme.spacingMd),
+                    FinancialToolsSection(),
+                    SizedBox(height: AppTheme.spacingMd),
+                    RewardsSection(),
+                    SizedBox(height: AppTheme.spacingMd),
+                    LearnEarnSection(),
+                    SizedBox(height: 100),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

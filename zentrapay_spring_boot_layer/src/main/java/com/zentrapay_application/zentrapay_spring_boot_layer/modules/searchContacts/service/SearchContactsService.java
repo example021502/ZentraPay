@@ -1,8 +1,5 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.BillProviderModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LinkedFundingSource;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.*;
@@ -35,78 +32,23 @@ public class SearchContactsService {
 
     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
         int limit = req.limit() > 0 ? req.limit() : 20;
-
-        UserModel sender = userRepository.getUserById(userId)
+//      searching sender details
+        UserSearchDTO sender = userRepository.getUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.getCountryCode()).stream()
-                .limit(limit).map(this::toUserSearchDTO).toList();
+//      getting a list of searched users
+        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.countryCode()).stream()
+                .limit(limit).toList();
 
 
         List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
-        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.getCountryCode(), billProviderIds).stream().limit(limit)
-                .map(this::toBillProviderSearchDTO).toList();
+        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.countryCode(), billProviderIds).stream().limit(limit).toList();
 
         List<UUID> fundingSourcesIds = userFundingSourcesRepository.getFundingSourcesIdsByUserId(userId);
-        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.getCountryCode(), fundingSourcesIds).stream().limit(limit)
-                .map(this::toFundingSourceSearchDTO).toList();
+        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.countryCode(), fundingSourcesIds).stream().limit(limit).toList();
 
 
-        return new SearchResponseDTO(toUserSearchDTO(sender), appUsers, billProviders, fundingSources);
+        return new SearchResponseDTO(sender, appUsers, billProviders, fundingSources);
     }
 
-    private UserSearchDTO toUserSearchDTO(UserModel u) {
-        return new UserSearchDTO(
-                u.getUserId(),
-                u.getCountryCode(),
-                null, // no country-name source on UserModel
-                u.getEmail(),
-                u.getFirstName(),
-                u.getLastName(),
-                u.getPhoneNumber(),
-                u.getStatus(),
-                u.getUserType(),
-                u.getZentag(),
-                u.getUpdatedAt(),
-                u.getCreatedAt()
-        );
-    }
-
-    private BillProviderSearchDTO toBillProviderSearchDTO(BillProviderModel p) {
-        return new BillProviderSearchDTO(
-                p.getProviderId(),
-                p.getBillerCode(),
-                p.getBillerName(),
-                p.getCategoryCode(),
-                p.getCountryCode(),
-                p.getFetchRequirement(),
-                p.getCustomerParamsSchema(),
-                p.getLogoUrl(),
-                p.getUpdatedAt(),
-                p.getChannelCode(),
-                p.getIsCrossBorderAllowed(),
-                p.getActive(),
-                p.getCreatedAt()
-        );
-    }
-
-    private FundingSourceSearchDTO toFundingSourceSearchDTO(LinkedFundingSource f) {
-        return new FundingSourceSearchDTO(
-                f.getSourceId(),
-                f.getAccountIdentifier(),
-                f.getChannelCode(),
-                f.getCountryCode(),
-                f.isVerified(),
-                f.getSourceName(),
-                f.getSourceType(),
-                null, // accountName not modelled on LinkedFundingSource
-                null, // fundingSourceCode
-                null, // currency
-                null, // fundingType
-                null, // isPrimary
-                f.getCreatedAt(),
-                f.getUpdatedAt()
-        );
-    }
 }
 

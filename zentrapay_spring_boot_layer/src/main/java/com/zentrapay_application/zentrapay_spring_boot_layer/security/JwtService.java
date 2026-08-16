@@ -25,15 +25,15 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(UUID userId, String email, String fullName, String zentag) {
+    public String generateToken(UUID userId, String email, String firstName, String lastName) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
-                .claim("fullName", fullName)
-                .claim("zentag", zentag)
+                .claim("firstName", firstName)
+                .claim("lastName", lastName)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(signingKey())

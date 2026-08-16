@@ -19,30 +19,33 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "crypto_wallets")
-public class CryptoWallet {
+@Table(name = "crypto_accounts")
+public class CryptoAccountModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "crypto_wallet_id", nullable = false)
-    private UUID cryptoWalletId;
+    @Column(name = "crypto_account_id", nullable = false, unique = true)
+    private UUID cryptoAccountId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "wallet_id", nullable = false)
+    private UUID walletId;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(length = 30)
+    @Column(name = "network", length = 30)
     private String network;
 
     @Column(name = "wallet_address", nullable = false, unique = true, length = 120)
     private String walletAddress;
 
-    @Column(nullable = false, precision = 28, scale = 10)
-    private BigDecimal balance = BigDecimal.ZERO;
+    @Column(name = "balance", nullable = false, precision = 28, scale = 10)
+    private BigDecimal balance;
 
-    @Column(nullable = false, length = 20)
-    private String status = "ACTIVE";
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault;
+
+    @Column(name = "status", nullable = false)
+    private String status = "active";
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

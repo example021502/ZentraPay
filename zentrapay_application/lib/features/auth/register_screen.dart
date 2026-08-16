@@ -1,3 +1,5 @@
+// Comment: Full updated RegisterScreen code with fixed Checkbox state management and comments included
+
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
@@ -18,18 +20,18 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _first_nameController = TextEditingController();
-  final TextEditingController _last_nameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   bool _isPhoneValid = false;
   String pin = "";
-
+  bool termsConsent = false;
   Map<String, dynamic> contactForm = {"phone_number": "", "country_code": ""};
 
   bool isLoading = false;
 
   void register() async {
-    if (_first_nameController.text.trim() == "" ||
-        _last_nameController.text.trim() == "" ||
+    if (_firstNameController.text.trim() == "" ||
+        _lastNameController.text.trim() == "" ||
         _emailController.text.trim() == "" ||
         contactForm['phone_number'] == "") {
       return ZentraNotifier.error(
@@ -40,6 +42,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!_isPhoneValid) {
       return ZentraNotifier.error("Invalid value", "Invalid Phone number");
+    }
+
+    // Comment: Validate termsConsent and conditions agreement before proceeding
+    if (!termsConsent) {
+      return ZentraNotifier.error(
+        "Terms Required",
+        "Please accept the Terms of Service and Privacy Policy",
+      );
     }
 
     bool isValidEmail(String email) {
@@ -54,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (pin == "") {
-      String? PIN = await showModalBottomSheet<String>(
+      String? pinValue = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,
         isDismissible: false,
@@ -62,20 +72,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         builder: (BuildContext context) => const AppSetPinSheet(pinLength: 4),
       );
       setState(() {
-        pin = PIN!;
+        pin = pinValue!;
       });
     }
 
-    final String zentag = "${contactForm['phone_number']}@zentrapay";
     final Map<String, dynamic> registrationForm = {
-      "firstName": _first_nameController.text.trim(),
-      "lastName": _last_nameController.text.trim(),
+      "firstName": _firstNameController.text.trim(),
+      "lastName": _lastNameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
       "phoneNumber": contactForm['phone_number']!,
       "countryCode": contactForm['country_code']!,
-      "zentag": zentag,
       "pin": pin,
+      "termsConsent": termsConsent,
+      // "privacyPolicyId": null,
+      // "termsOfUseId": null,
     };
 
     setState(() {
@@ -84,7 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final res = await registerUser(registrationForm);
-      print("THE RES:: ${res}");
+      print("THE RES:: $res");
       if (!res?["success"]) {
         return ZentraNotifier.error(
           "Failed",
@@ -98,68 +109,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final token = userData?['token'];
       final email = userData?['email'];
       final fullName = userData?['fullName'];
-      final zentag = userData?['zentag'];
       print("TOKEN IS:: $token");
 
       await SecureStorageService.saveToken(token);
-
-      //================================================
-      // TO BE IMPLEMENTED LATER
-      //================================================
-
-      // final Result<PrivyUser> registrationResult = await privy.customAuth
-      //     .loginWithCustomAccessToken();
-      // print("REGISTRATION RESULT:: $registrationResult");
-      // switch (registrationResult) {
-      //   case Success(value: final user):
-      //     debugPrint(
-      //       "Privy auto-initialized after registration! User DID: ${user.id}",
-      //     );
-      //     if (user.embeddedEthereumWallets.isEmpty) {
-      //       final newEthereumWallet = await user.createEthereumWallet();
-      //       newEthereumWallet.fold(
-      //         onSuccess: (wallet) async {
-      //           final newWalletData = {
-      //             "user_id": userData?['userId'],
-      //             "wallet_address": userData?['userId'],
-      //             "user_id": userData?['userId'],
-      //           };
-      //           final result = await createNewCryptoWallet(newWalletData);
-      //         },
-      //         onFailure: (error) {
-      //           print("ERROR:: $error");
-      //         },
-      //       );
-      //     }
-      //     break;
-      //
-      //   case Failure(error: final err):
-      //     print("Privy auto-auth after registration failed: ${err.message}");
-      //     break;
-      // }
-      // final privyUser = await privy.getUser();
-      // if (privyUser != null && privyUser.embeddedEthereumWallets.isNotEmpty) {
-      //   debugPrint("Redirecting to dashboard. User Web3 ID: ${privyUser.id}");
-      //   debugPrint(
-      //     "Active Smart Wallet Address: ${privyUser.embeddedEthereumWallets.first.address}",
-      //   );
-      // } else {
-      //   debugPrint(
-      //     "Warning: App login cleared but Privy session initialization is pending or failed.",
-      //   );
-      // }
 
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
         Navigator.pushNamed(
           context,
           '/home',
-          arguments: {
-            'token': token,
-            'email': email,
-            'fullName': fullName,
-            'zentag': zentag,
-          },
+          arguments: {'token': token, 'email': email, 'fullName': fullName},
         );
       });
     } catch (e) {
@@ -173,10 +132,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Comment: Updated method signature to accept bool? to match Checkbox onChanged callback
+  void onCheckTermsAndConditions(bool? value) {
+    setState(() {
+      termsConsent = value ?? false;
+    });
+  }
+
   @override
   void dispose() {
+    // Comment: Disposing all controllers to prevent memory leaks
     _passwordController.dispose();
     _emailController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
@@ -184,234 +153,295 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 470;
     final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
-    final horizontalPadding = isTablet ? 40.0 : 24.0;
 
     return Scaffold(
       backgroundColor: AppColors.main,
       resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.main,
-              AppColors.main.withAlpha(133),
-              AppColors.main.withAlpha(144),
-            ],
-          ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Elegant logo
-                      Image.asset('images/home_page_image.jpg'),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Create Account",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isTablet ? 25 : 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                          letterSpacing: 0.5,
+      // Comment: LayoutBuilder dynamically measures screen constraints
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              // Comment: Ensures the content takes at least the full viewport height
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Comment: Spacer leaves space at the top above the white container
+                    const SizedBox(height: 40),
+                    Container(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      decoration: AppTheme.cardDecoration.copyWith(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
                         ),
                       ),
-
-                      // Welcome text
-                      Text(
-                        "Let's get you started!",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          color: AppColors.primary.withAlpha(204),
-                          fontWeight: FontWeight.w400,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15.0,
+                          vertical: 30.0,
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      // Elegant card container for form
-                      Container(
-                        width: maxWidth,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(242),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: AppTheme.elevatedShadow,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(isTablet ? 30 : 25),
-                          child: Column(
-                            spacing: 16,
-                            children: [
-                              AuthTextField(
-                                label: "First Name",
-                                isPassword: false,
-                                controller: _first_nameController,
-                                isLoading: isLoading,
-                              ),
-                              AuthTextField(
-                                label: "Last Name",
-                                isPassword: false,
-                                controller: _last_nameController,
-                                isLoading: isLoading,
-                              ),
-                              AuthTextField(
-                                label: "Email Address",
-                                isPassword: false,
-                                controller: _emailController,
-                                isLoading: isLoading,
-                              ),
-
-                              // Phone field (contact number)
-                              IntlPhoneField(
-                                enabled: !isLoading,
-                                dropdownDecoration: const BoxDecoration(
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(12),
-                                  ),
-                                ),
-                                decoration: InputDecoration(
-                                  counterText: '',
-                                  labelText: "Contact Number",
-                                  filled: true,
-                                  fillColor: AppColors.primary,
-                                  labelStyle: TextStyle(
-                                    color: AppColors.textBlack.withAlpha(153),
-                                    fontSize: 13,
-                                  ),
-                                  hintStyle: TextStyle(
-                                    color: AppColors.textBlack.withAlpha(102),
-                                    fontSize: 13,
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: AppColors.secondary.withAlpha(77),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: AppColors.secondary,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: AppColors.secondary.withAlpha(77),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                initialCountryCode: 'GH',
-                                onChanged: (phone) {
-                                  print(
-                                    "PHONE NUMBER:: ${phone.completeNumber}",
-                                  );
-                                  setState(() {
-                                    contactForm['phone_number'] =
-                                        phone.completeNumber;
-                                    _isPhoneValid = phone.isValidNumber();
-                                    contactForm['country_code'] =
-                                        phone.countryISOCode;
-                                  });
-                                },
-                              ),
-                              AuthTextField(
-                                label: "Password",
-                                isPassword: true,
-                                controller: _passwordController,
-                                isLoading: isLoading,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Elegant register button with gradient
-                      Material(
-                        color: Colors.transparent,
-                        child: GestureDetector(
-                          onTap: !isLoading ? register : null,
-                          child: Container(
-                            width: maxWidth,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: AppTheme.cardShadow,
-                            ),
-                            child: Center(
-                              child: isLoading
-                                  ? SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              AppColors.primary,
-                                            ),
-                                      ),
-                                    )
-                                  : Text(
-                                      "Create Account",
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "Create your",
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: isTablet ? 35 : 30,
                                         fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                        color: AppColors.textBlack,
                                         letterSpacing: 0.5,
                                       ),
                                     ),
+                                    const SizedBox(width: AppTheme.spacingSm),
+                                    Text(
+                                      "Zentrapay",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: isTablet ? 35 : 30,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.main,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  "Account",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: isTablet ? 35 : 30,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textBlack,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      // Footer links
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Already have an account? ",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.primary.withAlpha(204),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: isLoading
-                                ? null
-                                : () {
-                                    Navigator.pushNamed(context, '/login');
+                            Column(
+                              children: [
+                                const SizedBox(height: AppTheme.spacingMd),
+                                AuthTextField(
+                                  label: "First Name",
+                                  isPassword: false,
+                                  controller: _firstNameController,
+                                  isLoading: isLoading,
+                                ),
+                                const SizedBox(height: 16),
+                                AuthTextField(
+                                  label: "Last Name",
+                                  isPassword: false,
+                                  controller: _lastNameController,
+                                  isLoading: isLoading,
+                                ),
+                                const SizedBox(height: 16),
+                                AuthTextField(
+                                  label: "Email Address",
+                                  isPassword: false,
+                                  controller: _emailController,
+                                  isLoading: isLoading,
+                                ),
+                                const SizedBox(height: 16),
+                                // Phone field (contact number)
+                                IntlPhoneField(
+                                  enabled: !isLoading,
+                                  dropdownDecoration: const BoxDecoration(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(12),
+                                    ),
+                                  ),
+                                  decoration: InputDecoration(
+                                    counterText: '',
+                                    labelText: "Contact Number",
+                                    filled: true,
+                                    fillColor: AppColors.primary,
+                                    labelStyle: TextStyle(
+                                      color: AppColors.textBlack.withAlpha(153),
+                                      fontSize: 13,
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color: AppColors.textBlack.withAlpha(102),
+                                      fontSize: 13,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppColors.secondary.withAlpha(
+                                          77,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppColors.secondary,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppColors.secondary.withAlpha(
+                                          77,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                  initialCountryCode: 'GH',
+                                  onChanged: (phone) {
+                                    print(
+                                      "PHONE NUMBER:: ${phone.completeNumber}",
+                                    );
+                                    setState(() {
+                                      contactForm['phone_number'] =
+                                          phone.completeNumber;
+                                      _isPhoneValid = phone.isValidNumber();
+                                      contactForm['country_code'] =
+                                          phone.countryISOCode;
+                                    });
                                   },
-                            child: Text(
-                              "Sign In",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.secondary,
-                                fontWeight: FontWeight.bold,
+                                ),
+                                const SizedBox(height: 16),
+                                AuthTextField(
+                                  label: "Password",
+                                  isPassword: true,
+                                  controller: _passwordController,
+                                  isLoading: isLoading,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            Row(
+                              children: [
+                                // Comment: Properly bound Checkbox value to termsConsent state and onChanged handler
+                                Checkbox(
+                                  value: termsConsent,
+                                  onChanged: onCheckTermsAndConditions,
+                                ),
+                                const SizedBox(width: AppTheme.spacingSm),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      spacing: 15,
+                                      children: [
+                                        Text(
+                                          "I agree to the",
+                                          style: AppTheme.bodySmall,
+                                        ),
+                                        Text(
+                                          "Terms of Service",
+                                          style: AppTheme.bodySmall.copyWith(
+                                            color: AppTheme.primaryPink,
+                                          ),
+                                        ),
+                                        Text("and", style: AppTheme.bodySmall),
+                                      ],
+                                    ),
+                                    Text(
+                                      "Privacy Policy",
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppColors.main,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            // Elegant register button with gradient
+                            Material(
+                              color: Colors.transparent,
+                              child: GestureDetector(
+                                onTap: !isLoading ? register : null,
+                                child: Container(
+                                  width: maxWidth,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: AppTheme.cardShadow,
+                                  ),
+                                  child: Center(
+                                    child: isLoading
+                                        ? SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    AppColors.primary,
+                                                  ),
+                                            ),
+                                          )
+                                        : Text(
+                                            "Create Account",
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 24),
+                            // Footer links
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Already have an account? ",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textBlack.withAlpha(204),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: isLoading
+                                      ? null
+                                      : () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/login',
+                                          );
+                                        },
+                                  child: Text(
+                                    "Sign In",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.secondary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

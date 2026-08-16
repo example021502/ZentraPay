@@ -9,8 +9,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Canonical fiat wallet — consolidates the old fiat_currency_accounts /
- * fiat_currencies / user_wallets (x2 conflicting mappings).
+ * Canonical mapping of {@code linked_funding_sources} (V1__init_schema.sql) —
+ * a user's linked bank / mobile-money accounts. Previously this entity pointed
+ * at a {@code funding_sources} table that never existed in the Flyway schema
+ * and was missing the {@code user_id} column the real table requires.
  */
 @Entity
 @Data

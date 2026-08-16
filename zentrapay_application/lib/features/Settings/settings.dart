@@ -26,14 +26,18 @@ class _SettingsState extends State<Settings> {
     {"name": "Account", "icon": Icons.person_2_outlined},
     {"name": "Notifications", "icon": Icons.notifications_outlined},
     {"name": "Support", "icon": Icons.support_agent_outlined},
-    {"name": "Logout", "icon": Icons.exit_to_app_outlined},
-    {"name": "Delete Account", "icon": Icons.delete_outlined},
   ];
 
   // Feedback buttons list for user reporting and feedback
   static const List<Map<String, dynamic>> _feedbackButtons = [
     {"name": "Report a bug", "icon": Icons.warning_amber_outlined},
     {"name": "Send feedback", "icon": Icons.send_outlined},
+  ];
+
+  // Danger zone buttons list for deleting account and logging out
+  static const List<Map<String, dynamic>> _dangerZoneButtons = [
+    {"name": "Logout", "icon": Icons.exit_to_app_outlined},
+    {"name": "Delete Account", "icon": Icons.delete_outlined},
   ];
 
   bool biometricEnabled = false;
@@ -129,19 +133,22 @@ class _SettingsState extends State<Settings> {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppTheme.gray50,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Security Score half-ring gauge meter at the top
+          _buildSecurityScore(),
+          const SizedBox(height: AppTheme.spacingXl),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.gray50,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Padding(
               padding: const EdgeInsets.all(15.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Security Score half-ring gauge meter at the top
-                  _buildSecurityScore(),
-                  const SizedBox(height: 40),
                   const SizedBox(height: AppTheme.spacingMd),
                   // General Settings Section
                   _buildListSection(context, "GENERAL", _generalButtons),
@@ -151,12 +158,15 @@ class _SettingsState extends State<Settings> {
                   const SizedBox(height: 40),
                   // Feedback and Reporting Section
                   _buildListSection(context, "FEEDBACK", _feedbackButtons),
+                  const SizedBox(height: 40),
+                  // Danger zone Section
+                  _buildListSection(context, "DANGER ZONE", _dangerZoneButtons),
                   const SizedBox(height: 100),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -244,84 +254,79 @@ class _SettingsState extends State<Settings> {
 
   // Horizontal expanding half-circular gauge meter for security score
   Widget _buildSecurityScore() {
-    return Container(
-      decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
-      ).copyWith(gradient: AppTheme.secondaryGradient),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 30.0, horizontal: 20),
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double height = MediaQuery.of(context).size.height * 0.16;
-              final double width = MediaQuery.of(context).size.width * 0.65;
-              final int score = (securityScorePercent * 100).toInt();
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: width,
-                    height: height,
-                    child: CustomPaint(
-                      painter: HalfCircleGaugePainter(
-                        progress: securityScorePercent,
-                        backgroundColor: AppColors.primary.withAlpha(80),
-                        valueColor: score < 20
-                            ? AppColors.main
-                            : score < 50
-                            ? AppColors.orange
-                            : AppColors.green,
-                        strokeWidth: 25,
-                      ),
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: height * 0.2),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: score < 20
-                                      ? AppColors.main
-                                      : score < 50
-                                      ? AppColors.orange
-                                      : AppColors.green,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.lock,
-                                  size: 22,
-                                  color: AppColors.primary,
-                                ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 10),
+      child: Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double height = MediaQuery.of(context).size.height * 0.16;
+            final double width = MediaQuery.of(context).size.width * 0.65;
+            final int score = (securityScorePercent * 100).toInt();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: width,
+                  height: height,
+                  child: CustomPaint(
+                    painter: HalfCircleGaugePainter(
+                      progress: securityScorePercent,
+                      backgroundColor: AppColors.primary.withAlpha(80),
+                      valueColor: score < 20
+                          ? AppColors.main
+                          : score < 50
+                          ? AppColors.orange
+                          : AppColors.green,
+                      strokeWidth: 25,
+                    ),
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: height * 0.2),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: score < 20
+                                    ? AppColors.main
+                                    : score < 50
+                                    ? AppColors.orange
+                                    : AppColors.green,
+                                shape: BoxShape.circle,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "$score%",
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryWhite,
-                                ),
+                              child: const Icon(
+                                Icons.lock,
+                                size: 22,
+                                color: AppColors.primary,
                               ),
-                              const Text(
-                                "Protected",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "$score%",
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryWhite,
                               ),
-                            ],
-                          ),
+                            ),
+                            const Text(
+                              "Protected",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -510,8 +515,8 @@ class HalfCircleGaugePainter extends CustomPainter {
 
     // Bounding rect for the arc (180 degrees semicircle)
     final rect = Rect.fromLTWH(
-      strokeWidth / 2,
-      strokeWidth / 2,
+      strokeWidth / 3,
+      strokeWidth / 3,
       size.width - strokeWidth,
       size.height * 2 - strokeWidth,
     );

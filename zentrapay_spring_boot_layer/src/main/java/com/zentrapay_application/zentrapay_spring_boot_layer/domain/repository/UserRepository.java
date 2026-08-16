@@ -1,6 +1,8 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.UserDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,21 +12,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<UserModel, UUID> {
-
-    // Resolves a login identifier (either email or phone number). The derived method
-    // name "findByEmailOrPhoneNumber" cannot be reliably parsed by Spring Data, so an
-    // explicit query is used.
+//    get user country code for fetching supported currencies for user's country
+    @Query("SELECT u.countryCode FROM UserModel u WHERE u.userId = :userId")
+    Optional<String> getCountryCodeByUserId(@Param("userId") UUID userId);
+//    check if user exist in the database by email or phone number for loging in
     @Query("SELECT u FROM UserModel u WHERE u.email = :email OR u.phoneNumber = :phoneNumber")
-    Optional<UserModel> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
-
-
+    Optional<UserDTO> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
+//    checking if the email exist for account creation
     boolean existsByEmail(String email);
-
+//    checking if phone number exist for account creation
     boolean existsByPhoneNumber(String phoneNumber);
 
     //  getting the sender details ======
     @Query("SELECT u FROM UserModel u WHERE u.userId = :userId")
-    Optional<UserModel> getUserById(@Param("userId") UUID userId);
+    Optional<UserSearchDTO> getUserById(@Param("userId") UUID userId);
 
     //  getting the users matched contacts
     @Query("""
@@ -37,7 +38,7 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
             )
             AND u.countryCode = :countryCode
             """)
-    List<UserModel> searchByQueryAndCountryCode(
+    List<UserSearchDTO> searchByQueryAndCountryCode(
             @Param("query") String query,
             @Param("countryCode") String countryCode
     );

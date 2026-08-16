@@ -11,7 +11,7 @@ public record usersAuthResponse(
         String token,
         UUID userId,
         String email,
-        String fullName,
-        String zentag
+        String firstName,
+        String lastName
 ) {
 }

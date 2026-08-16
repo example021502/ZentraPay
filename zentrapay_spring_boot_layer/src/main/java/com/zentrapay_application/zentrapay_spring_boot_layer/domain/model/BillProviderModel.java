@@ -16,7 +16,6 @@ import java.util.UUID;
  * Canonical mapping of {@code bill_providers} (V1__init_schema.sql). Single entity for
  * this table — the old codebase had a second, near-duplicate mapping under
  * searchContacts.model.SearchBillProvidersModel; that class has been removed and
- * searchContacts now reuses this one via {@link com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.repository.BillProviderRepository}.
  */
 @Entity
 @Data

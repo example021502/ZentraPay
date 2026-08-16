@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
@@ -22,12 +24,11 @@ class HomeHeader extends StatefulWidget {
 class _HomeHeaderState extends State<HomeHeader> {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
-      ).copyWith(gradient: AppTheme.secondaryGradient),
+    // Wrapping the header in a padding and Stack to create the layered wallet visual effect
+    return SizedBox(
+      width: MediaQuery.of(context).size.width,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20),
+        padding: const EdgeInsets.all(15.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,19 +96,19 @@ class _HomeHeaderState extends State<HomeHeader> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: AppColors.secondary.withAlpha(15),
+      color: AppColors.primary,
       borderRadius: BorderRadius.circular(200),
       child: InkWell(
         borderRadius: BorderRadius.circular(200),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha(20),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(200),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Icon(icon, color: AppColors.primary, size: 22),
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(icon, color: AppColors.main, size: 22),
           ),
         ),
       ),
@@ -117,27 +118,27 @@ class _HomeHeaderState extends State<HomeHeader> {
 
 /// A unified view of either a fiat or a crypto wallet, just enough to drive
 /// the tab UI below regardless of which snapshot list it came from.
-class _WalletTabData {
+class _WalletAccountData {
   final String name;
   final String currencyCode;
-  final String balance;
+  final Double balance;
 
-  _WalletTabData({
+  _WalletAccountData({
     required this.name,
     required this.currencyCode,
     required this.balance,
   });
 
-  factory _WalletTabData.fromFiat(FiatWallet w) => _WalletTabData(
-    name: w.walletName,
-    currencyCode: w.currencyCode,
-    balance: w.balance,
+  factory _WalletAccountData.fromFiat(FiatAccount a) => _WalletAccountData(
+    name: a.accountName,
+    currencyCode: a.currencyCode,
+    balance: a.balance as Double,
   );
 
-  factory _WalletTabData.fromCrypto(CryptoWalletSummary w) => _WalletTabData(
-    name: w.network ?? w.currencyCode,
-    currencyCode: w.currencyCode,
-    balance: w.balance,
+  factory _WalletAccountData.fromCrypto(CryptoAccount c) => _WalletAccountData(
+    name: c.network ?? c.currencyCode,
+    currencyCode: c.currencyCode,
+    balance: c.balance as Double,
   );
 }
 
@@ -174,10 +175,10 @@ class TabsContainerState extends State<TabsContainer>
         final repo = WalletsRepository.instance;
 
         if (repo.isLoading && !repo.isLoaded) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: CircularProgressIndicator(color: AppColors.main),
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: CircularProgressIndicator(color: AppColors.secondary),
             ),
           );
         }
@@ -208,43 +209,52 @@ class TabsContainerState extends State<TabsContainer>
                   ),
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      // Fetch supported currencies for the empty state creation button
-                      final List<SupportedCurrencies> currencies =
-                          await WalletsRepository.instance
-                              .getSupportedCurrencies();
-                      print("The currencies received are:: $currencies");
-                      if (!context.mounted) return;
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      try {
+                        // Fetch supported currencies for the empty state creation button
+                        final List<SupportedCurrencies> currencies =
+                            await WalletsRepository.instance
+                                .getSupportedCurrencies();
+                        print("The currencies received are:: $currencies");
+                        if (!context.mounted) return;
 
-                      showDialog<void>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (BuildContext context) => CustomInputDialog(
-                          type: widget.id == "fiat" ? "Fiat" : "Crypto",
-                          currencies: currencies,
+                        showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) => CustomInputDialog(
+                            type: widget.id == "fiat" ? "Fiat" : "Crypto",
+                            currencies: currencies,
+                          ),
+                        );
+                      } catch (e) {
+                        print("ERROR:: $e");
+                        ZentraNotifier.warning(
+                          "Warning",
+                          "Something went wrong, try again!",
+                        );
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(200),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10.0,
+                          horizontal: 15.0,
                         ),
-                      );
-                    } catch (e) {
-                      print("ERROR:: $e");
-                      ZentraNotifier.warning(
-                        "Warning",
-                        "Something went wrong, try again!",
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.textBlack,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                        child: Text(
+                          "Create Wallet",
+                          style: AppStyles.text.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    "Create Wallet",
-                    style: AppStyles.text.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -370,7 +380,7 @@ class TabsContainerState extends State<TabsContainer>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: active ? AppColors.primary.withAlpha(50) : Colors.transparent,
-          width: 1,
+          width: 2,
         ),
       ),
       child: Padding(

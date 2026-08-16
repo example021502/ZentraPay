@@ -29,19 +29,35 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.gray50,
+    final bool isTablet = MediaQuery.of(context).size.width > 470;
+    final double maxWidth = isTablet ? 400 : MediaQuery.of(context).size.width;
+    return SizedBox(
+      width: maxWidth,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
+        scrollDirection: Axis.vertical,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 20,
           children: [
             _buildHeader(context),
-            _buildQuickActions(context),
-            _buildAccountOptionsSection(context),
-            _buildAiInsights(context),
-            const SizedBox(height: 80),
+            const SizedBox(height: AppTheme.spacingMd),
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.gray50,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 20,
+                  children: [
+                    _buildQuickActions(context),
+                    _buildAccountOptionsSection(context),
+                    _buildAiInsights(context),
+                    const SizedBox(height: 80),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -53,182 +69,133 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // ============================================================
 
   Widget _buildHeader(BuildContext context) {
-    final bool isTablet = MediaQuery.of(context).size.width > 470;
-    final headerWidth = isTablet ? 400.0 : double.infinity;
-    return Container(
-      decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
-      ).copyWith(gradient: AppTheme.secondaryGradient),
-      width: headerWidth,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Digital savings & micro-loans",
+            style: TextStyle(color: AppTheme.primaryWhite, fontSize: 14),
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          ConstrainedBox(
+            constraints: AppTheme.constraintsXs(context),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text("ZBank Lite", style: AppTheme.whiteHeadline),
-                Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.call_received_outlined,
-                          size: 22.0,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingLg),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.call_made_outlined,
-                          size: 22.0,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            AppTheme.divider(context, AppTheme.primaryWhite),
-            Text(
-              "Digital savings & micro-loans",
-              style: TextStyle(color: AppTheme.primaryWhite, fontSize: 14),
-            ),
-            const SizedBox(height: AppTheme.spacingMd),
-            ConstrainedBox(
-              constraints: AppTheme.constraintsXs(context),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ListenableBuilder(
-                    listenable: SavingsRepository.instance,
-                    builder: (context, _) {
-                      final repo = SavingsRepository.instance;
-                      final accounts = repo.data;
-                      if (_balanceHidden) {
-                        return const Text(
-                          "•••••",
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }
-                      if (accounts == null && repo.isLoading) {
-                        return const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        );
-                      }
-                      if (accounts == null && repo.error != null) {
-                        return Text(
-                          "-- GHS",
-                          style: TextStyle(
-                            color: AppColors.primary.withAlpha(180),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }
-                      final total = (accounts ?? []).fold<double>(
-                        0,
-                        (sum, a) => sum + a.balance.toAmount(),
-                      );
-                      return Text(
-                        formatMoney(total.toStringAsFixed(2), symbol: 'GHS '),
+                ListenableBuilder(
+                  listenable: SavingsRepository.instance,
+                  builder: (context, _) {
+                    final repo = SavingsRepository.instance;
+                    final accounts = repo.data;
+                    if (_balanceHidden) {
+                      return const Text(
+                        "•••••",
                         style: TextStyle(
                           color: AppColors.primary,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       );
-                    },
-                  ),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _balanceHidden = !_balanceHidden),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          _balanceHidden
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          size: 22,
+                    }
+                    if (accounts == null && repo.isLoading) {
+                      return const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
                           color: AppColors.primary,
                         ),
+                      );
+                    }
+                    if (accounts == null && repo.error != null) {
+                      return Text(
+                        "-- GHS",
+                        style: TextStyle(
+                          color: AppColors.primary.withAlpha(180),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    }
+                    final total = (accounts ?? []).fold<double>(
+                      0,
+                      (sum, a) => sum + a.balance.toAmount(),
+                    );
+                    return Text(
+                      formatMoney(total.toStringAsFixed(2), symbol: 'GHS '),
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _balanceHidden = !_balanceHidden),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(20),
+                      borderRadius: BorderRadius.circular(200),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Icon(
+                        _balanceHidden
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        size: 22,
+                        color: AppColors.primary,
                       ),
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          ConstrainedBox(
+            constraints: AppTheme.constraintsXs(context),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(20),
+                borderRadius: BorderRadius.circular(200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 4.0,
+                  horizontal: 10.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      "primary",
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w200,
+                      ),
+                    ),
+                    AppTheme.dot(AppColors.primary),
+                    Text(
+                      "active",
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w200,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
-            ConstrainedBox(
-              constraints: AppTheme.constraintsXs(context),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(20),
-                  borderRadius: BorderRadius.circular(200),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 4.0,
-                    horizontal: 10.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        "primary",
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w200,
-                        ),
-                      ),
-                      AppTheme.dot(AppColors.primary),
-                      Text(
-                        "active",
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w200,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

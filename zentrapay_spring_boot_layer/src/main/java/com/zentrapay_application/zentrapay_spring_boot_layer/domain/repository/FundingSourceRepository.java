@@ -1,6 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LinkedFundingSource;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.FundingSourceSearchDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,7 +23,7 @@ public interface FundingSourceRepository extends JpaRepository<LinkedFundingSour
             )
             AND f.countryCode = :countryCode AND f.sourceId IN (:sourceIds)
             """)
-    List<LinkedFundingSource> searchByQueryCountryCodeAndSourceIds(
+    List<FundingSourceSearchDTO> searchByQueryCountryCodeAndSourceIds(
             @Param("query") String query,
             @Param("countryCode") String countryCode,
             @Param("sourceIds") List<UUID> sourceIds

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/repositories/profile_repository.dart';
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -95,19 +95,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final snapshot = await WalletsRepository.instance.ensureLoaded();
-      final fiatWallets = snapshot?.fiatWallets ?? [];
-      if (fiatWallets.isNotEmpty) {
+      final fiatAccounts = snapshot?.fiatAccounts ?? [];
+      if (fiatAccounts.isNotEmpty) {
         setState(() {
-          wallets = fiatWallets
+          accounts = fiatAccounts
               .map(
-                (w) => {
-                  'type': w.walletName,
-                  'balance': formatMoney(w.balance),
-                  'currency': w.currencyCode,
-                  'accountNumber':
-                      '${userProfileData['handle']}.${w.currencyCode}@zentrapay',
-                  'ledgerId': w.walletId,
-                  'status': w.status,
+                (a) => {
+                  'type': a.accountName,
+                  'balance': a.balance,
+                  'currency': a.currencyCode,
+                  'accountNumber': a.zentag,
+                  'ledgerId': a.accountId,
+                  'status': a.status,
                 },
               )
               .toList();
@@ -146,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   };
 
   // Placeholder default; replaced with real fiat balances in _loadProfile().
-  List<Map<String, dynamic>> wallets = [
+  List<Map<String, dynamic>> accounts = [
     {
       'type': 'GHS Primary Wallet',
       'balance': '4,500.50',
@@ -437,7 +436,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500)),
+          Text(
+            label,
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+          ),
           Flexible(
             child: Text(
               value,
@@ -566,7 +568,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Icon(icon, color: AppTheme.gray700, size: 24),
         ),
         const SizedBox(height: AppTheme.spacingXs),
-        Text(label, style: AppTheme.labelSmall.copyWith(color: AppTheme.gray500)),
+        Text(
+          label,
+          style: AppTheme.labelSmall.copyWith(color: AppTheme.gray500),
+        ),
       ],
     );
   }
@@ -691,7 +696,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Linked Settlement Accounts", style: AppTheme.headlineSmall),
+          const Text(
+            "Linked Settlement Accounts",
+            style: AppTheme.headlineSmall,
+          ),
           const SizedBox(height: AppTheme.spacingMd),
           ...bankAccounts.map((account) => _buildBankCard(account)),
         ],

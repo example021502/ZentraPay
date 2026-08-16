@@ -27,24 +27,32 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppTheme.gray50,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
-        child: Column(
-          // Ensure column takes minimum vertical space to avoid unbounded layout conflicts
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ZRemitHeader(),
-            const SizedBox(height: 15),
-            _buildHeroCard(),
-            const SizedBox(height: 20),
-            // Wrapped form widget ensuring it doesn't contain unconstrained inner widgets
-            const ZRemitForm(),
-            const SizedBox(height: 100),
-          ],
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: Column(
+        children: [
+          const ZRemitHeader(),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.gray50,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeroCard(),
+                  const SizedBox(height: 20),
+                  // Wrapped form widget ensuring it doesn't contain unconstrained inner widgets
+                  const ZRemitForm(),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

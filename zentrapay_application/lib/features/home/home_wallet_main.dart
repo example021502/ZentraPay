@@ -4,6 +4,7 @@ import 'package:zentrapay_application/core/repositories/cards_repository.dart';
 import 'package:zentrapay_application/core/repositories/providers_repository.dart';
 import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/hero_sheet_scaffold.dart';
 
 import 'home_cards_carousel.dart';
 import 'home_header.dart';
@@ -42,119 +43,100 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
+    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
 
-    return SingleChildScrollView(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height,
-        ),
-        child: Container(
-          decoration: BoxDecoration(color: AppTheme.gray50),
-          width: MediaQuery.of(context).size.width,
-          child: Padding(
-            padding: EdgeInsets.all(15.0),
-            child: Column(
-              spacing: 12,
-              children: [
-                HomeHeader(
-                  key: ValueKey("fiat_balances"),
-                  title: "You wallet balances",
-                  id: "fiat",
-                ),
-                SizedBox(height: AppTheme.spacingSm),
-                _buildContent(isTablet),
-              ],
-            ),
-          ),
+    return HeroSheetScaffold(
+      header: SizedBox(
+        width: maxWidth,
+        child: const HomeHeader(
+          key: ValueKey("fiat_balances"),
+          title: "You wallet balances",
+          id: "fiat",
         ),
       ),
+      body: _buildContent(isTablet),
     );
   }
 
   Widget _buildContent(bool isTablet) {
-    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
+    return Column(
+      children: [
+        const HomeQuickActions(),
+        SizedBox(height: AppTheme.spacingMd),
 
-    return SizedBox(
-      width: maxWidth,
-      child: Column(
-        children: [
-          const HomeQuickActions(),
-          SizedBox(height: AppTheme.spacingMd),
-
-          ListenableBuilder(
-            listenable: CardsRepository.instance,
-            builder: (context, _) => HomeCardsCarousel(
-              cards: (CardsRepository.instance.data ?? [])
-                  .map(
-                    (c) => {
-                      'cardId': c.cardId,
-                      'cardName': c.brand,
-                      'type': c.cardType,
-                      'last4': c.last4,
-                      'expiry':
-                          '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
-                      'status': c.status,
-                    },
-                  )
-                  .toList(),
-            ),
+        ListenableBuilder(
+          listenable: CardsRepository.instance,
+          builder: (context, _) => HomeCardsCarousel(
+            cards: (CardsRepository.instance.data ?? [])
+                .map(
+                  (c) => {
+                    'cardId': c.cardId,
+                    'cardName': c.brand,
+                    'type': c.cardType,
+                    'last4': c.last4,
+                    'expiry':
+                        '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
+                    'status': c.status,
+                  },
+                )
+                .toList(),
           ),
-          ListenableBuilder(
-            listenable: Listenable.merge([
-              BillProvidersRepository.instance,
-              ServiceProvidersRepository.instance,
-            ]),
-            builder: (context, _) => HomeServicesGrid(
-              services: (ServiceProvidersRepository.instance.data ?? [])
-                  .map(
-                    (p) => {
-                      'providerName': p.providerName,
-                      'logoUrl': p.logoUrl ?? '',
-                      'category': p.categoryCode,
-                    },
-                  )
-                  .toList(),
-              bills: (BillProvidersRepository.instance.data ?? [])
-                  .map(
-                    (p) => {
-                      'billerName': p.billerName,
-                      'logoUrl': p.logoUrl ?? '',
-                      'category': p.categoryCode,
-                    },
-                  )
-                  .toList(),
-            ),
+        ),
+        ListenableBuilder(
+          listenable: Listenable.merge([
+            BillProvidersRepository.instance,
+            ServiceProvidersRepository.instance,
+          ]),
+          builder: (context, _) => HomeServicesGrid(
+            services: (ServiceProvidersRepository.instance.data ?? [])
+                .map(
+                  (p) => {
+                    'providerName': p.providerName,
+                    'logoUrl': p.logoUrl ?? '',
+                    'category': p.categoryCode,
+                  },
+                )
+                .toList(),
+            bills: (BillProvidersRepository.instance.data ?? [])
+                .map(
+                  (p) => {
+                    'billerName': p.billerName,
+                    'logoUrl': p.logoUrl ?? '',
+                    'category': p.categoryCode,
+                  },
+                )
+                .toList(),
           ),
-          SizedBox(height: AppTheme.spacingSm),
+        ),
+        SizedBox(height: AppTheme.spacingSm),
 
-          ListenableBuilder(
-            listenable: TransactionsRepository.instance,
-            builder: (context, _) => HomeTransactions(
-              history: TransactionsRepository.instance.items
-                  .map(
-                    (t) => {
-                      'title': t.counterpartyName ?? t.typeCode,
-                      'time': t.createdAt,
-                      'amount': formatMoney(
-                        t.amount,
-                        symbol: '${t.currencyCode} ',
-                      ),
-                      'icon': _creditTypes.contains(t.typeCode)
-                          ? Icons.arrow_downward
-                          : Icons.arrow_upward,
-                      'type': t.typeCode,
-                    },
-                  )
-                  .toList(),
-            ),
+        ListenableBuilder(
+          listenable: TransactionsRepository.instance,
+          builder: (context, _) => HomeTransactions(
+            history: TransactionsRepository.instance.items
+                .map(
+                  (t) => {
+                    'title': t.counterpartyName ?? t.typeCode,
+                    'time': t.createdAt,
+                    'amount': formatMoney(
+                      t.amount,
+                      symbol: '${t.currencyCode} ',
+                    ),
+                    'icon': _creditTypes.contains(t.typeCode)
+                        ? Icons.arrow_downward
+                        : Icons.arrow_upward,
+                    'type': t.typeCode,
+                  },
+                )
+                .toList(),
           ),
-          SizedBox(height: AppTheme.spacingSm),
+        ),
+        SizedBox(height: AppTheme.spacingSm),
 
-          const SizedBox(
-            height: 120,
-          ), // Space for floating bottom nav on mobile
-        ],
-      ),
+        const SizedBox(
+          height: 120,
+        ), // Space for floating bottom nav on mobile
+      ],
     );
   }
 }

@@ -11,106 +11,96 @@ class ZGrowHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
-      ).copyWith(gradient: AppTheme.secondaryGradient),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width,
+    // Wrap the card container in a Stack to allow absolute positioning of elements on top
+    return Stack(
+      children: [
+        // Main container holding the card contents and gradient decoration
+        Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Build Your Future, One Tap at a Time",
+                style: AppTheme.headlineMedium.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
-              child: Row(
+              AppTheme.divider(context, AppTheme.primaryWhite),
+              Text(
+                "Your Overall Savings",
+                style: AppTheme.labelSmall.copyWith(color: AppColors.primary),
+              ),
+              const SizedBox(height: 5),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      "Build Your Future, One Tap at a Time",
-                      style: AppTheme.headlineMedium.copyWith(
-                        color: AppColors.primary,
-                      ),
+                  Text(
+                    "GHS $savings",
+                    style: AppTheme.headlineLarge.copyWith(
+                      color: AppColors.primary,
                     ),
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
-                      borderRadius: BorderRadius.circular(200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Icon(
-                        Icons.trending_up_outlined,
-                        size: 40,
-                        color: AppColors.primary.withAlpha(80),
-                      ),
-                    ),
+                  Icon(
+                    Icons.visibility_off,
+                    size: 22,
+                    color: AppColors.primary,
                   ),
                 ],
               ),
-            ),
-
-            AppTheme.divider(context, AppTheme.primaryWhite),
-            Text(
-              "Your Overall Savings",
-              style: AppTheme.labelSmall.copyWith(color: AppColors.primary),
-            ),
-            const SizedBox(height: 5),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "GHS $savings",
-                  style: AppTheme.headlineLarge.copyWith(
-                    color: AppColors.primary,
-                  ),
+              const SizedBox(height: AppTheme.spacingMd),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(200),
                 ),
-                Icon(Icons.visibility_off, size: 22, color: AppColors.primary),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingMd),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(200),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8.0, 5.0, 15.0, 5.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8.0, 5.0, 15.0, 5.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(200),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Icon(
+                            Icons.arrow_downward,
+                            size: 22,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.arrow_downward,
-                          size: 22,
+                      const SizedBox(width: AppTheme.spacingSm),
+                      Text(
+                        "Save Now",
+                        style: AppTheme.labelSmall.copyWith(
                           color: AppColors.primary,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Text(
-                      "Save Now",
-                      style: AppTheme.labelSmall.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        // Positioned trending icon stacked at the bottom right corner with light white color
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Icon(
+            Icons.trending_up,
+            size: 56, // Large decorative size
+            color: AppColors.primary.withAlpha(
+              60,
+            ), // Light white color with transparency
+          ),
+        ),
+      ],
     );
   }
 }

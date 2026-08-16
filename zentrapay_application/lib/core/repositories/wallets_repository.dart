@@ -9,50 +9,53 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 /// making a transfer that changes the sender's balance) call
 /// [applyDelta]/[upsertFiatWallet] instead of forcing every listener to
 /// refetch.
-class WalletsRepository extends CachedResource<WalletsSnapshot> {
+class WalletsRepository extends CachedResource<WalletsAccountsSnapshot> {
   WalletsRepository._();
   static final WalletsRepository instance = WalletsRepository._();
 
   final Dio _dio = ApiClient().dio;
 
   @override
-  Future<WalletsSnapshot> fetch() async {
-    final response = await _dio.get('/api/wallets');
-    return WalletsSnapshot.fromJson(response.data['data']);
+  Future<WalletsAccountsSnapshot> fetch() async {
+    final response = await _dio.get('/api/wallet/balances');
+    return WalletsAccountsSnapshot.fromJson(response.data['data']);
   }
 
-  void upsertFiatWallet(FiatWallet wallet) {
-    applyDelta((current) => current.withUpsertedFiatWallet(wallet));
+  void upsertFiatWallet(FiatAccount account) {
+    applyDelta((current) => current.withUpsertedFiatWallet(account));
   }
 
-  Future<FiatWallet> createFiatWallet({
-    required String walletName,
+  Future<FiatAccount> createFiatAccount({
+    required String accountName,
     required String currencyCode,
     String? countryCode,
   }) async {
     final response = await _dio.post(
-      '/api/wallets/fiat',
+      '/api/wallet/newFiat',
       data: {
-        'walletName': walletName,
+        'walletName': accountName,
         'currencyCode': currencyCode,
         'countryCode': ?countryCode,
       },
     );
-    final wallet = FiatWallet.fromJson(response.data['data']);
-    upsertFiatWallet(wallet);
-    return wallet;
+    final account = FiatAccount.fromJson(response.data['data']);
+    upsertFiatWallet(account);
+    return account;
   }
 
-  FiatWallet? get defaultWallet {
-    final wallets = data?.fiatWallets ?? [];
-    if (wallets.isEmpty) return null;
-    return wallets.firstWhere((w) => w.isDefault, orElse: () => wallets.first);
+  FiatAccount? get defaultWallet {
+    final accounts = data?.fiatAccounts ?? [];
+    if (accounts.isEmpty) return null;
+    return accounts.firstWhere(
+      (a) => a.isDefault,
+      orElse: () => accounts.first,
+    );
   }
 
   // GETTING ALL THE SUPPORTED CURRENCIES
   Future<List<SupportedCurrencies>> getSupportedCurrencies() async {
     // Execute the POST request to fetch all supported currency options
-    final response = await _dio.post('/api/wallets/supportedCurrencies');
+    final response = await _dio.post('/api/wallet/supportedCurrencies');
 
     // Safely extract the list from the response payload and map each element
     final List<dynamic> rawList = (response.data['data']) ?? [];

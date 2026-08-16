@@ -1,3 +1,5 @@
+// Comment: Fully corrected LoginScreen code with proper child property and safe scrolling behavior
+
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/auth/login_form.dart';
@@ -8,79 +10,50 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Comment: Determine if the device width corresponds to a tablet layout
     final isTablet = MediaQuery.of(context).size.width >= 470;
     final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
-    final horizontalPadding = isTablet ? 40.0 : 24.0;
 
     return Scaffold(
       backgroundColor: AppColors.main,
       resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.main,
-              AppColors.main.withAlpha(217),
-              AppColors.main.withAlpha(230),
-            ],
-          ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Elegant logo container with shadow
-                      Image.asset('images/home_page_image.jpg'),
-                      const SizedBox(height: 10),
-                      // Welcome text with elegant styling
-                      Text(
-                        "Welcome Back",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isTablet ? 25 : 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                          letterSpacing: 0.5,
+      // Comment: LayoutBuilder retrieves available screen height dynamically
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Comment: Image asset placed in upper flexible area
+                    Image.asset("images/loginPage.png"),
+                    // Comment: Bottom container holding the login form
+                    Container(
+                      width: maxWidth,
+                      decoration: AppTheme.cardDecoration.copyWith(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Sign in to continue",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          color: AppColors.primary.withAlpha(204),
-                          fontWeight: FontWeight.w400,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 15.0,
+                          vertical: 30.0,
                         ),
+                        // Comment: Fixed syntax by properly assigning child property
+                        child: LoginForm(),
                       ),
-                      const SizedBox(height: 40),
-                      // Elegant card container for form
-                      Container(
-                        width: maxWidth,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: AppTheme.elevatedShadow,
-                        ),
-                        child: const LoginForm(),
-                      ),
-                      const SizedBox(height: 30),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

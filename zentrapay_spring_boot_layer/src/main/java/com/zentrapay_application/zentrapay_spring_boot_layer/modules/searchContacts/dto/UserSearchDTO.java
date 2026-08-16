@@ -6,7 +6,6 @@ import java.util.UUID;
 public record UserSearchDTO(
 UUID userId,
 String countryCode,
-String country,
 String email,
 String firstName,
 String lastName,

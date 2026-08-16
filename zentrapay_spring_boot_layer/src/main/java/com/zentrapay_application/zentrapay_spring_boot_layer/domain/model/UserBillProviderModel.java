@@ -3,9 +3,13 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,16 +23,16 @@ import java.util.UUID;
 public class UserBillProviderModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "user_bill_provider_id", nullable = false, unique = true)
+    @Column(name = "user_bill_provider_id", nullable = false)
     private UUID userBillProviderId;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
 
     @Column(name = "provider_id", nullable = false)
     private UUID providerId;
 
-    @Column(name = "account_reference", nullable = false, length = 120)
+    @Column(name = "account_reference", nullable = false)
     private String accountReference;
 
     @CreationTimestamp
@@ -38,5 +42,6 @@ public class UserBillProviderModel {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
 
 }
