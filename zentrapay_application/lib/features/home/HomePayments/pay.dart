@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
@@ -12,8 +13,7 @@ import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
-
-import '../../../core/utils/Common/GenerateTransactionId.dart';
+import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 
 class PaySectionMain extends StatefulWidget {
   const PaySectionMain({super.key});
@@ -27,6 +27,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
   ContactSearchResult _searchResult = ContactSearchResult.empty();
   bool isSearching = false;
   Timer? _debounceTimer;
+  bool _payInFlight = false;
 
   List<AppTransaction> get _recentPayments => TransactionsRepository
       .instance
@@ -63,7 +64,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
   @override
   void initState() {
     super.initState();
-    TransactionsRepository.instance.ensureLoaded();
+    TransactionsRepository.instance.ensureLoaded().catchError((_) {});
   }
 
   @override
@@ -73,89 +74,140 @@ class _PaySectionMainState extends State<PaySectionMain> {
     super.dispose();
   }
 
-  Future<void> _startPaymentFlow(Map<String, dynamic> recipientDetails) async {
-    final amount = await showDialog<Map<String, dynamic>>(
+  /// Runs the full pay-a-contact flow: amount entry -> PIN confirmation ->
+  /// POST /api/payments, in the {pin, sender, recipient, destination}
+  /// shape the backend expects.
+  Future<void> _payUser(SearchAppUser recipient) async {
+    if (_payInFlight) return;
+
+    final sender = _searchResult.senderDetails;
+
+    // Which of the recipient's currency accounts the money lands in: the
+    // one matching the sender's own currency (search-contacts already
+    // scopes appUsers to the sender's own country, so this is a same-
+    // country wallet-to-wallet move — it can only land in a currency the
+    // sender actually holds), falling back to the recipient's default
+    // account if there's no exact match.
+    AccountZentagOption? destination;
+    if (recipient.fiatAccounts.isNotEmpty) {
+      final currencyMatch = recipient.fiatAccounts
+          .where((a) => a.currencyCode == sender.currency)
+          .toList();
+      destination = currencyMatch.isNotEmpty
+          ? currencyMatch.first
+          : recipient.defaultAccount;
+    }
+
+    if (destination == null) {
+      ZentraNotifier.error(
+        "Can't Send",
+        "${recipient.fullName} doesn't have an account associate with that currency yet, change currency and try again.",
+      );
+      return;
+    }
+    // Local non-nullable binding: `destination` itself stays a captured,
+    // reassignable variable, which the analyzer won't promote across the
+    // closures below even after the null check above.
+    final AccountZentagOption resolvedDestination = destination;
+
+    final amountResult = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => EnterAmount(
-        recipient:
-            recipientDetails["fullName"] ??
-            "${recipientDetails["firstName"]} ${recipientDetails["lastName"]}",
+      builder: (context) => EnterAmount(
+        recipient: recipient.fullName,
+        fixedCurrencyCode: resolvedDestination.currencyCode,
+        fixedCurrencyFlag: extractCountryIsoCode(
+          resolvedDestination.currencyCode,
+        ),
       ),
     );
-    if (amount == null || !mounted) return;
+    if (amountResult == null || !mounted) return;
 
-    if (!mounted) return;
-
-    final String pin = await showModalBottomSheet(
+    final pin = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       isDismissible: false,
       backgroundColor: Colors.transparent,
-      builder: (BuildContext context) => AppConfirmPinSheet(
-        name:
-            recipientDetails['fullName'] ??
-            "${recipientDetails['firstName']} ${recipientDetails['lastName']}",
-        currencyCode: amount['currencyCode'],
-        amount: amount['amount'],
+      builder: (context) => AppConfirmPinSheet(
+        name: recipient.fullName,
+        currencyCode: amountResult['currencyCode'],
+        amount: amountResult['amount'],
+        destination: resolvedDestination.zentag,
       ),
     );
-
-    final txnRef = generateTxnRef();
-    print("THE TXN_REF IS:: $txnRef");
-
-    final sender = _searchResult.senderDetails;
-    final userType = recipientDetails['userType'];
-    final isAppUser = userType == "app-user";
-    final isFundingSource = userType == "funding-source";
-    final isBillProvider = userType == "bill-provider";
-
-    final isCrossBorder =
-        sender.countryCode.toLowerCase() ==
-        recipientDetails["countryCode"].toString().toLowerCase();
+    if (pin == null || pin.isEmpty || !mounted) return;
 
     final payload = {
-      "TXN_REF": txnRef,
       "pin": pin,
-      "isCrossBorder": isCrossBorder,
-      "senderDetails": {
-        "sender_id": sender.userId,
-        "name": "${sender.firstName} ${sender.lastName}",
-        "email": sender.email,
-        "phone_number": sender.phoneNumber,
-        "country_code": sender.countryCode,
-        "user_type": sender.userType,
-        "zentag": sender.zentag,
-        "source_type": "WALLET",
-      },
-      "recipient": {
-        "recipientId": recipientDetails['recipientId'],
-        "recipientName": isAppUser
-            ? "${recipientDetails["firstName"]} ${recipientDetails["lastName"]}"
-            : isFundingSource
-            ? recipientDetails["accountName"]
-            : isBillProvider
-            ? recipientDetails["providerName"]
-            : "Unknown",
-        "identifier": isAppUser
-            ? recipientDetails["zentag"]
-            : isFundingSource
-            ? recipientDetails["accountIdentifier"]
-            : isBillProvider
-            ? recipientDetails["billerCode"]
-            : "Unknown",
-        "type": recipientDetails['userType'],
-      },
-      "amountDetails": {
-        "currency_code": amount['currencyCode'],
-        "tax": 0.00,
-        "fee": 0.00,
-        "discount": 0.00,
-        "total_amount": amount['amount'],
+      "sender": sender.toJson(),
+      "recipient": recipient.toJson(),
+      "destination": {
+        "accountId": resolvedDestination.accountId,
+        "currencyCode": resolvedDestination.currencyCode,
+        "amount": amountResult['amount'],
       },
     };
 
-    final response = await PaymentsService.payment(payload: payload);
+    setState(() => _payInFlight = true);
+    try {
+      await PaymentsService.payment(payload: payload);
+      if (!mounted) return;
+      ZentraNotifier.success(
+        "Payment Sent",
+        "${amountResult['currencyCode']} ${amountResult['amount']} sent to ${recipient.fullName}.",
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ZentraNotifier.error("Payment Failed", _extractErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _payInFlight = false);
+    }
+  }
+
+  String _extractErrorMessage(Object e) {
+    if (e is DioException && e.response?.data is Map) {
+      final data = e.response!.data as Map;
+      if (data['message'] is String && (data['message'] as String).isNotEmpty) {
+        return data['message'];
+      }
+    }
+    return "Something went wrong. Please try again.";
+  }
+
+  /// Recent Payments only carries the counterparty's name/identifier (a
+  /// zentag), not their full searchable profile — re-search for them so the
+  /// same flow (with a live, current-balance account list) can run again.
+  Future<void> _payRecentTransaction(AppTransaction transaction) async {
+    final identifier = transaction.counterpartyIdentifier;
+    if (identifier == null || identifier.isEmpty) {
+      ZentraNotifier.error(
+        "Can't Send",
+        "Could not find this contact anymore.",
+      );
+      return;
+    }
+    try {
+      final result = await SearchRepository.search(identifier);
+      final match = result.appUsers.where(
+        (u) => u.fiatAccounts.any((a) => a.zentag == identifier),
+      );
+      if (match.isEmpty || !mounted) {
+        if (mounted) {
+          ZentraNotifier.error(
+            "Can't Send",
+            "Could not find this contact anymore.",
+          );
+        }
+        return;
+      }
+      await _payUser(match.first);
+    } catch (e) {
+      if (!mounted) return;
+      ZentraNotifier.error(
+        "Can't Send",
+        "Could not find this contact anymore.",
+      );
+    }
   }
 
   @override
@@ -229,6 +281,16 @@ class _PaySectionMainState extends State<PaySectionMain> {
                             ),
                             const SizedBox(width: AppTheme.spacingSm),
                             Text("Send Money", style: AppTheme.headlineSmall),
+                            if (_payInFlight) ...[
+                              const SizedBox(width: AppTheme.spacingSm),
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: AppTheme.spacingLg),
@@ -237,8 +299,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
                           isSearching: isSearching,
                           searchResult: _searchResult,
                           onChanged: _onSearchChanged,
-                          onSelectUser: (user) =>
-                              _startPaymentFlow(user as Map<String, dynamic>),
+                          onSelectUser: _payUser,
                           onSelectBillProvider: (_) => ZentraNotifier.error(
                             "Not Supported",
                             "Paying bill providers from here is not yet supported.",
@@ -259,14 +320,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
                   ),
                   RecentPaymentsList(
                     recentPayments: _recentPayments,
-                    onSelectTransaction: (transaction) {
-                      final displayName =
-                          transaction.counterpartyName ?? "Unknown";
-                      final identifier = transaction.counterpartyIdentifier;
-                      final isZentag = identifier?.contains('@') ?? false;
-
-                      _startPaymentFlow(transaction as Map<String, dynamic>);
-                    },
+                    onSelectTransaction: _payRecentTransaction,
                   ),
                   const SizedBox(height: 100),
                 ],

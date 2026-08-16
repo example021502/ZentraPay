@@ -143,7 +143,12 @@ public class UsersService {
             cryptoAccount.setWalletId(cryptoWallet.getWalletId());
             cryptoAccount.setNetwork("unknown");
             cryptoAccount.setCurrencyCode("Unknown");
-            cryptoAccount.setWalletAddress("Unknown");
+            // accounts.wallet_address has a UNIQUE (network, wallet_address) constraint —
+            // a literal "Unknown" placeholder collided on every registration after the
+            // first, blocking all new signups. Crypto isn't wired to a real chain yet
+            // (see crypto_wallets table comment), so keep this a unique placeholder per
+            // user until that lands.
+            cryptoAccount.setWalletAddress("pending-" + user.getUserId());
             cryptoAccount.setBalance(BigDecimal.ZERO);
             cryptoAccount.setIsDefault(true);
             cryptoAccount.setStatus("active");

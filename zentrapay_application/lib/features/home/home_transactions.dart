@@ -13,54 +13,43 @@ class HomeTransactions extends StatelessWidget {
     // Only exists once there's real transaction history to show.
     if (history.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionTitle(
-              title: "Recent Activities",
-              trailing: TextButton(
-                onPressed: () {
-                  // TODO: Navigate to the full transaction history screen
-                },
-                child: const Text("View All"),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingMd),
-            SizedBox(
-              height: 250,
-              child: ListView.builder(
-                scrollDirection: Axis.vertical,
-                itemCount: history.length,
-                itemBuilder: (BuildContext context, int i) {
-                  final item = history[i];
-                  final title = item["title"] ?? "Transaction";
-                  final time = item["time"] ?? "Today";
-                  final amount = item["amount"] ?? "GHS 0.00";
-                  final icon = item["icon"] ?? Icons.receipt_long;
-                  final type = item["type"] ?? "payment";
-                  return TransactionListItem(
-                    icon: icon,
-                    title: title,
-                    subtitle: time,
-                    amount: amount,
-                    onTap: () => _showTransactionDetails(
-                      context,
-                      title,
-                      time,
-                      amount,
-                      type,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionTitle(
+          title: "Recent Activities",
+          trailing: TextButton(
+            onPressed: () {
+              // TODO: Navigate to the full transaction history screen
+            },
+            child: const Text("View All"),
+          ),
         ),
-      ),
+        const SizedBox(height: AppTheme.spacingMd),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: 300),
+          child: ListView.builder(
+            scrollDirection: Axis.vertical,
+            itemCount: history.length,
+            itemBuilder: (BuildContext context, int i) {
+              final item = history[i];
+              final title = item["title"] ?? "Transaction";
+              final time = item["time"] ?? "Today";
+              final amount = item["amount"] ?? "GHS 0.00";
+              final icon = item["icon"] ?? Icons.receipt_long;
+              final type = item["type"] ?? "payment";
+              return TransactionListItem(
+                icon: icon,
+                title: title,
+                subtitle: time,
+                amount: amount,
+                onTap: () =>
+                    _showTransactionDetails(context, title, time, amount, type),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

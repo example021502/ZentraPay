@@ -73,6 +73,17 @@ public class Transaction {
     @Column(name = "failure_reason", columnDefinition = "TEXT")
     private String failureReason;
 
+    // Comment: legacy columns still physically on the table (left over from
+    // an older entity mapping) with a NOT NULL constraint and no default —
+    // an insert that doesn't set these fails, even though currency_code/
+    // type_code above are the real source of truth. Kept in sync with those
+    // at write time; nothing reads these two independently.
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+
+    @Column(name = "transaction_type", nullable = false, length = 50)
+    private String transactionType;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

@@ -53,6 +53,7 @@ dependencies:
   privy_flutter: ^0.10.0
   fl_chart: ^0.70.2
   provider: ^6.1.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

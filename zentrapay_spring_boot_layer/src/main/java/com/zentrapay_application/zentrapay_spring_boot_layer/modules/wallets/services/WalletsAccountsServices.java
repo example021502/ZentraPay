@@ -4,6 +4,7 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Crypto
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CryptoWalletModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatAccountModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatWalletModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dtos.*;
 import lombok.RequiredArgsConstructor;
@@ -73,10 +74,19 @@ public class WalletsAccountsServices {
             throw new IllegalArgumentException("Account for that currency already exist!");
         }
 
+        final UserModel user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Something went wrong. User missing!"));
+
         FiatAccountModel account = new FiatAccountModel();
         account.setWalletId(wallet.getWalletId());
         account.setAccountName(req.accountName());
         account.setCurrencyCode(req.currencyCode());
+        // Comment: same zentag shape as the default account minted at registration
+        // (UsersService.register) — one unique zentag per currency account, not
+        // per user, so a sender can pay into a specific currency of a recipient's
+        // wallet. Naturally unique: phone number is unique per user and a wallet
+        // can only ever hold one account per currency (checked just above).
+        account.setZentag(user.getPhoneNumber() + "_" + req.currencyCode() + "@zentrapay");
         account.setBalance(BigDecimal.ZERO);
         account.setDefault(false);
         account.setStatus("active");
@@ -96,15 +106,15 @@ public class WalletsAccountsServices {
 
     @Transactional(readOnly = true)
     public List<SupportedCurrencyDTO> getSupportedCurrencies(UUID userId) {
-       final String countryCode = userRepository.getCountryCodeByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Something went wrong. User missing!"));
 
-        final List<String> currencyCodes = supportedCurrenciesRepository.getCurrencyCodesByCountryCode(countryCode);
+        final FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId);
+        final List<String> userCurrencyAccountsCurrencies = fiatAccountRepository.getAccountsCurrenciesByWalletId(wallet.getWalletId());
+        final List<String> currencyCodes = supportedCurrenciesRepository.getCurrencyCodes(userCurrencyAccountsCurrencies);
+        System.out.println("THE CURRENCY CODE FETCHED IS:: " + userCurrencyAccountsCurrencies);
         return currencyRepository.getCurrenciesByCurrencyCodes(currencyCodes).stream()
                 .map(currency -> new SupportedCurrencyDTO(
                         currency.getCurrencyCode(),
                         currency.getCurrencyName(),
-                        countryCode,
                         currency.getDecimalPlaces()
                 ))
                 .toList();

@@ -7,8 +7,10 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 /**
- * Canonical mapping of the {@code countries} reference table
- * (V1__init_schema.sql). ISO 3166-1 alpha-2 country code is the natural key.
+ * Canonical mapping of the {@code countries} reference table as it actually
+ * exists in the live database (country_code, country_name, region only —
+ * NOT the wider V1__init_schema.sql draft, which was never applied here;
+ * this app connects with ddl-auto=validate against the real table below).
  */
 @Entity
 @Data

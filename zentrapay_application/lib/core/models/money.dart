@@ -7,12 +7,22 @@ extension MoneyParsing on String? {
 }
 
 String formatMoney(String amount, {String symbol = ''}) {
+  // Comment: a sign carried by the source string ("+25.00"/"-25.00", the
+  // transactions API's credit/debit convention) must land as the very
+  // first character of the result — AmountText/TransactionListItem detect
+  // credit vs. debit by checking startsWith('+') on this exact string, so
+  // "GHS -25.00" (sign after the currency symbol) would silently defeat
+  // that check. Plain unsigned amounts (the common case elsewhere in the
+  // app) are unaffected — no sign is added unless the source explicitly had one.
+  final isExplicitCredit = amount.trim().startsWith('+');
   final value = amount.toAmount();
-  final fixed = value.toStringAsFixed(2);
+  final isNegative = value < 0;
+  final fixed = value.abs().toStringAsFixed(2);
   final parts = fixed.split('.');
   final whole = parts[0].replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
     (m) => ',',
   );
-  return '$symbol$whole.${parts[1]}';
+  final sign = isExplicitCredit ? '+' : (isNegative ? '-' : '');
+  return '$sign$symbol$whole.${parts[1]}';
 }

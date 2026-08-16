@@ -13,7 +13,6 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dt
 public record SupportedCurrencyDTO(
         String currencyCode,
         String currencyName,
-        String countryCode,
         int decimalDigits
 ) {
 }

@@ -1,43 +1,76 @@
 import 'package:country_flags/country_flags.dart';
 import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart'; // Ensure intl dependency is in pubspec.yaml
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/custom_keypad.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 
 import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 
+/// Bottom-anchored amount-entry overlay, driven entirely by [CustomKeypad]
+/// (no system keyboard ever appears) — matches the PIN confirmation sheet
+/// that follows it. Pops a {"amount": "12.50", "currencyCode": "GHS"} map,
+/// or null if dismissed.
 class EnterAmount extends StatefulWidget {
-  const EnterAmount({super.key, required this.recipient});
+  const EnterAmount({
+    super.key,
+    required this.recipient,
+    this.fixedCurrencyCode,
+    this.fixedCurrencyFlag,
+  });
 
   final String recipient;
+
+  /// When set, the currency is locked to this code and the currency picker
+  /// is disabled — used by the pay-a-contact flow, where the currency is
+  /// dictated by which of the recipient's accounts money is landing in, not
+  /// a free choice. When null (other callers), the currency picker behaves
+  /// as before.
+  final String? fixedCurrencyCode;
+  final String? fixedCurrencyFlag;
 
   @override
   State<EnterAmount> createState() => _EnterAmountState();
 }
 
 class _EnterAmountState extends State<EnterAmount> {
-  // Controller to handle the amount text input
-  final TextEditingController _amountController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  // Digits typed so far, treated as a continuous stream of cents (same
+  // convention the old DecimalTextInputFormatter used) — "1234" -> "12.34".
+  String _digits = '';
 
-  @override
-  void initState() {
-    super.initState();
-    // Initialize with a default zeroed currency state string layout
-    _amountController.text = "0.00";
+  late String currency_code = widget.fixedCurrencyCode ?? "GHS";
+  late String country_flag = widget.fixedCurrencyFlag ?? "GH";
+
+  bool get _isLocked => widget.fixedCurrencyCode != null;
+
+  String get _formattedAmount {
+    final padded = _digits.padLeft(3, '0');
+    final whole = padded.substring(0, padded.length - 2);
+    final cents = padded.substring(padded.length - 2);
+    final trimmedWhole = whole.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    return "$trimmedWhole.$cents";
   }
 
-  @override
-  void dispose() {
-    _amountController.dispose();
-    _focusNode.dispose();
-    super.dispose();
+  void _onDigit(String digit) {
+    if (_digits.length >= 12) return; // sane upper bound
+    setState(() => _digits += digit);
   }
 
-  String currency_code = "GHS";
-  String country_flag = "GH";
+  void _onDelete() {
+    if (_digits.isEmpty) return;
+    setState(() => _digits = _digits.substring(0, _digits.length - 1));
+  }
+
+  void _confirm() {
+    if (_digits.isEmpty || double.parse(_formattedAmount) <= 0) {
+      ZentraNotifier.error("Value Missing", "Please Enter Amount!");
+      return;
+    }
+    Navigator.of(context).pop({
+      "amount": _formattedAmount,
+      "currencyCode": currency_code,
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,242 +81,168 @@ class _EnterAmountState extends State<EnterAmount> {
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       child: Align(
-        alignment: Alignment.center,
+        alignment: Alignment.bottomCenter,
         child: Material(
           color: Colors.transparent,
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.5,
-            ),
-            width: MediaQuery.of(context).size.width * 0.95,
-            decoration: AppTheme.cardDecoration,
-            // 1. Wrap the core container body inside a Stack
-            child: Stack(
-              children: [
-                // 2. The scrollable content layer (padded to prevent content from going behind the close button)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: 25,
-                    bottom: AppTheme.spacingLg,
-                    left: AppTheme.spacingLg,
-                    right: AppTheme.spacingLg,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (widget.recipient != '')
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            // Clean edge alignment
-                            leading: Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: AppTheme.secondaryNavy.withValues(
-                                  alpha: 0.08,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusFull,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.person,
-                                size: 30,
-                                color: AppTheme.secondaryNavy,
-                              ),
-                            ),
-                            title: Text(
-                              "Send To: ${widget.recipient}",
-                              style: AppTheme.headlineSmall,
-                            ),
-                            subtitle: Text(
-                              "Confirm Amount below and Send",
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.gray500,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: AppTheme.spacingSm),
-                        const Text("Enter Amount", style: AppTheme.headlineSmall),
-                        const SizedBox(height: AppTheme.spacingLg),
-                        TextField(
-                          controller: _amountController,
-                          focusNode: _focusNode,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 30,
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            DecimalTextInputFormatter(),
-                          ],
-                          decoration: InputDecoration(
-                            hintText: "0.00",
-                            hintStyle: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 30,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusMd,
-                              ),
-                              borderSide: const BorderSide(
-                                color: AppTheme.gray300,
-                                width: 1.0,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusXl,
-                              ),
-                              borderSide: const BorderSide(
-                                color: AppTheme.secondaryNavy,
-                                width: 1.5,
-                              ),
-                            ),
-                            prefixIcon: GestureDetector(
-                              onTap: () => showCurrencyPicker(
-                                context: context,
-                                showFlag: true,
-                                showCurrencyName: true,
-                                showCurrencyCode: true,
-                                onSelect: (Currency currency) {
-                                  String isoCode = extractCountryIsoCode(
+          child: SafeArea(
+            top: false,
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingLg,
+                vertical: AppTheme.spacingLg,
+              ),
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryWhite,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppTheme.radiusXxl),
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4.5,
+                        margin: const EdgeInsets.only(
+                          bottom: AppTheme.spacingMd,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.gray300,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    if (widget.recipient != '') ...[
+                      Text(
+                        "Send To",
+                        textAlign: TextAlign.center,
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppTheme.gray500,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingXs),
+                      Text(
+                        widget.recipient,
+                        textAlign: TextAlign.center,
+                        style: AppTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: AppTheme.spacingLg),
+                    ],
+                    GestureDetector(
+                      onTap: _isLocked
+                          ? null
+                          : () => showCurrencyPicker(
+                              context: context,
+                              showFlag: true,
+                              showCurrencyName: true,
+                              showCurrencyCode: true,
+                              onSelect: (Currency currency) {
+                                setState(() {
+                                  currency_code = currency.code;
+                                  country_flag = extractCountryIsoCode(
                                     currency.code,
                                   );
-                                  setState(() {
-                                    currency_code = currency.code;
-                                    country_flag = isoCode;
-                                  });
-                                },
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: 10,
-                                children: [
-                                  const SizedBox(width: 2),
-                                  const Icon(Icons.arrow_drop_down),
-                                  CountryFlag.fromCountryCode(
-                                    country_flag,
-                                    shape: const Circle(),
-                                    height: 24,
-                                    width: 24,
-                                  ),
-                                  Text(
-                                    currency_code,
-                                    style: AppTheme.labelLarge.copyWith(
-                                      color: AppTheme.gray500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppTheme.spacingLg),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.secondaryNavy,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusMd,
-                              ),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusMd,
-                              ),
-                              onTap: () {
-                                final String finalAmount = _amountController
-                                    .text
-                                    .trim();
-                                if (finalAmount == "" ||
-                                    finalAmount == "0.00") {
-                                  return ZentraNotifier.error(
-                                    "Value Missing",
-                                    "Please Enter Amount!",
-                                  );
-                                }
-                                Navigator.of(context).pop({
-                                  "amount": finalAmount,
-                                  "currency_code": currency_code,
                                 });
                               },
-                              child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Center(
-                                  child: Text(
-                                    "Confirm",
-                                    style: AppTheme.headlineSmall.copyWith(
-                                      color: AppTheme.primaryWhite,
-                                    ),
-                                  ),
+                            ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CountryFlag.fromCountryCode(
+                            country_flag,
+                            shape: const Circle(),
+                            height: 20,
+                            width: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            currency_code,
+                            style: AppTheme.labelLarge.copyWith(
+                              color: AppTheme.gray500,
+                            ),
+                          ),
+                          if (!_isLocked) ...[
+                            const SizedBox(width: 2),
+                            const Icon(
+                              Icons.arrow_drop_down,
+                              color: AppTheme.gray500,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacingSm),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _formattedAmount,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 40,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacingLg),
+                    CustomKeypad(onDigitPress: _onDigit, onDelete: _onDelete),
+                    const SizedBox(height: AppTheme.spacingLg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryNavy,
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMd,
+                          ),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMd,
+                          ),
+                          onTap: _confirm,
+                          child: const Padding(
+                            padding: EdgeInsets.all(14.0),
+                            child: Center(
+                              child: Text(
+                                "Confirm",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryWhite,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-
-                // 3. Floating Close Button Layer anchored to the Top-Right Corner
-                Positioned(
-                  top: 15,
-                  right: 15,
-                  child: FloatingActionButton.small(
-                    // .small keeps it clean & compact
-                    onPressed: () {
-                      Navigator.of(context).pop(null);
-                    },
-                    backgroundColor: AppTheme.primaryWhite,
-                    elevation: 2,
-                    shape: const CircleBorder(),
-                    child: const Icon(
-                      Icons.close,
-                      color: AppTheme.primaryPink,
-                      size: 18,
+                    const SizedBox(height: AppTheme.spacingSm),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(null),
+                        child: Text(
+                          "Cancel",
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.gray500,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-// Custom Formatter that treats entries as a continuous stream of cents shifted right by 2 decimals
-class DecimalTextInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) {
-      return newValue.copyWith(
-        text: "0.00",
-        selection: const TextSelection.collapsed(offset: 4),
-      );
-    }
-
-    // Parse incoming values to a double representation of absolute cents
-    double value = double.parse(newValue.text);
-
-    // Divide by 100 to shift the integer rightward into decimal fractions
-    final formatter = NumberFormat("0.00", "en_US");
-    String newText = formatter.format(value / 100);
-
-    return newValue.copyWith(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newText.length),
     );
   }
 }

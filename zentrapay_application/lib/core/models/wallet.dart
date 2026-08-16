@@ -55,12 +55,15 @@ class SupportedCurrencies {
   });
 
   /// Factory constructor to parse a single JSON map into a SupportedCurrencies instance.
+  // Comment: backend's SupportedCurrencyDTO has no separate currencyId — the
+  // currency code doubles as the id — and its flag-country field is named
+  // "countryCode", not "countryIsoCode".
   factory SupportedCurrencies.fromJson(Map<String, dynamic> json) =>
       SupportedCurrencies(
-        currencyId: json['currencyId'] ?? '',
+        currencyId: json['currencyId'] ?? json['currencyCode'] ?? '',
         currencyCode: json['currencyCode'] ?? '',
         currencyName: json['currencyName'],
-        countryIsoCode: json['countryIsoCode'] ?? '',
+        countryIsoCode: json['countryCode'] ?? json['countryIsoCode'] ?? '',
         decimalDigits: json['decimalDigits'] ?? 2,
       );
 }

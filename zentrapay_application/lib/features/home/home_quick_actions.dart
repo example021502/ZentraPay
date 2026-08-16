@@ -168,12 +168,12 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
             onTap: () => _onNFCAction(context),
           ),
           QuickActionButton(
-            icon: Icons.send,
+            icon: Icons.arrow_upward_outlined,
             label: "Send",
             onTap: () => _onPayAction(context),
           ),
           QuickActionButton(
-            icon: Icons.account_balance,
+            icon: Icons.arrow_downward_outlined,
             label: "Receive",
             onTap: () => _onReceiveAction(context),
           ),

@@ -1,17 +1,24 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:zentrapay_application/core/models/wallet.dart';
+import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/main.dart';
 
-/// The Home "Receive" quick action: shows the current user's zentag, a QR
-/// payload (rendered as a placeholder glyph — no `qr_flutter` dependency in
-/// this project yet, so the payload is copyable/shareable as text instead of
-/// a scannable image), and their linked bank accounts, all sourced from
-/// `GET /api/users/me/receive` in one call.
+/// The Home "Receive" quick action: one card per fiat currency account the
+/// user owns, each carrying its own zentag (accounts, not users, are the
+/// payable identity now — see WalletsRepository). The default account's QR
+/// is shown open; every other account is collapsed behind a show/hide
+/// button but still shows its name/currency/zentag. The QR itself is built
+/// and rendered entirely on-device from the account's own zentag — nothing
+/// image-shaped is fetched from the backend.
+///
+/// Sourced from [WalletsRepository]'s existing cache — the sheet doesn't
+/// hit the network on its own, it just reads whatever Home already loaded
+/// (and triggers a load if nothing has fetched yet).
 class ReceiveSheet extends StatefulWidget {
   const ReceiveSheet({super.key});
 
@@ -33,33 +40,25 @@ class ReceiveSheet extends StatefulWidget {
 }
 
 class _ReceiveSheetState extends State<ReceiveSheet> {
-  static final Dio _dio = ApiClient().dio;
-
-  Map<String, dynamic>? _info;
-  bool _isLoading = true;
-  String? _error;
+  /// accountId -> whether a non-default account's QR is currently shown.
+  final Set<String> _expanded = {};
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WalletsRepository.instance.ensureLoaded();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      final response = await _dio.get('/api/users/me/receive');
-      if (!mounted) return;
-      setState(() => _info = response.data['data']);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = "Could not load your receive details.");
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  /// The payload a sender's scanner reads — enough to resolve exactly which
+  /// currency account to pay into without a name-search round trip.
+  String _qrPayload(FiatAccount account) =>
+      'zentrapay://pay?zentag=${Uri.encodeComponent(account.zentag)}'
+      '&currency=${Uri.encodeComponent(account.currencyCode)}'
+      '&accountId=${Uri.encodeComponent(account.accountId)}';
+
+  void _copy(String value, String label) {
+    Clipboard.setData(ClipboardData(text: value));
+    ZentraNotifier.success("Copied", "$label copied to clipboard.");
   }
 
   @override
@@ -93,119 +92,164 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.main),
-      );
-    }
-    if (_error != null || _info == null) {
-      return EmptyStateWidget(
-        icon: Icons.error_outline,
-        message: _error ?? "Something went wrong.",
-        actionLabel: "Retry",
-        onAction: _load,
-      );
-    }
+    return ListenableBuilder(
+      listenable: WalletsRepository.instance,
+      builder: (context, _) {
+        final repo = WalletsRepository.instance;
 
-    final zentag = _info!['zentag'] ?? '';
-    final fullName = _info!['fullName'] ?? '';
-    final qrPayload = _info!['qrPayload'] ?? '';
-    final linkedAccounts =
-        (_info!['linkedAccounts'] as List?)?.cast<Map<String, dynamic>>() ??
-        const [];
+        if (repo.isLoading && !repo.isLoaded) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.main),
+          );
+        }
+        if (repo.error != null && !repo.isLoaded) {
+          return EmptyStateWidget(
+            icon: Icons.error_outline,
+            message: "Could not load your accounts.",
+            actionLabel: "Retry",
+            onAction: () => repo.ensureLoaded(forceRefresh: true),
+          );
+        }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            decoration: AppTheme.cardDecoration,
-            child: Column(
-              children: [
-                Text(fullName, style: AppTheme.titleLarge),
-                const SizedBox(height: AppTheme.spacingXs),
-                Text(
-                  "@$zentag",
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: AppTheme.gray500,
-                  ),
-                ),
+        final accounts = [...repo.data?.fiatAccounts ?? []];
+        if (accounts.isEmpty) {
+          return const EmptyStateWidget(
+            icon: Icons.account_balance_wallet_outlined,
+            message: "No currency accounts yet — create a wallet first.",
+          );
+        }
+
+        // Default account leads the list; the rest keep their fetch order.
+        accounts.sort((a, b) {
+          if (a.isDefault == b.isDefault) return 0;
+          return a.isDefault ? -1 : 1;
+        });
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final account in accounts) ...[
+                _buildAccountCard(account),
                 const SizedBox(height: AppTheme.spacingLg),
-                Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: AppTheme.gray50,
-                    border: Border.all(color: AppTheme.gray300, width: 1.5),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  ),
-                  child: const Icon(
-                    Icons.qr_code_2,
-                    size: 150,
-                    color: AppTheme.textBlack,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingMd),
-                TextButton.icon(
-                  onPressed: () => _copy(qrPayload, "Receive link"),
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text("Copy Receive Link"),
-                ),
-                TextButton.icon(
-                  onPressed: () => _copy(zentag, "Zentag"),
-                  icon: const Icon(Icons.alternate_email, size: 18),
-                  label: const Text("Copy Zentag"),
-                ),
               ],
-            ),
+              const SizedBox(height: AppTheme.spacingXl),
+            ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Text("Linked Bank Accounts", style: AppTheme.headlineSmall),
-          const SizedBox(height: AppTheme.spacingMd),
-          if (linkedAccounts.isEmpty)
-            const AppCard(
-              child: EmptyStateWidget(
-                icon: Icons.account_balance_outlined,
-                message: "No bank accounts linked yet.",
-              ),
-            )
-          else
-            ...linkedAccounts.map(
-              (a) => Container(
-                margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
-                child: AppCard(
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.secondary.withAlpha(20),
-                      child: const Icon(
-                        Icons.account_balance,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                    title: Text(a['sourceName'] ?? ''),
-                    subtitle: Text(a['accountIdentifier'] ?? ''),
-                    trailing: (a['verified'] == true)
-                        ? const Icon(
-                            Icons.verified,
-                            color: AppTheme.successGreen,
-                            size: 20,
-                          )
-                        : null,
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: AppTheme.spacingXl),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _copy(String value, String label) {
-    Clipboard.setData(ClipboardData(text: value));
-    ZentraNotifier.success("Copied", "$label copied to clipboard.");
+  Widget _buildAccountCard(FiatAccount account) {
+    final showQr = account.isDefault || _expanded.contains(account.accountId);
+
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            account.accountName,
+                            style: AppTheme.titleLarge,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (account.isDefault) ...[
+                          const SizedBox(width: AppTheme.spacingXs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.main.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusFull,
+                              ),
+                            ),
+                            child: const Text(
+                              "Default",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.main,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacingXs),
+                    Text(
+                      "${account.currencyCode} · @${account.zentag}",
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.gray500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!account.isDefault)
+                TextButton.icon(
+                  onPressed: () => setState(() {
+                    if (showQr) {
+                      _expanded.remove(account.accountId);
+                    } else {
+                      _expanded.add(account.accountId);
+                    }
+                  }),
+                  icon: Icon(
+                    showQr ? Icons.visibility_off : Icons.qr_code_2,
+                    size: 18,
+                  ),
+                  label: Text(showQr ? "Hide QR" : "Show QR"),
+                ),
+            ],
+          ),
+          if (showQr) ...[
+            const SizedBox(height: AppTheme.spacingLg),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingMd),
+              decoration: BoxDecoration(
+                color: AppTheme.gray50,
+                border: Border.all(color: AppTheme.gray300, width: 1.5),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: QrImageView(
+                data: _qrPayload(account),
+                version: QrVersions.auto,
+                size: 180,
+                backgroundColor: AppTheme.gray50,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: AppTheme.textBlack,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: AppTheme.textBlack,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingSm),
+            TextButton.icon(
+              onPressed: () => _copy(account.zentag, "Zentag"),
+              icon: const Icon(Icons.alternate_email, size: 18),
+              label: const Text("Copy Zentag"),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

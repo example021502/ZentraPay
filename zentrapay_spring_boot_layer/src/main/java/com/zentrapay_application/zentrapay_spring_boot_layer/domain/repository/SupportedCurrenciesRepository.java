@@ -14,7 +14,7 @@ public interface SupportedCurrenciesRepository extends JpaRepository<SupportedCu
     String getCurrencyCodeByCountryCode(@Param("countryCode") String countryCode);
 
     // GETTING THE CURRENCY CODE FOR DEFAULT WALLET CREATION
-    @Query("SELECT cu.currencyCode FROM SupportedCurrenciesModel cu WHERE cu.countryCode = :countryCode")
-    List<String> getCurrencyCodesByCountryCode(@Param("countryCode") String countryCode);
+    @Query("SELECT cu.currencyCode FROM SupportedCurrenciesModel cu WHERE cu.currencyCode NOT IN (:userCurrencyAccountsCurrencies)")
+    List<String> getCurrencyCodes(@Param("userCurrencyAccountsCurrencies") List<String> userCurrencyAccountsCurrencies);
 
 }
