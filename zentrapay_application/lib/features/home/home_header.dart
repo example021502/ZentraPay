@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
@@ -121,7 +119,7 @@ class _HomeHeaderState extends State<HomeHeader> {
 class _WalletAccountData {
   final String name;
   final String currencyCode;
-  final Double balance;
+  final String balance;
 
   _WalletAccountData({
     required this.name,
@@ -132,13 +130,13 @@ class _WalletAccountData {
   factory _WalletAccountData.fromFiat(FiatAccount a) => _WalletAccountData(
     name: a.accountName,
     currencyCode: a.currencyCode,
-    balance: a.balance as Double,
+    balance: a.balance.toStringAsFixed(2),
   );
 
   factory _WalletAccountData.fromCrypto(CryptoAccount c) => _WalletAccountData(
-    name: c.network ?? c.currencyCode,
+    name: c.network.isNotEmpty ? c.network : c.currencyCode,
     currencyCode: c.currencyCode,
-    balance: c.balance as Double,
+    balance: c.balance,
   );
 }
 
@@ -185,11 +183,11 @@ class TabsContainerState extends State<TabsContainer>
 
         final snapshot = repo.data;
         final walletData = widget.id == "fiat"
-            ? (snapshot?.fiatWallets ?? [])
-                  .map(_WalletTabData.fromFiat)
+            ? (snapshot?.fiatAccounts ?? [])
+                  .map(_WalletAccountData.fromFiat)
                   .toList()
-            : (snapshot?.cryptoWallets ?? [])
-                  .map(_WalletTabData.fromCrypto)
+            : (snapshot?.cryptoAccounts ?? [])
+                  .map(_WalletAccountData.fromCrypto)
                   .toList();
 
         if (walletData.isEmpty) {

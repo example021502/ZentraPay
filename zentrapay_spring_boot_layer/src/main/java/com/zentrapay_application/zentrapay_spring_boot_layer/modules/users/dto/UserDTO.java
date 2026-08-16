@@ -12,7 +12,6 @@ public record UserDTO(
         String lastName,
         String email,
         String phoneNumber,
-        String zentag,
         String passwordHash
 ) {
 }

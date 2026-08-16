@@ -1,4 +1,4 @@
-// Comment: Fully corrected LoginScreen code with proper child property and safe scrolling behavior
+// Comment: Fully corrected LoginScreen code anchored to the bottom with safe scrolling behavior
 
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
@@ -17,20 +17,30 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.main,
       resizeToAvoidBottomInset: true,
-      // Comment: LayoutBuilder retrieves available screen height dynamically
+      // Comment: LayoutBuilder ensures full available height is utilized
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
             scrollDirection: Axis.vertical,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
+              // Comment: Ensure the scroll view takes at least the full height of the screen
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
                 child: Column(
+                  mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.end,
+                  // Comment: Aligns children to the bottom
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Comment: Image asset placed in upper flexible area
-                    Image.asset("images/loginPage.png"),
+                    // Comment: Spacer pushes content to the bottom when there is extra vertical space
+                    const Spacer(),
+
+                    // Comment: Image asset placed above the login card
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 400),
+                      child: Image.asset("images/loginPage.png"),
+                    ),
+
                     // Comment: Bottom container holding the login form
                     Container(
                       width: maxWidth,
@@ -44,8 +54,12 @@ class LoginScreen extends StatelessWidget {
                           horizontal: 15.0,
                           vertical: 30.0,
                         ),
-                        // Comment: Fixed syntax by properly assigning child property
-                        child: LoginForm(),
+                        child: Column(
+                          children: [
+                            LoginForm(),
+                            SizedBox(height: AppTheme.spacingMd),
+                          ],
+                        ),
                       ),
                     ),
                   ],

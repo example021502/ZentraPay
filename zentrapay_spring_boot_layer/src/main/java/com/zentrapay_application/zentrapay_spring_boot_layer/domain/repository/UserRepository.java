@@ -1,8 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.UserDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +15,7 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
     Optional<String> getCountryCodeByUserId(@Param("userId") UUID userId);
 //    check if user exist in the database by email or phone number for loging in
     @Query("SELECT u FROM UserModel u WHERE u.email = :email OR u.phoneNumber = :phoneNumber")
-    Optional<UserDTO> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
+    Optional<UserModel> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
 //    checking if the email exist for account creation
     boolean existsByEmail(String email);
 //    checking if phone number exist for account creation
@@ -25,7 +23,7 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
 
     //  getting the sender details ======
     @Query("SELECT u FROM UserModel u WHERE u.userId = :userId")
-    Optional<UserSearchDTO> getUserById(@Param("userId") UUID userId);
+    Optional<UserModel> getUserById(@Param("userId") UUID userId);
 
     //  getting the users matched contacts
     @Query("""
@@ -34,11 +32,10 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
                 LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :query, '%'))
-                OR LOWER(u.zentag) LIKE LOWER(CONCAT('%', :query, '%'))
             )
             AND u.countryCode = :countryCode
             """)
-    List<UserSearchDTO> searchByQueryAndCountryCode(
+    List<UserModel> searchByQueryAndCountryCode(
             @Param("query") String query,
             @Param("countryCode") String countryCode
     );

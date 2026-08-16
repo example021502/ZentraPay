@@ -33,7 +33,7 @@ class FiatAccount {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
-      zentag: json["zentag"],
+      zentag: json["zentag"] ?? '',
     );
   }
 }
@@ -113,12 +113,16 @@ class WalletsAccountsSnapshot {
     required this.cryptoAccounts,
   });
 
+  // Comment: matches AccountsBalancesResponseDTO on the backend
+  // ({fiatBalances, cryptoBalances}) — a user now has one wallet with many
+  // currency accounts inside it, so this is a flat list of accounts, not a
+  // list of wallets.
   factory WalletsAccountsSnapshot.fromJson(Map<String, dynamic> json) =>
       WalletsAccountsSnapshot(
-        fiatAccounts: ((json['fiatAccounts'] as List?) ?? [])
+        fiatAccounts: ((json['fiatBalances'] as List?) ?? [])
             .map((e) => FiatAccount.fromJson(e))
             .toList(),
-        cryptoAccounts: ((json['cryptoAccounts'] as List?) ?? [])
+        cryptoAccounts: ((json['cryptoBalances'] as List?) ?? [])
             .map((e) => CryptoAccount.fromJson(e))
             .toList(),
       );

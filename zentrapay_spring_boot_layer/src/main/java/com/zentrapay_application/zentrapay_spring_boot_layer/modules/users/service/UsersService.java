@@ -6,9 +6,12 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LoginHistoryModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.LoginHistoryRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.JwtService;
+import jakarta.persistence.Column;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 
@@ -36,6 +40,7 @@ public class UsersService {
     private final JwtService jwtService;
     private final LoginHistoryRepository loginHistoryRepository;
     private final FiatAccountRepository fiatAccountRepository;
+    private final CryptoAccountRepository cryptoAccountRepository;
     private final LegalDocumentsRepository legalDocumentsRepository;
 
 
@@ -109,18 +114,23 @@ public class UsersService {
 //        userConsentsRepository.save(termsOfUse);
 //      }
 
-        // Automatically create a default wallet if it doesn't already exist for this user
+//        FIAT WALLET CREATION
         if (!fiatWalletRepository.existsByUserId(user.getUserId()) && !cryptoWalletRepository.existsByUserId(user.getUserId())) {
-            FiatWalletModel wallet = new FiatWalletModel();
-            wallet.setUserId(user.getUserId());
-            wallet.setCountryCode(req.countryCode());
-            wallet.setStatus("active");
-           wallet = fiatWalletRepository.save(wallet);
+            FiatWalletModel fiatWallet = new FiatWalletModel();
+            fiatWallet.setUserId(user.getUserId());
+            fiatWallet.setCountryCode(req.countryCode());
+            fiatWallet.setStatus("active");
+           fiatWallet = fiatWalletRepository.save(fiatWallet);
+//            CRYPTO WALLET CREATION
+            CryptoWalletModel cryptoWallet = new CryptoWalletModel();
+            cryptoWallet.setUserId(user.getUserId());
+            cryptoWallet.setStatus("active");
+            cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
            final String currencyCode = supportedCurrenciesRepository.getCurrencyCodeByCountryCode(user.getCountryCode());
            final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
             FiatAccountModel fiatAccount = new FiatAccountModel();
-            fiatAccount.setWalletId(wallet.getWalletId());
+            fiatAccount.setWalletId(fiatWallet.getWalletId());
             fiatAccount.setAccountName("Default Account");
             fiatAccount.setCurrencyCode(currencyCode);
             fiatAccount.setZentag(zentag);
@@ -129,6 +139,15 @@ public class UsersService {
             fiatAccount.setStatus("active");
             fiatAccountRepository.save(fiatAccount);
 
+            CryptoAccountModel cryptoAccount = new CryptoAccountModel();
+            cryptoAccount.setWalletId(cryptoWallet.getWalletId());
+            cryptoAccount.setNetwork("unknown");
+            cryptoAccount.setCurrencyCode("Unknown");
+            cryptoAccount.setWalletAddress("Unknown");
+            cryptoAccount.setBalance(BigDecimal.ZERO);
+            cryptoAccount.setIsDefault(true);
+            cryptoAccount.setStatus("active");
+            cryptoAccountRepository.save(cryptoAccount);
         }else{
             throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");
         }
@@ -143,20 +162,20 @@ public class UsersService {
     // ========================================================================
     @Transactional
     public usersAuthResponse login(@Valid LoginRequestDTO req, HttpServletRequest httpRequest) {
-        UserDTO user = null;
+        UserModel user = null;
         try {
             user = userRepository.findByEmailOrPhoneNumber(req.email(), req.phoneNumber())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            if (!passwordEncoder.matches(req.password() + passwordPepper, user.passwordHash())) {
-                recordLogin(user.userId(), httpRequest, false);
+            if (!passwordEncoder.matches(req.password() + passwordPepper, user.getPasswordHash())) {
+                recordLogin(user.getUserId(), httpRequest, false);
                 throw new RuntimeException("Invalid credentials");
             }
 
-            recordLogin(user.userId(), httpRequest, true);
+            recordLogin(user.getUserId(), httpRequest, true);
 
-            String token = jwtService.generateToken(user.userId(), user.email(), user.firstName(), user.lastName());
-            return new usersAuthResponse(token, user.userId(), user.email(), user.firstName(), user.lastName());
+            String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+            return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
         } catch (RuntimeException e) {
             if (user == null) {
                 log.warn("[USERS] Login attempt failed for unknown identifier email={}, phone={}", req.email(), req.phoneNumber());

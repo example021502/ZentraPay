@@ -12,7 +12,6 @@ String lastName,
 String phoneNumber,
 String status,
 String userType,
-String zentag,
 LocalDateTime updatedAt,
 LocalDateTime createdAt
 ) {

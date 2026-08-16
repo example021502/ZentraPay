@@ -12,7 +12,7 @@ public record CryptoAccountDTO(
         String currencyCode,
         String network,
         String walletAddress,
-        Boolean isDefault,
+        boolean isDefault,
         String balance,
         String status,
         LocalDateTime createdAt

@@ -60,7 +60,4 @@ public class UserModel {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public String getFullName() {
-        return firstName + " " + lastName;
-    }
 }

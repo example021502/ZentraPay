@@ -22,7 +22,26 @@ public class BillProvidersService {
 
     @Transactional(readOnly = true)
     public List<BillProviderDTO> listProviders(String countryCode) {
-        return billProviderRepository.getAllBillProvidersByCountryCode(countryCode);
+        return billProviderRepository.getAllBillProvidersByCountryCode(countryCode).stream()
+                .map(BillProvidersService::toDTO)
+                .toList();
+    }
+
+    private static BillProviderDTO toDTO(BillProviderModel p) {
+        return new BillProviderDTO(
+                p.getProviderId(),
+                p.getBillerCode(),
+                p.getBillerName(),
+                p.getCategoryCode(),
+                p.getCountryCode(),
+                p.getLogoUrl(),
+                p.getCreatedAt(),
+                p.getUpdatedAt(),
+                p.getChannelCode(),
+                p.getIsCrossBorderAllowed(),
+                p.getActive(),
+                p.getFetchRequirement()
+        );
     }
 
 

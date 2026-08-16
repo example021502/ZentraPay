@@ -453,7 +453,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildPrimaryWallet() {
-    final activeWallet = wallets[currentWalletIndex];
+    final activeWallet = accounts[currentWalletIndex];
 
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -577,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildWalletCarousel() {
-    final currentWallet = wallets[currentWalletIndex];
+    final currentWallet = accounts[currentWalletIndex];
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -647,8 +647,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () {
                   setState(() {
                     currentWalletIndex =
-                        (currentWalletIndex - 1 + wallets.length) %
-                        wallets.length;
+                        (currentWalletIndex - 1 + accounts.length) %
+                        accounts.length;
                   });
                 },
                 icon: const Icon(
@@ -657,7 +657,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               Row(
-                children: List.generate(wallets.length, (index) {
+                children: List.generate(accounts.length, (index) {
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: 8,
@@ -675,7 +675,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () {
                   setState(() {
                     currentWalletIndex =
-                        (currentWalletIndex + 1) % wallets.length;
+                        (currentWalletIndex + 1) % accounts.length;
                   });
                 },
                 icon: const Icon(

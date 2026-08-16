@@ -33,7 +33,9 @@ class WalletsRepository extends CachedResource<WalletsAccountsSnapshot> {
     final response = await _dio.post(
       '/api/wallet/newFiat',
       data: {
-        'walletName': accountName,
+        // Comment: matches CreateFiatAccountRequest on the backend
+        // ({accountName, currencyCode, countryCode}).
+        'accountName': accountName,
         'currencyCode': currencyCode,
         'countryCode': ?countryCode,
       },

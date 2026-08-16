@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.services;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CryptoAccountModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CryptoWalletModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatAccountModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatWalletModel;
@@ -32,12 +33,33 @@ public class WalletsAccountsServices {
         final FiatWalletModel wallet = fiatWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
 
-        List<FiatAccountDTO> fiatAccounts = fiatAccountRepository.findByWalletId(wallet.getWalletId());
+        List<FiatAccountDTO> fiatAccounts = fiatAccountRepository.findByWalletId(wallet.getWalletId()).stream()
+                .map(account -> new FiatAccountDTO(
+                        account.getAccountId(),
+                        account.getAccountName(),
+                        account.getCurrencyCode(),
+                        account.getZentag(),
+                        account.getBalance(),
+                        account.isDefault(),
+                        account.getStatus(),
+                        account.getCreatedAt()
+                ))
+                .toList();
 
         final CryptoWalletModel crypto_wallet = cryptoWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
-        List<CryptoAccountDTO> cryptoAccounts = cryptoAccountRepository.findByWalletId(crypto_wallet.getWalletId());
-
+        List<CryptoAccountDTO> cryptoAccounts = cryptoAccountRepository.findByWalletId(crypto_wallet.getWalletId()).stream()
+                .map(account -> new CryptoAccountDTO(
+                        account.getCryptoAccountId(),
+                        account.getCurrencyCode(),
+                        account.getNetwork(),
+                        account.getWalletAddress(),
+                        account.getIsDefault(),
+                        account.getBalance().toPlainString(),
+                        account.getStatus(),
+                        account.getCreatedAt()
+                ))
+                .toList();
         return new AccountsBalancesResponseDTO(fiatAccounts, cryptoAccounts);
     }
 
@@ -78,7 +100,14 @@ public class WalletsAccountsServices {
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. User missing!"));
 
         final List<String> currencyCodes = supportedCurrenciesRepository.getCurrencyCodesByCountryCode(countryCode);
-        return currencyRepository.getCurrenciesByCurrencyCodes(currencyCodes);
+        return currencyRepository.getCurrenciesByCurrencyCodes(currencyCodes).stream()
+                .map(currency -> new SupportedCurrencyDTO(
+                        currency.getCurrencyCode(),
+                        currency.getCurrencyName(),
+                        countryCode,
+                        currency.getDecimalPlaces()
+                ))
+                .toList();
     }
 
 }

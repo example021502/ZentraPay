@@ -17,7 +17,6 @@ public record RegisterRequestDTO(
         @NotBlank(message = "Phone number is required") String phoneNumber,
         @NotBlank(message = "Country code is required") String countryCode,
         @NotBlank(message = "Password is required") String password,
-        @NotBlank(message = "PIN is required") String pin,
-        @NotBlank(message = "Zentag is required") String zentag
+        @NotBlank(message = "PIN is required") String pin
 ) {
 }

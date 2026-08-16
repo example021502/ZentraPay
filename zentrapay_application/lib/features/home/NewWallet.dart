@@ -299,8 +299,8 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
 
     setState(() => isLoading = true);
     try {
-      await WalletsRepository.instance.createFiatWallet(
-        walletName: _accountNameController.text.trim(),
+      await WalletsRepository.instance.createFiatAccount(
+        accountName: _accountNameController.text.trim(),
         currencyCode: _selectedCurrency!.currencyCode,
       );
       ZentraNotifier.success("Success", "Wallet created successfully!");
