@@ -21,68 +21,69 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "transactions")
-public class Transaction {
+public class TransactionModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "transaction_id", nullable = false)
+    @Column(name = "transaction_id", nullable = false, unique = true)
     private UUID transactionId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "internal_reference_id", nullable = false)
+    private String internalReferenceId;
 
-    @Column(name = "wallet_id")
-    private UUID walletId;
+    @Column(name = "external_reference_id", nullable = false)
+    private String externalReferenceId;
 
-    @Column(name = "type_code", nullable = false, length = 30)
-    private String typeCode;
+    @Column(name = "sender_id", nullable = false)
+    private UUID senderId;
 
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(name = "receiver_id", nullable = false)
+    private UUID receiverId;
+
+    @Column(name = "sender_name", nullable = false)
+    private String senderName;
+
+    @Column(name = "receiver_name", nullable = false)
+    private String receiverName;
+
+    @Column(name = "amount", nullable = false)
     private BigDecimal amount;
 
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
+    @Column(name = "source_currency_code", nullable = false, length = 3)
+    private String sourceCurrencyCode;
 
-    @Column(nullable = false, length = 20)
-    private String status = "PENDING";
+    @Column(name = "destination_currency_code", nullable = false, length = 3)
+    private String destinationCurrencyCode;
 
-    @Column(length = 30)
-    private String gateway;
+    @Column(name = "purpose", nullable = false, length = 100)
+    private String purpose;
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String reference;
-
-    @Column(name = "gateway_reference", length = 100)
-    private String gatewayReference;
-
-    @Column(name = "counterparty_user_id")
-    private UUID counterpartyUserId;
-
-    @Column(name = "counterparty_name", length = 120)
-    private String counterpartyName;
-
-    @Column(name = "counterparty_identifier", length = 120)
-    private String counterpartyIdentifier;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
-    private String metadata;
-
-    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    @Column(name = "failure_reason")
     private String failureReason;
 
-    // Comment: legacy columns still physically on the table (left over from
-    // an older entity mapping) with a NOT NULL constraint and no default —
-    // an insert that doesn't set these fails, even though currency_code/
-    // type_code above are the real source of truth. Kept in sync with those
-    // at write time; nothing reads these two independently.
-    @Column(name = "currency", nullable = false, length = 3)
-    private String currency;
+    @Column(name = "gateway", nullable = false)
+    private String gateway;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private String metadata;
+
+    @Column(name = "status", nullable = false)
+    private String status;
 
     @Column(name = "transaction_type", nullable = false, length = 50)
     private String transactionType;
+
+    @Column(name = "sender_email", nullable = false, length = 50)
+    private String senderEmail;
+
+    @Column(name = "sender_phone_number", nullable = false, length = 50)
+    private String senderPhoneNumber;
+
+    @Column(name = "receiver_email", nullable = false, length = 50)
+    private String receiverEmail;
+
+    @Column(name = "receiver_phone_number", nullable = false, length = 50)
+    private String receiverPhoneNumber;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

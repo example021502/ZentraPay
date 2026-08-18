@@ -16,14 +16,11 @@ import java.util.UUID;
  * PaymentsService actually moves money in.
  */
 public record PaymentDestinationDTO(
-        @NotNull(message = "destination.accountId is required")
-        UUID accountId,
-
-        @NotBlank(message = "destination.currencyCode is required")
-        String currencyCode,
-
-        @NotNull(message = "destination.amount is required")
-        @DecimalMin(value = "0.01", message = "destination.amount must be positive")
-        BigDecimal amount
+        @NotBlank(message = "Destination Country missing") String countryCode,
+        @NotBlank(message = "Destination Currency missing") String currencyCode,
+        @NotBlank(message = "Destination Account Identifier missing") String accountIdentifier,
+        @NotBlank(message = "Destination Source Type missing") String sourceType,
+        @NotBlank(message = "Destination Source Name missing") String sourceName,
+        @NotBlank(message = "Destination Source Identifier missing") String sourceIdentifier
 ) {
 }

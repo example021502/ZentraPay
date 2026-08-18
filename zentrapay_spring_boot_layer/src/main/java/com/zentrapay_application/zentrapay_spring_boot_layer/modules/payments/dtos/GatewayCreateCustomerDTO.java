@@ -14,12 +14,10 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Transa
  * the frontend's {@code AppTransaction}/{@code AmountText} contract, which
  * colors an amount by whether its string starts with '+'.
  */
-public record PaymentInitRequestDTO(
+public record GatewayCreateCustomerDTO(
         String email,
-        String amount,
-        String currency,
-        String reference,
-        @JsonProperty("callback_url")
-        String callbackUrl
+        String firstName,
+        String lastName,
+        String phoneNumber
 ) {
 }

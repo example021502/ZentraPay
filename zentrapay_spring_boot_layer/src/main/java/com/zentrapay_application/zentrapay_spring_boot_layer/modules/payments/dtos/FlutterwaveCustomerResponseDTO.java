@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record PaystackCustomerResponseDTO(
+public record FlutterwaveCustomerResponseDTO(
         boolean status,
         String message,
         CustomerData data

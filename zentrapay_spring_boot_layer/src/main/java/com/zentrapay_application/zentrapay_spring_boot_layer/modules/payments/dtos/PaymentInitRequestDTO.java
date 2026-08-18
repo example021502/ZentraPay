@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 
 /**
@@ -18,9 +16,9 @@ import java.util.UUID;
  * the frontend's {@code AppTransaction}/{@code AmountText} contract, which
  * colors an amount by whether its string starts with '+'.
  */
-public record PayStackInitRequestDTO(
+public record PaymentInitRequestDTO(
         String email,
-        String amount,
+        BigDecimal amount,
         String currency,
         String reference,
         @JsonProperty("callback_url")

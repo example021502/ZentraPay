@@ -1,6 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.TransactionDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service.PaymentsService;
@@ -29,7 +30,9 @@ public class PaymentsController {
     public ResponseEntity<ApiResponse<TransactionDTO>> pay(
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody PaymentRequestDTO request) {
-        TransactionDTO transaction = paymentsService.sendMoney(user.getUserId(), request);
+        TransactionDTO transaction = paymentsService.sendMoney(user.getUserId(), request)
+                .orElseThrow(() -> new ResourceNotFoundException("Something went wrong"));
+
         return ResponseEntity.ok(ApiResponse.success(transaction, "Payment successful"));
     }
 }
