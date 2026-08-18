@@ -347,7 +347,7 @@ class SectionTitle extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: AppTheme.headlineLarge),
+        Text(title, style: AppTheme.headlineSmall),
         if (trailing != null) trailing!,
       ],
     );

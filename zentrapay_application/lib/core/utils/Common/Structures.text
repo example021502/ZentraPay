@@ -1,0 +1,39 @@
+{
+  "idempotencyKey": "550e8400-e29b-41d4-a716-446655440000",
+  
+  // Comment: Details identifying the person sending the funds
+  "sender": {
+    "senderId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "countryCode": "USA",
+    "homeCurrency": "USD"
+  },
+  
+  // Comment: Personal contact details of the intended beneficiary
+  "recipient": {
+    "fullName": "Aarav Sharma",
+    "email": "aarav.sharma@example.com",
+    "phoneNumber": "+919876543210"
+  },
+  
+  // Comment: Target destination context for compliance and currency exchange routing
+  "destination": {
+    "countryCode": "IND",
+    "targetCurrency": "INR",
+    "deliveryChannel": "BANK_ACCOUNT"
+  },
+  
+  // Comment: Specific account or routing metadata required to disburse the payout
+  "payoutDetails": {
+    "accountNumber": "00123456789",
+    "bankCodeOrIfsc": "HDFC0001234",
+    "bankName": "HDFC Bank",
+    "accountHolderName": "Aarav Sharma"
+  },
+  
+  // Comment: Transaction financial values
+  "transferAmount": "250.00",
+  "sourceCurrency": "USD",
+  
+  // Comment: Client-side authentication token or encrypted user transaction PIN
+  "pin": "1234"
+}
