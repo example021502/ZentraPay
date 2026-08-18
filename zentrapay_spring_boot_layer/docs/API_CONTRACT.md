@@ -79,9 +79,9 @@ All **Public**, all cacheable client-side indefinitely (or until app restart) �
 | Verb | Path | Request | Response `data` |
 |---|---|---|---|
 | GET | `/api/transactions?page=&size=&type=&status=` | query params, all optional | `{content:[Transaction], page,size,totalElements,totalPages}` |
-| GET | `/api/transactions/{transactionId}` | — | `TransactionModel` |
+| GET | `/api/transactions/{transactionId}` | — | `Transaction` |
 
-`TransactionModel` shape: `{transactionId,typeCode,amount,currencyCode,status,gateway,reference,counterpartyName,counterpartyIdentifier,description,createdAt}`.
+`Transaction` shape: `{transactionId,typeCode,amount,currencyCode,status,gateway,reference,counterpartyName,counterpartyIdentifier,description,createdAt}`.
 
 ---
 
@@ -89,8 +89,8 @@ All **Public**, all cacheable client-side indefinitely (or until app restart) �
 
 | Verb | Path | Request | Response `data` |
 |---|---|---|---|
-| POST | `/api/payments/internal` | `{pin,recipient:{phoneNumber?,zentag?},amount,currencyCode}` | `TransactionModel` |
-| POST | `/api/payments/bank-transfer` | `{pin,amount,currencyCode,channelCode,accountNumber,accountName,description?}` | `TransactionModel` |
+| POST | `/api/payments/internal` | `{pin,recipient:{phoneNumber?,zentag?},amount,currencyCode}` | `Transaction` |
+| POST | `/api/payments/bank-transfer` | `{pin,amount,currencyCode,channelCode,accountNumber,accountName,description?}` | `Transaction` |
 | GET | `/api/payments/paystack/access-code?amount=&currencyCode=` | — | `{accessCode,reference,authorizationUrl}` — real Paystack `transaction/initialize` call; creates a `PENDING` `WALLET_FUNDING` transaction row keyed by `reference` |
 | POST | `/api/payments/paystack/webhook` | Paystack webhook payload, **Public** (verified via `x-paystack-signature`) | — marks the matching transaction `SUCCESS`/`FAILED` and credits the wallet on success |
 
@@ -191,7 +191,7 @@ Backed by the real `exchange_rates` table instead of an in-memory static map.
 |---|---|---|---|
 | GET | `/api/zinvest/portfolio` | — | `[{investmentId,name,investmentType,symbol,quantity,buyPrice,currentPrice,currencyCode,status}]` (`currentPrice` = latest `investment_price_snapshots` row, falls back to `buyPrice`) |
 | POST | `/api/zinvest/invest` | `{name,investmentType,symbol,quantity,buyPrice,currencyCode}` — **TODO for `investmentType:"CRYPTO"`**, returns 501 | created investment |
-| POST | `/api/zinvest/{investmentId}/sell` | — | closed investment + `TransactionModel` |
+| POST | `/api/zinvest/{investmentId}/sell` | — | closed investment + `Transaction` |
 | GET | `/api/zinvest/liquidity-profile` | — | `{totalValue,totalGainLossPercent,riskProfile}` |
 | GET | `/api/zinvest/liquidity-trend` | — | `[{recordedAt,totalValue}]` — real historical series from snapshots |
 | GET | `/api/zinvest/risks` | — | `[{investmentId,name,type,message,severity}]` |

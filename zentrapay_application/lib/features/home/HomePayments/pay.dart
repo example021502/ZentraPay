@@ -10,7 +10,6 @@ import 'package:zentrapay_application/core/repositories/transactions_repository.
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
 import 'package:zentrapay_application/core/utils/Common/EnterAmount.dart';
-import 'package:zentrapay_application/core/utils/Common/GenerateTransactionId.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
@@ -76,8 +75,8 @@ class _PaySectionMainState extends State<PaySectionMain> {
   }
 
   /// Runs the full pay-a-contact flow: amount entry -> PIN confirmation ->
-  /// POST /api/payments in the {TransactionId, pin, recipient, destination,
-  /// transfer} shape the backend's PaymentRequestDTO expects.
+  /// POST /api/payments, in the {pin, sender, recipient, destination}
+  /// shape the backend expects.
   Future<void> _payUser(SearchAppUser recipient) async {
     if (_payInFlight) return;
 
@@ -138,41 +137,14 @@ class _PaySectionMainState extends State<PaySectionMain> {
     );
     if (pin == null || pin.isEmpty || !mounted) return;
 
-    final txnRef = generateTxnRef();
-
-    // Payload must match the backend's PaymentRequestDTO exactly:
-    // {TransactionId, pin,
-    //  recipient:{fullName,email,phoneNumber,userType},
-    //  destination:{countryCode,currencyCode,accountIdentifier,sourceType,
-    //               sourceName,sourceIdentifier},
-    //  transfer:{referenceId,amount,currencyCode,currencyType,purpose}}.
-    // sourceType "zentrapay-wallet" routes it through the internal
-    // wallet-to-wallet branch of PaymentsService.sendMoney.
-    final amount =
-        double.tryParse(amountResult['amount'].toString()) ?? 0;
     final payload = {
-      "TransactionId": txnRef,
       "pin": pin,
-      "recipient": {
-        "fullName": recipient.fullName,
-        "email": recipient.email,
-        "phoneNumber": recipient.phoneNumber,
-        "userType": recipient.userType.isNotEmpty ? recipient.userType : 'app-user',
-      },
+      "sender": sender.toJson(),
+      "recipient": recipient.toJson(),
       "destination": {
-        "countryCode": recipient.countryCode,
+        "accountId": resolvedDestination.accountId,
         "currencyCode": resolvedDestination.currencyCode,
-        "accountIdentifier": resolvedDestination.zentag,
-        "sourceType": "zentrapay-wallet",
-        "sourceName": recipient.fullName,
-        "sourceIdentifier": resolvedDestination.accountId,
-      },
-      "transfer": {
-        "referenceId": txnRef,
-        "amount": amount,
-        "currencyCode": resolvedDestination.currencyCode,
-        "currencyType": "fiat",
-        "purpose": "",
+        "amount": amountResult['amount'],
       },
     };
 

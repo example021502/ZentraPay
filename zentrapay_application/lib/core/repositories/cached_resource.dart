@@ -78,6 +78,8 @@ abstract class CachedListResource<T> extends CachedResource<List<T>> {
   }
 
   void removeItem(bool Function(T item) matches) {
-    applyDelta((current) => current.where((item) => !matches(item)).toList());
+    applyDelta(
+      (current) => current.where((item) => !matches(item)).toList(),
+    );
   }
 }

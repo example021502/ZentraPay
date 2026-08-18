@@ -25,39 +25,20 @@ class AppTransaction {
     required this.createdAt,
   });
 
-  factory AppTransaction.fromJson(Map<String, dynamic> json) {
-    // The backend TransactionDTO now mirrors TransactionModel:
-    // transactionType (not typeCode), sourceCurrencyCode (not currencyCode),
-    // internalReferenceId/externalReferenceId (not reference), senderName/
-    // receiverName (not counterpartyName), purpose (not description), plus a
-    // computed sign ("+"/"-"). Old keys are kept as fallbacks.
-    final type = json['transactionType'] ?? json['typeCode'] ?? '';
-    final rawAmount = json['amount'];
-    final amountValue = rawAmount is num ? rawAmount.toString() : (rawAmount ?? '0').toString();
-    final sign = (json['sign'] as String?) ??
-        (type.toLowerCase() == 'credit' ? '+' : '-');
-    return AppTransaction(
-      transactionId: (json['transactionId'] ?? '').toString(),
-      typeCode: type,
-      amount: '$sign$amountValue',
-      currencyCode:
-          json['sourceCurrencyCode'] ?? json['currencyCode'] ?? '',
-      status: json['status'] ?? '',
-      gateway: json['gateway'],
-      reference: json['internalReferenceId'] ??
-          json['reference'] ??
-          json['externalReferenceId'] ??
-          '',
-      counterpartyName:
-          json['receiverName'] ?? json['senderName'] ?? json['counterpartyName'],
-      counterpartyIdentifier: json['receiverId']?.toString() ??
-          json['receiverPhoneNumber'] ??
-          json['senderPhoneNumber'] ??
-          json['counterpartyIdentifier'],
-      description: json['purpose'] ?? json['description'],
-      createdAt: json['createdAt'] ?? '',
-    );
-  }
+  factory AppTransaction.fromJson(Map<String, dynamic> json) =>
+      AppTransaction(
+        transactionId: json['transactionId'] ?? '',
+        typeCode: json['typeCode'] ?? '',
+        amount: (json['amount'] ?? '0').toString(),
+        currencyCode: json['currencyCode'] ?? '',
+        status: json['status'] ?? '',
+        gateway: json['gateway'],
+        reference: json['reference'] ?? '',
+        counterpartyName: json['counterpartyName'],
+        counterpartyIdentifier: json['counterpartyIdentifier'],
+        description: json['description'],
+        createdAt: json['createdAt'] ?? '',
+      );
 
   /// International vs. national is derived from the transaction type,
   /// replacing the old {national:[],international:[]} split the backend

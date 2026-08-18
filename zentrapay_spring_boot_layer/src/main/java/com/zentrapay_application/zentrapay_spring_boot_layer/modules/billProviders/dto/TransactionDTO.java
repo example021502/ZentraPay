@@ -1,14 +1,12 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.billProviders.dto;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
  * Local mirror of the API_CONTRACT.md §5 {@code Transaction} response shape, built from
- * {@link TransactionModel}.
+ * {@link com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Transaction}.
  * Kept local to this module (rather than importing a DTO owned by the transactions
  * module, which a parallel agent is actively rewriting) to avoid cross-module coupling.
  */

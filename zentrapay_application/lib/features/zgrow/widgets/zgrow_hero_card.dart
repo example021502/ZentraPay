@@ -50,14 +50,48 @@ class ZGrowHeroCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppTheme.spacingMd),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.secondary,
+                  borderRadius: BorderRadius.circular(200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8.0, 5.0, 15.0, 5.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(200),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Icon(
+                            Icons.arrow_downward,
+                            size: 22,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppTheme.spacingSm),
+                      Text(
+                        "Save Now",
+                        style: AppTheme.labelSmall.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         // Positioned trending icon stacked at the bottom right corner with light white color
         Positioned(
-          bottom: 0,
-          right: MediaQuery.of(context).size.width * 0.5,
-          left: MediaQuery.of(context).size.width * 0.5,
+          bottom: 16,
+          right: 16,
           child: Icon(
             Icons.trending_up,
             size: 56, // Large decorative size
