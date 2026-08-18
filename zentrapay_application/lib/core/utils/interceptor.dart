@@ -17,8 +17,9 @@ class ApiClient {
   // Comment: Private, internal constructor that sets up our HTTP client configurations
   ApiClient._internal() {
     BaseOptions options = BaseOptions(
-      // Comment: Default base URL points directly to your backend application server
-      baseUrl: dotenv.get('BASE_URL', fallback: "https://localhost:3000"),
+      // Comment: Default base URL points directly to the Spring Boot backend
+      // (server.port=2000 in application.properties; overridden by .env BASE_URL).
+      baseUrl: dotenv.get('BASE_URL', fallback: "https://localhost:2000"),
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       contentType: Headers.jsonContentType,

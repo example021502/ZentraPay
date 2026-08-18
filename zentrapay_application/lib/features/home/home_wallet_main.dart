@@ -47,8 +47,14 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width >= 600;
-    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
+    final isTablet = MediaQuery
+        .of(context)
+        .size
+        .width >= 600;
+    final maxWidth = isTablet ? 400.0 : MediaQuery
+        .of(context)
+        .size
+        .width;
 
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
@@ -83,73 +89,84 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
 
             ListenableBuilder(
               listenable: CardsRepository.instance,
-              builder: (context, _) => HomeCardsCarousel(
-                cards: (CardsRepository.instance.data ?? [])
-                    .map(
-                      (c) => {
+              builder: (context, _) =>
+                  HomeCardsCarousel(
+                    cards: (CardsRepository.instance.data ?? [])
+                        .map(
+                          (c) =>
+                      {
                         'cardId': c.cardId,
                         'cardName': c.brand,
                         'type': c.cardType,
                         'last4': c.last4,
                         'expiry':
-                            '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
+                        '${c.expiryMonth.toString().padLeft(2, '0')}/${c
+                            .expiryYear.toString()
+                            .substring(c.expiryYear
+                            .toString()
+                            .length - 2)}',
                         'status': c.status,
                       },
                     )
-                    .toList(),
-              ),
+                        .toList(),
+                  ),
             ),
             ListenableBuilder(
               listenable: Listenable.merge([
                 BillProvidersRepository.instance,
                 ServiceProvidersRepository.instance,
               ]),
-              builder: (context, _) => HomeServicesGrid(
-                services: (ServiceProvidersRepository.instance.data ?? [])
-                    .map(
-                      (p) => {
+              builder: (context, _) =>
+                  HomeServicesGrid(
+                    services: (ServiceProvidersRepository.instance.data ?? [])
+                        .map(
+                          (p) =>
+                      {
                         'providerName': p.providerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
                       },
                     )
-                    .toList(),
-                bills: (BillProvidersRepository.instance.data ?? [])
-                    .map(
-                      (p) => {
+                        .toList(),
+                    bills: (BillProvidersRepository.instance.data ?? [])
+                        .map(
+                          (p) =>
+                      {
                         'billerName': p.billerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
                       },
                     )
-                    .toList(),
-              ),
+                        .toList(),
+                  ),
             ),
             SizedBox(height: AppTheme.spacingSm),
-
-            ListenableBuilder(
-              listenable: TransactionsRepository.instance,
-              builder: (context, _) => HomeTransactions(
-                history: TransactionsRepository.instance.items
-                    .map(
-                      (t) => {
-                        'title': t.counterpartyName ?? t.typeCode,
-                        'time': t.createdAt,
-                        'amount': formatMoney(
-                          t.amount,
-                          symbol: '${t.currencyCode} ',
-                        ),
-                        'icon': _isCreditType(t.typeCode)
-                            ? Icons.arrow_downward
-                            : Icons.arrow_upward,
-                        'type': t.typeCode,
-                      },
-                    )
-                    .toList(),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: 400),
+              child: ListenableBuilder(
+                listenable: TransactionsRepository.instance,
+                builder: (context, _) =>
+                    HomeTransactions(
+                      history: TransactionsRepository.instance.items
+                          .map(
+                            (t) =>
+                        {
+                          'title': t.counterpartyName ?? t.typeCode,
+                          'time': t.createdAt,
+                          'amount': formatMoney(
+                            t.amount,
+                            symbol: '${t.currencyCode} ',
+                          ),
+                          'icon': _isCreditType(t.typeCode)
+                              ? Icons.arrow_downward
+                              : Icons.arrow_upward,
+                          'type': t.typeCode,
+                        },
+                      )
+                          .toList(),
+                    ),
               ),
             ),
-            SizedBox(height: AppTheme.spacingSm),
-
             const SizedBox(
               height: 120,
             ), // Space for floating bottom nav on mobile

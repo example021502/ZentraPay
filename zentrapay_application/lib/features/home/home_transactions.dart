@@ -16,21 +16,33 @@ class HomeTransactions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitle(
-          title: "Recent Activities",
-          trailing: TextButton(
-            onPressed: () {
-              // TODO: Navigate to the full transaction history screen
-            },
-            child: const Text("View All"),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Recent Activities", style: AppTheme.headlineSmall),
+            TextButton(
+              onPressed: () {
+                //   TODO: TO BE IMPLEMENTED LATER
+                showComingSoon(context, "See All History");
+              },
+
+              child: Text(
+                "See All",
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.primaryPink),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppTheme.spacingMd),
+        // The ListView needs a bounded max-height so it doesn't get an
+        // unlimited vertical extent when placed inside the scrolling parent
+        // (without it, Flutter throws "Vertical viewport was given unbounded
+        // height"). It stays internally scrollable within that height.
         ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: 300),
+          constraints: const BoxConstraints(maxHeight: 300),
           child: ListView.builder(
             scrollDirection: Axis.vertical,
-            itemCount: history.length,
+            itemCount: history.length > 5 ? 5 : history.length,
             itemBuilder: (BuildContext context, int i) {
               final item = history[i];
               final title = item["title"] ?? "Transaction";
@@ -43,8 +55,8 @@ class HomeTransactions extends StatelessWidget {
                 title: title,
                 subtitle: time,
                 amount: amount,
-                onTap: () =>
-                    _showTransactionDetails(context, title, time, amount, type),
+                onTap: () => _showTransactionDetails(
+                    context, title, time, amount, type),
               );
             },
           ),

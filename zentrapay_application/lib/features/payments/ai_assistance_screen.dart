@@ -83,19 +83,9 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppColors.main,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Chat with AI Assistance",
-          style: TextStyle(color: AppColors.primary, fontSize: 18),
-        ),
-      ),
       body: Column(
         children: [
+          _buildHeader(context),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -112,22 +102,76 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+  // Pink rounded-bottom hero header, matching the rest of ZVoice AI's
+  // sticky-hero pages rather than a flat Material AppBar.
+  Widget _buildHeader(BuildContext context) {
+    return SafeArea(
+      bottom: false,
       child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+        decoration: const BoxDecoration(
+          color: AppColors.main,
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.main,
+                  size: 16,
+                ),
+              ),
+            ),
+            const Expanded(
+              child: Text(
+                "Chat with AI Assistance",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 38), // Balances the back button so the
+            // title stays visually centered.
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMessage message) {
+    // Matches the Figma frame: the user's own bubble sits on the left in
+    // pale green, the assistant's reply on the right in pale grey.
+    return Align(
+      alignment: message.isUser ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: message.isUser ? AppColors.green : AppColors.lightGrey,
-          borderRadius: BorderRadius.circular(12),
+          color: message.isUser ? Colors.green.shade100 : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               message.isUser ? "You" : "Assistant",
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textBlack,
@@ -141,7 +185,7 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
             const SizedBox(height: 4),
             Text(
               message.time,
-              style: TextStyle(fontSize: 10, color: AppColors.textBlack),
+              style: const TextStyle(fontSize: 10, color: AppColors.textBlack),
             ),
           ],
         ),
@@ -151,43 +195,62 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: const BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              enabled: !_isSending,
-              decoration: const InputDecoration(
-                hintText: "Ask anything...",
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.gray100,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  enabled: !_isSending,
+                  decoration: const InputDecoration(
+                    hintText: "Ask anything...",
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          FloatingActionButton(
-            onPressed: _isSending ? null : _sendMessage,
-            backgroundColor: AppColors.green,
-            child: _isSending
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : const Icon(Icons.send, color: AppColors.primary),
-          ),
-        ],
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _isSending ? null : _sendMessage,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: AppColors.green,
+                  shape: BoxShape.circle,
+                ),
+                child: _isSending
+                    ? const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -53,11 +53,12 @@ class _LoginFormState extends State<LoginForm> {
       return ZentraNotifier.error("Error", "Invalid Email");
     }
 
-    // Prepare payload data
+    // Prepare payload data — field names must match LoginRequestDTO
+    // ({email, phoneNumber, password}) on the Spring Boot backend.
     Map<String, dynamic> form = {
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
-      "phone_number": contact.trim(),
+      "phoneNumber": contact.trim(),
     };
 
     // Turn on the loading indicator
