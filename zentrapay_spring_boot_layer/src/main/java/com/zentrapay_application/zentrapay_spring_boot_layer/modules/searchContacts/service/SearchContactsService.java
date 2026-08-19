@@ -41,62 +41,34 @@ public class SearchContactsService {
     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
         int limit = req.limit() > 0 ? req.limit() : 20;
 //      searching sender details
-        UserModel senderUser = userRepository.getUserById(userId)
+        UserModel sender = userRepository.getUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        UserSearchDTO sender = toUserSearchDTO(senderUser, getZentagAccounts(userId));
 
-//      getting a list of searched users by name/phone/email, then merging in
-//      anyone whose zentag (on one of their currency accounts) matches too —
-//      lets a sender paste a zentag straight into the search box. The sender
-//      themselves is excluded — you can't send money to yourself.
-        Map<UUID, UserModel> matchedUsers = new LinkedHashMap<>();
-        userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.countryCode())
+        // Execute the query and map the resulting entity models to UserSearchDTOs
+        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query(), sender.getCountryCode())
                 .stream()
-                .filter(u -> !u.getUserId().equals(userId))
-                .forEach(u -> matchedUsers.put(u.getUserId(), u));
-
-        fiatAccountRepository.findByZentagContainingIgnoreCase(req.query()).stream()
-                .map(account -> fiatWalletRepository.findById(account.getWalletId()).orElse(null))
-                .filter(Objects::nonNull)
-                .filter(wallet -> sender.countryCode().equalsIgnoreCase(wallet.getCountryCode()))
-                .filter(wallet -> !wallet.getUserId().equals(userId))
-                .map(wallet -> userRepository.findById(wallet.getUserId()).orElse(null))
-                .filter(Objects::nonNull)
-                .forEach(u -> matchedUsers.putIfAbsent(u.getUserId(), u));
-
-        List<UserSearchDTO> appUsers = matchedUsers.values().stream()
-                .map(u -> toUserSearchDTO(u, getZentagAccounts(u.getUserId())))
-                .limit(limit).toList();
-
+                .map(u -> new UserSearchDTO(
+                        u.getCountryCode(),
+                        u.getEmail(),
+                        u.getFirstName(),
+                        u.getLastName(),
+                        u.getPhoneNumber(),
+                        u.getStatus(),
+                        u.getUserType()
+                )).toList();
 
         List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
-        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.countryCode(), billProviderIds).stream()
+        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.getCountryCode(), billProviderIds).stream()
                 .map(SearchContactsService::toBillProviderSearchDTO)
                 .limit(limit).toList();
 
         List<UUID> fundingSourcesIds = userFundingSourcesRepository.getFundingSourcesIdsByUserId(userId);
-        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.countryCode(), fundingSourcesIds).stream()
+        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.getCountryCode(), fundingSourcesIds).stream()
                 .map(SearchContactsService::toFundingSourceSearchDTO)
                 .limit(limit).toList();
 
 
-        return new SearchResponseDTO(sender, appUsers, billProviders, fundingSources);
-    }
-
-    private static UserSearchDTO toUserSearchDTO(UserModel u, List<AccountZentagDTO> fiatAccounts) {
-        return new UserSearchDTO(
-                u.getUserId(),
-                u.getCountryCode(),
-                u.getEmail(),
-                u.getFirstName(),
-                u.getLastName(),
-                u.getPhoneNumber(),
-                u.getStatus(),
-                u.getUserType(),
-                fiatAccounts,
-                u.getUpdatedAt(),
-                u.getCreatedAt()
-        );
+        return new SearchResponseDTO(appUsers, billProviders, fundingSources);
     }
 
     // Comment: each user has exactly one fiat wallet — see FiatWalletRepository.

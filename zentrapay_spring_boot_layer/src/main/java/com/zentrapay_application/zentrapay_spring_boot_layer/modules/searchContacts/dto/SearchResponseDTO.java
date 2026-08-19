@@ -10,7 +10,6 @@ import java.util.List;
  * synced from Paystack/Flutterwave/Onafriq, filtered to that same country.
  */
 public record SearchResponseDTO(
-        UserSearchDTO sender,
         List<UserSearchDTO> appUsers,
         List<BillProviderSearchDTO> billProviders,
         List<FundingSourceSearchDTO> fundingSources

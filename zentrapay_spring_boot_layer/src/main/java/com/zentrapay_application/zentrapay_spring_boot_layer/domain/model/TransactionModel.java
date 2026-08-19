@@ -50,7 +50,7 @@ public class TransactionModel {
     private UUID senderId;
 
     @Column(name = "receiverId", nullable = false)
-    private String receiverId;
+    private UUID receiverId;
 
     @Column(name = "sender_name", nullable = false)
     private String senderName;
@@ -63,6 +63,9 @@ public class TransactionModel {
 
     @Column(name = "destination_currency_code", nullable = false)
     private String destinationCurrencyCode;
+
+    @Column(name = "destination_identifier", nullable = false)
+    private String destinationIdentifier;
 
     @Column(name = "purpose", nullable = false)
     private String purpose;

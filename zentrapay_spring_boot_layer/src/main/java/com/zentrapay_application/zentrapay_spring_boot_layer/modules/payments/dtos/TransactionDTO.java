@@ -10,49 +10,20 @@ import java.util.UUID;
 
 public record TransactionDTO(
 UUID transactionId,
-
-BigDecimal amount,
-
+String amount,
 LocalDateTime createdAt,
-
 String failureReason,
-
 String gateway,
-
 @JdbcTypeCode(SqlTypes.JSON)
 String metadata,
-
 String status,
-
 @CreationTimestamp
 LocalDateTime updatedAt,
-
 String transactionType,
-
-UUID senderId,
-
-String receiverId,
-
-String senderName,
-
 String receiverName,
-
-String sourceCurrencyCode,
-
-String destinationCurrencyCode,
-
 String purpose,
-
-String senderEmail,
-
-String senderPhoneNumber,
-
-String receiverEmail,
-
-String receiverPhoneNumber,
-
 String internalReferenceId,
-
-String externalReferenceId
+String externalReferenceId,
+String destinationIdentifier
 ) {
 }

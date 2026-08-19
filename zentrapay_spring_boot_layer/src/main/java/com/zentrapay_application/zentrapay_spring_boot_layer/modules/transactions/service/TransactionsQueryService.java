@@ -1,6 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Transaction;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TransactionRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionPageDTO;
@@ -29,7 +29,7 @@ public class TransactionsQueryService {
     public TransactionPageDTO getHistory(UUID userId, int page, int size) {
         int safeSize = size > 0 ? Math.min(size, 100) : 20;
         int safePage = Math.max(page, 0);
-        Page<Transaction> result = transactionRepository.findByUserIdOrderByCreatedAtDesc(
+        Page<TransactionModel> result = transactionRepository.findByUserIdOrderByCreatedAtDesc(
                 userId, PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         return new TransactionPageDTO(
@@ -45,20 +45,23 @@ public class TransactionsQueryService {
         return typeCode != null && typeCode.endsWith("_CREDIT");
     }
 
-    private TransactionDTO toDTO(Transaction t) {
-        String sign = isCreditType(t.getTypeCode()) ? "+" : "-";
+    private TransactionDTO toDTO(TransactionModel t) {
+        String sign = t.getTransactionType().equalsIgnoreCase("credit") ? "+" : "-";
         return new TransactionDTO(
                 t.getTransactionId(),
-                t.getTypeCode(),
-                sign + t.getAmount().toPlainString(),
-                t.getCurrencyCode(),
-                t.getStatus(),
+                sign + t.getSourceCurrencyCode() + t.getAmount().toPlainString(),
+                t.getCreatedAt(),
+                t.getFailureReason(),
                 t.getGateway(),
-                t.getReference(),
-                t.getCounterpartyName(),
-                t.getCounterpartyIdentifier(),
-                t.getDescription(),
-                t.getCreatedAt()
+                t.getMetadata(),
+                t.getStatus(),
+                t.getUpdatedAt(),
+                t.getTransactionType(),
+                t.getReceiverName(),
+                t.getPurpose(),
+                t.getInternalReferenceId(),
+                t.getDestinationIdentifier(),
+                t.getDestinationIdentifier()
         );
     }
 }
