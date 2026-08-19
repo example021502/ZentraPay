@@ -40,26 +40,33 @@ public class SearchContactsService {
 
     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
         int limit = req.limit() > 0 ? req.limit() : 20;
-
-//        GET SENDER DETAILS
-        // Comment: Retrieve and map the user entity to a SenderDTO safely using Optional
-        SenderDTO sender = userRepository.getUserById(userId)
-                .map(user -> new SenderDTO(
-                        user.getUserId(),
-                        user.getCountryCode()
-                ))
+//      searching sender details
+        UserModel senderUser = userRepository.getUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        UserSearchDTO sender = toUserSearchDTO(senderUser, getZentagAccounts(userId));
 
-        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCodeExcludingCurrentUser(req.query(), sender.countryCode(), userId)
-                .stream().map(user -> new UserSearchDTO(
-                        user.getUserId(),
-                        user.getCountryCode(),
-                        user.getEmail(),
-                        user.getFirstName(),
-                        user.getLastName(),
-                        user.getPhoneNumber(),
-                        user.getUserType()
-                )).limit(limit).toList();
+//      getting a list of searched users by name/phone/email, then merging in
+//      anyone whose zentag (on one of their currency accounts) matches too —
+//      lets a sender paste a zentag straight into the search box. The sender
+//      themselves is excluded — you can't send money to yourself.
+        Map<UUID, UserModel> matchedUsers = new LinkedHashMap<>();
+        userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.countryCode())
+                .stream()
+                .filter(u -> !u.getUserId().equals(userId))
+                .forEach(u -> matchedUsers.put(u.getUserId(), u));
+
+        fiatAccountRepository.findByZentagContainingIgnoreCase(req.query()).stream()
+                .map(account -> fiatWalletRepository.findById(account.getWalletId()).orElse(null))
+                .filter(Objects::nonNull)
+                .filter(wallet -> sender.countryCode().equalsIgnoreCase(wallet.getCountryCode()))
+                .filter(wallet -> !wallet.getUserId().equals(userId))
+                .map(wallet -> userRepository.findById(wallet.getUserId()).orElse(null))
+                .filter(Objects::nonNull)
+                .forEach(u -> matchedUsers.putIfAbsent(u.getUserId(), u));
+
+        List<UserSearchDTO> appUsers = matchedUsers.values().stream()
+                .map(u -> toUserSearchDTO(u, getZentagAccounts(u.getUserId())))
+                .limit(limit).toList();
 
 
         List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
@@ -74,6 +81,39 @@ public class SearchContactsService {
 
 
         return new SearchResponseDTO(sender, appUsers, billProviders, fundingSources);
+    }
+
+    private static UserSearchDTO toUserSearchDTO(UserModel u, List<AccountZentagDTO> fiatAccounts) {
+        return new UserSearchDTO(
+                u.getUserId(),
+                u.getCountryCode(),
+                u.getEmail(),
+                u.getFirstName(),
+                u.getLastName(),
+                u.getPhoneNumber(),
+                u.getStatus(),
+                u.getUserType(),
+                fiatAccounts,
+                u.getUpdatedAt(),
+                u.getCreatedAt()
+        );
+    }
+
+    // Comment: each user has exactly one fiat wallet — see FiatWalletRepository.
+    // Active accounts only; empty (never null) if the wallet has none yet.
+    private List<AccountZentagDTO> getZentagAccounts(UUID userId) {
+        return fiatWalletRepository.findByUserId(userId)
+                .map(wallet -> fiatAccountRepository.findByWalletId(wallet.getWalletId()).stream()
+                        .filter(a -> "active".equals(a.getStatus()))
+                        .map(a -> new AccountZentagDTO(
+                                a.getAccountId(),
+                                a.getAccountName(),
+                                a.getCurrencyCode(),
+                                a.getZentag(),
+                                a.isDefault()
+                        ))
+                        .toList())
+                .orElse(List.of());
     }
 
     private static BillProviderSearchDTO toBillProviderSearchDTO(BillProviderModel p) {

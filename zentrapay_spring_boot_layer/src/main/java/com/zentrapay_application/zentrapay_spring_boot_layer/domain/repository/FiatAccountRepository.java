@@ -13,11 +13,11 @@ import java.util.UUID;
 
 public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, UUID> {
     List<FiatAccountModel> findByWalletId(@Param("walletId") UUID walletId);
+
+//  GETTING THE ACCOUNT USING WALLET ID FOR MAKING A PAYMENT
+    Optional<FiatAccountModel> getWalletByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("walletId") String currencyCode);
 //  CHECKING IF THE WALLET EXIST FOR WALLET CURRENCY ACCOUNT CREATION
     boolean existsByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
-
-    //  GETTING FIAT ACCOUNT IF WALLET ACCOUNT EXIST FOR PAYMENTS
-    Optional<FiatAccountModel> findByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 
 //  GETTING USER FIAT ACCOUNT CURRENCIES FOR GETTING SUPPORTED CURRENCIES EXCLUDING THEM
     @Query("SELECT a.currencyCode FROM FiatAccountModel a WHERE a.walletId = :walletId")

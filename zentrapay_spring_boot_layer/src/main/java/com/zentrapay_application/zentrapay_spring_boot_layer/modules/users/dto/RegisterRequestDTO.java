@@ -1,8 +1,11 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto;
 
+import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+
+import java.util.UUID;
 
 public record RegisterRequestDTO(
         @AssertTrue(message = "User consent to the terms of use is required") Boolean termsConsent,

@@ -20,8 +20,6 @@ public record PaymentTransferDTO(
     String currencyCode,
     @NotBlank(message = "Currency type missing")
     @Valid
-    String currencyType,
-    @Valid
-    String purpose
+    String currencyType
 ) {
 }

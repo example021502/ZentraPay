@@ -11,6 +11,6 @@ import java.util.UUID;
 public interface FiatWalletRepository extends JpaRepository<FiatWalletModel, UUID> {
     Optional<FiatWalletModel> findByUserId(@Param("userId") UUID userId);
     boolean existsByUserId(@Param("userId") UUID userId);
-    @Query("SELECT w FROM FiatWalletModel w WHERE w.userId = :userId")
-    FiatWalletModel getWalletByUserId(@Param("userId") UUID userId);
+//    CHECKING IF THE USER WALLET EXIST FOR PAYMENT
+    Optional<FiatWalletModel> getWalletByUserId(@Param("userId") UUID userId);
 }

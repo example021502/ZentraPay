@@ -11,56 +11,25 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * The canonical, single money-movement ledger. Every module that changes a
- * wallet balance (payments, bill_payments, savings, loans, investments,
- * remittance, cards, rewards) writes exactly one row here — this replaces
- * the old split between transactions.TransactionModel and history's reuse
- * of it, plus the ad-hoc bespoke bookkeeping some other modules did.
- */
 @Entity
 @Data
 @Table(name = "transactions")
 public class TransactionModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "transaction_id", nullable = false, unique = true)
+    @Column(name = "transaction_id", nullable = false)
     private UUID transactionId;
-
-    @Column(name = "internal_reference_id", nullable = false)
-    private String internalReferenceId;
-
-    @Column(name = "external_reference_id", nullable = false)
-    private String externalReferenceId;
-
-    @Column(name = "sender_id", nullable = false)
-    private UUID senderId;
-
-    @Column(name = "receiver_id", nullable = false)
-    private UUID receiverId;
-
-    @Column(name = "sender_name", nullable = false)
-    private String senderName;
-
-    @Column(name = "receiver_name", nullable = false)
-    private String receiverName;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;
 
-    @Column(name = "source_currency_code", nullable = false, length = 3)
-    private String sourceCurrencyCode;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @Column(name = "destination_currency_code", nullable = false, length = 3)
-    private String destinationCurrencyCode;
-
-    @Column(name = "purpose", nullable = false, length = 100)
-    private String purpose;
-
-    @Column(name = "failure_reason")
+    @Column(name = "failure_reason", nullable = false, length = 30)
     private String failureReason;
 
-    @Column(name = "gateway", nullable = false)
+    @Column(name = "gateway", nullable = false, length = 3)
     private String gateway;
 
     @JdbcTypeCode(SqlTypes.JSON)
@@ -70,26 +39,50 @@ public class TransactionModel {
     @Column(name = "status", nullable = false)
     private String status;
 
-    @Column(name = "transaction_type", nullable = false, length = 50)
-    private String transactionType;
-
-    @Column(name = "sender_email", nullable = false, length = 50)
-    private String senderEmail;
-
-    @Column(name = "sender_phone_number", nullable = false, length = 50)
-    private String senderPhoneNumber;
-
-    @Column(name = "receiver_email", nullable = false, length = 50)
-    private String receiverEmail;
-
-    @Column(name = "receiver_phone_number", nullable = false, length = 50)
-    private String receiverPhoneNumber;
-
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "transaction_type", nullable = false)
+    private String transactionType;
+
+    @Column(name = "sender_id", nullable = false)
+    private UUID senderId;
+
+    @Column(name = "receiverId", nullable = false)
+    private String receiverId;
+
+    @Column(name = "sender_name", nullable = false)
+    private String senderName;
+
+    @Column(name = "receiver_name", nullable = false)
+    private String receiverName;
+
+    @Column(name = "source_currency_code", nullable = false)
+    private String sourceCurrencyCode;
+
+    @Column(name = "destination_currency_code", nullable = false)
+    private String destinationCurrencyCode;
+
+    @Column(name = "purpose", nullable = false)
+    private String purpose;
+
+    @Column(name = "sender_email", nullable = false)
+    private String senderEmail;
+
+    @Column(name = "sender_phone_number", nullable = false)
+    private String senderPhoneNumber;
+
+    @Column(name = "receiver_email", nullable = false)
+    private String receiverEmail;
+
+    @Column(name = "receiver_phoner_number", nullable = false)
+    private String receiverPhoneNumber;
+
+    @Column(name = "internal_reference_id", nullable = false)
+    private String internalReferenceId;
+
+    @Column(name = "external_reference_id", nullable = false)
+    private String externalReferenceId;
+
 }
