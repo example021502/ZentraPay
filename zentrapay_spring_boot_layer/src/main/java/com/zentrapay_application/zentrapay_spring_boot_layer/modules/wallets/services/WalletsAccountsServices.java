@@ -107,7 +107,9 @@ public class WalletsAccountsServices {
     @Transactional(readOnly = true)
     public List<SupportedCurrencyDTO> getSupportedCurrencies(UUID userId) {
 
-        final FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId);
+        final FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
+
         final List<String> userCurrencyAccountsCurrencies = fiatAccountRepository.getAccountsCurrenciesByWalletId(wallet.getWalletId());
         final List<String> currencyCodes = supportedCurrenciesRepository.getCurrencyCodes(userCurrencyAccountsCurrencies);
         System.out.println("THE CURRENCY CODE FETCHED IS:: " + userCurrencyAccountsCurrencies);

@@ -79,7 +79,7 @@ public class TransactionModel {
     @Column(name = "receiver_email", nullable = false)
     private String receiverEmail;
 
-    @Column(name = "receiver_phoner_number", nullable = false)
+    @Column(name = "receiver_phone_number", nullable = false)
     private String receiverPhoneNumber;
 
     @Column(name = "internal_reference_id", nullable = false)

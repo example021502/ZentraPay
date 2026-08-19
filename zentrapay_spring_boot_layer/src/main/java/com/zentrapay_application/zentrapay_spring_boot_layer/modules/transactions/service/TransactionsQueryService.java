@@ -29,7 +29,7 @@ public class TransactionsQueryService {
     public TransactionPageDTO getHistory(UUID userId, int page, int size) {
         int safeSize = size > 0 ? Math.min(size, 100) : 20;
         int safePage = Math.max(page, 0);
-        Page<TransactionModel> result = transactionRepository.findByUserIdOrderByCreatedAtDesc(
+        Page<TransactionModel> result = transactionRepository.findBySenderIdOrReceiverId(
                 userId, PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         return new TransactionPageDTO(
