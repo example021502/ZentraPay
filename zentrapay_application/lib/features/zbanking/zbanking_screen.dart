@@ -5,6 +5,7 @@ import 'package:zentrapay_application/core/repositories/zbanking_repository.dart
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/features/zbanking/widgets/LinkedBankAccounts.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ZBankingScreen extends StatefulWidget {
@@ -27,6 +28,8 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
     BankingInsightsRepository.instance.ensureLoaded();
   }
 
+  Map<String, dynamic> accounts = {};
+
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 470;
@@ -45,15 +48,19 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(15.0),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20.0,
+                  horizontal: 15.0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 20,
+                  spacing: AppTheme.spacingLg,
                   children: [
                     _buildQuickActions(context),
+                    LinkedBankAccounts(accounts: accounts),
                     _buildAccountOptionsSection(context),
                     _buildAiInsights(context),
-                    const SizedBox(height: 80),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -70,13 +77,39 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 15.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Digital savings & micro-loans",
-            style: TextStyle(color: AppTheme.primaryWhite, fontSize: 14),
+            "ZBanking Overview",
+            style: AppTheme.bodyMedium.copyWith(color: AppColors.primary),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Next-gen banking\nEffortless living",
+                style: AppTheme.whiteHeadline,
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.expand_less_outlined,
+                    size: 22,
+                    color: AppColors.primary,
+                  ),
+                  Text(
+                    "14.2",
+                    style: AppTheme.headlineSmall.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: AppTheme.spacingMd),
           ConstrainedBox(
@@ -195,6 +228,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               ),
             ),
           ),
+          const SizedBox(height: AppTheme.spacingMd),
         ],
       ),
     );
@@ -205,38 +239,34 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // ============================================================
 
   Widget _buildQuickActions(BuildContext context) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          QuickActionButton(
-            icon: Icons.savings,
-            label: "Save",
-            onTap: () => _showCreateSavingsDialog(context),
-            color: AppColors.secondary,
-          ),
-          QuickActionButton(
-            icon: Icons.account_balance_wallet,
-            label: "Borrow",
-            onTap: () => _showLoanApplyDialog(context),
-            color: AppColors.secondary,
-          ),
-          QuickActionButton(
-            icon: Icons.track_changes,
-            label: "Budget",
-            onTap: () => _showBudgetLimitDialog(context),
-            color: AppColors.secondary,
-          ),
-          QuickActionButton(
-            icon: Icons.lock,
-            label: "Vault",
-            onTap: () => showComingSoon(context, "Emergency Vault"),
-            color: AppColors.secondary,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        QuickActionButton(
+          icon: Icons.savings,
+          label: "Save",
+          onTap: () => _showCreateSavingsDialog(context),
+          color: AppColors.secondary,
+        ),
+        QuickActionButton(
+          icon: Icons.account_balance_wallet,
+          label: "Borrow",
+          onTap: () => _showLoanApplyDialog(context),
+          color: AppColors.secondary,
+        ),
+        QuickActionButton(
+          icon: Icons.track_changes,
+          label: "Budget",
+          onTap: () => _showBudgetLimitDialog(context),
+          color: AppColors.secondary,
+        ),
+        QuickActionButton(
+          icon: Icons.lock,
+          label: "Vault",
+          onTap: () => showComingSoon(context, "Emergency Vault"),
+          color: AppColors.secondary,
+        ),
+      ],
     );
   }
 
@@ -248,33 +278,29 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // the header's quick-action buttons use.
 
   Widget _buildAccountOptionsSection(BuildContext context) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-      child: Column(
-        children: [
-          _accountOptionTile(
-            context,
-            icon: Icons.savings,
-            label: "Digital Savings",
-            onTap: () => _showCreateSavingsDialog(context),
-          ),
-          const SizedBox(height: 8),
-          _accountOptionTile(
-            context,
-            icon: Icons.account_balance_wallet_outlined,
-            label: "Micro-Loans",
-            onTap: () => _showLoanApplyDialog(context),
-          ),
-          const SizedBox(height: 8),
-          _accountOptionTile(
-            context,
-            icon: Icons.track_changes,
-            label: "Budget Tracker",
-            onTap: () => _showBudgetLimitDialog(context),
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        _accountOptionTile(
+          context,
+          icon: Icons.savings,
+          label: "Digital Savings",
+          onTap: () => _showCreateSavingsDialog(context),
+        ),
+        const SizedBox(height: 8),
+        _accountOptionTile(
+          context,
+          icon: Icons.account_balance_wallet_outlined,
+          label: "Micro-Loans",
+          onTap: () => _showLoanApplyDialog(context),
+        ),
+        const SizedBox(height: 8),
+        _accountOptionTile(
+          context,
+          icon: Icons.track_changes,
+          label: "Budget Tracker",
+          onTap: () => _showBudgetLimitDialog(context),
+        ),
+      ],
     );
   }
 
@@ -367,10 +393,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "AI Insights",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        const Text("AI Insights", style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingSm),
         child,
       ],
@@ -404,20 +427,18 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // ============================================================
 
   Widget _errorCard({required String message, required VoidCallback onRetry}) {
-    return AppCard(
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline, color: AppTheme.errorRed, size: 32),
-          const SizedBox(height: AppTheme.spacingSm),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
-          ),
-          const SizedBox(height: AppTheme.spacingSm),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
-      ),
+    return Column(
+      children: [
+        const Icon(Icons.error_outline, color: AppTheme.errorRed, size: 32),
+        const SizedBox(height: AppTheme.spacingSm),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+        ),
+        const SizedBox(height: AppTheme.spacingSm),
+        TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
     );
   }
 

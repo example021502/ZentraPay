@@ -165,6 +165,11 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                         alignment: Alignment.centerLeft,
                         clipBehavior: Clip.none,
                         children: [
+                          Positioned(
+                            height: MediaQuery.of(context).size.height,
+                            width: MediaQuery.of(context).size.width,
+                            child: Image.asset("images/SplashscreenImage"),
+                          ),
                           // Comment: "entrapay" positioned behind Z visually via layer structure
                           SlideTransition(
                             position: _brandSlide,

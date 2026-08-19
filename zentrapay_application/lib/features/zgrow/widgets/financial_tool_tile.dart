@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
 class FinancialToolTile extends StatelessWidget {
@@ -29,20 +30,12 @@ class FinancialToolTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(200),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Icon(icon, color: AppColors.secondary, size: 22),
+                    padding: const EdgeInsets.all(12.0),
+                    child: Icon(icon, color: AppColors.secondary, size: 20),
                   ),
                 ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(title, style: AppTheme.bodySmall)),
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,

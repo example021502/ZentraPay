@@ -70,17 +70,9 @@ class _ChallengesSectionState extends State<ChallengesSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: MediaQuery.of(context).size.width,
-              decoration: AppTheme.cardDecoration.copyWith(
-                border: Border.all(color: AppColors.green, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.green.withAlpha(20),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: Offset(0, 0),
-                  ),
-                ],
+              decoration: BoxDecoration(
+                color: AppTheme.lightGrey.withAlpha(20),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(15.0),
@@ -98,7 +90,7 @@ class _ChallengesSectionState extends State<ChallengesSection> {
                           const SizedBox(height: 4),
                           Text(
                             "Transform financial goals into rewarding daily habits through engaging challenges, points, and milestone badges.",
-                            style: AppTheme.labelSmall,
+                            style: AppTheme.bodySmall,
                           ),
                         ],
                       ),
@@ -128,11 +120,10 @@ class _ChallengesSectionState extends State<ChallengesSection> {
             const SizedBox(height: AppTheme.spacingMd),
             // Only show heading and content if toggled on and challenges data is available/non-empty
             if (showChallenges && hasChallenges) ...[
-              const Text("Active Challenges", style: AppTheme.headlineSmall),
+              const Text("Active Challenges", style: AppTheme.bodyMedium),
               const SizedBox(height: AppTheme.spacingMd),
               _list(),
             ],
-            const SizedBox(height: AppTheme.spacingMd),
           ],
         );
       },
@@ -162,13 +153,13 @@ class _ChallengesSectionState extends State<ChallengesSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (joined.isNotEmpty) ...[
-          Text("Joined Challenges", style: AppTheme.labelLarge),
+          Text("Joined Challenges", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingSm),
           ..._cards(joined),
           if (others.isNotEmpty) const SizedBox(height: AppTheme.spacingMd),
         ],
         if (others.isNotEmpty) ...[
-          Text("Other Challenges", style: AppTheme.labelLarge),
+          Text("Other Challenges", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingSm),
           ..._cards(others),
         ],

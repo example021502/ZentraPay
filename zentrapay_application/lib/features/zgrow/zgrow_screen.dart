@@ -43,7 +43,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const ZGrowHeroCard(),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppTheme.spacingXl),
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.gray50,
@@ -52,12 +52,13 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(15.0),
                 child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     QuickActionsRow(),
-                    SizedBox(height: AppTheme.spacingMd),
+                    SizedBox(height: AppTheme.spacingXl),
                     ChallengesSection(),
                     SizedBox(height: AppTheme.spacingMd),
-                    Text("Financial Tools", style: AppTheme.headlineSmall),
+                    Text("Financial Tools", style: AppTheme.bodyMedium),
                     SizedBox(height: AppTheme.spacingMd),
                     FinancialToolsSection(),
                     SizedBox(height: AppTheme.spacingMd),

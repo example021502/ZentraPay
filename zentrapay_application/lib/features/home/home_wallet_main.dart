@@ -47,14 +47,8 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery
-        .of(context)
-        .size
-        .width >= 600;
-    final maxWidth = isTablet ? 400.0 : MediaQuery
-        .of(context)
-        .size
-        .width;
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+    final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
 
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
@@ -68,6 +62,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
               id: "fiat",
             ),
           ),
+          SizedBox(height: AppTheme.spacingXl),
           _buildContent(isTablet),
         ],
       ),
@@ -76,6 +71,8 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
 
   Widget _buildContent(bool isTablet) {
     return Container(
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -85,72 +82,60 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         child: Column(
           children: [
             const HomeQuickActions(),
-            SizedBox(height: AppTheme.spacingMd),
-
+            SizedBox(height: AppTheme.spacingXl),
             ListenableBuilder(
               listenable: CardsRepository.instance,
-              builder: (context, _) =>
-                  HomeCardsCarousel(
-                    cards: (CardsRepository.instance.data ?? [])
-                        .map(
-                          (c) =>
-                      {
+              builder: (context, _) => HomeCardsCarousel(
+                cards: (CardsRepository.instance.data ?? [])
+                    .map(
+                      (c) => {
                         'cardId': c.cardId,
                         'cardName': c.brand,
                         'type': c.cardType,
                         'last4': c.last4,
                         'expiry':
-                        '${c.expiryMonth.toString().padLeft(2, '0')}/${c
-                            .expiryYear.toString()
-                            .substring(c.expiryYear
-                            .toString()
-                            .length - 2)}',
+                            '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
                         'status': c.status,
                       },
                     )
-                        .toList(),
-                  ),
+                    .toList(),
+              ),
             ),
             ListenableBuilder(
               listenable: Listenable.merge([
                 BillProvidersRepository.instance,
                 ServiceProvidersRepository.instance,
               ]),
-              builder: (context, _) =>
-                  HomeServicesGrid(
-                    services: (ServiceProvidersRepository.instance.data ?? [])
-                        .map(
-                          (p) =>
-                      {
+              builder: (context, _) => HomeServicesGrid(
+                services: (ServiceProvidersRepository.instance.data ?? [])
+                    .map(
+                      (p) => {
                         'providerName': p.providerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
                       },
                     )
-                        .toList(),
-                    bills: (BillProvidersRepository.instance.data ?? [])
-                        .map(
-                          (p) =>
-                      {
+                    .toList(),
+                bills: (BillProvidersRepository.instance.data ?? [])
+                    .map(
+                      (p) => {
                         'billerName': p.billerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
                       },
                     )
-                        .toList(),
-                  ),
+                    .toList(),
+              ),
             ),
             SizedBox(height: AppTheme.spacingSm),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: 400),
               child: ListenableBuilder(
                 listenable: TransactionsRepository.instance,
-                builder: (context, _) =>
-                    HomeTransactions(
-                      history: TransactionsRepository.instance.items
-                          .map(
-                            (t) =>
-                        {
+                builder: (context, _) => HomeTransactions(
+                  history: TransactionsRepository.instance.items
+                      .map(
+                        (t) => {
                           'title': t.counterpartyName ?? t.typeCode,
                           'time': t.createdAt,
                           'amount': formatMoney(
@@ -163,8 +148,8 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                           'type': t.typeCode,
                         },
                       )
-                          .toList(),
-                    ),
+                      .toList(),
+                ),
               ),
             ),
             const SizedBox(

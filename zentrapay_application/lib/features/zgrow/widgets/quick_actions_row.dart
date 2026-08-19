@@ -18,40 +18,36 @@ class QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _QuickActionButton(
-            icon: Icons.arrow_downward_outlined,
-            label: "Save Now",
-            onTap: () {
-              showComingSoon(context, "This feature");
-            },
-          ),
-          _QuickActionButton(
-            icon: Icons.verified_user_outlined,
-            label: "Emergence\nFund",
-            onTap: () => _open(
-              context,
-              const PlaceholderScreen(title: "Emergency Fund"),
-            ),
-          ),
-          _QuickActionButton(
-            icon: Icons.account_balance_wallet_outlined,
-            label: "Pay-Loans",
-            onTap: () =>
-                _open(context, const PlaceholderScreen(title: "Pay Loans")),
-          ),
-          _QuickActionButton(
-            icon: Icons.trending_up,
-            label: "Z-Invest",
-            onTap: () => _open(context, const ZInvestScreen()),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.start,
+
+      children: [
+        _QuickActionButton(
+          icon: Icons.arrow_downward_outlined,
+          label: "Save Now",
+          onTap: () {
+            showComingSoon(context, "This feature");
+          },
+        ),
+        _QuickActionButton(
+          icon: Icons.verified_user_outlined,
+          label: "Emergence\nFund",
+          onTap: () =>
+              _open(context, const PlaceholderScreen(title: "Emergency Fund")),
+        ),
+        _QuickActionButton(
+          icon: Icons.account_balance_wallet_outlined,
+          label: "Pay-Loans",
+          onTap: () =>
+              _open(context, const PlaceholderScreen(title: "Pay Loans")),
+        ),
+        _QuickActionButton(
+          icon: Icons.trending_up,
+          label: "Z-Invest",
+          onTap: () => _open(context, const ZInvestScreen()),
+        ),
+      ],
     );
   }
 }
@@ -79,14 +75,15 @@ class _QuickActionButton extends StatelessWidget {
               color: AppColors.secondary.withAlpha(20),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppColors.textBlack, size: 24),
+            child: Icon(
+              icon,
+              color: AppColors.textBlack,
+              size: 22,
+              fontWeight: FontWeight.w300,
+            ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          ),
+          const SizedBox(height: 5),
+          Text(label, textAlign: TextAlign.center, style: AppTheme.bodySmall),
         ],
       ),
     );

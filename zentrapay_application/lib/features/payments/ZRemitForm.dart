@@ -248,362 +248,320 @@ class ZRemitFormState extends State<ZRemitForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            decoration: AppTheme.cardDecoration,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20.0,
-                horizontal: 15,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Make Cross-Border Payment", style: AppTheme.bodyMedium),
+              const SizedBox(height: AppTheme.spacingMd),
+              Text(
+                "Amount",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textBlack,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Make Cross-Border Payment",
-                    style: AppTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  Text(
-                    "Amount",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textBlack,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _amountController,
-                    keyboardType: TextInputType.number,
-                    cursorColor: AppColors.textBlack,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    decoration: _inputDecoration(
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: amountDetails["sourceCurrencyCode"],
-                            items: _currencies
-                                .map(
-                                  (c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(
-                                      c,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _amountController,
+                keyboardType: TextInputType.number,
+                cursorColor: AppColors.textBlack,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                decoration: _inputDecoration(
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: amountDetails["sourceCurrencyCode"],
+                        items: _currencies
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(
+                                  c,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  amountDetails["sourceCurrencyCode"] = val;
-                                  _updateRecipientDisplayValue();
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                    onChanged: (val) {
-                      _formatAmount(val);
-                      amountDetails["amount"] = _amountController.text;
-                    },
-                    validator: (val) {
-                      if (val == null || val.isEmpty || val == "0.00") {
-                        return "Please enter a valid amount";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    isSameCurrency
-                        ? "Same Currency Transfer"
-                        : "Recipient Gets (Approx.)",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textBlack,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  TextFormField(
-                    controller: _recipientValueController,
-                    enabled: true,
-                    readOnly: true,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    decoration: _inputDecoration(
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: amountDetails["destinationCurrencyCode"],
-                            items: _currencies
-                                .map(
-                                  (c) => DropdownMenuItem(
-                                    value: c,
-                                    child: Text(
-                                      c,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  amountDetails["destinationCurrencyCode"] =
-                                      val;
-                                  destinationDetails["destinationCurrencyCode"] =
-                                      val;
-                                  _updateRecipientDisplayValue();
-                                });
-                              }
-                            },
-                          ),
-                        ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              amountDetails["sourceCurrencyCode"] = val;
+                              _updateRecipientDisplayValue();
+                            });
+                          }
+                        },
                       ),
                     ),
                   ),
-                  if (!isSameCurrency) ...[
-                    const SizedBox(height: 6),
-                    if (_previewLoading)
-                      Row(
-                        children: [
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Fetching live rate…",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textBlack.withAlpha(150),
-                            ),
-                          ),
-                        ],
-                      )
-                    else if (_previewError != null)
+                ),
+                onChanged: (val) {
+                  _formatAmount(val);
+                  amountDetails["amount"] = _amountController.text;
+                },
+                validator: (val) {
+                  if (val == null || val.isEmpty || val == "0.00") {
+                    return "Please enter a valid amount";
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 15),
+              Text(
+                isSameCurrency
+                    ? "Same Currency Transfer"
+                    : "Recipient Gets (Approx.)",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textBlack,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 5),
+              TextFormField(
+                controller: _recipientValueController,
+                enabled: true,
+                readOnly: true,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                decoration: _inputDecoration(
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: amountDetails["destinationCurrencyCode"],
+                        items: _currencies
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(
+                                  c,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              amountDetails["destinationCurrencyCode"] = val;
+                              destinationDetails["destinationCurrencyCode"] =
+                                  val;
+                              _updateRecipientDisplayValue();
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (!isSameCurrency) ...[
+                const SizedBox(height: 6),
+                if (_previewLoading)
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        _previewError!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.main,
-                        ),
-                      )
-                    else if (_previewRate != null)
-                      Text(
-                        "1 ${amountDetails["sourceCurrencyCode"]} = $_previewRate ${amountDetails["destinationCurrencyCode"]}",
+                        "Fetching live rate…",
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textBlack.withAlpha(150),
                         ),
                       ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 30),
-          Container(
-            decoration: AppTheme.cardDecoration,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20.0,
-                horizontal: 15,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "First Name",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            TextFormField(
-                              controller: _firstNameController,
-                              cursorColor: AppColors.textBlack,
-                              decoration: _inputDecoration(
-                                hintText: "First Name",
-                              ),
-                              onChanged: (val) {
-                                recipientDetails["firstName"] = val;
-                              },
-                              validator: (val) => val == null || val.isEmpty
-                                  ? "Required"
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Last Name",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            TextFormField(
-                              controller: _lastNameController,
-                              cursorColor: AppColors.textBlack,
-                              decoration: _inputDecoration(
-                                hintText: "Last Name",
-                              ),
-                              onChanged: (val) {
-                                recipientDetails["lastName"] = val;
-                              },
-                              validator: (val) => val == null || val.isEmpty
-                                  ? "Required"
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  const Text(
-                    "Payout Option",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: destinationDetails["payoutOption"],
-                    decoration: _inputDecoration(),
-                    items: ["Mobile Money", "Bank", "Wallet"]
-                        .map(
-                          (option) => DropdownMenuItem(
-                            value: option,
-                            child: Text(option),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          destinationDetails["payoutOption"] = val;
-                          destinationDetails["accountIdentifier"] = "";
-                          _accountDetailController.clear();
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  )
+                else if (_previewError != null)
                   Text(
-                    _getDynamicLabel(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    _previewError!,
+                    style: const TextStyle(fontSize: 11, color: AppColors.main),
+                  )
+                else if (_previewRate != null)
+                  Text(
+                    "1 ${amountDetails["sourceCurrencyCode"]} = $_previewRate ${amountDetails["destinationCurrencyCode"]}",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textBlack.withAlpha(150),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _accountDetailController,
-                    cursorColor: AppColors.textBlack,
-                    decoration: _inputDecoration(
-                      hintText: "Enter ${_getDynamicLabel().toLowerCase()}",
-                    ),
-                    onChanged: (val) {
-                      destinationDetails["accountIdentifier"] = val;
-                    },
-                    validator: (val) => val == null || val.isEmpty
-                        ? "This field is required"
-                        : null,
-                  ),
-                ],
-              ),
-            ),
+              ],
+            ],
           ),
           const SizedBox(height: 30),
-          Container(
-            decoration: AppTheme.cardDecoration,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20.0,
-                horizontal: 15,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  const Text(
-                    "Reason / Purpose",
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _reasonController,
-                    maxLines: 3,
-                    cursorColor: AppColors.textBlack,
-                    decoration: _inputDecoration(
-                      hintText: "Enter reason for transfer...",
-                    ),
-                    onChanged: (val) {
-                      amountDetails["purpose"] = val;
-                      destinationDetails["purpose"] = val;
-                    },
-                    validator: (val) => val == null || val.isEmpty
-                        ? "Please provide a reason"
-                        : null,
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          final combinedData = {
-                            "recipientDetails": recipientDetails,
-                            "amountDetails": amountDetails,
-                            "destinationDetails": destinationDetails,
-                          };
-                          widget.onSendSubmitted?.call(combinedData);
-                        }
-                      },
-                      child: const Text(
-                        "Continue to Payment",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "First Name",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _firstNameController,
+                          cursorColor: AppColors.textBlack,
+                          decoration: _inputDecoration(hintText: "First Name"),
+                          onChanged: (val) {
+                            recipientDetails["firstName"] = val;
+                          },
+                          validator: (val) =>
+                              val == null || val.isEmpty ? "Required" : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Last Name",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _lastNameController,
+                          cursorColor: AppColors.textBlack,
+                          decoration: _inputDecoration(hintText: "Last Name"),
+                          onChanged: (val) {
+                            recipientDetails["lastName"] = val;
+                          },
+                          validator: (val) =>
+                              val == null || val.isEmpty ? "Required" : null,
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: AppTheme.spacingMd),
+              const Text(
+                "Payout Option",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: destinationDetails["payoutOption"],
+                decoration: _inputDecoration(),
+                items: ["Mobile Money", "Bank", "Wallet"]
+                    .map(
+                      (option) =>
+                          DropdownMenuItem(value: option, child: Text(option)),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      destinationDetails["payoutOption"] = val;
+                      destinationDetails["accountIdentifier"] = "";
+                      _accountDetailController.clear();
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              Text(
+                _getDynamicLabel(),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _accountDetailController,
+                cursorColor: AppColors.textBlack,
+                decoration: _inputDecoration(
+                  hintText: "Enter ${_getDynamicLabel().toLowerCase()}",
+                ),
+                onChanged: (val) {
+                  destinationDetails["accountIdentifier"] = val;
+                },
+                validator: (val) => val == null || val.isEmpty
+                    ? "This field is required"
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Reason / Purpose",
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _reasonController,
+                maxLines: 3,
+                cursorColor: AppColors.textBlack,
+                decoration: _inputDecoration(
+                  hintText: "Enter reason for transfer...",
+                ),
+                onChanged: (val) {
+                  amountDetails["purpose"] = val;
+                  destinationDetails["purpose"] = val;
+                },
+                validator: (val) => val == null || val.isEmpty
+                    ? "Please provide a reason"
+                    : null,
+              ),
+              const SizedBox(height: AppTheme.spacingLg),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      final combinedData = {
+                        "recipientDetails": recipientDetails,
+                        "amountDetails": amountDetails,
+                        "destinationDetails": destinationDetails,
+                      };
+                      widget.onSendSubmitted?.call(combinedData);
+                    }
+                  },
+                  child: const Text(
+                    "Continue to Payment",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

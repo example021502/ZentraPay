@@ -44,7 +44,7 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeroCard(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppTheme.spacingXl),
                   // Wrapped form widget ensuring it doesn't contain unconstrained inner widgets
                   const ZRemitForm(),
                   const SizedBox(height: 100),

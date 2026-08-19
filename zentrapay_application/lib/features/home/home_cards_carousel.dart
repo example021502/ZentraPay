@@ -21,32 +21,29 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          decoration: AppTheme.cardDecoration,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Your Cards", style: AppTheme.titleLarge),
-                const SizedBox(width: AppTheme.spacingSm),
-                InkWell(
-                  onTap: () {
-                    showComingSoon(context, "Cards Coming Son");
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(200),
-                      color: AppTheme.secondaryNavy.withAlpha(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Icon(Icons.add_outlined, size: 22),
-                    ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Your Cards", style: AppTheme.bodyMedium),
+              const SizedBox(width: AppTheme.spacingSm),
+              InkWell(
+                onTap: () {
+                  showComingSoon(context, "Cards Coming Son");
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(200),
+                    color: AppTheme.secondaryNavy.withAlpha(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Icon(Icons.add_outlined, size: 22),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         Container(
