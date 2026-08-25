@@ -2,14 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/main.dart';
 
+import '../../core/repositories/providers_repository.dart';
+import '../../core/repositories/transactions_repository.dart';
+import '../../core/repositories/wallets_repository.dart';
 import '../../core/theme/navigation_bar/responsive_navigation.dart';
-
-// Comment: Import the file where ResponsiveNavigation widget is defined.
-// Replace 'path/to/your_navigation_file.dart' with the actual path if it's not in main.dart
-// import 'package:zentrapay_application/path/to/your_navigation_file.dart';
 
 // Comment: Main splash screen widget handling initial app loading and route dispatching
 class ZentrapaySplashScreenMain extends StatefulWidget {
@@ -50,7 +50,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       ),
     );
 
-    // Comment: Phase 2 (0.3 to 0.8) - Brand name slides horizontally over 2 seconds, starting mid-way through logo pop
+    // Comment: Phase 2 (0.3 to 0.8) - Brand name slides horizontally over 2 seconds
     _brandSlide = Tween<Offset>(begin: const Offset(-0.3, 0), end: Offset.zero)
         .animate(
           CurvedAnimation(
@@ -66,7 +66,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       ),
     );
 
-    // Comment: Phase 3 (0.5 to 1.0) - Slogan drops vertically downward over 2 seconds, concluding right at the 4-second mark
+    // Comment: Phase 3 (0.5 to 1.0) - Slogan drops vertically downward over 2 seconds
     _sloganSlide = Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero)
         .animate(
           CurvedAnimation(
@@ -85,7 +85,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
     _runAnimationSequence();
   }
 
-  // Comment: Cleaned up signature syntax to resolve compiler syntax errors completely
+  // Comment: Check stored token validity asynchronously
   Future<Map<String, dynamic>?> _checkLoginStatus() async {
     try {
       final token = await SecureStorageService.getToken();
@@ -124,13 +124,21 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
 
     // Comment: Evaluate calculated token parameters to navigate to the correct screen layout
     if (userData != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          // Comment: Passes decoded user claims payload directly to destination layout wrapper
-          builder: (context) => ResponsiveNavigation(userData: userData),
-        ),
-      );
+      WalletsRepository.instance.ensureLoaded();
+      BillProvidersRepository.instance.ensureLoaded();
+      ServiceProvidersRepository.instance.ensureLoaded();
+      TransactionsRepository.instance.ensureLoaded();
+      Future.delayed(Duration(seconds: 3), () {
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            // Comment: Passes decoded user claims payload directly to destination layout wrapper
+            builder: (context) => ResponsiveNavigation(userData: userData),
+          ),
+        );
+      });
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }
@@ -146,51 +154,32 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.main,
-      // Comment: Set background directly on Scaffold to avoid sizing conflicts
-      body: SafeArea(
-        child: SizedBox.expand(
-          // Comment: Force full screen height safely without infinite height or scrolling collisions
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            // Comment: Center everything vertically
-            children: [
-              // Comment: Interactive staggered layer hierarchy
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Stack(
-                        alignment: Alignment.centerLeft,
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned(
-                            height: MediaQuery.of(context).size.height,
-                            width: MediaQuery.of(context).size.width,
-                            child: Image.asset("images/SplashscreenImage"),
-                          ),
-                          // Comment: "entrapay" positioned behind Z visually via layer structure
-                          SlideTransition(
-                            position: _brandSlide,
-                            child: FadeTransition(
-                              opacity: _brandOpacity,
-                              child: const Padding(
-                                padding: EdgeInsets.only(left: 65),
-                                child: Text(
-                                  'entrapay',
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontSize: 35,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: -1.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+      // Comment: Force full screen height safely without infinite layout collisions
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            // Comment: 1. BACKGROUND IMAGE - Placed first in stack so it covers the entire page underneath everything
+            Positioned.fill(
+              child: Image.asset(
+                "images/SplashscreenImage.png",
+                fit: BoxFit.cover,
+              ),
+            ),
 
-                          // Comment: Z Logo positioned below text layout in tree so it sits "on top"
+            // Comment: 2. CONTENT CONTAINER - Positioned at the top center with padding
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 60.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Comment: Row aligning Z Logo and text side-by-side cleanly at top center
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Comment: Z Logo container
                           ScaleTransition(
                             scale: _logoScale,
                             child: Container(
@@ -211,40 +200,59 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          // Comment: Brand text sliding into place
+                          SlideTransition(
+                            position: _brandSlide,
+                            child: FadeTransition(
+                              opacity: _brandOpacity,
+                              child: const Text(
+                                'entrapay',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 35,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: -1.0,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                  // Comment: ClipRect hides the text while its offset is vertically "above" the layout space
-                  ClipRect(
-                    child: SlideTransition(
-                      position: _sloganSlide,
-                      child: FadeTransition(
-                        opacity: _sloganOpacity,
-                        child: const Text(
-                          'One Africa, One Wallet',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: 0.5,
+                      // Comment: Slogan dropping down vertically beneath the brand name
+                      ClipRect(
+                        child: SlideTransition(
+                          position: _sloganSlide,
+                          child: FadeTransition(
+                            opacity: _sloganOpacity,
+                            child: const Text(
+                              'One Africa, One Wallet',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: AppTheme.spacingXl),
+                      // LOADING
+                      if (_isLoading) ...[
+                        const CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 30),
+                      ],
+                    ],
                   ),
-                ],
+                ),
               ),
-
-              // Comment: Render conditional loading indicator cleanly beneath branding components
-              if (_isLoading) ...[
-                const SizedBox(height: 40),
-                const CircularProgressIndicator(color: AppColors.primary),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

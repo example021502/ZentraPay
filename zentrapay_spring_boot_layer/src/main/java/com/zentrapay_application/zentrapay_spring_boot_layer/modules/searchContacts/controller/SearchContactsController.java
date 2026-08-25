@@ -1,6 +1,8 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.controller;
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.ContactResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchContactRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.service.SearchContactsService;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -20,13 +23,13 @@ import java.util.UUID;
  * contract's /api/search-contacts.
  */
 @RestController
-@RequestMapping("/api/search-contacts")
+@RequestMapping("/api/search")
 @RequiredArgsConstructor
 public class SearchContactsController {
     private final SearchContactsService searchContactsService;
 
     // Endpoint handles contact searches while automatically pulling the authenticated user's ID from the token
-    @GetMapping("/{query}")
+    @GetMapping("/search-contacts/{query}")
     public ResponseEntity<ApiResponse<SearchResponseDTO>> searchContacts(
             @PathVariable("query") String query,
             @AuthenticationPrincipal AuthenticatedUser user // Captures the authenticated principal set by your JWT filter
@@ -45,5 +48,16 @@ public class SearchContactsController {
 
         // Return the success response
         return ResponseEntity.ok(ApiResponse.success(contacts, "Search Successful"));
+    }
+
+    @GetMapping("/search-contact/{query}")
+    public ResponseEntity<ApiResponse<ContactResponseDTO>> searchContact(
+            @PathVariable("query") UUID query,
+            @AuthenticationPrincipal AuthenticatedUser user // Captures the authenticated principal set by your JWT filter
+    ) {
+        SearchContactRequestDTO req = new SearchContactRequestDTO(query);
+        final UUID userId = user.getUserId();
+        ContactResponseDTO contact = searchContactsService.getContact(userId, req);
+        return ResponseEntity.ok(ApiResponse.success(contact, "Search Successful"));
     }
 }

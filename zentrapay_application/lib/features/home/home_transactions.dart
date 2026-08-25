@@ -13,53 +13,57 @@ class HomeTransactions extends StatelessWidget {
     // Only exists once there's real transaction history to show.
     if (history.isEmpty) return const SizedBox.shrink();
 
+    // Clip the history list to a maximum of the first 5 transactions
+    final List<Map<String, dynamic>> clippedHistory = history.length > 5
+        ? history.take(5).toList()
+        : history;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: AppTheme.spacingXl),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Recent Activities", style: AppTheme.headlineSmall),
+            Text("Recent Activities", style: AppTheme.bodyMedium),
             TextButton(
               onPressed: () {
-                //   TODO: TO BE IMPLEMENTED LATER
+                // TODO: TO BE IMPLEMENTED LATER
                 showComingSoon(context, "See All History");
               },
-
               child: Text(
                 "See All",
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.primaryPink),
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppTheme.primaryPink,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: AppTheme.spacingMd),
-        // The ListView needs a bounded max-height so it doesn't get an
-        // unlimited vertical extent when placed inside the scrolling parent
-        // (without it, Flutter throws "Vertical viewport was given unbounded
-        // height"). It stays internally scrollable within that height.
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 300),
-          child: ListView.builder(
-            scrollDirection: Axis.vertical,
-            itemCount: history.length > 5 ? 5 : history.length,
-            itemBuilder: (BuildContext context, int i) {
-              final item = history[i];
-              final title = item["title"] ?? "Transaction";
-              final time = item["time"] ?? "Today";
-              final amount = item["amount"] ?? "GHS 0.00";
-              final icon = item["icon"] ?? Icons.receipt_long;
-              final type = item["type"] ?? "payment";
-              return TransactionListItem(
-                icon: icon,
-                title: title,
-                subtitle: time,
-                amount: amount,
-                onTap: () => _showTransactionDetails(
-                    context, title, time, amount, type),
-              );
-            },
-          ),
+        Column(
+          children: clippedHistory.map((item) {
+            final title = item["title"] ?? "Transaction";
+            final timeRaw = item["time"]?.toString() ?? '';
+            final dateTime = DateTime.tryParse(timeRaw) ?? DateTime.now();
+            String dateOnly =
+                "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+            String timeOnly =
+                "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+            final date = "$dateOnly • $timeOnly";
+            final amount = item["amount"] ?? "Unknown";
+            final icon = item["icon"] ?? Icons.receipt_long;
+            final type = item["type"] ?? "payment";
+
+            return TransactionListItem(
+              icon: icon,
+              title: title,
+              subtitle: date,
+              amount: amount,
+              onTap: () =>
+                  _showTransactionDetails(context, title, date, amount, type),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -94,21 +98,32 @@ class HomeTransactions extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppTheme.spacingLg),
-            Text(title, style: AppTheme.headlineMedium),
+            Text(
+              title,
+              style: AppTheme.headlineMedium,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: AppTheme.spacingSm),
             Text(
               time,
               style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppTheme.spacingLg),
-            AmountText(amount: amount, fontSize: 32),
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AmountText(amount: amount, fontSize: 32, maxLines: 1),
+              ),
+            ),
             const SizedBox(height: AppTheme.spacingLg),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildDetailItem("Type", type),
-                _buildDetailItem("Status", "Completed"),
-                _buildDetailItem("Reference", "TXN123456"),
+                Expanded(child: _buildDetailItem("Type", type)),
+                Expanded(child: _buildDetailItem("Status", "Completed")),
+                Expanded(child: _buildDetailItem("Reference", "TXN123456")),
               ],
             ),
             const SizedBox(height: AppTheme.spacingLg),
@@ -132,9 +147,18 @@ class HomeTransactions extends StatelessWidget {
         Text(
           label,
           style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: AppTheme.spacingXs),
-        Text(value, style: AppTheme.titleLarge),
+        Text(
+          value,
+          style: AppTheme.titleLarge,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

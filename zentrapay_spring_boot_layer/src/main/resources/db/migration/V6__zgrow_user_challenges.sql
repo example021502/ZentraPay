@@ -18,7 +18,7 @@
 -- at the top of V1__init_schema.sql).
 DROP TABLE IF EXISTS challenge_participants;
 
-CREATE TABLE user_challenges (
+CREATE TABLE IF NOT EXISTS user_challenges (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id           UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     challenge_id      UUID NOT NULL REFERENCES challenges(challenge_id) ON DELETE CASCADE,
@@ -28,14 +28,14 @@ CREATE TABLE user_challenges (
     joined_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, challenge_id)
 );
-CREATE INDEX idx_user_challenges_user ON user_challenges(user_id);
-CREATE INDEX idx_user_challenges_challenge ON user_challenges(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_user_challenges_user ON user_challenges(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_challenges_challenge ON user_challenges(challenge_id);
 
-CREATE TABLE declined_challenges (
+CREATE TABLE IF NOT EXISTS declined_challenges (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id           UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     challenge_id      UUID NOT NULL REFERENCES challenges(challenge_id) ON DELETE CASCADE,
     declined_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, challenge_id)
 );
-CREATE INDEX idx_declined_challenges_user ON declined_challenges(user_id);
+CREATE INDEX IF NOT EXISTS idx_declined_challenges_user ON declined_challenges(user_id);

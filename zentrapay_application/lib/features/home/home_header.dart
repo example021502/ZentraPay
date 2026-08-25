@@ -25,42 +25,48 @@ class _HomeHeaderState extends State<HomeHeader> {
     // Wrapping the header in a padding and Stack to create the layered wallet visual effect
     return SizedBox(
       width: MediaQuery.of(context).size.width,
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(15.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.title,
-                  style: AppTheme.titleLarge.copyWith(color: AppColors.primary),
-                ),
                 Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _headerIconButton(
-                      icon: Icons.refresh,
-                      onTap: () => WalletsRepository.instance.ensureLoaded(
-                        forceRefresh: true,
+                    Text(
+                      widget.title,
+                      style: AppTheme.titleLarge.copyWith(
+                        color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(width: AppTheme.spacingLg),
-                    _headerIconButton(
-                      icon: Icons.add,
-                      onTap: () => _createNewWallet(context),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _headerIconButton(
+                          icon: Icons.refresh,
+                          onTap: () => WalletsRepository.instance.ensureLoaded(
+                            forceRefresh: true,
+                          ),
+                        ),
+                        const SizedBox(width: AppTheme.spacingLg),
+                        _headerIconButton(
+                          icon: Icons.add,
+                          onTap: () => _createNewWallet(context),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                const SizedBox(height: AppTheme.spacingLg),
+                TabsContainer(id: widget.id),
               ],
             ),
-            const SizedBox(height: AppTheme.spacingLg),
-            TabsContainer(id: widget.id),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

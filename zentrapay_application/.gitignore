@@ -1,2 +1,4 @@
 
 build/
+# Widget Preview related
+.widget_preview/

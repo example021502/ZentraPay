@@ -1,0 +1,161 @@
+commit ec73ddf71693c64149658475e36cd85c0f78428c
+Author: Desire-Musarafu <examples021502@gmail.com>
+Date:   Wed Aug 19 15:30:06 2026 +0530
+
+    update::19.08.26.15.29
+
+diff --git a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SearchResponseDTO.java b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SearchResponseDTO.java
+index ea66de5..4cbedb6 100644
+--- a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SearchResponseDTO.java
++++ b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SearchResponseDTO.java
+@@ -10,7 +10,6 @@ import java.util.List;
+  * synced from Paystack/Flutterwave/Onafriq, filtered to that same country.
+  */
+ public record SearchResponseDTO(
+-        UserSearchDTO sender,
+         List<UserSearchDTO> appUsers,
+         List<BillProviderSearchDTO> billProviders,
+         List<FundingSourceSearchDTO> fundingSources
+diff --git a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SenderDTO.java b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SenderDTO.java
+deleted file mode 100644
+index 37d04dc..0000000
+--- a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/SenderDTO.java
++++ /dev/null
+@@ -1,24 +0,0 @@
+-package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto;
+-
+-import java.time.LocalDateTime;
+-import java.util.List;
+-import java.util.UUID;
+-
+-public record UserSearchDTO(
+-UUID userId,
+-String countryCode,
+-String email,
+-String firstName,
+-String lastName,
+-String phoneNumber,
+-String status,
+-String userType,
+-// Comment: zentag now lives on each fiat currency account, not on the user
+-// (WalletsAccountsServices/FiatAccountModel) — a sender picks which of these
+-// to pay into. Active accounts only; empty for a brand-new user with no
+-// wallet yet.
+-List<AccountZentagDTO> fiatAccounts,
+-LocalDateTime updatedAt,
+-LocalDateTime createdAt
+-) {
+-}
+diff --git a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/UserSearchDTO.java b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/UserSearchDTO.java
+index 37d04dc..262aaef 100644
+--- a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/UserSearchDTO.java
++++ b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/dto/UserSearchDTO.java
+@@ -1,24 +1,12 @@
+ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto;
+ 
+-import java.time.LocalDateTime;
+-import java.util.List;
+-import java.util.UUID;
+-
+ public record UserSearchDTO(
+-UUID userId,
+ String countryCode,
+ String email,
+ String firstName,
+ String lastName,
+ String phoneNumber,
+ String status,
+-String userType,
+-// Comment: zentag now lives on each fiat currency account, not on the user
+-// (WalletsAccountsServices/FiatAccountModel) — a sender picks which of these
+-// to pay into. Active accounts only; empty for a brand-new user with no
+-// wallet yet.
+-List<AccountZentagDTO> fiatAccounts,
+-LocalDateTime updatedAt,
+-LocalDateTime createdAt
++String userType
+ ) {
+ }
+diff --git a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/service/SearchContactsService.java b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/service/SearchContactsService.java
+index 3ff2bec..301762c 100644
+--- a/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/service/SearchContactsService.java
++++ b/zentrapay_spring_boot_layer/src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts/service/SearchContactsService.java
+@@ -41,62 +41,34 @@ public class SearchContactsService {
+     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
+         int limit = req.limit() > 0 ? req.limit() : 20;
+ //      searching sender details
+-        UserModel senderUser = userRepository.getUserById(userId)
++        UserModel sender = userRepository.getUserById(userId)
+                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+-        UserSearchDTO sender = toUserSearchDTO(senderUser, getZentagAccounts(userId));
+-
+-//      getting a list of searched users by name/phone/email, then merging in
+-//      anyone whose zentag (on one of their currency accounts) matches too —
+-//      lets a sender paste a zentag straight into the search box. The sender
+-//      themselves is excluded — you can't send money to yourself.
+-        Map<UUID, UserModel> matchedUsers = new LinkedHashMap<>();
+-        userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.countryCode())
+-                .stream()
+-                .filter(u -> !u.getUserId().equals(userId))
+-                .forEach(u -> matchedUsers.put(u.getUserId(), u));
+-
+-        fiatAccountRepository.findByZentagContainingIgnoreCase(req.query()).stream()
+-                .map(account -> fiatWalletRepository.findById(account.getWalletId()).orElse(null))
+-                .filter(Objects::nonNull)
+-                .filter(wallet -> sender.countryCode().equalsIgnoreCase(wallet.getCountryCode()))
+-                .filter(wallet -> !wallet.getUserId().equals(userId))
+-                .map(wallet -> userRepository.findById(wallet.getUserId()).orElse(null))
+-                .filter(Objects::nonNull)
+-                .forEach(u -> matchedUsers.putIfAbsent(u.getUserId(), u));
+-
+-        List<UserSearchDTO> appUsers = matchedUsers.values().stream()
+-                .map(u -> toUserSearchDTO(u, getZentagAccounts(u.getUserId())))
+-                .limit(limit).toList();
+ 
++        // Execute the query and map the resulting entity models to UserSearchDTOs
++        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query(), sender.getCountryCode())
++                .stream()
++                .map(u -> new UserSearchDTO(
++                        u.getCountryCode(),
++                        u.getEmail(),
++                        u.getFirstName(),
++                        u.getLastName(),
++                        u.getPhoneNumber(),
++                        u.getStatus(),
++                        u.getUserType()
++                )).toList();
+ 
+         List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
+-        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.countryCode(), billProviderIds).stream()
++        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.getCountryCode(), billProviderIds).stream()
+                 .map(SearchContactsService::toBillProviderSearchDTO)
+                 .limit(limit).toList();
+ 
+         List<UUID> fundingSourcesIds = userFundingSourcesRepository.getFundingSourcesIdsByUserId(userId);
+-        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.countryCode(), fundingSourcesIds).stream()
++        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.getCountryCode(), fundingSourcesIds).stream()
+                 .map(SearchContactsService::toFundingSourceSearchDTO)
+                 .limit(limit).toList();
+ 
+ 
+-        return new SearchResponseDTO(sender, appUsers, billProviders, fundingSources);
+-    }
+-
+-    private static UserSearchDTO toUserSearchDTO(UserModel u, List<AccountZentagDTO> fiatAccounts) {
+-        return new UserSearchDTO(
+-                u.getUserId(),
+-                u.getCountryCode(),
+-                u.getEmail(),
+-                u.getFirstName(),
+-                u.getLastName(),
+-                u.getPhoneNumber(),
+-                u.getStatus(),
+-                u.getUserType(),
+-                fiatAccounts,
+-                u.getUpdatedAt(),
+-                u.getCreatedAt()
+-        );
++        return new SearchResponseDTO(appUsers, billProviders, fundingSources);
+     }
+ 
+     // Comment: each user has exactly one fiat wallet — see FiatWalletRepository.

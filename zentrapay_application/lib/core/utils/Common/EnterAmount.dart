@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/custom_keypad.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-
 import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dart';
 
 /// Bottom-anchored amount-entry overlay, driven entirely by [CustomKeypad]
@@ -12,22 +11,9 @@ import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dar
 /// that follows it. Pops a {"amount": "12.50", "currencyCode": "GHS"} map,
 /// or null if dismissed.
 class EnterAmount extends StatefulWidget {
-  const EnterAmount({
-    super.key,
-    required this.recipient,
-    this.fixedCurrencyCode,
-    this.fixedCurrencyFlag,
-  });
+  const EnterAmount({super.key, required this.recipient});
 
   final String recipient;
-
-  /// When set, the currency is locked to this code and the currency picker
-  /// is disabled — used by the pay-a-contact flow, where the currency is
-  /// dictated by which of the recipient's accounts money is landing in, not
-  /// a free choice. When null (other callers), the currency picker behaves
-  /// as before.
-  final String? fixedCurrencyCode;
-  final String? fixedCurrencyFlag;
 
   @override
   State<EnterAmount> createState() => _EnterAmountState();
@@ -38,10 +24,8 @@ class _EnterAmountState extends State<EnterAmount> {
   // convention the old DecimalTextInputFormatter used) — "1234" -> "12.34".
   String _digits = '';
 
-  late String currency_code = widget.fixedCurrencyCode ?? "GHS";
-  late String country_flag = widget.fixedCurrencyFlag ?? "GH";
-
-  bool get _isLocked => widget.fixedCurrencyCode != null;
+  late String currency_code = "GHS";
+  late String country_flag = "GH";
 
   String get _formattedAmount {
     final padded = _digits.padLeft(3, '0');
@@ -66,10 +50,9 @@ class _EnterAmountState extends State<EnterAmount> {
       ZentraNotifier.error("Value Missing", "Please Enter Amount!");
       return;
     }
-    Navigator.of(context).pop({
-      "amount": _formattedAmount,
-      "currencyCode": currency_code,
-    });
+    Navigator.of(
+      context,
+    ).pop({"amount": _formattedAmount, "currencyCode": currency_code});
   }
 
   @override
@@ -123,7 +106,7 @@ class _EnterAmountState extends State<EnterAmount> {
                       Text(
                         "Send To",
                         textAlign: TextAlign.center,
-                        style: AppTheme.bodySmall.copyWith(
+                        style: AppTheme.bodyMedium.copyWith(
                           color: AppTheme.gray500,
                         ),
                       ),
@@ -136,22 +119,18 @@ class _EnterAmountState extends State<EnterAmount> {
                       const SizedBox(height: AppTheme.spacingLg),
                     ],
                     GestureDetector(
-                      onTap: _isLocked
-                          ? null
-                          : () => showCurrencyPicker(
-                              context: context,
-                              showFlag: true,
-                              showCurrencyName: true,
-                              showCurrencyCode: true,
-                              onSelect: (Currency currency) {
-                                setState(() {
-                                  currency_code = currency.code;
-                                  country_flag = extractCountryIsoCode(
-                                    currency.code,
-                                  );
-                                });
-                              },
-                            ),
+                      onTap: () => showCurrencyPicker(
+                        context: context,
+                        showFlag: true,
+                        showCurrencyName: true,
+                        showCurrencyCode: true,
+                        onSelect: (Currency currency) {
+                          setState(() {
+                            currency_code = currency.code;
+                            country_flag = extractCountryIsoCode(currency.code);
+                          });
+                        },
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
@@ -169,13 +148,12 @@ class _EnterAmountState extends State<EnterAmount> {
                               color: AppTheme.gray500,
                             ),
                           ),
-                          if (!_isLocked) ...[
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.gray500,
-                            ),
-                          ],
+                          const SizedBox(width: 10),
+                          Icon(
+                            Icons.expand_more_outlined,
+                            size: 22,
+                            color: AppTheme.textBlack,
+                          ),
                         ],
                       ),
                     ),

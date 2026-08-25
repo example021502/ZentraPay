@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_portal/flutter_portal.dart';
 import 'package:privy_flutter/privy_flutter.dart'
     as privy_sdk; // Official Privy Flutter SDK package
 import 'package:toastification/toastification.dart'; // Notification package for toast alerts
@@ -103,48 +104,50 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Wrap the app tree with ToastificationWrapper to handle interactive alerts Globally
-    return ToastificationWrapper(
-      child: Center(
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          // Sets the application to load into the splash screen initially upon startup
-          home: const ZentrapaySplashScreenMain(),
-          // Route settings interceptor to extract dynamically passed arguments safely
-          onGenerateRoute: (settings) {
-            if (settings.name == '/home') {
-              final args =
-                  settings.arguments
-                      as Map<String, dynamic>; // Extract the token map safely
-              return MaterialPageRoute(
-                builder: (context) => ResponsiveNavigation(userData: args),
-              );
-            }
-            return null; // Let the standard static routes table handle other navigation paths
-          },
-          // Collection of static named routes for navigation redirection rules
-          routes: {
-            '/onboarding': (context) => const OnboardingScreen(),
-            '/login': (context) => const LoginScreen(),
-            '/register': (context) => const RegisterScreen(),
-            '/verify': (context) => const VerifyScreen(),
-            '/zinvest': (context) => const ZInvestScreen(),
-            '/pay': (context) => const PaySectionMain(),
-            '/instant_transfer': (context) => const InstantTransferScreen(),
-            '/ai_assistance': (context) => const AIAssistanceScreen(),
-            '/converter': (context) => const ConverterScreen(),
-            '/milestones': (context) => const MilestonesScreen(),
-            '/profile': (context) => const ProfileScreen(),
-            '/liquidity_hub': (context) => const LiquidityHubScreen(),
-            '/voice_recording': (context) => const VoiceRecordingScreen(),
-            '/fraud_detection': (context) => const FraudDetectionScreen(),
-            '/external_payment': (context) => const ExternalPaymentScreen(),
-            '/zbanking': (context) => const ZBankingScreen(),
-            '/zremit': (context) => const ZRemitScreen(),
-            '/zvoice': (context) => const ZVoiceScreen(),
-            '/zgrow_new': (context) => const ZGrowScreen(),
-            '/pay_anywhere': (context) => const PayAnywhereScreen(),
-          },
+    return Portal(
+      child: ToastificationWrapper(
+        child: Center(
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(),
+            // Sets the application to load into the splash screen initially upon startup
+            home: const ZentrapaySplashScreenMain(),
+            // Route settings interceptor to extract dynamically passed arguments safely
+            onGenerateRoute: (settings) {
+              if (settings.name == '/home') {
+                final args =
+                    settings.arguments
+                        as Map<String, dynamic>; // Extract the token map safely
+                return MaterialPageRoute(
+                  builder: (context) => ResponsiveNavigation(userData: args),
+                );
+              }
+              return null; // Let the standard static routes table handle other navigation paths
+            },
+            // Collection of static named routes for navigation redirection rules
+            routes: {
+              '/onboarding': (context) => const OnboardingScreen(),
+              '/login': (context) => const LoginScreen(),
+              '/register': (context) => const RegisterScreen(),
+              '/verify': (context) => const VerifyScreen(),
+              '/zinvest': (context) => const ZInvestScreen(),
+              '/pay': (context) => const PaySectionMain(),
+              '/instant_transfer': (context) => const InstantTransferScreen(),
+              '/ai_assistance': (context) => const AIAssistanceScreen(),
+              '/converter': (context) => const ConverterScreen(),
+              '/milestones': (context) => const MilestonesScreen(),
+              '/profile': (context) => const ProfileScreen(),
+              '/liquidity_hub': (context) => const LiquidityHubScreen(),
+              '/voice_recording': (context) => const VoiceRecordingScreen(),
+              '/fraud_detection': (context) => const FraudDetectionScreen(),
+              '/external_payment': (context) => const ExternalPaymentScreen(),
+              '/zbanking': (context) => const ZBankingScreen(),
+              '/zremit': (context) => const ZRemitScreen(),
+              '/zvoice': (context) => const ZVoiceScreen(),
+              '/zgrow_new': (context) => const ZGrowScreen(),
+              '/pay_anywhere': (context) => const PayAnywhereScreen(),
+            },
+          ),
         ),
       ),
     );

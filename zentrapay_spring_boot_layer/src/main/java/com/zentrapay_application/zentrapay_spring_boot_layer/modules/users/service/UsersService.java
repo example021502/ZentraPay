@@ -34,8 +34,8 @@ public class UsersService {
     private final CryptoWalletRepository cryptoWalletRepository;
     private final FiatWalletRepository fiatWalletRepository;
     private final UserConsentsRepository userConsentsRepository;
-    private final SupportedCountriesRepository supportedCountriesRepository;
-    private final SupportedCurrenciesRepository supportedCurrenciesRepository;
+    private final GatewayCountriesRepository gatewayCountriesRepository;
+    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginHistoryRepository loginHistoryRepository;
@@ -72,7 +72,7 @@ public class UsersService {
         }
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
-        SupportedCountriesModel country = supportedCountriesRepository.findFirstByCountryCode(req.countryCode())
+        GatewayCountryModel country = gatewayCountriesRepository.findFirstByCountryCode(req.countryCode())
                 .orElseThrow(() -> new IllegalArgumentException("Unsupported or invalid Country"));
 
         System.out.println("Found country: " + country.getCountryCode());
@@ -127,7 +127,10 @@ public class UsersService {
             cryptoWallet.setStatus("active");
             cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
-           final String currencyCode = supportedCurrenciesRepository.getCurrencyCodeByCountryCode(user.getCountryCode());
+           final String currencyCode = gatewayCurrenciesRepository
+                    .getCurrencyCodesByCountryCode(user.getCountryCode()).stream()
+                    .findFirst()
+                    .orElse("GHS");
            final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
             FiatAccountModel fiatAccount = new FiatAccountModel();
             fiatAccount.setWalletId(fiatWallet.getWalletId());

@@ -1,0 +1,199 @@
+commit 690aae1cc1f8fef88fcb5e1614226aa7dcce0885
+Author: Desire-Musarafu <examples021502@gmail.com>
+Date:   Sun Aug 16 23:49:05 2026 +0530
+
+    update::16.08.26.23.49
+
+diff --git a/zentrapay_application/lib/core/models/search_result.dart b/zentrapay_application/lib/core/models/search_result.dart
+index ad8e32f..fd15829 100644
+--- a/zentrapay_application/lib/core/models/search_result.dart
++++ b/zentrapay_application/lib/core/models/search_result.dart
+@@ -1,3 +1,52 @@
++/// One of a user's fiat currency accounts as surfaced by search — matches the
++/// backend's AccountZentagDTO. zentag now lives per-account (each currency a
++/// user holds gets its own), not on the user as a whole.
++class AccountZentagOption {
++  final String accountId;
++  final String accountName;
++  final String currencyCode;
++  final String zentag;
++  final bool isDefault;
++
++  AccountZentagOption({
++    required this.accountId,
++    required this.accountName,
++    required this.currencyCode,
++    required this.zentag,
++    required this.isDefault,
++  });
++
++  factory AccountZentagOption.fromJson(Map<String, dynamic> json) =>
++      AccountZentagOption(
++        accountId: json['accountId'] ?? '',
++        accountName: json['accountName'] ?? '',
++        currencyCode: json['currencyCode'] ?? '',
++        zentag: json['zentag'] ?? '',
++        isDefault: json['isDefault'] ?? false,
++      );
++
++  Map<String, dynamic> toJson() => {
++    'accountId': accountId,
++    'accountName': accountName,
++    'currencyCode': currencyCode,
++    'zentag': zentag,
++    'isDefault': isDefault,
++  };
++}
++
++List<AccountZentagOption> _parseFiatAccounts(Map<String, dynamic> json) =>
++    ((json['fiatAccounts'] as List?) ?? [])
++        .map((e) => AccountZentagOption.fromJson(e))
++        .toList();
++
++/// Picks the account to default to when a caller just wants "the" zentag/
++/// currency for this person — their default account, or their first one if
++/// none is flagged default, or null if they have no accounts yet.
++AccountZentagOption? _defaultAccount(List<AccountZentagOption> accounts) {
++  if (accounts.isEmpty) return null;
++  return accounts.firstWhere((a) => a.isDefault, orElse: () => accounts.first);
++}
++
+ class SenderDetails {
+   final String userId;
+   final String firstName;
+@@ -5,9 +54,8 @@ class SenderDetails {
+   final String email;
+   final String phoneNumber;
+   final String countryCode;
+-  final String currency;
+   final String userType;
+-  final String zentag;
++  final List<AccountZentagOption> fiatAccounts;
+ 
+   SenderDetails({
+     required this.userId,
+@@ -16,11 +64,16 @@ class SenderDetails {
+     required this.email,
+     required this.phoneNumber,
+     required this.countryCode,
+-    required this.currency,
+     required this.userType,
+-    required this.zentag,
++    required this.fiatAccounts,
+   });
+ 
++  /// The account this sender's money would come from when no specific
++  /// currency has been picked yet.
++  AccountZentagOption? get defaultAccount => _defaultAccount(fiatAccounts);
++  String get zentag => defaultAccount?.zentag ?? '';
++  String get currency => defaultAccount?.currencyCode ?? '';
++
+   factory SenderDetails.fromJson(Map<String, dynamic> json) => SenderDetails(
+     userId: json['userId'] ?? '',
+     firstName: json['firstName'] ?? '',
+@@ -28,11 +81,24 @@ class SenderDetails {
+     email: json['email'] ?? '',
+     phoneNumber: json['phoneNumber'] ?? '',
+     countryCode: json['countryCode'] ?? '',
+-    currency: json['currency'] ?? '',
+-    userType: json['userType'],
+-    zentag: json['zentag'],
++    userType: json['userType'] ?? '',
++    fiatAccounts: _parseFiatAccounts(json),
+   );
+ 
++  /// The searched sender's info as sent to the payments endpoint's
++  /// `sender` field — informational only (the backend always takes
++  /// the sender's real identity from the JWT, never from this payload).
++  Map<String, dynamic> toJson() => {
++    'userId': userId,
++    'firstName': firstName,
++    'lastName': lastName,
++    'email': email,
++    'phoneNumber': phoneNumber,
++    'countryCode': countryCode,
++    'userType': userType,
++    'fiatAccounts': fiatAccounts.map((a) => a.toJson()).toList(),
++  };
++
+   static SenderDetails empty() => SenderDetails(
+     userId: '',
+     firstName: '',
+@@ -40,9 +106,8 @@ class SenderDetails {
+     email: '',
+     phoneNumber: '',
+     countryCode: '',
+-    currency: '',
+     userType: '',
+-    zentag: '',
++    fiatAccounts: [],
+   );
+ }
+ 
+@@ -51,34 +116,52 @@ class SearchAppUser {
+   final String firstName;
+   final String lastName;
+   final String phoneNumber;
+-  final String zentag;
+   final String email;
+   final String countryCode;
+   final String userType;
++  final List<AccountZentagOption> fiatAccounts;
+ 
+   SearchAppUser({
+     required this.userId,
+     required this.phoneNumber,
+-    required this.zentag,
+     required this.email,
+     required this.userType,
+     required this.countryCode,
+     required this.firstName,
+     required this.lastName,
++    required this.fiatAccounts,
+   });
+ 
+   factory SearchAppUser.fromJson(Map<String, dynamic> json) => SearchAppUser(
+     userId: json['userId'] ?? '',
+     phoneNumber: json['phoneNumber'] ?? '',
+-    zentag: json['zentag'] ?? '',
+     email: json['email'] ?? '',
+-    userType: json['usertype'] ?? '',
++    userType: json['userType'] ?? '',
+     countryCode: json['countryCode'] ?? '',
+     firstName: json['firstName'] ?? '',
+     lastName: json['lastName'] ?? '',
++    fiatAccounts: _parseFiatAccounts(json),
+   );
+ 
+   String get fullName => "$firstName $lastName";
++
++  /// zentag now lives per currency account, not on the user — this is the
++  /// account a plain tap-to-pay falls back to (their default, or first).
++  AccountZentagOption? get defaultAccount => _defaultAccount(fiatAccounts);
++  String get zentag => defaultAccount?.zentag ?? '';
++
++  /// The raw selected-user object/map sent to the payments endpoint's
++  /// `recipient` field, exactly as this contact was surfaced by search.
++  Map<String, dynamic> toJson() => {
++    'userId': userId,
++    'firstName': firstName,
++    'lastName': lastName,
++    'email': email,
++    'phoneNumber': phoneNumber,
++    'countryCode': countryCode,
++    'userType': userType,
++    'fiatAccounts': fiatAccounts.map((a) => a.toJson()).toList(),
++  };
+ }
+ 
+ class SearchBillProvider {
+@@ -189,7 +272,8 @@ class ContactSearchResult {
+ 
+   factory ContactSearchResult.fromJson(Map<String, dynamic> json) =>
+       ContactSearchResult(
+-        senderDetails: SenderDetails.fromJson(json['senderDetails'] ?? {}),
++        // Comment: backend's SearchResponseDTO field is "sender", not "senderDetails".
++        senderDetails: SenderDetails.fromJson(json['sender'] ?? {}),
+         appUsers: ((json['appUsers'] as List?) ?? [])
+             .map((e) => SearchAppUser.fromJson(e))
+             .toList(),

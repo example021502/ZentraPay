@@ -231,8 +231,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildAccountInformationSection(),
                   const SizedBox(height: AppTheme.spacingLg),
                   _buildImportantBusinessSection(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildLogoutButton(),
                 ],
               ),
             ),
@@ -792,28 +790,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  // The close/logout action that used to live on the main Scaffold's AppBar
-  // now lives here in Profile instead.
-  Widget _buildLogoutButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppTheme.errorRed,
-          side: const BorderSide(color: AppTheme.errorRed),
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-        ),
-        onPressed: () async {
-          final confirmed = await showCloseConfirmationDialog(context);
-          if (!mounted || !confirmed) return;
-          Navigator.pushReplacementNamed(context, "/login");
-        },
-        icon: const Icon(Icons.logout),
-        label: const Text("Logout"),
       ),
     );
   }

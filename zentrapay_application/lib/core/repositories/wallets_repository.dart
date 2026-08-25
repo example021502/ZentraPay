@@ -65,7 +65,6 @@ class WalletsRepository extends CachedResource<WalletsAccountsSnapshot> {
         .map((e) => SupportedCurrencies.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    print("CURRENCIES RESPONSE IS:: $response");
     return currencies;
   }
 }

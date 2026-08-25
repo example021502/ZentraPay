@@ -19,7 +19,7 @@ import java.util.UUID;
 public class FiatAccountModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "account_id", nullable = false)
+    @Column(name = "account_id", nullable = false, unique = true)
     private UUID accountId;
 
     @Column(name = "wallet_id", nullable = false)
@@ -31,7 +31,7 @@ public class FiatAccountModel {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "zentag", nullable = false, length = 3)
+    @Column(name = "zentag", nullable = false)
     private String zentag;
 
     @Column(name = "balance", nullable = false)
@@ -40,7 +40,7 @@ public class FiatAccountModel {
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 50)
     private String status = "active";
 
     @CreationTimestamp

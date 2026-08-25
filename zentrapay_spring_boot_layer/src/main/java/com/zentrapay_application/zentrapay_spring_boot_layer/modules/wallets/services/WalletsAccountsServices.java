@@ -4,6 +4,7 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Crypto
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CryptoWalletModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatAccountModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatWalletModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.GatewayCurrencyModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dtos.*;
@@ -24,8 +25,7 @@ public class WalletsAccountsServices {
     private final FiatWalletRepository fiatWalletRepository;
     private final CryptoAccountRepository cryptoAccountRepository;
     private final CryptoWalletRepository cryptoWalletRepository;
-    private final SupportedCurrenciesRepository supportedCurrenciesRepository;
-    private final CurrencyRepository currencyRepository;
+    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
 
     // Fetches the authenticated user's fiat wallets (wallets table) and crypto
     // wallets (crypto_wallets table) in the exact shape the frontend expects.
@@ -111,9 +111,13 @@ public class WalletsAccountsServices {
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
 
         final List<String> userCurrencyAccountsCurrencies = fiatAccountRepository.getAccountsCurrenciesByWalletId(wallet.getWalletId());
-        final List<String> currencyCodes = supportedCurrenciesRepository.getCurrencyCodes(userCurrencyAccountsCurrencies);
-        System.out.println("THE CURRENCY CODE FETCHED IS:: " + userCurrencyAccountsCurrencies);
-        return currencyRepository.getCurrenciesByCurrencyCodes(currencyCodes).stream()
+        final List<GatewayCurrencyModel> currencies = gatewayCurrenciesRepository
+                .getCurrencyCodes(userCurrencyAccountsCurrencies.isEmpty() ? List.of("") : userCurrencyAccountsCurrencies)
+                .stream()
+                .map(code -> gatewayCurrenciesRepository.findById(code).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return currencies.stream()
                 .map(currency -> new SupportedCurrencyDTO(
                         currency.getCurrencyCode(),
                         currency.getCurrencyName(),

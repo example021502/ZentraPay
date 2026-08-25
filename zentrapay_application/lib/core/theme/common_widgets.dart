@@ -481,22 +481,28 @@ class AmountText extends StatelessWidget {
   final String amount;
   final String? currencyCode;
   final double fontSize;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   const AmountText({
     super.key,
     required this.amount,
     this.currencyCode,
     this.fontSize = 16,
+    this.maxLines,
+    this.overflow,
   });
 
   bool get _isCredit => amount.trim().startsWith('+');
 
   @override
   Widget build(BuildContext context) {
-    final color = _isCredit ? AppTheme.successGreen : AppTheme.gray900;
+    final color = _isCredit ? AppTheme.successGreen : AppTheme.primaryPink;
     final display = currencyCode != null ? '$amount $currencyCode' : amount;
     return Text(
       display,
+      maxLines: maxLines,
+      overflow: overflow,
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: FontWeight.w700,
@@ -527,7 +533,7 @@ class TransactionListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCredit = amount.trim().startsWith('+');
-    final chipColor = isCredit ? AppTheme.successGreen : AppTheme.secondaryNavy;
+    final chipColor = isCredit ? AppTheme.successGreen : AppTheme.primaryPink;
 
     return GestureDetector(
       onTap: onTap,
@@ -540,37 +546,51 @@ class TransactionListItem extends StatelessWidget {
           boxShadow: AppTheme.cardShadow,
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingSm),
-              decoration: BoxDecoration(
-                color: chipColor.withAlpha(25),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              ),
-              child: Icon(icon, color: chipColor, size: 22),
-            ),
-            const SizedBox(width: AppTheme.spacingMd),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    title,
-                    style: AppTheme.titleLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Container(
+                    padding: const EdgeInsets.all(AppTheme.spacingSm),
+                    decoration: BoxDecoration(
+                      color: chipColor.withAlpha(25),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    ),
+                    child: Icon(icon, color: chipColor, size: 22),
                   ),
-                  const SizedBox(height: AppTheme.spacingXs),
-                  Text(
-                    subtitle,
-                    style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: AppTheme.spacingMd),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTheme.titleLarge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppTheme.spacingXs),
+                      Text(
+                        subtitle,
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppTheme.gray500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            AmountText(amount: amount),
+            const SizedBox(width: AppTheme.spacingSm),
+            AmountText(
+              amount: amount,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

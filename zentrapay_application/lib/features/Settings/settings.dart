@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/repositories/security_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/main.dart';
 
 /// Placeholder for the Merchant tab — content to be added later.
@@ -177,7 +178,7 @@ class _SettingsState extends State<Settings> {
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Text(
         title,
-        style: AppTheme.headlineSmall.copyWith(
+        style: AppTheme.bodyMedium.copyWith(
           color: AppTheme.textBlack.withAlpha(80),
           fontWeight: FontWeight.normal,
         ),
@@ -201,9 +202,9 @@ class _SettingsState extends State<Settings> {
           mainAxisSize: MainAxisSize.min,
           children: List.generate(buttons.length, (index) {
             final buttonData = buttons[index];
+            final bool isLogout = buttonData['name'] == "Logout";
             final bool isRedColored =
-                buttonData['name'] == "Logout" ||
-                buttonData['name'] == "Delete Account";
+                isLogout || buttonData['name'] == "Delete Account";
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -226,7 +227,15 @@ class _SettingsState extends State<Settings> {
                       ),
                     ),
                     trailing: const Icon(Icons.chevron_right, size: 20),
-                    onTap: () => showComingSoon(context, buttonData["name"]),
+                    onTap: isLogout
+                        ? () async {
+                            final confirmed = await showCloseConfirmationDialog(
+                              context,
+                            );
+                            if (!mounted || !confirmed) return;
+                            Navigator.pushReplacementNamed(context, "/login");
+                          }
+                        : () => showComingSoon(context, buttonData["name"]),
                   ),
                 ),
                 if (index < buttons.length - 1)

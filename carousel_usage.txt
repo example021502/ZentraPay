@@ -1,0 +1,13 @@
+﻿
+Path                                                                                    LineNumber
+----                                                                                    ----------
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_cards_carousel.dart          7
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_cards_carousel.dart          8
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_cards_carousel.dart         13
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_cards_carousel.dart         16
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_cards_carousel.dart         70
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\wallet_card_tile.dart             7
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\wallet_card_tile.dart             8
+
+
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 
@@ -26,7 +27,7 @@ Future<bool> showCloseConfirmationDialog(BuildContext context) async {
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(200),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.lightGrey.withAlpha(50),
@@ -37,7 +38,6 @@ Future<bool> showCloseConfirmationDialog(BuildContext context) async {
                   ),
                   child: InkWell(
                     // Swapped GestureDetector for InkWell for better touch feedback
-                    borderRadius: BorderRadius.circular(200),
                     onTap: () => Navigator.of(context).pop(false),
                     // Passes false back
                     child: Padding(
@@ -45,7 +45,7 @@ Future<bool> showCloseConfirmationDialog(BuildContext context) async {
                       child: Text(
                         "Cancel",
                         textAlign: TextAlign.center,
-                        style: AppStyles.text.copyWith(
+                        style: AppTheme.headlineSmall.copyWith(
                           color: AppColors.primary,
                         ),
                       ),
@@ -54,17 +54,21 @@ Future<bool> showCloseConfirmationDialog(BuildContext context) async {
                 ),
               ),
 
-              const SizedBox(height: 16), // Replaced spacing from Wrap
+              const SizedBox(
+                height: AppTheme.spacingMd,
+              ), // Replaced spacing from Wrap
               // Confirm Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await SecureStorageService.deleteToken();
-                    if (!context.mounted) return;
-                    Navigator.of(context).pop(true); // Passes true back
-                  },
-                  child: Text("Confirm", style: AppStyles.text),
+              InkWell(
+                onTap: () async {
+                  await SecureStorageService.deleteToken();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(true); // Passes true back
+                },
+                child: Text(
+                  "Confirm",
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.primaryPink,
+                  ),
                 ),
               ),
             ],

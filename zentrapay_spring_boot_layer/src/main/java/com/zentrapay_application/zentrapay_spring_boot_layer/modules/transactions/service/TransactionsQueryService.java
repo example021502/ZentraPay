@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -29,7 +30,7 @@ public class TransactionsQueryService {
     public TransactionPageDTO getHistory(UUID userId, int page, int size) {
         int safeSize = size > 0 ? Math.min(size, 100) : 20;
         int safePage = Math.max(page, 0);
-        Page<TransactionModel> result = transactionRepository.findBySenderIdOrReceiverId(
+        Page<TransactionModel> result = transactionRepository.findUserHistory(
                 userId, PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         return new TransactionPageDTO(
@@ -41,27 +42,23 @@ public class TransactionsQueryService {
         );
     }
 
-    private boolean isCreditType(String typeCode) {
-        return typeCode != null && typeCode.endsWith("_CREDIT");
-    }
-
     private TransactionDTO toDTO(TransactionModel t) {
         String sign = t.getTransactionType().equalsIgnoreCase("credit") ? "+" : "-";
         return new TransactionDTO(
                 t.getTransactionId(),
+                t.getReceiverId(),
+                t.getEntryId(),
                 sign + t.getSourceCurrencyCode() + t.getAmount().toPlainString(),
                 t.getCreatedAt(),
                 t.getFailureReason(),
-                t.getGateway(),
-                t.getMetadata(),
                 t.getStatus(),
                 t.getUpdatedAt(),
                 t.getTransactionType(),
                 t.getReceiverName(),
+                t.getReceiverEmail(),
+                t.getReceiverPhoneNumber(),
                 t.getPurpose(),
-                t.getInternalReferenceId(),
-                t.getDestinationIdentifier(),
-                t.getDestinationIdentifier()
+                t.getInternalReferenceId()
         );
     }
 }

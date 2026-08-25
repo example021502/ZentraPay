@@ -22,13 +22,11 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   void initState() {
     super.initState();
     // Fire-and-forget: ListenableBuilder below rebuilds when each resolves.
-    SavingsRepository.instance.ensureLoaded();
+    BankAccountsRepository.instance.ensureLoaded();
     LoansRepository.instance.ensureLoaded();
     BudgetRepository.instance.ensureLoaded();
     BankingInsightsRepository.instance.ensureLoaded();
   }
-
-  Map<String, dynamic> accounts = {};
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +55,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                   spacing: AppTheme.spacingLg,
                   children: [
                     _buildQuickActions(context),
-                    LinkedBankAccounts(accounts: accounts),
+                    LinkedBankAccounts(
+                      accounts: BankAccountsRepository.instance.data ?? [],
+                    ),
                     _buildAccountOptionsSection(context),
                     _buildAiInsights(context),
                     const SizedBox(height: 100),
@@ -119,9 +119,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ListenableBuilder(
-                  listenable: SavingsRepository.instance,
+                  listenable: BankAccountsRepository.instance,
                   builder: (context, _) {
-                    final repo = SavingsRepository.instance;
+                    final repo = BankAccountsRepository.instance;
                     final accounts = repo.data;
                     if (_balanceHidden) {
                       return const Text(
@@ -155,7 +155,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                     }
                     final total = (accounts ?? []).fold<double>(
                       0,
-                      (sum, a) => sum + a.balance.toAmount(),
+                      (sum, a) => sum + a.balance,
                     );
                     return Text(
                       formatMoney(total.toStringAsFixed(2), symbol: 'GHS '),
@@ -354,34 +354,17 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
         final repo = BankingInsightsRepository.instance;
         final insights = repo.data;
 
-        if (insights == null && repo.isLoading) {
-          return _insightsShell(
-            const AppCard(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            ),
-          );
+        // Only surface the AI Insights section once real insight data has
+        // actually been loaded. While it's still null (loading, not yet
+        // fetched, or unavailable) render nothing — an empty/spinner card
+        // adds noise when there's nothing to say yet.
+        if (insights == null) {
+          return const SizedBox(width: 0, height: 0);
         }
-        if (insights == null && repo.error != null) {
-          return _insightsShell(
-            _errorCard(
-              message: "Couldn't load your insights.",
-              onRetry: () => repo.ensureLoaded(forceRefresh: true),
-            ),
-          );
-        }
-
-        final message = insights == null
-            ? "No insights available yet."
-            : _insightMessage(insights);
 
         return _insightsShell(
           AIInsightCard(
-            message: message,
+            message: _insightMessage(insights),
             onTap: () => Navigator.pushNamed(context, '/ai_assistance'),
           ),
         );
@@ -426,6 +409,10 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // SHARED HELPERS
   // ============================================================
 
+  // Scoped out — the AI Insights section now only renders once data is
+  // present, so this retry card is no longer reached from it. Kept for
+  // future error surfaces on this screen.
+  // ignore: unused_element
   Widget _errorCard({required String message, required VoidCallback onRetry}) {
     return Column(
       children: [
@@ -511,7 +498,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                         if (name.isEmpty) {
                           ZentraNotifier.error(
                             'Missing Name',
-                            'Give your savings goal a name.',
+                            'Give your Account a name.',
                           );
                           return;
                         }
@@ -527,11 +514,10 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                         final target = targetController.text.trim();
                         setState(() => submitting = true);
                         try {
-                          await SavingsRepository.instance.create(
+                          await BankAccountsRepository.instance.create(
                             savingsName: name,
-                            currencyCode: 'GHS',
-                            initialDeposit: deposit,
-                            targetAmount: target.isEmpty ? null : target,
+                            description: '',
+                            bankId: '',
                           );
                           if (sheetContext.mounted) Navigator.pop(sheetContext);
                           ZentraNotifier.success(

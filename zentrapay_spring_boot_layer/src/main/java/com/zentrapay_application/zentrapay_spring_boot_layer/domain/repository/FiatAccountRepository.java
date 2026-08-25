@@ -15,7 +15,7 @@ public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, U
     List<FiatAccountModel> findByWalletId(@Param("walletId") UUID walletId);
 
 //  GETTING THE ACCOUNT USING WALLET ID FOR MAKING A PAYMENT
-    Optional<FiatAccountModel> getWalletByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("walletId") String currencyCode);
+    Optional<FiatAccountModel> getWalletByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 //  CHECKING IF THE WALLET EXIST FOR WALLET CURRENCY ACCOUNT CREATION
     boolean existsByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 
@@ -23,13 +23,6 @@ public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, U
     @Query("SELECT a.currencyCode FROM FiatAccountModel a WHERE a.walletId = :walletId")
     List<String> getAccountsCurrenciesByWalletId(@Param("walletId") UUID walletId);
 
-//  SEARCHING BY ZENTAG — each currency account has its own, so a sender can
-//  paste one straight in (search-contacts falls back to this when a query
-//  doesn't match on name/phone).
-    List<FiatAccountModel> findByZentagContainingIgnoreCase(@Param("zentag") String zentag);
-//  DEBIT OPERATION FOR WALLET TO WALLET TRANSFER WITHIN THE SAME COUNTRY
-//  Comment: a wallet can hold several currency accounts sharing the same
-//  walletId (one row per currency) — the currencyCode filter is required,
 //  not decorative, or this would debit every currency this wallet holds.
     @Modifying
     @Query("UPDATE FiatAccountModel w SET w.balance = w.balance - :amount WHERE w.walletId = :walletId AND w.currencyCode = :currencyCode AND w.balance >= :amount")

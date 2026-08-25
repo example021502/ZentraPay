@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/core/repositories/cards_repository.dart';
+import 'package:zentrapay_application/core/models/card.dart';
 import 'package:zentrapay_application/core/repositories/providers_repository.dart';
 import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
+import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/features/home/widgets/LinkedCards.dart';
 
-import 'home_cards_carousel.dart';
 import 'home_header.dart';
 import 'home_quick_actions.dart';
 import 'home_services_grid.dart';
@@ -15,15 +15,15 @@ import 'home_transactions.dart';
 // ending in _CREDIT (wallet-to-wallet transfers — see PaymentsService) is
 // also a credit, on top of the older fixed list below.
 bool _isCreditType(String typeCode) =>
-    typeCode.endsWith('_CREDIT') || _creditTypes.contains(typeCode);
+    typeCode == 'credit' || _creditTypes.contains(typeCode);
 
 const _creditTypes = {
-  'WALLET_FUNDING',
-  'SAVINGS_WITHDRAWAL',
-  'LOAN_DISBURSEMENT',
-  'INVESTMENT_SELL',
-  'REWARD_CREDIT',
-  'REFUND',
+  'wallet_funding',
+  'savings_withdrawal',
+  'loan_disbursement',
+  'investment_sell',
+  'reward_credit',
+  'refund',
 };
 
 class HomeWalletMain extends StatefulWidget {
@@ -34,17 +34,6 @@ class HomeWalletMain extends StatefulWidget {
 }
 
 class _HomeWalletMainState extends State<HomeWalletMain> {
-  @override
-  void initState() {
-    super.initState();
-    // Fires once per app session — each repository is a load-once cache, so
-    // revisiting this tab (it stays mounted via IndexedStack) never refetches.
-    CardsRepository.instance.ensureLoaded();
-    BillProvidersRepository.instance.ensureLoaded();
-    ServiceProvidersRepository.instance.ensureLoaded();
-    TransactionsRepository.instance.ensureLoaded();
-  }
-
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
@@ -70,9 +59,10 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
   }
 
   Widget _buildContent(bool isTablet) {
+    final width = isTablet ? 400.0 : MediaQuery.of(context).size.width;
     return Container(
       height: MediaQuery.of(context).size.height,
-      width: MediaQuery.of(context).size.width,
+      width: width,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -81,26 +71,35 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         padding: const EdgeInsets.all(15.0),
         child: Column(
           children: [
+            const SizedBox(height: AppTheme.spacingXl),
+            // QUICK ACTIONS HERE
             const HomeQuickActions(),
             SizedBox(height: AppTheme.spacingXl),
+            // ALL USER CARDS HERE
             ListenableBuilder(
-              listenable: CardsRepository.instance,
-              builder: (context, _) => HomeCardsCarousel(
-                cards: (CardsRepository.instance.data ?? [])
+              listenable: WalletsRepository.instance,
+              builder: (context, _) => LinkedCards(
+                cards: ([])
                     .map(
-                      (c) => {
-                        'cardId': c.cardId,
-                        'cardName': c.brand,
-                        'type': c.cardType,
-                        'last4': c.last4,
-                        'expiry':
-                            '${c.expiryMonth.toString().padLeft(2, '0')}/${c.expiryYear.toString().substring(c.expiryYear.toString().length - 2)}',
-                        'status': c.status,
-                      },
+                      (a) => AppCard(
+                        cardId: '',
+                        brand: '',
+                        cardType: '',
+                        last4: '',
+                        expiryMonth: 12,
+                        expiryYear: 12,
+                        nfcEnabled: false,
+                        qrEnabled: false,
+                        status: '',
+                        balance: '',
+                        currencyCode: '',
+                        createdAt: '',
+                      ),
                     )
                     .toList(),
               ),
             ),
+            // ALL THE USER'S SERVICE PROVIDERS HERE
             ListenableBuilder(
               listenable: Listenable.merge([
                 BillProvidersRepository.instance,
@@ -128,33 +127,28 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
               ),
             ),
             SizedBox(height: AppTheme.spacingSm),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: 400),
-              child: ListenableBuilder(
-                listenable: TransactionsRepository.instance,
-                builder: (context, _) => HomeTransactions(
-                  history: TransactionsRepository.instance.items
-                      .map(
-                        (t) => {
-                          'title': t.counterpartyName ?? t.typeCode,
-                          'time': t.createdAt,
-                          'amount': formatMoney(
-                            t.amount,
-                            symbol: '${t.currencyCode} ',
-                          ),
-                          'icon': _isCreditType(t.typeCode)
-                              ? Icons.arrow_downward
-                              : Icons.arrow_upward,
-                          'type': t.typeCode,
-                        },
-                      )
-                      .toList(),
-                ),
+            // ALL THE RECENT TRANSACTIONS HERE
+            ListenableBuilder(
+              listenable: TransactionsRepository.instance,
+              builder: (context, _) => HomeTransactions(
+                history: TransactionsRepository.instance.items
+                    .map(
+                      (t) => {
+                        'title': t.receiverName,
+                        'time': t.createdAt,
+                        'amount': t.amount,
+                        'icon': _isCreditType(t.transactionType)
+                            ? Icons.arrow_downward
+                            : Icons.arrow_upward,
+                        'type': t.transactionType,
+                      },
+                    )
+                    .toList(),
               ),
             ),
-            const SizedBox(
-              height: 120,
-            ), // Space for floating bottom nav on mobile
+            // const SizedBox(
+            //   height: 100,
+            // ), // Space for floating bottom nav on mobile
           ],
         ),
       ),

@@ -10,6 +10,9 @@ import java.util.UUID;
 
 public record TransactionDTO(
 UUID transactionId,
+UUID receiverId,
+String receiverEmail,
+String receiverPhoneNumber,
 String amount,
 LocalDateTime createdAt,
 String failureReason,

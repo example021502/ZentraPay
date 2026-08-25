@@ -20,13 +20,17 @@ public class TransactionModel {
     @Column(name = "transaction_id", nullable = false)
     private UUID transactionId;
 
+    @Column(name = "entry_id", nullable = false)
+    private String entryId;
+
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;
 
+    @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "failure_reason", nullable = false, length = 30)
+    @Column(name = "failure_reason", nullable = true, length = 255)
     private String failureReason;
 
     @Column(name = "gateway", nullable = false, length = 3)
@@ -40,7 +44,7 @@ public class TransactionModel {
     private String status;
 
     @CreationTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @Column(name = "transaction_type", nullable = false)
@@ -49,7 +53,7 @@ public class TransactionModel {
     @Column(name = "sender_id", nullable = false)
     private UUID senderId;
 
-    @Column(name = "receiverId", nullable = false)
+    @Column(name = "receiver_id", nullable = false)
     private UUID receiverId;
 
     @Column(name = "sender_name", nullable = false)

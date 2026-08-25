@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/main.dart';
 
 // "Goals" are ZBank Lite savings accounts — there's no separate goals
 // concept backend-side, this screen is just a savings-focused view.
@@ -26,25 +26,33 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
   Future<void> _loadGoals({bool forceRefresh = false}) async {
     setState(() => isLoading = true);
     try {
-      final savingsAccounts = await SavingsRepository.instance.ensureLoaded(
-        forceRefresh: forceRefresh,
-      );
-      setState(() {
-        goals = (savingsAccounts ?? []).map((s) {
-          final saved = s.balance.toAmount();
-          final target = s.targetAmount?.toAmount();
-          return {
-            'id': s.savingsId,
-            'name': s.savingsName,
-            'target': target ?? (saved == 0 ? 1.0 : saved),
-            'saved': saved,
-            'icon': Icons.savings,
-            'autoSave': false,
-          };
-        }).toList();
-      });
+      // The wallet currency backs the "new goal" currencyCode, so load
+      // wallets first to make [WalletsRepository.instance.defaultWallet]
+      // available (the first caller triggers the GET).
+      await WalletsRepository.instance.ensureLoaded();
+      await SavingsRepository.instance.ensureLoaded(forceRefresh: forceRefresh);
+      final accounts = SavingsRepository.instance.data ?? [];
+      // "Goals" are just ZBank Lite savings accounts — there's no separate
+      // goals concept backend-side (API_CONTRACT §13). Each account maps to
+      // one goal; 'icon'/'autoSave' are filled so _buildGoalCard renders
+      // without null derefs.
+      goals = accounts
+          .map(
+            (s) => {
+              'id': s.savingsId,
+              'name': s.savingsName,
+              'saved': s.balance,
+              'target': s.targetAmount ?? 0.0,
+              'currencyCode': s.currencyCode,
+              'status': s.status,
+              'icon': Icons.savings,
+              'autoSave': false,
+            },
+          )
+          .toList();
     } catch (_) {
       // Keep an empty list on failure rather than fabricating goals.
+      goals = [];
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -69,12 +77,16 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
             TextField(
               controller: amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Initial deposit (GHS)'),
+              decoration: const InputDecoration(
+                labelText: 'Initial deposit (GHS)',
+              ),
             ),
             TextField(
               controller: targetController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Target amount (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Target amount (optional)',
+              ),
             ),
           ],
         ),
@@ -93,14 +105,18 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
 
     if (created != true || nameController.text.trim().isEmpty) return;
 
-    final initialDeposit = double.tryParse(amountController.text) ?? 10.0;
-    final targetAmount = double.tryParse(targetController.text);
+    final initialDeposit = amountController.text.trim();
+    final targetAmount = targetController.text.trim();
+    final currencyCode =
+        WalletsRepository.instance.defaultWallet?.currencyCode ?? 'GHS';
     try {
       await SavingsRepository.instance.create(
         savingsName: nameController.text.trim(),
-        currencyCode: 'GHS',
-        initialDeposit: initialDeposit.toStringAsFixed(2),
-        targetAmount: targetAmount?.toStringAsFixed(2),
+        currencyCode: currencyCode,
+        initialDeposit: initialDeposit,
+        targetAmount: targetAmount.isEmpty ? null : targetAmount,
+        targetDate: null,
+        description: '',
       );
       // The repository already applied the create() response into its
       // cache; re-derive the local `goals` view from it (no refetch).
@@ -235,7 +251,10 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                   const SizedBox(height: 8),
                   Text(
                     goals.isEmpty ? "No goals yet" : goals.first['name'],
-                    style: const TextStyle(fontSize: 12, color: AppColors.primary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ],
               ),

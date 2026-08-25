@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<TransactionModel, UUID> {
-    @Query("SELECT t FROM TransactionModel t WHERE t.senderId = :userId OR t.receiverId = :userId ORDER BY t.createdAt DESC")
-    Page<TransactionModel> findBySenderIdOrReceiverId(UUID userId, Pageable pageable);
+    @Query("SELECT t FROM TransactionModel t WHERE " +
+            "(t.senderId = :userId AND t.transactionType = 'debit') OR " +
+            "(t.receiverId = :userId AND t.transactionType = 'credit') " +
+            "ORDER BY t.createdAt DESC")
+    Page<TransactionModel> findUserHistory(UUID userId, Pageable pageable);
 }

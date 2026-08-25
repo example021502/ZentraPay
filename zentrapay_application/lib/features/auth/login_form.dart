@@ -5,6 +5,9 @@ import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
 
+import '../../core/repositories/providers_repository.dart';
+import '../../core/repositories/transactions_repository.dart';
+import '../../core/repositories/wallets_repository.dart';
 import '../../core/theme/app_theme.dart';
 import 'api_auth_services.dart';
 
@@ -27,6 +30,18 @@ class _LoginFormState extends State<LoginForm> {
   late final double maxWidth = isTablet
       ? 400
       : MediaQuery.of(context).size.width;
+
+  void loginNowTemp() async {
+    Navigator.pushNamed(
+      context,
+      '/home',
+      arguments: {
+        'zentag': 'Testing',
+        'email': "Testing@gmail.com",
+        'fullName': "Testing testing",
+      },
+    );
+  }
 
   void loginNow() async {
     debugPrint('LOGIN init');
@@ -95,7 +110,10 @@ class _LoginFormState extends State<LoginForm> {
       final zentag = userData?['zentag'];
 
       await SecureStorageService.saveToken(token);
-
+      WalletsRepository.instance.ensureLoaded();
+      BillProvidersRepository.instance.ensureLoaded();
+      ServiceProvidersRepository.instance.ensureLoaded();
+      TransactionsRepository.instance.ensureLoaded();
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
 

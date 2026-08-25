@@ -11,7 +11,7 @@ class PaySearchSection extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final ValueChanged<SearchAppUser> onSelectUser;
   final ValueChanged<SearchBillProvider> onSelectBillProvider;
-  final ValueChanged<SearchFundingSource> onSelectFundingSource;
+  final ValueChanged<Banks> onSelectBank;
 
   const PaySearchSection({
     super.key,
@@ -21,13 +21,13 @@ class PaySearchSection extends StatelessWidget {
     required this.onChanged,
     required this.onSelectUser,
     required this.onSelectBillProvider,
-    required this.onSelectFundingSource,
+    required this.onSelectBank,
   });
 
   bool get _hasSearchResults =>
       searchResult.appUsers.isNotEmpty ||
       searchResult.billProviders.isNotEmpty ||
-      searchResult.fundingSources.isNotEmpty;
+      searchResult.banks.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,7 @@ class PaySearchSection extends StatelessWidget {
       children: [
         SearchBar(
           controller: controller,
-          hintText: "Search @zentag, phone, bank ac. no. etc",
+          hintText: "Search...",
           hintStyle: WidgetStateProperty.all(
             TextStyle(color: AppTheme.gray500, fontSize: 14),
           ),
@@ -66,6 +66,7 @@ class PaySearchSection extends StatelessWidget {
           ),
           onChanged: onChanged,
         ),
+        const SizedBox(height: AppTheme.spacingMd),
         if (controller.text.isNotEmpty)
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 250),
@@ -77,8 +78,14 @@ class PaySearchSection extends StatelessWidget {
                       children: [
                         ...searchResult.appUsers.map(
                           (u) => SearchResultTile(
-                            title: u.zentag,
-                            subtitle: u.fullName,
+                            // Search-contacts now returns a flat profile
+                            // (no per-account zentag), so only show the
+                            // zentag when present; otherwise lean on the
+                            // contact's full name + phone.
+                            title: u.fullName,
+                            subtitle: u.fullName.isNotEmpty
+                                ? u.fullName
+                                : u.phoneNumber,
                             dimmed: false,
                             onTap: () => onSelectUser(u),
                           ),
@@ -91,12 +98,12 @@ class PaySearchSection extends StatelessWidget {
                             onTap: () => onSelectBillProvider(b),
                           ),
                         ),
-                        ...searchResult.fundingSources.map(
-                          (f) => SearchResultTile(
-                            title: f.sourceName,
-                            subtitle: "${f.accountIdentifier} · Coming soon",
-                            dimmed: true,
-                            onTap: () => onSelectFundingSource(f),
+                        ...searchResult.banks.map(
+                          (b) => SearchResultTile(
+                            title: b.bankName,
+                            subtitle: "${b.bankCode} · Coming soon",
+                            dimmed: false,
+                            onTap: () => onSelectBank(b),
                           ),
                         ),
                       ],

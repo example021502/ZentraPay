@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 /// Transaction history is paginated, so it doesn't fit the plain
 /// single-value [CachedResource] shape: the "load once" behavior here means
@@ -11,6 +11,7 @@ import 'package:zentrapay_application/core/models/transaction.dart';
 /// of re-querying page 0.
 class TransactionsRepository extends ChangeNotifier {
   TransactionsRepository._();
+
   static final TransactionsRepository instance = TransactionsRepository._();
 
   final Dio _dio = ApiClient().dio;
@@ -22,7 +23,9 @@ class TransactionsRepository extends ChangeNotifier {
   bool _loadedOnce = false;
 
   List<AppTransaction> get items => List.unmodifiable(_items);
+
   bool get isLoading => _loading;
+
   bool get hasMore => _page + 1 < _totalPages;
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
@@ -68,8 +71,31 @@ class TransactionsRepository extends ChangeNotifier {
 
   /// Called after a POST elsewhere (payment, bill pay, savings deposit...)
   /// returns the resulting Transaction — no need to refetch page 0.
+  ///
+  /// A contact that already appears in the list must NOT be inserted again
+  /// (the Recent Payments strip derives straight from these items), so the
+  /// incoming transaction is matched against existing entries by normalized
+  /// identifier first, then by display name; empty/null fields never match.
   void prepend(AppTransaction transaction) {
-    _items.insert(0, transaction);
-    notifyListeners();
+    final exists = _items.any((item) => _sameContact(item, transaction));
+    if (!exists) {
+      _items.insert(0, transaction);
+      notifyListeners();
+    }
+  }
+
+  /// True when [a] and [b] refer to the same counterparty. Comparison is
+  /// trimmed + case-insensitive; identifier wins over name, and two records
+  /// without any usable field are treated as different contacts.
+  static bool _sameContact(AppTransaction a, AppTransaction b) {
+    final aId = a.receiverId.trim().toLowerCase();
+    final bId = b.receiverId.trim().toLowerCase();
+    if (aId.isNotEmpty && bId.isNotEmpty) return aId == bId;
+
+    final aName = a.receiverName.trim().toLowerCase();
+    final bName = b.receiverName.trim().toLowerCase();
+    if (aName.isNotEmpty && bName.isNotEmpty) return aName == bName;
+
+    return false;
   }
 }

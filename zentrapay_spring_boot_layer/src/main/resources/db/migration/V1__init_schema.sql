@@ -209,21 +209,6 @@ CREATE INDEX idx_transactions_user ON transactions(user_id, created_at DESC);
 CREATE INDEX idx_transactions_type ON transactions(type_code);
 CREATE INDEX idx_transactions_status ON transactions(status);
 
-CREATE TABLE linked_funding_sources (
-    source_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id              UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    source_type           VARCHAR(20) NOT NULL CHECK (source_type IN ('BANK','MOBILE_MONEY')),
-    source_name           VARCHAR(120) NOT NULL,
-    account_identifier    VARCHAR(60) NOT NULL,
-    channel_code          VARCHAR(30) REFERENCES payment_channels(channel_code),
-    country_code          CHAR(2) NOT NULL REFERENCES countries(country_code),
-    is_verified           BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (user_id, source_type, account_identifier)
-);
-CREATE INDEX idx_funding_sources_user ON linked_funding_sources(user_id);
-
 -- ============================================================
 -- BILLS & SERVICES
 -- ============================================================

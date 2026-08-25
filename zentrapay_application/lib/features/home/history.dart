@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 import 'package:zentrapay_application/main.dart';
 
 class PaymentHistory extends StatefulWidget {
@@ -19,7 +19,10 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   @override
   void initState() {
     super.initState();
-    TransactionsRepository.instance.ensureLoaded();
+    // Defer repository load so it doesn't trigger state updates during the active build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      TransactionsRepository.instance.ensureLoaded();
+    });
     _scrollController.addListener(_onScroll);
   }
 
@@ -37,12 +40,12 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   List<AppTransaction> _filter(List<AppTransaction> items) {
     if (_query.isEmpty) return items;
     return items.where((t) {
-      final name = (t.counterpartyName ?? '').toLowerCase();
-      final identifier = (t.counterpartyIdentifier ?? '').toLowerCase();
-      final description = (t.description ?? '').toLowerCase();
+      final name = (t.receiverName).toLowerCase();
+      final identifier = (t.receiverId).toLowerCase();
+      final description = (t.purpose)?.toLowerCase();
       return name.contains(_query) ||
           identifier.contains(_query) ||
-          description.contains(_query);
+          description!.contains(_query);
     }).toList();
   }
 
@@ -116,9 +119,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
 
                     if (repo.isLoading && repo.items.isEmpty) {
                       return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.main,
-                        ),
+                        child: CircularProgressIndicator(color: AppColors.main),
                       );
                     }
 
@@ -171,9 +172,8 @@ class _PaymentHistoryState extends State<PaymentHistory> {
 
   // Comment: Standardized design container blueprint rendering unified payment node cards
   Widget _buildTransactionItem(AppTransaction transaction) {
-    final displayName =
-        transaction.counterpartyName ?? transaction.description ?? "N/A";
-    final displayIdentifier = transaction.counterpartyIdentifier ?? '';
+    final displayName = transaction.receiverName;
+    final displayIdentifier = transaction.receiverId;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
@@ -186,7 +186,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           radius: 22,
           backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
           child: Icon(
-            _getIconForType(transaction.typeCode),
+            _getIconForType(transaction.transactionType),
             size: 22,
             color: AppColors.secondary,
           ),
@@ -202,19 +202,21 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           ),
         ),
         subtitle: Text(
-          displayIdentifier,
+          formatDateTimeString(transaction.createdAt),
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
             color: AppColors.lightGrey,
           ),
         ),
         trailing: Text(
-          formatMoney(transaction.amount, symbol: '${transaction.currencyCode} '),
-          style: const TextStyle(
+          transaction.amount,
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textBlack,
+            color: transaction.amount.startsWith("-")
+                ? AppColors.main
+                : AppColors.green,
           ),
         ),
         onTap: () => _showTransactionDetails(transaction),
@@ -234,22 +236,16 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              transaction.counterpartyName ?? transaction.typeCode,
-              style: AppStyles.header,
-            ),
+            Text(transaction.receiverName, style: AppStyles.header),
             const SizedBox(height: 8),
             Text(
-              formatMoney(
-                transaction.amount,
-                symbol: '${transaction.currencyCode} ',
-              ),
+              transaction.amount,
               style: AppStyles.header.copyWith(fontSize: 24),
             ),
             const SizedBox(height: 12),
             _detailRow("Status", transaction.status),
-            _detailRow("Reference", transaction.reference),
-            _detailRow("Date", transaction.createdAt),
+            _detailRow("Reference", transaction.internalReferenceId),
+            _detailRow("Date", formatDateTimeString(transaction.createdAt)),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

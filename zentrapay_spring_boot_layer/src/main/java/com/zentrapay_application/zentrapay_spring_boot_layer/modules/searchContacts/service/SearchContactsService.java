@@ -1,7 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.service;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.BanksModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.BillProviderModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LinkedFundingSource;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
@@ -11,19 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Search across app users, bill providers, linked funding sources, and gateway-synced
- * banks — API_CONTRACT.md §10. Every result is scoped to the searching user's own
- * country: their {@code countryCode} is resolved first (see {@link #searchContacts}),
- * then every downstream query is restricted to that country — a provider, contact, or
- * bank only relevant to a different market isn't useful to show here.
- */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,11 +22,7 @@ public class SearchContactsService {
 
     private final UserRepository userRepository;
     private final BillProviderRepository billProviderRepository;
-    private final FundingSourceRepository fundingSourceRepository;
-    private final UserBillProvidersRepository userBillProvidersRepository;
-    private final UserFundingSourcesRepository userFundingSourcesRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final FiatAccountRepository fiatAccountRepository;
+    private final BanksRepository banksRepository;
 
 
     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId) {
@@ -44,8 +31,8 @@ public class SearchContactsService {
         UserModel sender = userRepository.getUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Execute the query and map the resulting entity models to UserSearchDTOs
-        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query(), sender.getCountryCode())
+//  GETTING ALL THE MATCHED USER ACCOUNTS
+        List<UserSearchDTO> appUsers = userRepository.searchByQueryAndCountryCode(req.query().toLowerCase(), sender.getCountryCode().toLowerCase(),  sender.getUserId())
                 .stream()
                 .map(u -> new UserSearchDTO(
                         u.getCountryCode(),
@@ -56,36 +43,17 @@ public class SearchContactsService {
                         u.getStatus(),
                         u.getUserType()
                 )).toList();
-
-        List<UUID> billProviderIds = userBillProvidersRepository.getUserBillProvidersIdsByUserId(userId);
-        List<BillProviderSearchDTO> billProviders = billProviderRepository.getBillProvidersByQueryCountryCodeAndProviderIds(req.query().toLowerCase(), sender.getCountryCode(), billProviderIds).stream()
+//  GETTING ALL THE MATCHED BILL PROVIDERS HERE
+        List<BillProviderSearchDTO> billProviders = billProviderRepository.getMatchedBillProviders(req.query().toLowerCase(), sender.getCountryCode().toLowerCase()).stream()
                 .map(SearchContactsService::toBillProviderSearchDTO)
                 .limit(limit).toList();
-
-        List<UUID> fundingSourcesIds = userFundingSourcesRepository.getFundingSourcesIdsByUserId(userId);
-        List<FundingSourceSearchDTO> fundingSources = fundingSourceRepository.searchByQueryCountryCodeAndSourceIds(req.query().toLowerCase(), sender.getCountryCode(), fundingSourcesIds).stream()
-                .map(SearchContactsService::toFundingSourceSearchDTO)
+//  GETTING ALL THE MATCHED BANK ACCOUNTS SUPPORTED
+        List<BankSearchDTO> banks = banksRepository.getMatchedBanks(req.query().toLowerCase(), sender.getCountryCode().toLowerCase()).stream()
+                .map(SearchContactsService::toBanksSearchDTO)
                 .limit(limit).toList();
 
 
-        return new SearchResponseDTO(appUsers, billProviders, fundingSources);
-    }
-
-    // Comment: each user has exactly one fiat wallet — see FiatWalletRepository.
-    // Active accounts only; empty (never null) if the wallet has none yet.
-    private List<AccountZentagDTO> getZentagAccounts(UUID userId) {
-        return fiatWalletRepository.findByUserId(userId)
-                .map(wallet -> fiatAccountRepository.findByWalletId(wallet.getWalletId()).stream()
-                        .filter(a -> "active".equals(a.getStatus()))
-                        .map(a -> new AccountZentagDTO(
-                                a.getAccountId(),
-                                a.getAccountName(),
-                                a.getCurrencyCode(),
-                                a.getZentag(),
-                                a.isDefault()
-                        ))
-                        .toList())
-                .orElse(List.of());
+        return new SearchResponseDTO(appUsers, billProviders, banks);
     }
 
     private static BillProviderSearchDTO toBillProviderSearchDTO(BillProviderModel p) {
@@ -106,23 +74,64 @@ public class SearchContactsService {
         );
     }
 
-    private static FundingSourceSearchDTO toFundingSourceSearchDTO(LinkedFundingSource f) {
-        return new FundingSourceSearchDTO(
-                f.getSourceId(),
-                f.getAccountIdentifier(),
-                f.getChannelCode(),
-                f.getCountryCode(),
-                f.getIsVerified(),
-                f.getSourceName(),
-                f.getSourceType(),
-                f.getAccountName(),
-                f.getFundingSourceCode(),
-                f.getCurrency(),
-                f.getFundingType(),
-                f.getIsPrimary(),
-                f.getCreatedAt()
+    private static BankSearchDTO toBanksSearchDTO(BanksModel b) {
+        return new BankSearchDTO(
+                b.getBankId(),
+                b.getBankName(),
+                b.getCode(),
+                b.getCountryCode()
         );
     }
+
+//    SEARCHING FOR A SINGLE CONTACT
+    public ContactResponseDTO getContact(UUID userId, SearchContactRequestDTO req) {
+
+                UserModel user = userRepository.getUserById(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+                Optional<UserSearchDTO> userContact = userRepository.getContactByQueryAndCountryCode(req.query(), user.getCountryCode().toLowerCase()).map(u-> new UserSearchDTO(
+                        u.getCountryCode(),
+                        u.getEmail(),
+                        u.getFirstName(),
+                        u.getLastName(),
+                        u.getPhoneNumber(),
+                        u.getStatus(),
+                        u.getUserType()
+                ));
+                if(userContact.isPresent()){
+                    return new ContactResponseDTO(userContact);
+                }
+
+                Optional<BillProviderSearchDTO> billProvider = billProviderRepository.getContactByQueryAndCountryCode(req.query(), user.getCountryCode().toLowerCase()).map(b-> new BillProviderSearchDTO(
+                        b.getProviderId(),
+                        b.getBillerCode(),
+                        b.getBillerName(),
+                        b.getCategoryCode(),
+                        b.getCountryCode(),
+                        b.getFetchRequirement(),
+                        b.getCustomerParamsSchema(),
+                        b.getLogoUrl(),
+                        b.getUpdatedAt(),
+                        b.getChannelCode(),
+                        b.getIsCrossBorderAllowed(),
+                        b.getActive(),
+                        b.getCreatedAt()
+                ));
+                if(billProvider.isPresent())
+                {
+                    return new ContactResponseDTO(billProvider);
+                }
+                Optional<BankSearchDTO> bank = banksRepository.getContactByQueryAndCountryCode(req.query(), user.getCountryCode().toLowerCase()).map(bnk-> new BankSearchDTO(
+                        bnk.getBankId(),
+                        bnk.getBankName(),
+                        bnk.getCode(),
+                        bnk.getCountryCode()
+                ));
+                    return new ContactResponseDTO(bank);
+
+    }
+
+
 
 }
 

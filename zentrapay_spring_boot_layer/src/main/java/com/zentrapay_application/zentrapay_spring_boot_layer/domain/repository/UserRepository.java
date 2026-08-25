@@ -33,10 +33,21 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
                 OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
                 OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :query, '%'))
             )
-            AND u.countryCode = :countryCode
+            AND LOWER(u.countryCode) = :countryCode AND LOWER(u.status) = "active" AND u.userId != :userId
             """)
     List<UserModel> searchByQueryAndCountryCode(
             @Param("query") String query,
+            @Param("countryCode") String countryCode,
+            @Param("userId") UUID userId
+    );
+
+    @Query("""
+            SELECT u FROM UserModel u
+            WHERE u.userId = :query
+            AND LOWER(u.countryCode) = :countryCode AND LOWER(u.status) = "active"
+            """)
+    Optional<UserModel> getContactByQueryAndCountryCode(
+            @Param("query") UUID query,
             @Param("countryCode") String countryCode
     );
 }

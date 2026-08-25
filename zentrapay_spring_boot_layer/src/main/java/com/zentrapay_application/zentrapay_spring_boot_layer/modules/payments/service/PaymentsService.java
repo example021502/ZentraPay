@@ -11,20 +11,13 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.U
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.TransactionDTO;
-import jakarta.persistence.Column;
-import jakarta.transaction.Transaction;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -67,7 +60,16 @@ public class PaymentsService {
             throw new IllegalArgumentException("Invalid PIN");
         }
 
-        if(req.recipient().countryCode().equalsIgnoreCase(sender.getCountryCode())){
+        // The recipient's country is optional on the client side (the
+        // recent-contacts fallback may not know it); a blank value defaults to
+        // the sender's own country because only domestic transfers are
+        // supported today — anything else would dead-end in the cross-border
+        // branch below anyway.
+        String recipientCountryCode = req.recipient().countryCode();
+        boolean sameCountry = recipientCountryCode == null
+                || recipientCountryCode.isBlank()
+                || recipientCountryCode.equalsIgnoreCase(sender.getCountryCode());
+        if(sameCountry){
             if(!req.transfer().currencyType().equalsIgnoreCase("crypto")){
                 if(req.destination().currencyCode().equalsIgnoreCase(req.transfer().currencyCode())){
                     final FiatWalletModel senderWallet = fiatWalletRepository.getWalletByUserId(senderId)
@@ -101,6 +103,9 @@ public class PaymentsService {
                             throw new IllegalArgumentException("Something went wrong, try again");
                         }
 
+                        final String entryRef = generateReference();
+                        final String destinationIdentifier = req.destination().accountIdentifier();
+
                         TransactionModel debitLeg = new TransactionModel();
                         debitLeg.setAmount(req.transfer().amount());
                         debitLeg.setGateway("internal");
@@ -118,7 +123,10 @@ public class PaymentsService {
                         debitLeg.setReceiverEmail(receiver.getEmail());
                         debitLeg.setReceiverPhoneNumber(receiver.getPhoneNumber());
                         debitLeg.setInternalReferenceId(req.transfer().referenceId());
-                        debitLeg.setExternalReferenceId(generateReference());
+                        debitLeg.setExternalReferenceId(entryRef);
+                        debitLeg.setEntryId(entryRef);
+                        debitLeg.setDestinationIdentifier(destinationIdentifier);
+                        debitLeg.setFailureReason("");
 
                         debitLeg = transactionRepository.save(debitLeg);
 
@@ -139,7 +147,10 @@ public class PaymentsService {
                         creditLeg.setReceiverEmail(receiver.getEmail());
                         creditLeg.setReceiverPhoneNumber(receiver.getPhoneNumber());
                         creditLeg.setInternalReferenceId(req.transfer().referenceId());
-                        creditLeg.setExternalReferenceId(generateReference());
+                        creditLeg.setExternalReferenceId(entryRef);
+                        creditLeg.setEntryId(entryRef);
+                        creditLeg.setDestinationIdentifier(destinationIdentifier);
+                        creditLeg.setFailureReason("");
                         transactionRepository.save(creditLeg);
 
                         return toDTO(debitLeg);
@@ -175,6 +186,9 @@ public class PaymentsService {
         String sign = t.getTransactionType().equalsIgnoreCase("credit") ? "+" : "-";
         return Optional.of(new TransactionDTO(
                 t.getTransactionId(),
+                t.getReceiverId(),
+                t.getReceiverEmail(),
+                t.getReceiverPhoneNumber(),
                 sign + t.getSourceCurrencyCode() + t.getAmount().toPlainString(),
                 t.getCreatedAt(),
                 t.getFailureReason(),

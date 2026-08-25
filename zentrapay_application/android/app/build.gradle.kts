@@ -1,3 +1,4 @@
+// Android application module configuration for Zentrapay Application.
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,26 +6,22 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Configured using the Android Gradle Plugin ApplicationExtension scope.
 android {
     namespace = "zentrapay.com.zentrapay_application"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    buildToolsVersion = "35.0.0"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Specify your own unique Application ID.
         applicationId = "zentrapay.com.zentrapay_application"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // Updated minSdk to 28 to support privy_flutter plugin requirements
+        // Updated minSdk to 28 to support privy_flutter plugin requirements.
         minSdk = 28
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -33,7 +30,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -46,6 +42,13 @@ android {
                 "META-INF/*.kotlin_module"
             )
         }
+    }
+}
+
+// Updated Kotlin compiler options replacing the deprecated kotlinOptions block.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 

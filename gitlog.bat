@@ -1,0 +1,3 @@
+@echo off
+git -C c:\Zentrapay_Workspace\zentrapay_spring_boot_layer log --pretty=oneline -8 -- src/main/java/com/zentrapay_application/zentrapay_spring_boot_layer/modules/searchContacts > c:\Zentrapay_Workspace\gitlog_backend.txt 2>&1
+git -C c:\Zentrapay_Workspace\zentrapay_application log --pretty=oneline -8 -- lib/core/models/search_result.dart lib/core/repositories/search_repository.dart > c:\Zentrapay_Workspace\gitlog_frontend.txt 2>&1

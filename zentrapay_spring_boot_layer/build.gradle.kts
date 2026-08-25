@@ -34,8 +34,12 @@ dependencies {
 	// Flyway — schema is version-controlled SQL (db/migration), not
 	// Hibernate ddl-auto. flyway-database-postgresql is required from
 	// Flyway 10+ (Postgres support was split out of flyway-core).
+	// spring-boot-flyway carries Boot 4's FlywayAutoConfiguration (Boot 4
+	// split auto-configs into per-technology modules) — without it Flyway
+	// sits on the classpath but never runs.
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.flywaydb:flyway-database-postgresql")
+	implementation("org.springframework.boot:spring-boot-flyway")
 
 	// Testing
 	testImplementation("org.springframework.boot:spring-boot-starter-test")

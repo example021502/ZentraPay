@@ -26,16 +26,16 @@ public class BillProviderModel {
     @Column(name = "provider_id", nullable = false)
     private UUID providerId;
 
-    @Column(name = "biller_code", nullable = false, unique = true, length = 40)
+    @Column(name = "biller_code", nullable = false, unique = true)
     private String billerCode;
 
-    @Column(name = "biller_name", nullable = false, length = 120)
+    @Column(name = "biller_name", nullable = false)
     private String billerName;
 
-    @Column(name = "category_code", nullable = false, length = 30)
+    @Column(name = "category_code", nullable = false)
     private String categoryCode;
 
-    @Column(name = "country_code", nullable = false, length = 2)
+    @Column(name = "country_code", nullable = false, length = 3)
     private String countryCode;
 
     @Column(name = "channel_code", nullable = false)
@@ -56,6 +56,9 @@ public class BillProviderModel {
 
     @Column(name = "customer_params_schema")
     private String customerParamsSchema;
+
+    @Column(name = "gateway", nullable = false)
+    private String gateway;
 
     @Transient
     private String userType = "bill-provider";

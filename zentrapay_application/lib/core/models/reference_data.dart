@@ -43,7 +43,9 @@ class AppCurrency {
   factory AppCurrency.fromJson(Map<String, dynamic> json) => AppCurrency(
     currencyCode: json['currencyCode'] ?? '',
     currencyName: json['currencyName'] ?? '',
-    symbol: json['countryIsoCode'] ?? '',
+    // Backend CurrencyDTO exposes `symbol` (V2 seeds "GH₵", "₦", ...) — the
+    // old key `countryIsoCode` never existed in the reference endpoint.
+    symbol: json['symbol'] ?? '',
     isCrypto: json['isCrypto'] ?? false,
     decimalPlaces: json['decimalPlaces'] ?? 2,
   );

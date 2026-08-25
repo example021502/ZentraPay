@@ -22,6 +22,5 @@ public record BillProviderSearchDTO(
      Boolean isCrossBorderAllowed,
      Boolean active,
      LocalDateTime createdAt
-
 ) {
 }

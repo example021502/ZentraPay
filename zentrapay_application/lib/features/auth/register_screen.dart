@@ -10,6 +10,10 @@ import 'package:zentrapay_application/features/auth/api_auth_services.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
 
+import '../../core/repositories/providers_repository.dart';
+import '../../core/repositories/transactions_repository.dart';
+import '../../core/repositories/wallets_repository.dart';
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -112,7 +116,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       print("TOKEN IS:: $token");
 
       await SecureStorageService.saveToken(token);
-
+      WalletsRepository.instance.ensureLoaded();
+      BillProvidersRepository.instance.ensureLoaded();
+      ServiceProvidersRepository.instance.ensureLoaded();
+      TransactionsRepository.instance.ensureLoaded();
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
         Navigator.pushNamed(

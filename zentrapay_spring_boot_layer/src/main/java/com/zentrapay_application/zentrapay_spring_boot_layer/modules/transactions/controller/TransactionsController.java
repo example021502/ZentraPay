@@ -27,7 +27,7 @@ public class TransactionsController {
     public ResponseEntity<ApiResponse<TransactionPageDTO>> history(
             @CurrentUser AuthenticatedUser user,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "5") int size) {
         TransactionPageDTO result = transactionsQueryService.getHistory(user.getUserId(), page, size);
         return ResponseEntity.ok(ApiResponse.success(result, "Transactions retrieved"));
     }

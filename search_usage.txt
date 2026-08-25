@@ -1,0 +1,67 @@
+﻿
+Path                                                                                                        LineNumber Line                                                                                   
+----                                                                                                        ---------- ----                                                                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     15     required this.zentag,                                                              
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     37 List<AccountZentagOption> _parseFiatAccounts(Map<String, dynamic> json) =>             
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     38     ((json['fiatAccounts'] as List?) ?? [])                                            
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     50 class SenderDetails {                                                                  
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     58   final List<AccountZentagOption> fiatAccounts;                                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     60   SenderDetails({                                                                      
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     68     required this.fiatAccounts,                                                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     73   AccountZentagOption? get defaultAccount => _defaultAccount(fiatAccounts);            
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     74   String get zentag => defaultAccount?.zentag ?? '';                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     77   factory SenderDetails.fromJson(Map<String, dynamic> json) => SenderDetails(          
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     85     fiatAccounts: _parseFiatAccounts(json),                                            
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                     99     'fiatAccounts': fiatAccounts.map((a) => a.toJson()).toList(),                      
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    102   static SenderDetails empty() => SenderDetails(                                       
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    110     fiatAccounts: [],                                                                  
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    122   final List<AccountZentagOption> fiatAccounts;                                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    132     required this.fiatAccounts,                                                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    143     fiatAccounts: _parseFiatAccounts(json),                                            
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    150   AccountZentagOption? get defaultAccount => _defaultAccount(fiatAccounts);            
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    151   String get zentag => defaultAccount?.zentag ?? '';                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    163     'fiatAccounts': fiatAccounts.map((a) => a.toJson()).toList(),                      
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    261   final SenderDetails senderDetails;                                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    267     required this.senderDetails,                                                       
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    275         // Comment: backend's SearchResponseDTO field is "sender", not "senderDetails".
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    276         senderDetails: SenderDetails.fromJson(json['sender'] ?? {}),                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\search_result.dart                                    289     senderDetails: SenderDetails.empty(),                                              
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\user.dart                                              20     required this.zentag,                                                              
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                            17     required this.zentag,                                                              
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           111   final List<FiatAccount> fiatAccounts;                                                
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           115     required this.fiatAccounts,                                                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           125         fiatAccounts: ((json['fiatBalances'] as List?) ?? [])                          
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           134     List<FiatAccount>? fiatAccounts,                                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           137     fiatAccounts: fiatAccounts ?? this.fiatAccounts,                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           145         fiatAccounts.where((a) => a.accountId != account.accountId).toList()           
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\models\wallet.dart                                           147     return copyWith(fiatAccounts: next);                                               
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\repositories\search_repository.dart                            9 class SearchRepository {                                                               
+C:\Zentrapay_Workspace\zentrapay_application\lib\core\repositories\wallets_repository.dart                          49     final accounts = data?.fiatAccounts ?? [];                                         
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\widgets\pay_search_section.dart         84                             title: u.zentag.isNotEmpty ? u.zentag : u.fullName,        
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\widgets\pay_search_section.dart         85                             subtitle: u.zentag.isNotEmpty                              
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                                56         final result = await SearchRepository.search(query);                           
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                                87   /// Search-contacts no longer returns per-account zentags/fiatAccounts (the          
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                                96     final myAccounts = WalletsRepository.instance.data?.fiatAccounts ?? [];            
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                               131         destination: recipient.zentag.isNotEmpty                                       
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                               132             ? recipient.zentag                                                         
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                               162         "accountIdentifier": recipient.zentag.isNotEmpty                               
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                               163             ? recipient.zentag                                                         
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\HomePayments\pay.dart                               220       final result = await SearchRepository.search(identifier);                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\home_header.dart                                    186             ? (snapshot?.fiatAccounts ?? [])                                           
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\receive_sheet.dart                                   55       'zentrapay://pay?zentag=${Uri.encodeComponent(account.zentag)}'                  
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\receive_sheet.dart                                  114         final accounts = [...repo.data?.fiatAccounts ?? []];                           
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\receive_sheet.dart                                  195                       "${account.currencyCode} · @${account.zentag}",                  
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\home\receive_sheet.dart                                  246               onPressed: () => _copy(account.zentag, "Zentag"),                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\payments\transfer_user_selection.dart                     21     this.zentag,                                                                       
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\payments\transfer_user_selection.dart                     26     zentag: user.zentag.isNotEmpty ? user.zentag : null,                               
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\payments\transfer_user_selection.dart                     27     phoneNumber: user.zentag.isEmpty ? user.phoneNumber : null,                        
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\payments\transfer_user_selection.dart                    102         final result = await SearchRepository.search(query.trim());                    
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\payments\transfer_user_selection.dart                    234               subtitle: user.zentag.isNotEmpty ? user.zentag : user.phoneNumber,       
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\profile\profile_screen.dart                               39           userProfileData['handle'] = '@${profile.zentag}';                            
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\profile\profile_screen.dart                               98       final fiatAccounts = snapshot?.fiatAccounts ?? [];                               
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\profile\profile_screen.dart                               99       if (fiatAccounts.isNotEmpty) {                                                   
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\profile\profile_screen.dart                              101           accounts = fiatAccounts                                                      
+C:\Zentrapay_Workspace\zentrapay_application\lib\features\profile\profile_screen.dart                              107                   'accountNumber': a.zentag,                                           
+
+
+

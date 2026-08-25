@@ -13,18 +13,12 @@ import '../../main.dart';
 class SelectedRecipient {
   final String displayName;
   final String? phoneNumber;
-  final String? zentag;
 
-  const SelectedRecipient({
-    required this.displayName,
-    this.phoneNumber,
-    this.zentag,
-  });
+  const SelectedRecipient({required this.displayName, this.phoneNumber});
 
   factory SelectedRecipient.fromSearch(SearchAppUser user) => SelectedRecipient(
     displayName: user.fullName,
-    zentag: user.zentag.isNotEmpty ? user.zentag : null,
-    phoneNumber: user.zentag.isEmpty ? user.phoneNumber : null,
+    phoneNumber: user.phoneNumber,
   );
 }
 
@@ -116,35 +110,27 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
   }
 
   SelectedRecipient? _recentFromTransaction(AppTransaction tx) {
-    final identifier = tx.counterpartyIdentifier;
-    final name = tx.counterpartyName;
-    if (identifier == null ||
-        identifier.isEmpty ||
-        name == null ||
-        name.isEmpty) {
+    final identifier = tx.receiverId;
+    final name = tx.receiverName;
+    if (identifier.isEmpty || name.isEmpty) {
       return null;
     }
-    final isPhone = _phoneLike.hasMatch(identifier);
-    return SelectedRecipient(
-      displayName: name,
-      phoneNumber: isPhone ? identifier : null,
-      zentag: isPhone ? null : identifier,
-    );
+    return SelectedRecipient(displayName: name, phoneNumber: identifier);
   }
 
   List<AppTransaction> _recentInternalTransfers(List<AppTransaction> items) {
     final seen = <String>{};
-    final recents = <AppTransaction>[];
+    final recent = <AppTransaction>[];
     for (final tx in items) {
-      if (tx.typeCode != 'TRANSFER_INTERNAL') continue;
-      final identifier = tx.counterpartyIdentifier;
-      if (identifier == null || identifier.isEmpty || !seen.add(identifier)) {
+      if (tx.transactionType != 'TRANSFER_INTERNAL') continue;
+      final identifier = tx.receiverId;
+      if (identifier.isEmpty || !seen.add(identifier)) {
         continue;
       }
-      recents.add(tx);
-      if (recents.length >= 5) break;
+      recent.add(tx);
+      if (recent.length >= 5) break;
     }
-    return recents;
+    return recent;
   }
 
   @override
@@ -218,7 +204,6 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
                 SelectedRecipient(
                   displayName: query,
                   phoneNumber: isPhone ? query : null,
-                  zentag: isPhone ? null : query,
                 ),
               );
             },
@@ -231,7 +216,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
           .map(
             (user) => _userTile(
               title: user.fullName,
-              subtitle: user.zentag.isNotEmpty ? user.zentag : user.phoneNumber,
+              subtitle: user.phoneNumber,
               onTap: () => widget.onRecipientSelected(
                 SelectedRecipient.fromSearch(user),
               ),
@@ -276,7 +261,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
               children: recents
                   .map(
                     (tx) => _recent(
-                      tx.counterpartyName ?? "N/A",
+                      tx.receiverName,
                       onTap: () {
                         final recipient = _recentFromTransaction(tx);
                         if (recipient != null) {

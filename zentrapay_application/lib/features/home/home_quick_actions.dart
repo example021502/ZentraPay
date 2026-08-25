@@ -131,8 +131,11 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.90,
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.90,
+            minHeight: MediaQuery.of(context).size.height * 0.50,
+          ),
           child: Column(
             children: [
               const SizedBox(height: 12),
@@ -144,7 +147,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppTheme.spacingXl),
               const Expanded(child: PaymentHistory()),
             ],
           ),
@@ -156,7 +159,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         QuickActionButton(
@@ -273,7 +276,6 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                 physics: const NeverScrollableScrollPhysics(),
                 // 1. Total number of items in the list (Required)
                 itemCount: options.length,
-
                 // 2. Builder callback that creates a widget for each index (Required)
                 itemBuilder: (BuildContext context, int i) {
                   final option = options[i];

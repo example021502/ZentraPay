@@ -4,6 +4,9 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class RecentPaymentsList extends StatelessWidget {
   final List<AppTransaction> recentPayments;
+
+  /// Receives the whole [AppTransaction] so the caller can fall back to the
+  /// identifiers stored on it when a live re-search of the contact fails.
   final ValueChanged<AppTransaction> onSelectTransaction;
 
   const RecentPaymentsList({
@@ -23,7 +26,7 @@ class RecentPaymentsList extends StatelessWidget {
               itemCount: recentPayments.length,
               itemBuilder: (context, index) {
                 final transaction = recentPayments[index];
-                final displayName = transaction.counterpartyName ?? "Unknown";
+                final displayName = transaction.receiverName;
 
                 return GestureDetector(
                   onTap: () => onSelectTransaction(transaction),
