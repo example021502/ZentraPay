@@ -81,6 +81,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _formatDate(DateTime? value) =>
       value == null ? '' : DateFormat('MMMM dd, yyyy').format(value.toLocal());
 
+  /// [AppUser.createdAt] arrives as an ISO-8601 string, so parse it first.
+  String _formatDateString(String? value) =>
+      value == null || value.isEmpty
+      ? ''
+      : _formatDate(DateTime.tryParse(value));
+
   // Placeholder default; replaced with real fiat balances in _loadProfile().
   List<Map<String, dynamic>> accounts = [
     {
@@ -165,9 +171,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: AppTheme.spacingXl),
                   _buildPersonalInformationSection(),
                   const SizedBox(height: AppTheme.spacingLg),
-                  _buildAccountInformationSection(),
+                  _buildProfileInformationSection(),
                   const SizedBox(height: AppTheme.spacingLg),
-                  _buildImportantBusinessSection(),
+                  _buildComplianceSection(),
                 ],
               ),
             ),
@@ -266,7 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildInfoRow("Country Code", user?.countryCode ?? ''),
           _buildInfoRow("Account Type", user?.userType ?? ''),
           _buildInfoRow("Account Status", user?.status ?? ''),
-          _buildInfoRow("Member Since", _formatDate(user?.createdAt)),
+          _buildInfoRow("Member Since", _formatDateString(user?.createdAt)),
         ],
       ),
     );
@@ -314,7 +320,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildImportantBusinessSection() {
+  /// Compliance & risk card — the [UserProfile] screening/status fields,
+  /// kept in the highlighted card style.
+  Widget _buildComplianceSection() {
+    final profile = _profile;
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       decoration: BoxDecoration(
@@ -333,10 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(
-                child: Text(
-                  "Important Information & Compliance",
-                  style: AppTheme.headlineSmall,
-                ),
+                child: Text("Compliance & Risk", style: AppTheme.labelLarge),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -348,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Text(
-                  _userInfoView['amlStatus'] ?? '',
+                  profile?.antiMoneyLaunderingStatus ?? '',
                   style: AppTheme.labelSmall.copyWith(
                     color: AppTheme.successGreen,
                     fontWeight: FontWeight.bold,
@@ -358,28 +364,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
-          _buildInfoRow("KYC Level", _userInfoView['kycTier'] ?? ''),
+          _buildInfoRow("KYC Status", profile?.KYCStatus ?? ''),
           _buildInfoRow(
-            "Legal Business Name",
-            _userInfoView['businessLegalName'] ?? '',
+            "AML Status",
+            profile?.antiMoneyLaunderingStatus ?? '',
           ),
           _buildInfoRow(
-            "Registration Number",
-            _userInfoView['businessRegistrationNumber'] ?? '',
+            "PEP Screening",
+            profile == null
+                ? ''
+                : (profile.isPoliticallyExposedPerson ? 'Yes' : 'No'),
           ),
-          _buildInfoRow(
-            "Tax ID (TIN)",
-            _userInfoView['taxIdentificationNumber'] ?? '',
-          ),
-          _buildInfoRow(
-            "Registered Address",
-            _userInfoView['registeredAddress'] ?? '',
-          ),
-          _buildInfoRow("PEP Screening", _userInfoView['pepStatus'] ?? ''),
-          _buildInfoRow(
-            "Active Corridors",
-            _userInfoView['defaultCorridor'] ?? '',
-          ),
+          _buildInfoRow("Risk Score Level", profile?.riskScoreLevel ?? ''),
         ],
       ),
     );
@@ -418,7 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Center(
             child: const Text(
               "Primary Treasury Node",
-              style: AppTheme.bodyMedium,
+              style: AppTheme.labelLarge,
             ),
           ),
           const SizedBox(height: AppTheme.spacingMd),
@@ -493,7 +489,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         children: [
-          const Text("Dynamic Settlement QR", style: AppTheme.bodyMedium),
+          const Text("Dynamic Settlement QR", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingLg),
           Container(
             width: 180,
@@ -515,7 +511,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text("Copy Settlement QR Payload"),
           ),
           const SizedBox(height: AppTheme.spacingXs),
-          const Text("Broadcast Invoice:", style: AppTheme.headlineSmall),
+          const Text("Broadcast Invoice:", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -673,7 +669,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           const Text(
             "Linked Settlement Accounts",
-            style: AppTheme.headlineSmall,
+            style: AppTheme.labelLarge,
           ),
           const SizedBox(height: AppTheme.spacingMd),
           ...bankAccounts.map((account) => _buildBankCard(account)),

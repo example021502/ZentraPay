@@ -22,12 +22,29 @@ class PaySectionMain extends StatefulWidget {
 }
 
 class _PaySectionMainState extends State<PaySectionMain> {
-  final TextEditingController _searchController = TextEditingController();
-  ContactSearchResult _searchResult = ContactSearchResult.empty();
-  PaymentController makePayment = PaymentController();
   bool isSearching = false;
+  PaymentController makePayment = PaymentController();
+
   Timer? _debounceTimer;
   bool _payInFlight = false;
+  final TextEditingController _searchController = TextEditingController();
+  ContactSearchResult _searchResult = ContactSearchResult.empty();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    TransactionsRepository.instance.ensureLoaded().catchError((_) {});
+    // The pay flow now derives the destination currency from the sender's
+    // own fiat accounts, so make sure wallet balances are loaded up-front.
+    WalletsRepository.instance.ensureLoaded().catchError((_) => null);
+  }
 
   /// Recent Payments is a *response* strip, not a raw transaction log —
   /// collapse repeated payments to the same counterparty into a single tile
@@ -71,22 +88,6 @@ class _PaySectionMainState extends State<PaySectionMain> {
         if (mounted) setState(() => isSearching = false);
       }
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    TransactionsRepository.instance.ensureLoaded().catchError((_) {});
-    // The pay flow now derives the destination currency from the sender's
-    // own fiat accounts, so make sure wallet balances are loaded up-front.
-    WalletsRepository.instance.ensureLoaded().catchError((_) => null);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _debounceTimer?.cancel();
-    super.dispose();
   }
 
   /// backend DTOs were simplified), so the recipient's destination account is
@@ -250,7 +251,6 @@ class _PaySectionMainState extends State<PaySectionMain> {
                     recentPayments: _recentPayments,
                     onSelectTransaction: (AppTransaction transaction) async {
                       if (_payInFlight) return;
-
                       // Try to re-resolve the counterparty's live profile so
                       // we send to their current email/phone. If the search
                       // fails, comes back empty, or isn't an app user, fall
@@ -304,6 +304,26 @@ class _PaySectionMainState extends State<PaySectionMain> {
                         }
                       }
                     },
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  Padding(
+                    padding: const EdgeInsets.all(15.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Other people", style: AppTheme.labelLarge),
+                        const SizedBox(height: AppTheme.spacingSm),
+                        Center(
+                          child: Text(
+                            "Nothing yet",
+                            style: AppTheme.labelLarge.copyWith(
+                              color: AppTheme.lightGrey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 100),
                 ],
