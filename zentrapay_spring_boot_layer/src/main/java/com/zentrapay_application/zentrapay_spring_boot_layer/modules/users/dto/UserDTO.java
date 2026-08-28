@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -12,6 +13,9 @@ public record UserDTO(
         String lastName,
         String email,
         String phoneNumber,
-        String passwordHash
+        String countryCode,
+        LocalDateTime createdAt,
+        String status,
+        String userType
 ) {
 }

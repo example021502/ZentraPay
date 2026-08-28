@@ -2,16 +2,14 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.serv
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LoginHistoryModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.LoginHistoryRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.JwtService;
-import jakarta.persistence.Column;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 
@@ -33,7 +31,6 @@ public class UsersService {
     private final UserRepository userRepository;
     private final CryptoWalletRepository cryptoWalletRepository;
     private final FiatWalletRepository fiatWalletRepository;
-    private final UserConsentsRepository userConsentsRepository;
     private final GatewayCountriesRepository gatewayCountriesRepository;
     private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
     private final PasswordEncoder passwordEncoder;
@@ -41,8 +38,7 @@ public class UsersService {
     private final LoginHistoryRepository loginHistoryRepository;
     private final FiatAccountRepository fiatAccountRepository;
     private final CryptoAccountRepository cryptoAccountRepository;
-    private final LegalDocumentsRepository legalDocumentsRepository;
-
+    private final UserProfileRepository userProfileRepository;
 
 
     @Value("${app.password.pepper}")
@@ -93,27 +89,6 @@ public class UsersService {
         user = userRepository.save(user);
 
 
-
-//       boolean isPrivacyDocumentPresent = legalDocumentsRepository.privacyPolicyDocumentExists(req.privacyPolicyId());
-//       boolean isTermsOfUseDocumentPresent = legalDocumentsRepository.termsOfServiceDocumentExists(req.termsOfUseId());
-//
-//      if (isPrivacyDocumentPresent && isTermsOfUseDocumentPresent){
-//
-////        saving the user accepted privacy policy
-//        UserConsentsModel privacyPolicy = new UserConsentsModel();
-//        privacyPolicy.setUserId(user.getUserId());
-////        privacyPolicy.setDocumentId(req.privacyPolicyId());
-//        privacyPolicy.setIpAddress(req.ipAddress());
-//        userConsentsRepository.save(privacyPolicy);
-//
-////        saving the user accepted terms of services
-//        UserConsentsModel termsOfUse = new UserConsentsModel();
-//        termsOfUse.setUserId(user.getUserId());
-////        termsOfUse.setDocumentId(req.termsOfUseId());
-//        termsOfUse.setIpAddress(ipAddress);
-//        userConsentsRepository.save(termsOfUse);
-//      }
-
 //        FIAT WALLET CREATION
         if (!fiatWalletRepository.existsByUserId(user.getUserId()) && !cryptoWalletRepository.existsByUserId(user.getUserId())) {
             FiatWalletModel fiatWallet = new FiatWalletModel();
@@ -146,11 +121,6 @@ public class UsersService {
             cryptoAccount.setWalletId(cryptoWallet.getWalletId());
             cryptoAccount.setNetwork("unknown");
             cryptoAccount.setCurrencyCode("Unknown");
-            // accounts.wallet_address has a UNIQUE (network, wallet_address) constraint —
-            // a literal "Unknown" placeholder collided on every registration after the
-            // first, blocking all new signups. Crypto isn't wired to a real chain yet
-            // (see crypto_wallets table comment), so keep this a unique placeholder per
-            // user until that lands.
             cryptoAccount.setWalletAddress("pending-" + user.getUserId());
             cryptoAccount.setBalance(BigDecimal.ZERO);
             cryptoAccount.setIsDefault(true);
@@ -210,5 +180,49 @@ public class UsersService {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+//    GETTING USER INFROMATION
+    @Transactional(readOnly = true)
+public UserInformation getMe(@Valid UUID userId) {
+        UserDTO user = userRepository.getUserById(userId)
+                .map(u -> new UserDTO(
+                        u.getUserId(),
+                        u.getFirstName(),
+                        u.getLastName(),
+                        u.getEmail(),
+                        u.getPhoneNumber(),
+                        u.getCountryCode(),
+                        u.getCreatedAt(),
+                        u.getStatus(),
+                        u.getUserType()
+                ))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Retrieve profile or throw exception if not found
+        UserProfileDTO userProfile = userProfileRepository.findById(userId)
+                .map(up -> new UserProfileDTO(
+                        up.getDateOfBirth(),
+                        up.getNationalityCountryCode(),
+                        up.getIdentityDocumentType(),
+                        up.getIdentityDocumentNumber(),
+                        up.getIdentityDocumentIssuingCountryCode(),
+                        up.getIdentityDocumentExpirationDate(),
+                        up.getAddressLine1(),
+                        up.getAddressLine2(),
+                        up.getCityName(),
+                        up.getStateOrRegion(),
+                        up.getPostalCode(),
+                        up.getOccupationTitle(),
+                        up.getAntiMoneyLaunderingStatus(),
+                        up.isPoliticallyExposedPerson(),
+                        up.getRiskScoreLevel(),
+                        up.getKYCStatus(),
+                        up.getCreatedAt(),
+                        up.getUpdatedAt()
+                ))
+                .orElseThrow(() -> new ResourceNotFoundException("UserProfile not found for ID: " + userId));
+
+        return new UserInformation(user, userProfile);
     }
 }

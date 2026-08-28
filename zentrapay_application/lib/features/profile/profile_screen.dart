@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/core/repositories/profile_repository.dart';
+import 'package:zentrapay_application/core/models/user.dart';
+import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -21,128 +23,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Each repository is a load-once cache (see CachedResource) — revisiting
-    // this screen (a fresh push every time) reuses whatever was already
-    // fetched instead of refetching.
     _loadProfile();
   }
 
+  // Null until UserProfileRepository.instance.ensureLoaded() resolves; the
+  // info sections fall back to blank strings while loading or when the
+  // fetch fails.
+  AppUser? _user;
+  UserProfile? _profile;
+
   Future<void> _loadProfile() async {
     try {
-      final profile = await ProfileRepository.instance.ensureLoaded();
-      if (profile != null) {
-        setState(() {
-          userProfileData['firstName'] = profile.firstName;
-          userProfileData['lastName'] = profile.lastName;
-          userProfileData['primaryEmail'] = profile.email;
-          userProfileData['phoneNumber'] = profile.phoneNumber;
-          userProfileData['handle'] = '@${profile.zentag}';
-          userProfileData['accountStatus'] = profile.status;
-          userProfileData['accountType'] = profile.userType == 'MERCHANT'
-              ? 'Merchant'
-              : 'Individual';
-          userProfileData['kycTier'] = 'Tier ${profile.kycTier}';
-        });
-      }
-    } catch (_) {
-      // Keep placeholder profile data on failure.
-    }
+      // Both repositories are load-once caches (see CachedResource) —
+      // revisiting this screen (a fresh push every time) reuses whatever
+      // was already fetched instead of refetching.
+      final snapshot = await UserProfileRepository.instance.ensureLoaded();
 
-    try {
-      final profileDetails = await UserProfileDetailsRepository.instance
-          .ensureLoaded();
-      if (profileDetails != null) {
-        setState(() {
-          if (profileDetails.dateOfBirth != null) {
-            userProfileData['dateOfBirth'] = profileDetails.dateOfBirth;
-          }
-          userProfileData['amlStatus'] = profileDetails.amlStatus;
-          userProfileData['pepStatus'] = profileDetails.isPep
-              ? 'Politically Exposed Person'
-              : 'Not a Politically Exposed Person';
-          final addressParts = [
-            profileDetails.addressLine1,
-            profileDetails.city,
-            profileDetails.regionState,
-          ].where((p) => p != null && p.isNotEmpty).join(', ');
-          if (addressParts.isNotEmpty) {
-            userProfileData['registeredAddress'] = addressParts;
-          }
-        });
-      }
-    } catch (_) {
-      // KYC profile not filled in yet — keep placeholder.
-    }
-
-    // Business fields only apply to merchant accounts.
-    if (userProfileData['accountType'] == 'Merchant') {
-      try {
-        final merchant = await MerchantProfileRepository.instance
-            .ensureLoaded();
-        if (merchant != null) {
-          setState(() {
-            userProfileData['businessLegalName'] = merchant.businessName;
-            userProfileData['businessRegistrationNumber'] =
-                merchant.businessRegistrationNumber ?? '';
-            userProfileData['taxIdentificationNumber'] =
-                merchant.taxIdentificationNumber ?? '';
-          });
+      await WalletsRepository.instance.ensureLoaded();
+      final fiatAccounts = WalletsRepository.instance.data?.fiatAccounts ?? [];
+      print(
+        "USERPROFILE:: user=${snapshot?.user.fullName} "
+        "(profile loaded: ${snapshot?.profile != null})",
+      );
+      if (!mounted) return;
+      setState(() {
+        _user = snapshot?.user;
+        _profile = snapshot?.profile;
+        // Real fiat balances replace the placeholder defaults below. The
+        // placeholders are only kept when the wallet load failed/returned
+        // nothing, so the carousel never renders empty.
+        if (fiatAccounts.isNotEmpty) {
+          accounts = [
+            for (final account in fiatAccounts)
+              {
+                'type': account.accountName.isNotEmpty
+                    ? account.accountName
+                    : '${account.currencyCode} Wallet',
+                'balance': formatMoney(account.balance.toStringAsFixed(2)),
+                'currency': account.currencyCode,
+                'accountNumber': account.zentag,
+                'ledgerId': account.accountId,
+                'status': account.status,
+              },
+          ];
+          if (currentWalletIndex >= accounts.length) currentWalletIndex = 0;
         }
-      } catch (_) {
-        // No merchant profile submitted yet.
-      }
-    }
-
-    try {
-      final snapshot = await WalletsRepository.instance.ensureLoaded();
-      final fiatAccounts = snapshot?.fiatAccounts ?? [];
-      if (fiatAccounts.isNotEmpty) {
-        setState(() {
-          accounts = fiatAccounts
-              .map(
-                (a) => {
-                  'type': a.accountName,
-                  'balance': a.balance,
-                  'currency': a.currencyCode,
-                  'accountNumber': a.zentag,
-                  'ledgerId': a.accountId,
-                  'status': a.status,
-                },
-              )
-              .toList();
-          currentWalletIndex = 0;
-        });
-      }
-    } catch (_) {
-      // Keep placeholder wallets on failure.
+      });
+    } catch (e) {
+      // Keep placeholder profile data on failure — but log it, otherwise a
+      // 401/network failure here is completely silent.
+      print("USERPROFILE:: load failed: $e");
     }
   }
 
-  final Map<String, dynamic> userProfileData = {
-    'firstName': 'John',
-    'lastName': 'Willis',
-    'dateOfBirth': '1992-08-14',
-    'nationality': 'Ghanaian',
-    'gender': 'Male',
-
-    'primaryEmail': 'john.willis@zentrapay.com',
-    'secondaryEmail': 'j.willis.biz@gmail.com',
-    'phoneNumber': '+233 24 123 4567',
-    'secondaryPhoneNumber': '+254 712 345 678',
-    'handle': '@johnwillis5623',
-    'accountType': 'Corporate PSP Merchant',
-    'accountStatus': 'Active / Verified',
-
-    'kycTier': 'Tier 3 (Ultimate Corporate)',
-    'businessLegalName': 'Willis Global Enterprises Ltd',
-    'businessRegistrationNumber': 'CS-983482934',
-    'taxIdentificationNumber': 'GHA-983482934-0001',
-    'registeredAddress':
-        '44 Liberation Road, Airport Residential, Accra, Ghana',
-    'amlStatus': 'Cleared & Compliant',
-    'pepStatus': 'Not a Politically Exposed Person',
-    'defaultCorridor': 'GHS / USD / KES',
-  };
+  /// Formats model dates (member since, DOB, KYC timestamps...) for the
+  /// info rows; empty string when the field was never set.
+  String _formatDate(DateTime? value) =>
+      value == null ? '' : DateFormat('MMMM dd, yyyy').format(value.toLocal());
 
   // Placeholder default; replaced with real fiat balances in _loadProfile().
   List<Map<String, dynamic>> accounts = [
@@ -196,15 +133,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        backgroundColor: AppColors.main,
+        backgroundColor: AppTheme.gray50,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: AppColors.textBlack,
+            size: 22,
+          ),
           onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Profile",
-          style: TextStyle(color: AppColors.primary),
         ),
       ),
       body: SingleChildScrollView(
@@ -286,12 +223,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppTheme.spacingMd),
           Text(
-            "${userProfileData['firstName'] ?? 'N/A'} ${userProfileData['lastName'] ?? 'N/A'}",
+            (_user?.fullName.isNotEmpty ?? false) ? _user!.fullName : 'N/A',
             style: AppTheme.displaySmall,
           ),
           const SizedBox(height: 2),
           Text(
-            userProfileData['accountType'] ?? '',
+            _user?.userType ?? '',
             style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
           const SizedBox(height: AppTheme.spacingSm),
@@ -311,47 +248,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Account record section — renders every field defined on [AppUser].
   Widget _buildPersonalInformationSection() {
+    final user = _user;
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Personal Information", style: AppTheme.headlineSmall),
+          const Text("Personal Information", style: AppTheme.labelLarge),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
-          _buildInfoRow("First Name", userProfileData['firstName'] ?? ''),
-          _buildInfoRow("Last Name", userProfileData['lastName'] ?? ''),
-          _buildInfoRow("Date of Birth", userProfileData['dateOfBirth'] ?? ''),
-          _buildInfoRow("Nationality", userProfileData['nationality'] ?? ''),
-          _buildInfoRow("Gender", userProfileData['gender'] ?? ''),
+          _buildInfoRow("User ID", user?.userId ?? ''),
+          _buildInfoRow("First Name", user?.firstName ?? ''),
+          _buildInfoRow("Last Name", user?.lastName ?? ''),
+          _buildInfoRow("Email", user?.email ?? ''),
+          _buildInfoRow("Phone Number", user?.phoneNumber ?? ''),
+          _buildInfoRow("Country Code", user?.countryCode ?? ''),
+          _buildInfoRow("Account Type", user?.userType ?? ''),
+          _buildInfoRow("Account Status", user?.status ?? ''),
+          _buildInfoRow("Member Since", _formatDate(user?.createdAt)),
         ],
       ),
     );
   }
 
-  Widget _buildAccountInformationSection() {
+  /// KYC profile record section — renders every field defined on
+  /// [UserProfile] (identity document, address, occupation, timestamps).
+  Widget _buildProfileInformationSection() {
+    final profile = _profile;
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Account Information", style: AppTheme.headlineSmall),
+          const Text("Profile Information", style: AppTheme.labelLarge),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
-          _buildInfoRow("Primary Email", userProfileData['primaryEmail'] ?? ''),
+          _buildInfoRow("Date of Birth", _formatDate(profile?.dateOfBirth)),
+          _buildInfoRow("Nationality", profile?.nationalityCountryCode ?? ''),
+          _buildInfoRow("Occupation", profile?.occupationTitle ?? ''),
           _buildInfoRow(
-            "Secondary Email",
-            userProfileData['secondaryEmail'] ?? '',
+            "Identity Document Type",
+            profile?.identityDocumentType ?? '',
           ),
-          _buildInfoRow("Primary Phone", userProfileData['phoneNumber'] ?? ''),
           _buildInfoRow(
-            "Secondary Phone",
-            userProfileData['secondaryPhoneNumber'] ?? '',
+            "Identity Document Number",
+            profile?.identityDocumentNumber ?? '',
           ),
-          _buildInfoRow("Account Handle", userProfileData['handle'] ?? ''),
           _buildInfoRow(
-            "Account Status",
-            userProfileData['accountStatus'] ?? '',
+            "Issuing Country",
+            profile?.identityDocumentIssuingCountryCode ?? '',
           ),
+          _buildInfoRow(
+            "Document Expiration",
+            _formatDate(profile?.identityDocumentExpirationDate),
+          ),
+          _buildInfoRow("Address Line 1", profile?.addressLine1 ?? ''),
+          _buildInfoRow("Address Line 2", profile?.addressLine2 ?? ''),
+          _buildInfoRow("City", profile?.cityName ?? ''),
+          _buildInfoRow("State / Region", profile?.stateOrRegion ?? ''),
+          _buildInfoRow("Postal Code", profile?.postalCode ?? ''),
+          _buildInfoRow("Profile Created", _formatDate(profile?.createdAt)),
+          _buildInfoRow("Last Updated", _formatDate(profile?.updatedAt)),
         ],
       ),
     );
@@ -391,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Text(
-                  userProfileData['amlStatus'] ?? '',
+                  _userInfoView['amlStatus'] ?? '',
                   style: AppTheme.labelSmall.copyWith(
                     color: AppTheme.successGreen,
                     fontWeight: FontWeight.bold,
@@ -401,27 +358,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
-          _buildInfoRow("KYC Level", userProfileData['kycTier'] ?? ''),
+          _buildInfoRow("KYC Level", _userInfoView['kycTier'] ?? ''),
           _buildInfoRow(
             "Legal Business Name",
-            userProfileData['businessLegalName'] ?? '',
+            _userInfoView['businessLegalName'] ?? '',
           ),
           _buildInfoRow(
             "Registration Number",
-            userProfileData['businessRegistrationNumber'] ?? '',
+            _userInfoView['businessRegistrationNumber'] ?? '',
           ),
           _buildInfoRow(
             "Tax ID (TIN)",
-            userProfileData['taxIdentificationNumber'] ?? '',
+            _userInfoView['taxIdentificationNumber'] ?? '',
           ),
           _buildInfoRow(
             "Registered Address",
-            userProfileData['registeredAddress'] ?? '',
+            _userInfoView['registeredAddress'] ?? '',
           ),
-          _buildInfoRow("PEP Screening", userProfileData['pepStatus'] ?? ''),
+          _buildInfoRow("PEP Screening", _userInfoView['pepStatus'] ?? ''),
           _buildInfoRow(
             "Active Corridors",
-            userProfileData['defaultCorridor'] ?? '',
+            _userInfoView['defaultCorridor'] ?? '',
           ),
         ],
       ),
@@ -458,7 +415,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Primary Treasury Node", style: AppTheme.headlineSmall),
+          Center(
+            child: const Text(
+              "Primary Treasury Node",
+              style: AppTheme.bodyMedium,
+            ),
+          ),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -482,6 +444,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               TextButton(
                 onPressed: () {
+                  // Actually copy the handle — the snackbar previously
+                  // claimed a copy that never happened.
+                  Clipboard.setData(
+                    ClipboardData(text: activeWallet['accountNumber'] ?? ''),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -495,15 +462,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondaryNavy,
+          InkWell(
+            onTap: () => showComingSoon(context, "Request payment"),
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryNavy,
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text("Request Cross-Border Payment"),
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Center(
+                  child: Text(
+                    "Request Payment",
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.primaryWhite,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -516,7 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         children: [
-          const Text("Dynamic Settlement QR", style: AppTheme.headlineSmall),
+          const Text("Dynamic Settlement QR", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingLg),
           Container(
             width: 180,

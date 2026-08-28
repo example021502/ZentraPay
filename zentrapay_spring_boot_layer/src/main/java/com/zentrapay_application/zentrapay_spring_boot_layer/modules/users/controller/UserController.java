@@ -3,6 +3,8 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.cont
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.service.UsersService;
+import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
+import com.zentrapay_application.zentrapay_spring_boot_layer.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +59,11 @@ public class UserController {
         return request.getRemoteAddr();
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserInformation>> me(@CurrentUser AuthenticatedUser user) {
+        UserInformation profile = userService.getMe(user.userId());
+        return ResponseEntity.ok(ApiResponse.success(profile, "Profile retrieved"));
+    }
 //    @PostMapping("/refresh")
 //    public ResponseEntity<ApiResponse<usersAuthResponse>> refresh(@RequestHeader("Authorization") String authorization) {
 //        String token = authorization.startsWith("Bearer ") ? authorization.substring(7) : authorization;
@@ -71,12 +78,7 @@ public class UserController {
 //        return ResponseEntity.ok(ApiResponse.success(result, "PIN verification completed"));
 //    }
 //
-//    @GetMapping("/me")
-//    public ResponseEntity<ApiResponse<UserProfileDTO>> me(@CurrentUser AuthenticatedUser user) {
-//        UserProfileDTO profile = userService.getMe(user.userId());
-//        return ResponseEntity.ok(ApiResponse.success(profile, "Profile retrieved"));
-//    }
-//
+
 //    @PatchMapping("/me")
 //    public ResponseEntity<ApiResponse<UserProfileDTO>> updateMe(@CurrentUser AuthenticatedUser user,
 //                                                                  @RequestBody UserMeUpdateDTO request) {

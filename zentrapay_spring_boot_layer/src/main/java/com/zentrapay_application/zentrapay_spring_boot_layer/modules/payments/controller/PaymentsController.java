@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.controller;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.QRCodeService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
@@ -9,13 +10,13 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.security.Authentica
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Wallet-to-wallet payments — API_CONTRACT.md §5.
@@ -27,6 +28,7 @@ import java.util.Optional;
 public class PaymentsController {
 
     private final PaymentsService paymentsService;
+    private final QRCodeService qrCodeService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<Optional<TransactionDTO>>> pay(
@@ -35,5 +37,23 @@ public class PaymentsController {
         Optional<TransactionDTO> transaction = Optional.of(paymentsService.sendMoney(user.getUserId(), request)
                 .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again")));
         return ResponseEntity.ok(ApiResponse.success(transaction, "Payment successful"));
+    }
+
+    /**
+     * Accepts account/checkout ID, fetches details on backend, and returns PNG bytes.
+     */
+    @GetMapping(value = "/{accountId}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getAccountQRCode(@PathVariable UUID accountId) {
+        try {
+            // Generate QR PNG bytes based strictly on the path ID
+            byte[] qrImageBytes = qrCodeService.generateQRCodeForAccount(accountId);
+            return ResponseEntity.ok(qrImageBytes);
+        } catch (IllegalArgumentException e) {
+            // Return 404 if account ID does not exist
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            // Return 500 on internal server rendering errors
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

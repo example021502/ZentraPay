@@ -13,46 +13,64 @@ import java.util.UUID;
 @Data
 @Table(name = "user_profiles")
 public class UserProfileModel {
+    // Unique identifier for the user profile.
     @Id
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
-    @Column(name = "id_document_type", length = 30)
-    private String idDocumentType;
+    // ISO 3166-1 alpha-2 nationality code (essential for sanctions matching).
+    @Column(name = "nationality_country_code", length = 2)
+    private String nationalityCountryCode;
 
-    @Column(name = "id_document_number", length = 60)
-    private String idDocumentNumber;
+    // Identity Document details expanded for clarity.
+    @Column(name = "identity_document_type", length = 30)
+    private String identityDocumentType;
 
-    @Column(name = "id_document_country_code", length = 2)
-    private String idDocumentCountryCode;
+    @Column(name = "identity_document_number", length = 60)
+    private String identityDocumentNumber;
 
-    @Column(name = "address_line1", length = 120)
+    @Column(name = "identity_document_issuing_country_code", length = 2)
+    private String identityDocumentIssuingCountryCode;
+
+    @Column(name = "identity_document_expiration_date")
+    private LocalDate identityDocumentExpirationDate;
+
+    // Residential address details expanded to full names.
+    @Column(name = "address_1", length = 120)
     private String addressLine1;
 
-    @Column(name = "address_line2", length = 120)
+    @Column(name = "address_2", length = 120)
     private String addressLine2;
 
-    @Column(length = 60)
-    private String city;
+    @Column(name = "city_name", length = 60)
+    private String cityName;
 
-    @Column(name = "region_state", length = 60)
-    private String regionState;
+    @Column(name = "state_or_region", length = 60)
+    private String stateOrRegion;
 
     @Column(name = "postal_code", length = 20)
     private String postalCode;
 
-    @Column(length = 80)
-    private String occupation;
+    @Column(name = "occupation_title", length = 80)
+    private String occupationTitle;
 
-    @Column(name = "aml_status", nullable = false, length = 20)
-    private String amlStatus = "CLEAR";
+    // Comprehensive Compliance and Risk tracking fields.
+    @Column(name = "anti_money_laundering_status", nullable = false, length = 20)
+    private String antiMoneyLaunderingStatus = "clear";
 
-    @Column(name = "is_pep", nullable = false)
-    private boolean isPep;
+    @Column(name = "politically_exposed_person", nullable = false)
+    private boolean isPoliticallyExposedPerson;
 
+    @Column(name = "risk_score_level", length = 20)
+    private String riskScoreLevel;
+
+    @Column(name = "kyc_status", nullable = false, length = 20)
+    private String KYCStatus = "pending";
+
+    // System audit timestamps.
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

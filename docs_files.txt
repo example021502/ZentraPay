@@ -1,5 +1,0 @@
-﻿C:\Zentrapay_Workspace\zentrapay_application\docs\STRUCTURAL_DOCUMENTATION.md
-C:\Zentrapay_Workspace\zentrapay_application\docs\TECHNICAL_DOCUMENTATION.md
-C:\Zentrapay_Workspace\zentrapay_spring_boot_layer\docs\API_CONTRACT.md
-C:\Zentrapay_Workspace\zentrapay_spring_boot_layer\docs\STRUCTURAL_DOCUMENTATION.md
-C:\Zentrapay_Workspace\zentrapay_spring_boot_layer\docs\TECHNICAL_DOCUMENTATION.md

@@ -164,17 +164,26 @@ class _PaySectionMainState extends State<PaySectionMain> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Icon(
-                                Icons.arrow_back,
-                                size: 22,
-                                color: AppTheme.textBlack,
-                              ),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Icon(
+                                    Icons.arrow_back,
+                                    size: 22,
+                                    color: AppTheme.textBlack,
+                                  ),
+                                ),
+                                const SizedBox(width: AppTheme.spacingSm),
+                                Text(
+                                  "Send Money",
+                                  style: AppTheme.headlineSmall,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: AppTheme.spacingSm),
-                            Text("Send Money", style: AppTheme.headlineSmall),
+
                             if (_payInFlight) ...[
                               const SizedBox(width: AppTheme.spacingSm),
                               const SizedBox(
@@ -248,16 +257,44 @@ class _PaySectionMainState extends State<PaySectionMain> {
                       // back to the identifiers stored on the transaction so
                       // tapping ALWAYS starts the payment flow (Enter Amount
                       // -> PIN confirmation) instead of dead-ending.
-                      Map<String, dynamic> profile = {};
                       final String identifier = transaction.receiverId.trim();
                       if (identifier.isNotEmpty) {
                         try {
                           final response = await SearchRepository.targetSearch(
                             identifier,
                           );
+
                           if (response.isNotEmpty &&
-                              response['type'] == 'app-user') {
-                            profile = response;
+                              response['userType'] == 'app-user') {
+                            final String fullName =
+                                "${response['firstName']} ${response['lastName']}";
+                            Map<String, dynamic> recipient = {
+                              "fullName": fullName,
+                              "email": response['email'],
+                              "phoneNumber": response['phoneNumber'],
+                              "countryCode": response['countryCode'],
+                            };
+                            final String? zentrapayId =
+                                dotenv.env["zentrapay_id"];
+                            Map<String, dynamic> destination = {
+                              "accountIdentifier": response['phoneNumber'],
+                              "destinationSourceType": "zentrapay-wallet",
+                              "destinationSourceName": "zentrapay",
+                              "destinationSourceCode": zentrapayId,
+                              "countryCode": response['countryCode'],
+                            };
+                            if (!mounted) return;
+                            await makePayment.processPayment(
+                              context: context,
+                              recipientNameForUI: fullName,
+                              recipientMap: recipient,
+                              destinationMap: destination,
+                              onStateChanged: (bool newInFlight) {
+                                setState(() {
+                                  _payInFlight = newInFlight;
+                                });
+                              },
+                            );
                           }
                         } catch (e) {
                           debugPrint(
@@ -266,54 +303,6 @@ class _PaySectionMainState extends State<PaySectionMain> {
                           );
                         }
                       }
-
-                      final String fullName = profile.isNotEmpty
-                          ? "${profile['firstName']} ${profile['lastName']}"
-                          : transaction.receiverName;
-                      final String email =
-                          (profile['email'] ?? transaction.receiverEmail)
-                              .toString();
-                      final String phoneNumber =
-                          (profile['phoneNumber'] ??
-                                  transaction.receiverPhoneNumber)
-                              .toString();
-
-                      if (email.isEmpty && phoneNumber.isEmpty) {
-                        ZentraNotifier.error(
-                          "Can't send",
-                          "We couldn't find enough details for this contact",
-                        );
-                        return;
-                      }
-
-                      final Map<String, dynamic> recipient = {
-                        "fullName": fullName,
-                        "email": email,
-                        "phoneNumber": phoneNumber,
-                        "countryCode": profile['countryCode']?.toString() ?? '',
-                      };
-
-                      final String? zentrapayId = dotenv.env["zentrapay_id"];
-                      final Map<String, dynamic> destination = {
-                        "accountIdentifier": phoneNumber.isNotEmpty
-                            ? phoneNumber
-                            : email,
-                        "destinationSourceType": "zentrapay-wallet",
-                        "destinationSourceName": "zentrapay",
-                        "destinationSourceCode": zentrapayId,
-                        "countryCode": profile["countryCode"] ?? "",
-                      };
-                      await makePayment.processPayment(
-                        context: context,
-                        recipientNameForUI: fullName,
-                        recipientMap: recipient,
-                        destinationMap: destination,
-                        onStateChanged: (bool newInFlight) {
-                          setState(() {
-                            _payInFlight = newInFlight;
-                          });
-                        },
-                      );
                     },
                   ),
                   const SizedBox(height: 100),

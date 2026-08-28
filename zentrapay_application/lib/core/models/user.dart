@@ -5,10 +5,9 @@ class AppUser {
   final String email;
   final String phoneNumber;
   final String countryCode;
-  final String zentag;
-  final String userType;
+  final String createdAt;
   final String status;
-  final int kycTier;
+  final String userType;
 
   AppUser({
     required this.userId,
@@ -17,10 +16,9 @@ class AppUser {
     required this.email,
     required this.phoneNumber,
     required this.countryCode,
-    required this.zentag,
     required this.userType,
     required this.status,
-    required this.kycTier,
+    required this.createdAt,
   });
 
   String get fullName => '$firstName $lastName';
@@ -32,105 +30,114 @@ class AppUser {
     email: json['email'] ?? '',
     phoneNumber: json['phoneNumber'] ?? '',
     countryCode: json['countryCode'] ?? '',
-    zentag: json['zentag'] ?? '',
+    createdAt: json['createdAt'] ?? '',
     userType: json['userType'] ?? 'INDIVIDUAL',
     status: json['status'] ?? '',
-    kycTier: json['kycTier'] ?? 0,
   );
 }
 
-class UserProfileDetails {
-  final String? dateOfBirth;
-  final String? idDocumentType;
-  final String? idDocumentNumber;
-  final String? idDocumentCountryCode;
-  final String? addressLine1;
-  final String? addressLine2;
-  final String? city;
-  final String? regionState;
-  final String? postalCode;
-  final String? occupation;
-  final String amlStatus;
-  final bool isPep;
+class UserProfile {
+  DateTime? dateOfBirth;
+  String nationalityCountryCode;
+  String identityDocumentType;
+  String identityDocumentNumber;
+  String identityDocumentIssuingCountryCode;
+  DateTime? identityDocumentExpirationDate;
+  String addressLine1;
+  String addressLine2;
+  String cityName;
+  String stateOrRegion;
+  String postalCode;
+  String occupationTitle;
+  String antiMoneyLaunderingStatus;
+  bool isPoliticallyExposedPerson;
+  String riskScoreLevel;
+  String KYCStatus;
+  DateTime? createdAt;
+  DateTime? updatedAt;
 
-  UserProfileDetails({
-    this.dateOfBirth,
-    this.idDocumentType,
-    this.idDocumentNumber,
-    this.idDocumentCountryCode,
-    this.addressLine1,
-    this.addressLine2,
-    this.city,
-    this.regionState,
-    this.postalCode,
-    this.occupation,
-    this.amlStatus = 'CLEAR',
-    this.isPep = false,
+  UserProfile({
+    required this.dateOfBirth,
+    required this.nationalityCountryCode,
+    required this.identityDocumentType,
+    required this.identityDocumentNumber,
+    required this.identityDocumentIssuingCountryCode,
+    required this.identityDocumentExpirationDate,
+    required this.addressLine1,
+    required this.addressLine2,
+    required this.cityName,
+    required this.stateOrRegion,
+    required this.postalCode,
+    required this.occupationTitle,
+    required this.antiMoneyLaunderingStatus,
+    required this.isPoliticallyExposedPerson,
+    required this.riskScoreLevel,
+    required this.KYCStatus,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  factory UserProfileDetails.fromJson(Map<String, dynamic> json) =>
-      UserProfileDetails(
-        dateOfBirth: json['dateOfBirth'],
-        idDocumentType: json['idDocumentType'],
-        idDocumentNumber: json['idDocumentNumber'],
-        idDocumentCountryCode: json['idDocumentCountryCode'],
-        addressLine1: json['addressLine1'],
-        addressLine2: json['addressLine2'],
-        city: json['city'],
-        regionState: json['regionState'],
-        postalCode: json['postalCode'],
-        occupation: json['occupation'],
-        amlStatus: json['amlStatus'] ?? 'CLEAR',
-        isPep: json['isPep'] ?? false,
-      );
+  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
+    dateOfBirth: _parseDate(json['dateOfBirth']),
+    nationalityCountryCode: json['nationalityCountryCode'] ?? '',
+    identityDocumentType: json['identityDocumentType'] ?? '',
+    identityDocumentNumber: json['identityDocumentNumber'] ?? '',
+    identityDocumentIssuingCountryCode:
+        json['identityDocumentIssuingCountryCode'] ?? '',
+    identityDocumentExpirationDate: _parseDate(
+      json['identityDocumentExpirationDate'],
+    ),
+    addressLine1: json['addressLine1'] ?? '',
+    addressLine2: json['addressLine2'] ?? '',
+    cityName: json['cityName'] ?? '',
+    stateOrRegion: json['stateOrRegion'] ?? '',
+    postalCode: json['postalCode'] ?? '',
+    occupationTitle: json['occupationTitle'] ?? '',
+    antiMoneyLaunderingStatus: json['antiMoneyLaunderingStatus'] ?? 'unknown',
+    isPoliticallyExposedPerson: json['isPoliticallyExposedPerson'] ?? false,
+    riskScoreLevel: json['riskScoreLevel'] ?? '',
+    KYCStatus: json['KYCStatus'] ?? '',
+    createdAt: _parseDate(json['createdAt']),
+    updatedAt: _parseDate(json['updatedAt']),
+  );
 
-  Map<String, dynamic> toJson() => {
-    'dateOfBirth': dateOfBirth,
-    'idDocumentType': idDocumentType,
-    'idDocumentNumber': idDocumentNumber,
-    'idDocumentCountryCode': idDocumentCountryCode,
-    'addressLine1': addressLine1,
-    'addressLine2': addressLine2,
-    'city': city,
-    'regionState': regionState,
-    'postalCode': postalCode,
-    'occupation': occupation,
-  };
+  // Dates arrive as ISO-8601 strings over the wire (and may be absent while
+  // the KYC profile is still incomplete), so parse defensively.
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
+
+  /// Convenience getter: street, city, region and postal code joined the way
+  /// it's displayed on the profile screen.
+  String get registeredAddress => [
+    addressLine1,
+    addressLine2,
+    cityName,
+    stateOrRegion,
+    postalCode,
+  ].where((part) => part.isNotEmpty).join(', ');
 }
 
-class MerchantProfileDetails {
-  final String businessName;
-  final String? businessRegistrationNumber;
-  final String? taxIdentificationNumber;
-  final String? businessCategoryCode;
-  final String businessCountryCode;
-  final String? businessAddress;
+/// Combined payload of `GET /api/users/me`: the backend returns the account
+/// record under `user` and the KYC profile record under `profile`. The
+/// profile is null until the user has submitted their KYC details.
+class UserProfileSnapshot {
+  final AppUser user;
+  final UserProfile? profile;
 
-  MerchantProfileDetails({
-    required this.businessName,
-    this.businessRegistrationNumber,
-    this.taxIdentificationNumber,
-    this.businessCategoryCode,
-    required this.businessCountryCode,
-    this.businessAddress,
-  });
+  UserProfileSnapshot({required this.user, this.profile});
 
-  factory MerchantProfileDetails.fromJson(Map<String, dynamic> json) =>
-      MerchantProfileDetails(
-        businessName: json['businessName'] ?? '',
-        businessRegistrationNumber: json['businessRegistrationNumber'],
-        taxIdentificationNumber: json['taxIdentificationNumber'],
-        businessCategoryCode: json['businessCategoryCode'],
-        businessCountryCode: json['businessCountryCode'] ?? '',
-        businessAddress: json['businessAddress'],
+  factory UserProfileSnapshot.fromJson(Map<String, dynamic> json) =>
+      UserProfileSnapshot(
+        user: AppUser.fromJson(
+          (json['user'] as Map<String, dynamic>?) ?? const {},
+        ),
+        profile: json['profile'] == null
+            ? null
+            : UserProfile.fromJson(
+                Map<String, dynamic>.from(json['profile'] as Map),
+              ),
       );
-
-  Map<String, dynamic> toJson() => {
-    'businessName': businessName,
-    'businessRegistrationNumber': businessRegistrationNumber,
-    'taxIdentificationNumber': taxIdentificationNumber,
-    'businessCategoryCode': businessCategoryCode,
-    'businessCountryCode': businessCountryCode,
-    'businessAddress': businessAddress,
-  };
 }

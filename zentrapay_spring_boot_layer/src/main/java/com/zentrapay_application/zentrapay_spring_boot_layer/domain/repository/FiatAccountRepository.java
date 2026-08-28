@@ -32,4 +32,6 @@ public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, U
     @Modifying
     @Query("UPDATE FiatAccountModel w SET w.balance = w.balance + :amount WHERE w.walletId = :walletId AND w.currencyCode = :currencyCode")
     int credit(@Param("walletId") UUID walletId, @Param("amount") BigDecimal amount,@Param("currencyCode") String currencyCode);
+//  GET ACCOUNT BY ID FOR QR CREATION
+    Optional<FiatAccountModel> getAccountByAccountId(@Param("accountId") UUID accountId);
 }
