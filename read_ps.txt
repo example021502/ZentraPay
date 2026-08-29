@@ -23,10 +23,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Wallet-to-wallet and bank payout execution. Domestic only for now:
- * cross-border and crypto requests are rejected until those corridors ship.
- */
 @Service
 @RequiredArgsConstructor
 public class PaymentsService {
@@ -160,7 +156,9 @@ public class PaymentsService {
                         return toDTO(debitLeg);
 
                     }else if(req.destination().destinationSourceType().equalsIgnoreCase("bank")){
-                        // happen inside BankPayoutService on this transaction.
+//                        TODO:: TO BE IMPLEMENTED LATER --> banking transactions and transfers here
+
+
                     }
 
                 }else{

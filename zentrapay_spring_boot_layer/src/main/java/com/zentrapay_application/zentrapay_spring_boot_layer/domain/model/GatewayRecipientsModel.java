@@ -3,69 +3,62 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDateTime;
+
+/**
+ * Entity storing gateway recipient codes for bank accounts and mobile money transfers.
+ * Maps local payout destinations to external provider recipient codes (e.g., Paystack RCP_xxxx).
+ */
 @Entity
 @Data
-@Table(name = "banks")
+@Table(
+        name = "gateway_recipients",
+        uniqueConstraints = {
+                // Prevents duplicate recipient entries for the same account on a specific gateway
+                @UniqueConstraint(
+                        name = "uq_user_recipient_per_gateway",
+                        columnNames = {"user_id", "gateway_name", "account_identifier", "provider_code"}
+                )
+        }
+)
 public class GatewayRecipientsModel {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "bank_id", nullable = false)
-    private UUID bankId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false, updatable = false)
+    private Long id;
 
-    @Column(name = "code", nullable = false, unique = true)
-    private String code;
+    @Column(name = "user_id", nullable = false, length = 64)
+    private String userId;
 
-    @Column(name = "bank_name", nullable = false)
-    private String bankName;
+    @Column(name = "gateway_name", nullable = false, length = 32)
+    private String gatewayName;
 
-    @Column(name = "gateway", nullable = false)
-    private String gateway;
+    @Column(name = "gateway_recipient_code", nullable = false, length = 128)
+    private String gatewayRecipientCode;
 
-    @Column(name = "iban")
-    private String iban;
+    @Column(name = "channel_type", nullable = false, length = 32)
+    private String channelType;
 
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
+    @Column(name = "gateway_type", nullable = false, length = 32)
+    private String gatewayType;
 
-    @Column(name = "pay_with_bank")
-    private Boolean payWithBank;
+    @Column(name = "account_identifier", nullable = false, length = 64)
+    private String accountIdentifier;
 
-    @Column(name = "swift_bic")
-    private String swiftBic;
+    @Column(name = "provider_code", nullable = false, length = 32)
+    private String providerCode;
 
-    @Column(name = "country_code", length = 3)
-    private String countryCode;
-
-    @Column(name = "country")
-    private String country;
-
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Column(name = "account_name", nullable = false, length = 150)
+    private String accountName;
 
     @CreationTimestamp
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @CreationTimestamp
-    @Column(name = "updated_at")
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    @Column(name = "max_daily_value")
-    private String maxDailyValue;
-
-    @Column(name = "max_monthly_value")
-    private String maxMonthlyValue;
-
-    @Column(name = "min_txn_limit")
-    private String minTxnLimit;
-
-    @Column(name = "max_txn_limit")
-    private String maxTxnLimit;
-
-    @Column(name = "maxWeeklyValue")
-    private String maxWeeklyValue;
-
 }

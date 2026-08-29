@@ -160,7 +160,9 @@ public class PaymentsService {
                         return toDTO(debitLeg);
 
                     }else if(req.destination().destinationSourceType().equalsIgnoreCase("bank")){
-                        // happen inside BankPayoutService on this transaction.
+//                        TODO:: TO BE IMPLEMENTED LATER --> banking transactions and transfers here
+
+
                     }
 
                 }else{

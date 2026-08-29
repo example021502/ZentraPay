@@ -3,8 +3,11 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.c
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.QRCodeService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentRequestDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.TransactionDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service.PaymentsInitializeService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service.PaymentsService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.CurrentUser;
@@ -28,7 +31,24 @@ import java.util.UUID;
 public class PaymentsController {
 
     private final PaymentsService paymentsService;
+    private final PaymentsInitializeService paymentsInitializeService;
     private final QRCodeService qrCodeService;
+
+    /**
+     * POST /api/payments/initialize — customer checkout (inbound wallet
+     * funding). Provisions the caller at the primary gateway (local-first,
+     * business rule 1), initializes the hosted checkout, and fails over to
+     * Flutterwave when the primary is down.
+     */
+    @PostMapping("/initialize")
+    public ResponseEntity<ApiResponse<InitializePaymentResponseDTO>> initialize(
+            @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody InitializePaymentRequestDTO request) {
+        InitializePaymentResponseDTO checkout =
+                paymentsInitializeService.initialize(user.getUserId(), request);
+        return ResponseEntity.ok(
+                ApiResponse.success(checkout, "Checkout session created"));
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Optional<TransactionDTO>>> pay(

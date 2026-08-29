@@ -8,19 +8,16 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * Entity storing gateway recipient codes for bank accounts and mobile money transfers.
- * Maps local payout destinations to external provider recipient codes (e.g., Paystack RCP_xxxx).
+ * Entity mapping local users to gateway-specific Customer IDs
+ * (e.g., Paystack customer_code, Flutterwave customer ID).
  */
 @Entity
 @Data
 @Table(
-        name = "gateway_recipients",
+        name = "gateway_customers",
         uniqueConstraints = {
-                // Prevents duplicate recipient entries for the same account on a specific gateway
-                @UniqueConstraint(
-                        name = "uq_user_recipient_per_gateway",
-                        columnNames = {"user_id", "gateway_name", "account_identifier", "provider_code"}
-                )
+                // Enforces a single gateway customer record per user and payment gateway pair
+                @UniqueConstraint(name = "uq_user_gateway_customer", columnNames = {"user_id", "gateway_name"})
         }
 )
 public class GatewayCustomerModel {
@@ -36,23 +33,8 @@ public class GatewayCustomerModel {
     @Column(name = "gateway_name", nullable = false, length = 32)
     private String gatewayName;
 
-    @Column(name = "gateway_recipient_code", nullable = false, length = 128)
-    private String gatewayRecipientCode;
-
-    @Column(name = "channel_type", nullable = false, length = 32)
-    private String channelType;
-
-    @Column(name = "gateway_type", nullable = false, length = 32)
-    private String gatewayType;
-
-    @Column(name = "account_identifier", nullable = false, length = 64)
-    private String accountIdentifier;
-
-    @Column(name = "provider_code", nullable = false, length = 32)
-    private String providerCode;
-
-    @Column(name = "account_name", nullable = false, length = 150)
-    private String accountName;
+    @Column(name = "gateway_customer_id", nullable = false, length = 128)
+    private String gatewayCustomerId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
