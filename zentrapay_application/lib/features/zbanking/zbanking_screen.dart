@@ -32,6 +32,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 470;
     final double maxWidth = isTablet ? 400 : MediaQuery.of(context).size.width;
+    final bankAccounts = BankAccountsRepository.instance.data ?? [];
     return SizedBox(
       width: maxWidth,
       child: SingleChildScrollView(
@@ -54,10 +55,10 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   spacing: AppTheme.spacingLg,
                   children: [
+                    const SizedBox(height: AppTheme.spacingXl),
                     _buildQuickActions(context),
-                    LinkedBankAccounts(
-                      accounts: BankAccountsRepository.instance.data ?? [],
-                    ),
+                    if (bankAccounts.isNotEmpty)
+                      LinkedBankAccounts(accounts: bankAccounts),
                     _buildAccountOptionsSection(context),
                     _buildAiInsights(context),
                     const SizedBox(height: 100),
@@ -250,19 +251,19 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
         ),
         QuickActionButton(
           icon: Icons.account_balance_wallet,
-          label: "Borrow",
+          label: "Loans",
           onTap: () => _showLoanApplyDialog(context),
           color: AppColors.secondary,
         ),
         QuickActionButton(
           icon: Icons.track_changes,
-          label: "Budget",
+          label: "Goals",
           onTap: () => _showBudgetLimitDialog(context),
           color: AppColors.secondary,
         ),
         QuickActionButton(
           icon: Icons.lock,
-          label: "Vault",
+          label: "E-Vault",
           onTap: () => showComingSoon(context, "Emergency Vault"),
           color: AppColors.secondary,
         ),
