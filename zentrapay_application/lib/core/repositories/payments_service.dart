@@ -13,7 +13,6 @@ class PaymentsService {
   static final Dio _dio = ApiClient().dio;
 
   static Future<AppTransaction> payment({
-
     required Map<String, dynamic> payload,
   }) async {
     final response = await _dio.post('/api/payments', data: payload);
@@ -61,7 +60,7 @@ class PaymentsService {
     // The wallet's balance changed server-side; the cheapest correct move
     // is a forced refresh of the (already-loaded) wallets snapshot rather
     // than trying to recompute the new balance client-side.
-    WalletsRepository.instance.ensureLoaded(forceRefresh: true);
+    WalletsRepository.instance.ensureLoaded();
     return transaction;
   }
 }

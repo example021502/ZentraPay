@@ -41,19 +41,21 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
 
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
-      child: Column(
-        children: [
-          SizedBox(
-            width: maxWidth,
-            child: const HomeHeader(
-              key: ValueKey("fiat_balances"),
-              title: "You wallet balances",
-              id: "fiat",
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: maxWidth,
+              child: const HomeHeader(
+                key: ValueKey("fiat_balances"),
+                title: "You wallet balances",
+                id: "fiat",
+              ),
             ),
-          ),
-          SizedBox(height: AppTheme.spacingXl),
-          _buildContent(isTablet),
-        ],
+            SizedBox(height: AppTheme.spacingXl),
+            _buildContent(isTablet),
+          ],
+        ),
       ),
     );
   }

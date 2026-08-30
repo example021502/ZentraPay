@@ -7,6 +7,7 @@ import 'package:zentrapay_application/core/repositories/user_profile_repository.
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/common/loadingScreen.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,103 +18,38 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int currentWalletIndex = 0;
+  int accountIndex = 0;
   bool isBalanceVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    // Comment: Trigger data loading when the screen mounts
+    _loadInitialData();
   }
 
-  // Null until UserProfileRepository.instance.ensureLoaded() resolves; the
-  // info sections fall back to blank strings while loading or when the
-  // fetch fails.
-  AppUser? _user;
-  UserProfile? _profile;
-
-  Future<void> _loadProfile() async {
+  Future<void> _loadInitialData() async {
     try {
-      // Both repositories are load-once caches (see CachedResource) —
-      // revisiting this screen (a fresh push every time) reuses whatever
-      // was already fetched instead of refetching.
-      final snapshot = await UserProfileRepository.instance.ensureLoaded();
-
-      await WalletsRepository.instance.ensureLoaded();
-      final fiatAccounts = WalletsRepository.instance.data?.fiatAccounts ?? [];
-      print(
-        "USERPROFILE:: user=${snapshot?.user.fullName} "
-        "(profile loaded: ${snapshot?.profile != null})",
-      );
-      if (!mounted) return;
-      setState(() {
-        _user = snapshot?.user;
-        _profile = snapshot?.profile;
-        // Real fiat balances replace the placeholder defaults below. The
-        // placeholders are only kept when the wallet load failed/returned
-        // nothing, so the carousel never renders empty.
-        if (fiatAccounts.isNotEmpty) {
-          accounts = [
-            for (final account in fiatAccounts)
-              {
-                'type': account.accountName.isNotEmpty
-                    ? account.accountName
-                    : '${account.currencyCode} Wallet',
-                'balance': formatMoney(account.balance.toStringAsFixed(2)),
-                'currency': account.currencyCode,
-                'accountNumber': account.zentag,
-                'ledgerId': account.accountId,
-                'status': account.status,
-              },
-          ];
-          if (currentWalletIndex >= accounts.length) currentWalletIndex = 0;
-        }
-      });
+      // Comment: Ensure both repositories load their initial data from network/cache
+      await Future.wait([
+        UserProfileRepository.instance.ensureLoaded(),
+        WalletsRepository.instance.ensureLoaded(),
+      ]);
+      print("DATA LOADED!");
     } catch (e) {
-      // Keep placeholder profile data on failure — but log it, otherwise a
-      // 401/network failure here is completely silent.
+      // Comment: Log error on failure without breaking screen UI render
       print("USERPROFILE:: load failed: $e");
     }
   }
 
-  /// Formats model dates (member since, DOB, KYC timestamps...) for the
-  /// info rows; empty string when the field was never set.
+  /// Formats model dates for the info rows; empty string when null
   String _formatDate(DateTime? value) =>
       value == null ? '' : DateFormat('MMMM dd, yyyy').format(value.toLocal());
 
-  /// [AppUser.createdAt] arrives as an ISO-8601 string, so parse it first.
-  String _formatDateString(String? value) =>
-      value == null || value.isEmpty
+  /// Formats ISO-8601 strings
+  String _formatDateString(String? value) => value == null || value.isEmpty
       ? ''
       : _formatDate(DateTime.tryParse(value));
-
-  // Placeholder default; replaced with real fiat balances in _loadProfile().
-  List<Map<String, dynamic>> accounts = [
-    {
-      'type': 'GHS Primary Wallet',
-      'balance': '4,500.50',
-      'currency': 'GHS',
-      'accountNumber': 'johnwillis5623.GHS@zentrapay',
-      'ledgerId': 'LEDGER_GHS_8832',
-      'status': 'Active',
-    },
-    {
-      'type': 'USD Corporate Wallet',
-      'balance': '350.00',
-      'currency': 'USD',
-      'accountNumber': 'johnwillis5623.USD@zentrapay',
-      'ledgerId': 'LEDGER_USD_9941',
-      'status': 'Active',
-    },
-    {
-      'type': 'KES Regional Wallet',
-      'balance': '12,800.00',
-      'currency': 'KES',
-      'accountNumber': 'johnwillis5623.KES@zentrapay',
-      'ledgerId': 'LEDGER_KES_1102',
-      'status': 'Active',
-    },
-  ];
 
   final List<Map<String, dynamic>> bankAccounts = [
     {
@@ -136,57 +72,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppTheme.gray50,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textBlack,
-            size: 22,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildProfileHeader(),
-            const SizedBox(height: AppTheme.spacingLg),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacingLg,
+    // Comment: Rebuild automatically when either repository notifies changes
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        UserProfileRepository.instance,
+        WalletsRepository.instance,
+      ]),
+      builder: (context, child) {
+        final userRepo = UserProfileRepository.instance;
+        final walletRepo = WalletsRepository.instance;
+
+        final user = userRepo.user;
+        final profile = userRepo.profile;
+        final fiatAccounts = walletRepo.data?.fiatAccounts ?? [];
+        print("THE USER REPO:: $user AND PROFILE REPO IS:: $profile");
+
+        // Comment: Map raw fiat accounts into carousel repSresentation
+        final accounts = fiatAccounts.isNotEmpty
+            ? [
+                for (final account in fiatAccounts)
+                  {
+                    'type': account.accountName.isNotEmpty
+                        ? account.accountName
+                        : '${account.currencyCode} Wallet',
+                    'balance': formatMoney(account.balance.toStringAsFixed(2)),
+                    'currency': account.currencyCode,
+                    'accountNumber': account.zentag,
+                    'ledgerId': account.accountId,
+                    'status': account.status,
+                  },
+              ]
+            : [
+                // Comment: Fallback placeholder when no fiat accounts exist
+                {
+                  'type': 'GHS Primary Wallet',
+                  'balance': '4,500.50',
+                  'currency': 'GHS',
+                  'accountNumber': 'johnwillis5623.GHS@zentrapay',
+                  'ledgerId': 'LEDGER_GHS_8832',
+                  'status': 'Active',
+                },
+              ];
+
+        // Comment: Keep index in bounds if accounts list size changes dynamically
+        if (accountIndex >= accounts.length) {
+          accountIndex = 0;
+        }
+
+        return Scaffold(
+          backgroundColor: AppTheme.gray50,
+          appBar: AppBar(
+            backgroundColor: AppTheme.gray50,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textBlack,
+                size: 22,
               ),
-              child: Column(
-                children: [
-                  _buildPrimaryWallet(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildQRCodeSection(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildWalletCarousel(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildBankAccounts(),
-                  const SizedBox(height: AppTheme.spacingXl),
-                  _buildPersonalInformationSection(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildProfileInformationSection(),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  _buildComplianceSection(),
-                ],
-              ),
+              onPressed: () => Navigator.pop(context),
             ),
-            const SizedBox(height: AppTheme.spacingXl),
-          ],
-        ),
-      ),
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildProfileHeader(user),
+                const SizedBox(height: AppTheme.spacingLg),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingLg,
+                  ),
+                  child: Column(
+                    children: [
+                      _buildPrimaryWallet(accounts),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildQRCodeSection(),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildWalletCarousel(accounts),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildBankAccounts(),
+                      const SizedBox(height: AppTheme.spacingXl),
+                      _buildPersonalInformationSection(user),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildProfileInformationSection(profile),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildComplianceSection(profile),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingXl),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // No card/shadow/color wrapper here — sits directly on the screen's
-  // AppTheme.gray50 background, per the reference layout.
-  Widget _buildProfileHeader() {
+  Widget _buildProfileHeader(AppUser? user) {
+    final String fullName = "${user?.firstName} ${user?.lastName}";
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingLg,
@@ -228,18 +212,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          Text(
-            (_user?.fullName.isNotEmpty ?? false) ? _user!.fullName : 'N/A',
-            style: AppTheme.displaySmall,
-          ),
+          Text(fullName, style: AppTheme.displaySmall),
           const SizedBox(height: 2),
           Text(
-            _user?.userType ?? '',
+            user?.userType ?? '',
             style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           GestureDetector(
-            onTap: () => showComingSoon(context, "Edit Profile"),
+            onTap: () => LoadingScreen(isLoading: true),
             child: Text(
               "Profile",
               style: AppTheme.labelLarge.copyWith(
@@ -254,13 +235,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Account record section — renders every field defined on [AppUser].
-  Widget _buildPersonalInformationSection() {
-    final user = _user;
+  Widget _buildPersonalInformationSection(AppUser? user) {
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           const Text("Personal Information", style: AppTheme.labelLarge),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
@@ -278,10 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// KYC profile record section — renders every field defined on
-  /// [UserProfile] (identity document, address, occupation, timestamps).
-  Widget _buildProfileInformationSection() {
-    final profile = _profile;
+  Widget _buildProfileInformationSection(UserProfile? profile) {
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
@@ -320,10 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Compliance & risk card — the [UserProfile] screening/status fields,
-  /// kept in the highlighted card style.
-  Widget _buildComplianceSection() {
-    final profile = _profile;
+  Widget _buildComplianceSection(UserProfile? profile) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       decoration: BoxDecoration(
@@ -365,10 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
           _buildInfoRow("KYC Status", profile?.KYCStatus ?? ''),
-          _buildInfoRow(
-            "AML Status",
-            profile?.antiMoneyLaunderingStatus ?? '',
-          ),
+          _buildInfoRow("AML Status", profile?.antiMoneyLaunderingStatus ?? ''),
           _buildInfoRow(
             "PEP Screening",
             profile == null
@@ -403,29 +374,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPrimaryWallet() {
-    final activeWallet = accounts[currentWalletIndex];
+  Widget _buildPrimaryWallet(List<Map<String, dynamic>> accounts) {
+    final account = accounts.firstWhere(
+      (a) => a['isDefault'] == true,
+      orElse: () => <String, dynamic>{},
+    );
+    Map<String, dynamic> activeAccount = {};
+    if (account.isNotEmpty) {
+      activeAccount = account;
+    }
 
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: const Text(
-              "Primary Treasury Node",
-              style: AppTheme.labelLarge,
-            ),
-          ),
+          Text("Primary Treasury Node", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Active Route:",
+                "Primary Account:",
                 style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
               ),
-              Text(activeWallet['type'] ?? '', style: AppTheme.labelLarge),
+              Text(
+                activeAccount['accountName'] ?? 'No active account',
+                style: AppTheme.labelLarge,
+              ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingXs),
@@ -434,16 +410,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: Text(
-                  activeWallet['accountNumber'] ?? '',
+                  activeAccount['accountNumber'] ?? '',
                   style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
                 ),
               ),
               TextButton(
                 onPressed: () {
-                  // Actually copy the handle — the snackbar previously
-                  // claimed a copy that never happened.
                   Clipboard.setData(
-                    ClipboardData(text: activeWallet['accountNumber'] ?? ''),
+                    ClipboardData(text: activeAccount['accountNumber'] ?? ''),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -488,29 +462,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Dynamic Settlement QR", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingLg),
-          Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              color: AppTheme.gray50,
-              border: Border.all(color: AppTheme.gray300, width: 1.5),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: const Icon(
-              Icons.qr_code_2,
-              size: 150,
-              color: AppTheme.textBlack,
+          Center(
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: AppTheme.gray50,
+                border: Border.all(color: AppTheme.gray300, width: 1.5),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              child: const Icon(
+                Icons.qr_code_2,
+                size: 150,
+                color: AppTheme.textBlack,
+              ),
             ),
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          TextButton(
-            onPressed: () {},
-            child: const Text("Copy Settlement QR Payload"),
-          ),
-          const SizedBox(height: AppTheme.spacingXs),
           const Text("Broadcast Invoice:", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
@@ -547,8 +520,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildWalletCarousel() {
-    final currentWallet = accounts[currentWalletIndex];
+  Widget _buildWalletCarousel(List<Map<String, dynamic>> accounts) {
+    final currentWallet = accounts[accountIndex];
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -617,9 +590,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    currentWalletIndex =
-                        (currentWalletIndex - 1 + accounts.length) %
-                        accounts.length;
+                    accountIndex =
+                        (accountIndex - 1 + accounts.length) % accounts.length;
                   });
                 },
                 icon: const Icon(
@@ -634,7 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: index == currentWalletIndex
+                      color: index == accountIndex
                           ? AppTheme.primaryWhite
                           : AppTheme.primaryWhite.withValues(alpha: 0.4),
                       shape: BoxShape.circle,
@@ -645,8 +617,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               IconButton(
                 onPressed: () {
                   setState(() {
-                    currentWalletIndex =
-                        (currentWalletIndex + 1) % accounts.length;
+                    accountIndex = (accountIndex + 1) % accounts.length;
                   });
                 },
                 icon: const Icon(
@@ -667,10 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Linked Settlement Accounts",
-            style: AppTheme.labelLarge,
-          ),
+          const Text("Linked Settlement Accounts", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
           ...bankAccounts.map((account) => _buildBankCard(account)),
         ],

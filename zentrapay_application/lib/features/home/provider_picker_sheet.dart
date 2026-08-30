@@ -281,7 +281,7 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
         AppTransaction.fromJson(transactionJson),
       );
     }
-    WalletsRepository.instance.ensureLoaded(forceRefresh: true);
+    WalletsRepository.instance.ensureLoaded();
   }
 
   @override

@@ -29,7 +29,7 @@ public class CryptoWalletModel {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "status", nullable = false, length = 3)
+    @Column(name = "status", nullable = false)
     private String status;
 
     @CreationTimestamp

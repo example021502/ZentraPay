@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 import java.util.UUID;
 
 
@@ -199,30 +198,35 @@ public UserInformation getMe(@Valid UUID userId) {
                 ))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Retrieve profile or throw exception if not found
-        UserProfileDTO userProfile = userProfileRepository.findById(userId)
-                .map(up -> new UserProfileDTO(
-                        up.getDateOfBirth(),
-                        up.getNationalityCountryCode(),
-                        up.getIdentityDocumentType(),
-                        up.getIdentityDocumentNumber(),
-                        up.getIdentityDocumentIssuingCountryCode(),
-                        up.getIdentityDocumentExpirationDate(),
-                        up.getAddressLine1(),
-                        up.getAddressLine2(),
-                        up.getCityName(),
-                        up.getStateOrRegion(),
-                        up.getPostalCode(),
-                        up.getOccupationTitle(),
-                        up.getAntiMoneyLaunderingStatus(),
-                        up.isPoliticallyExposedPerson(),
-                        up.getRiskScoreLevel(),
-                        up.getKYCStatus(),
-                        up.getCreatedAt(),
-                        up.getUpdatedAt()
-                ))
-                .orElseThrow(() -> new ResourceNotFoundException("UserProfile not found for ID: " + userId));
-
-        return new UserInformation(user, userProfile);
+        // Retrieve profile if present. The profile is optional — a row is only
+        // created once the user submits their KYC details — so a missing row must
+        // NOT null out the whole response. Always return the user; profile may be null.
+        UserProfileModel up = userProfileRepository.getBtUserId(userId);
+        UserProfileDTO profile = null;
+        if (up != null) {
+            profile = new UserProfileDTO(
+                up.getDateOfBirth(),
+                up.getNationalityCountryCode(),
+                up.getIdentityDocumentType(),
+                up.getIdentityDocumentNumber(),
+                up.getIdentityDocumentIssuingCountryCode(),
+                up.getIdentityDocumentExpirationDate(),
+                up.getAddressLine1(),
+                up.getAddressLine2(),
+                up.getCityName(),
+                up.getStateOrRegion(),
+                up.getPostalCode(),
+                up.getOccupationTitle(),
+                up.getAntiMoneyLaunderingStatus(),
+                up.isPoliticallyExposedPerson(),
+                up.getRiskScoreLevel(),
+                up.getKYCStatus(),
+                up.getCreatedAt(),
+                up.getUpdatedAt()
+            );
+        }
+        System.out.println("THE USER EXTRACTED IS::" + user);
+        System.out.println("THE USER PROFILE EXTRACTED IS::" + up);
+        return new UserInformation(user, profile);
     }
 }

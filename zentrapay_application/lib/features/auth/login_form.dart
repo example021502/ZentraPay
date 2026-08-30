@@ -43,7 +43,15 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
-  void loginNow() async {
+  void loginNow() {
+    Navigator.pushNamed(
+      context,
+      '/home',
+      arguments: {'email': "email@gmail.com", 'fullName': "bypass name"},
+    );
+  }
+
+  void loginNowD() async {
     debugPrint('LOGIN init');
     // Validate credentials before initiating the login process
     if (_emailController.text == "") {
@@ -83,8 +91,6 @@ class _LoginFormState extends State<LoginForm> {
 
     try {
       // Perform API request (this automatically executes Privy internal auth now)
-      debugPrint('LOGIN form: $form');
-      debugPrint('LOGIN base from interceptor: ${dio.options.baseUrl}');
       final res = await loginUser(form);
       print("RES:: $res");
       // Check backend response success flag

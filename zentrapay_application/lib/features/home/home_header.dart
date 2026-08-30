@@ -48,9 +48,8 @@ class _HomeHeaderState extends State<HomeHeader> {
                       children: [
                         _headerIconButton(
                           icon: Icons.refresh,
-                          onTap: () => WalletsRepository.instance.ensureLoaded(
-                            forceRefresh: true,
-                          ),
+                          onTap: () =>
+                              WalletsRepository.instance.ensureLoaded(),
                         ),
                         const SizedBox(width: AppTheme.spacingLg),
                         _headerIconButton(

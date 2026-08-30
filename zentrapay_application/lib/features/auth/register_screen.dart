@@ -1,5 +1,3 @@
-// Comment: Full updated RegisterScreen code with fixed Checkbox state management and comments included
-
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
@@ -34,6 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool isLoading = false;
 
   void register() async {
+    // Comment: Validate required input text fields
     if (_firstNameController.text.trim() == "" ||
         _lastNameController.text.trim() == "" ||
         _emailController.text.trim() == "" ||
@@ -44,11 +43,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
+    // Comment: Validate phone number format
     if (!_isPhoneValid) {
       return ZentraNotifier.error("Invalid value", "Invalid Phone number");
     }
 
-    // Comment: Validate termsConsent and conditions agreement before proceeding
+    // Comment: Validate terms and conditions check status
     if (!termsConsent) {
       return ZentraNotifier.error(
         "Terms Required",
@@ -56,6 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
+    // Comment: Regex verification helper for user email address format
     bool isValidEmail(String email) {
       final RegExp emailRegExp = RegExp(
         r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
@@ -67,6 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return ZentraNotifier.error("Invalid value", "Email is invalid");
     }
 
+    // Comment: Request security PIN bottom sheet input if not already defined
     if (pin == "") {
       String? pinValue = await showModalBottomSheet<String>(
         context: context,
@@ -89,10 +91,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "countryCode": contactForm['country_code']!,
       "pin": pin,
       "termsConsent": termsConsent,
-      // "privacyPolicyId": null,
-      // "termsOfUseId": null,
     };
 
+    // Comment: Trigger loading state during async request processing
     setState(() {
       isLoading = true;
     });
@@ -108,13 +109,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       ZentraNotifier.success("Success", res?["message"]);
 
-      // Extract user data from nested 'data' field
       final userData = res?['data'];
       final token = userData?['token'];
       final email = userData?['email'];
       final fullName = userData?['fullName'];
       print("TOKEN IS:: $token");
 
+      // Comment: Persist Auth token and preload app repositories
       await SecureStorageService.saveToken(token);
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
@@ -139,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // Comment: Updated method signature to accept bool? to match Checkbox onChanged callback
+  // Comment: Update check mark state when box is toggled by user
   void onCheckTermsAndConditions(bool? value) {
     setState(() {
       termsConsent = value ?? false;
@@ -148,7 +149,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    // Comment: Disposing all controllers to prevent memory leaks
+    // Comment: Dispose remaining active TextEditingControllers on unmount
     _passwordController.dispose();
     _emailController.dispose();
     _firstNameController.dispose();
@@ -164,19 +165,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       backgroundColor: AppColors.main,
       resizeToAvoidBottomInset: true,
-      // Comment: LayoutBuilder dynamically measures screen constraints
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
+            // Comment: Replacing IntrinsicHeight with ConstrainedBox prevents Chrome layout overflow calculations
             child: ConstrainedBox(
-              // Comment: Ensures the content takes at least the full viewport height
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Comment: Spacer leaves space at the top above the white container
                     const SizedBox(height: 40),
                     Container(
                       constraints: BoxConstraints(maxWidth: maxWidth),
@@ -194,45 +193,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      "Create your",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: isTablet ? 35 : 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textBlack,
-                                        letterSpacing: 0.5,
-                                      ),
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: "Create your ",
+                                    style: TextStyle(
+                                      fontSize: isTablet ? 35 : 30,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textBlack,
+                                      letterSpacing: 0.5,
                                     ),
-                                    const SizedBox(width: AppTheme.spacingSm),
-                                    Text(
-                                      "Zentrapay",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: isTablet ? 35 : 30,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.main,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  "Account",
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: isTablet ? 35 : 30,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textBlack,
-                                    letterSpacing: 0.5,
                                   ),
-                                ),
-                              ],
+                                  TextSpan(
+                                    text: "Zentrapay ",
+                                    style: TextStyle(
+                                      fontSize: isTablet ? 35 : 30,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.main,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: "Account",
+                                    style: TextStyle(
+                                      fontSize: isTablet ? 35 : 30,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textBlack,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                             Column(
                               children: [
@@ -258,7 +251,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   isLoading: isLoading,
                                 ),
                                 const SizedBox(height: 16),
-                                // Phone field (contact number)
                                 IntlPhoneField(
                                   enabled: !isLoading,
                                   dropdownDecoration: const BoxDecoration(
@@ -330,45 +322,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             const SizedBox(height: AppTheme.spacingMd),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Comment: Properly bound Checkbox value to termsConsent state and onChanged handler
                                 Checkbox(
                                   value: termsConsent,
                                   onChanged: onCheckTermsAndConditions,
                                 ),
                                 const SizedBox(width: AppTheme.spacingSm),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.start,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      spacing: 15,
+                                // Comment: Wrapped terms text area with Expanded and RichText to prevent horizontal web overflow
+                                Expanded(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      style: AppTheme.bodySmall,
                                       children: [
-                                        Text(
-                                          "I agree to the",
-                                          style: AppTheme.bodySmall,
-                                        ),
-                                        Text(
-                                          "Terms of Service",
+                                        const TextSpan(text: "I agree to the "),
+                                        TextSpan(
+                                          text: "Terms of Service",
                                           style: AppTheme.bodySmall.copyWith(
                                             color: AppTheme.primaryPink,
                                           ),
                                         ),
-                                        Text("and", style: AppTheme.bodySmall),
+                                        const TextSpan(text: " and "),
+                                        TextSpan(
+                                          text: "Privacy Policy",
+                                          style: AppTheme.bodySmall.copyWith(
+                                            color: AppColors.main,
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                    Text(
-                                      "Privacy Policy",
-                                      style: AppTheme.bodySmall.copyWith(
-                                        color: AppColors.main,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: AppTheme.spacingMd),
-                            // Elegant register button with gradient
                             Material(
                               color: Colors.transparent,
                               child: GestureDetector(
@@ -408,7 +395,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            // Footer links
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

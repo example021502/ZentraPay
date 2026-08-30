@@ -26,43 +26,45 @@ class LoginScreen extends StatelessWidget {
               // Comment: Ensure the scroll view takes at least the full height of the screen
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  // Comment: Aligns children to the bottom
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Comment: Spacer pushes content to the bottom when there is extra vertical space
-                    const Spacer(),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    // Comment: Aligns children to the bottom
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Comment: Spacer pushes content to the bottom when there is extra vertical space
+                      const Spacer(),
 
-                    // Comment: Image asset placed above the login card
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 400),
-                      child: Image.asset("images/loginPage.png"),
-                    ),
+                      // Comment: Image asset placed above the login card
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 400),
+                        child: Image.asset("images/loginPage.png"),
+                      ),
 
-                    // Comment: Bottom container holding the login form
-                    Container(
-                      width: maxWidth,
-                      decoration: AppTheme.cardDecoration.copyWith(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
+                      // Comment: Bottom container holding the login form
+                      Container(
+                        width: maxWidth,
+                        decoration: AppTheme.cardDecoration.copyWith(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 15.0,
+                            vertical: 30.0,
+                          ),
+                          child: Column(
+                            children: [
+                              LoginForm(),
+                              SizedBox(height: AppTheme.spacingMd),
+                            ],
+                          ),
                         ),
                       ),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 15.0,
-                          vertical: 30.0,
-                        ),
-                        child: Column(
-                          children: [
-                            LoginForm(),
-                            SizedBox(height: AppTheme.spacingMd),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

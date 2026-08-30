@@ -22,7 +22,7 @@ public class UserProfileModel {
     private LocalDate dateOfBirth;
 
     // ISO 3166-1 alpha-2 nationality code (essential for sanctions matching).
-    @Column(name = "nationality_country_code", length = 2)
+    @Column(name = "nationality_country_code", length = 3)
     private String nationalityCountryCode;
 
     // Identity Document details expanded for clarity.
@@ -32,7 +32,7 @@ public class UserProfileModel {
     @Column(name = "identity_document_number", length = 60)
     private String identityDocumentNumber;
 
-    @Column(name = "identity_document_issuing_country_code", length = 2)
+    @Column(name = "identity_document_issuing_country_code")
     private String identityDocumentIssuingCountryCode;
 
     @Column(name = "identity_document_expiration_date")

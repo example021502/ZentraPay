@@ -1,41 +1,81 @@
-// UserProfileRepository implementation in Dart
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:zentrapay_application/core/models/user.dart';
-import 'package:zentrapay_application/core/repositories/cached_resource.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
-/// Cache manager for user profile data fetched from `/api/users/me`.
-///
-/// Follows the app-wide "load once, then apply deltas" contract
-/// (see [CachedResource]): screens call `UserProfileRepository.instance
-/// .ensureLoaded()` in `initState`, the first caller triggers the GET and
-/// every subsequent caller gets the already-cached snapshot instantly.
-class UserProfileRepository extends CachedResource<UserProfileSnapshot> {
+/// Data snapshot holding both user and profile instances.
+class UserProfileSnapshot {
+  final AppUser user;
+  final UserProfile? profile;
+
+  UserProfileSnapshot({required this.user, this.profile});
+
+  factory UserProfileSnapshot.fromJson(Map<String, dynamic> json) {
+    return UserProfileSnapshot(
+      user: AppUser.fromJson(
+        (json['user'] as Map<String, dynamic>?) ?? const {},
+      ),
+      profile: json['profile'] != null
+          ? UserProfile.fromJson(
+              Map<String, dynamic>.from(json['profile'] as Map),
+            )
+          : null,
+    );
+  }
+}
+
+/// Standalone Repository manager for user profile data fetched from `/api/users/me`.
+class UserProfileRepository with ChangeNotifier {
   UserProfileRepository._();
   static final UserProfileRepository instance = UserProfileRepository._();
 
   final Dio _dio = ApiClient().dio;
 
-  /// Returns the cached account record, or null until the first
-  /// successful load.
-  AppUser? get userInfo => data?.user;
+  // Local state fields
+  UserProfileSnapshot? _data;
+  Object? _error;
+  bool _isLoading = false;
 
-  /// Returns the cached KYC profile record, or null while it has not
-  /// been loaded yet or the user has not submitted their KYC details.
-  UserProfile? get userProfile => data?.profile;
+  /// Getters for current cached state
+  UserProfileSnapshot? get data => _data;
+  Object? get error => _error;
+  bool get isLoading => _isLoading;
+  bool get isLoaded => _data != null;
 
-  /// True once the account record is available in cache.
-  @override
-  bool get isLoaded => data != null;
+  /// Quick getters for models
+  AppUser? get user => _data?.user;
+  UserProfile? get profile => _data?.profile;
 
-  @override
-  Future<UserProfileSnapshot> fetch() async {
-    final response = await _dio.get('/api/users/me');
+  /// Fetches profile data from server if not already cached.
+  Future<UserProfileSnapshot?> ensureLoaded() async {
+    if (isLoaded) return _data;
+    return refresh();
+  }
 
-    // Parse JSON response into UserProfileSnapshot model
-    return UserProfileSnapshot.fromJson(
-      Map<String, dynamic>.from(response.data as Map),
-    );
+  /// Forces a GET call to retrieve fresh profile data from `/api/users/me`.
+  Future<UserProfileSnapshot?> refresh() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _dio.get('/api/users/me');
+      // The backend wraps every payload in an ApiResponse envelope of the form
+      // {success, data, message}. The user/profile snapshot lives under `data`.
+      final rawBody = Map<String, dynamic>.from(response.data as Map);
+      final payload = rawBody['data'] is Map
+          ? Map<String, dynamic>.from(rawBody['data'] as Map)
+          : rawBody;
+      _data = UserProfileSnapshot.fromJson(payload);
+      print("THE DATA RESPONSE IS:: $response");
+      return _data;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Updates only the AppUser instance in cache.
@@ -55,5 +95,30 @@ class UserProfileRepository extends CachedResource<UserProfileSnapshot> {
       if (profile == null) return current;
       return UserProfileSnapshot(user: current.user, profile: updater(profile));
     });
+  }
+
+  /// Applies a POST/PUT response onto the cached value without refetching.
+  void applyDelta(
+    UserProfileSnapshot Function(UserProfileSnapshot current) updater,
+  ) {
+    final current = _data;
+    if (current == null) return;
+    _data = updater(current);
+    notifyListeners();
+  }
+
+  /// Replaces the cached value outright.
+  void setData(UserProfileSnapshot value) {
+    _data = value;
+    _error = null;
+    notifyListeners();
+  }
+
+  /// Clears local state and resets errors.
+  void clear() {
+    _data = null;
+    _error = null;
+    _isLoading = false;
+    notifyListeners();
   }
 }

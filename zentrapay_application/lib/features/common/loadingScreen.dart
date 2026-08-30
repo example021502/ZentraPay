@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_portal/flutter_portal.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key, required this.isLoading});
@@ -42,14 +43,17 @@ class _LoadingScreenState extends State<LoadingScreen> {
           child: CircularProgressIndicator(), // Active loading indicator
         ),
       ),
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Flutter Portal Loading Overlay')),
-        body: Center(
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _performAsyncTask,
-            child: const Text('Start Loading'),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Center(
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _performAsyncTask,
+              child: const Text('Start Loading'),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

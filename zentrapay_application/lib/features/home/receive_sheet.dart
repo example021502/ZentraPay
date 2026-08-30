@@ -107,7 +107,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
             icon: Icons.error_outline,
             message: "Could not load your accounts.",
             actionLabel: "Retry",
-            onAction: () => repo.ensureLoaded(forceRefresh: true),
+            onAction: () => repo.ensureLoaded(),
           );
         }
 
