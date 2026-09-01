@@ -11,8 +11,7 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<UserModel, UUID> {
 //    get user country code for fetching supported currencies for user's country
-    @Query("SELECT u.countryCode FROM UserModel u WHERE u.userId = :userId")
-    Optional<String> getCountryCodeByUserId(@Param("userId") UUID userId);
+    boolean existsByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
 //    check if user exist in the database by email or phone number for loging in
     @Query("SELECT u FROM UserModel u WHERE u.email = :email OR u.phoneNumber = :phoneNumber")
     Optional<UserModel> findByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);

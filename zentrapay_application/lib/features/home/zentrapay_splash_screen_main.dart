@@ -159,13 +159,13 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
         child: Stack(
           children: [
             // Comment: 1. BACKGROUND IMAGE - Placed first in stack so it covers the entire page underneath everything
-            Positioned.fill(
-              child: Image.asset(
-                "images/SplashscreenImage.png",
-                fit: BoxFit.cover,
+            if (MediaQuery.of(context).size.width < 470)
+              Positioned.fill(
+                child: Image.asset(
+                  "images/SplashscreenImage.png",
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-
             // Comment: 2. CONTENT CONTAINER - Positioned at the top center with padding
             SafeArea(
               child: Align(

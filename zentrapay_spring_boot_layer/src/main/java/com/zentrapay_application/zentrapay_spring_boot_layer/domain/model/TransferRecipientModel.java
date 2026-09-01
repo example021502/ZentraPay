@@ -12,7 +12,7 @@ import java.util.UUID;
  * Gateway-agnostic payout destination (tier 1 of the two-tier recipient
  * structure). Stores WHAT the destination is (bank account vs mobile-money
  * wallet), never a gateway-specific token — those live in
- * {@link RecipientGatewayTokenModel} per gateway.
+ * {@link GatewayRecipientsModel} per gateway.
  * <p>
  * Table managed externally — this class is a mapping only.
  */

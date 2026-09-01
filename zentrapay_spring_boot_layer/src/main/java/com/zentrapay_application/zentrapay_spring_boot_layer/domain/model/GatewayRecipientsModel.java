@@ -6,23 +6,21 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Entity storing gateway recipient codes for bank accounts and mobile money transfers.
  * Maps local payout destinations to external provider recipient codes (e.g., Paystack RCP_xxxx).
+ * <p>
+ * Mapped to the externally-managed {@code gateway_recipients} table:
+ * {@code id bigint GENERATED ALWAYS AS IDENTITY}, {@code user_id uuid} (FK to users),
+ * {@code gateway_recipient_id} (local record id), {@code gateway_recipient_code}
+ * (gateway token), {@code channel_code}, {@code gateway_id uuid}
+ * (FK to gateway_providers.provider_id) and {@code gateway varchar(100)}.
  */
 @Entity
 @Data
-@Table(
-        name = "gateway_recipients",
-        uniqueConstraints = {
-                // Prevents duplicate recipient entries for the same account on a specific gateway
-                @UniqueConstraint(
-                        name = "uq_user_recipient_per_gateway",
-                        columnNames = {"user_id", "gateway_name", "account_identifier", "provider_code"}
-                )
-        }
-)
+@Table(name = "gateway_recipients")
 public class GatewayRecipientsModel {
 
     @Id
@@ -30,32 +28,44 @@ public class GatewayRecipientsModel {
     @Column(name = "id", nullable = false, updatable = false)
     private Long id;
 
-    @Column(name = "user_id", nullable = false, length = 64)
-    private String userId;
+    /** Local owner of the gateway recipient record (FK users.user_id). */
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(name = "gateway_name", nullable = false, length = 32)
+    /** FK to gateway_providers.provider_id for the gateway below. */
+    @Column(name = "gateway_id", nullable = false)
+    private UUID gatewayId;
+
+    /**
+     * Gateway identifier the recipient code was registered under
+     * (PAYSTACK / FLUTTERWAVE / ONAFRIQ — see GatewayCustomerService).
+     */
+    @Column(name = "gateway", length = 100)
     private String gatewayName;
 
-    @Column(name = "gateway_recipient_code", nullable = false, length = 128)
-    private String gatewayRecipientCode;
+    /** Locally generated record identifier (NanoId) for this mapping. */
+    @Column(name = "gateway_recipient_id", nullable = false, length = 128)
+    private String gatewayRecipientId;
 
-    @Column(name = "channel_type", nullable = false, length = 32)
-    private String channelType;
+//    /** Recipient code / token returned by the gateway (e.g. RCP_xxxx). */
+//    @Column(name = "gateway_recipient_code", nullable = false, length = 128)
+//    private String gatewayRecipientCode;
 
-    @Column(name = "gateway_type", nullable = false, length = 32)
-    private String gatewayType;
-
+    /** Neutral payout channel of the destination (BANK / MOBILE_MONEY). */
+    @Column(name = "checkoutType", nullable = false, length = 32)
+    private String checkoutType;
+//  the destination checkout source code - bank code, mobile money code etc
+    @Column(name = "channel_code", nullable = false, length = 32)
+    private String channelCode;
+//  destination account identifier - account number, phone number etc
     @Column(name = "account_identifier", nullable = false, length = 64)
     private String accountIdentifier;
-
-    @Column(name = "provider_code", nullable = false, length = 32)
-    private String providerCode;
-
+//  destination account name
     @Column(name = "account_name", nullable = false, length = 150)
     private String accountName;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

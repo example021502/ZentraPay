@@ -47,15 +47,12 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20.0,
-                  horizontal: 15.0,
-                ),
+                padding: const EdgeInsets.all(15.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: AppTheme.spacingLg,
+                  spacing: AppTheme.spacingMd,
                   children: [
-                    const SizedBox(height: AppTheme.spacingXl),
+                    const SizedBox(height: AppTheme.spacingLg),
                     _buildQuickActions(context),
                     if (bankAccounts.isNotEmpty)
                       LinkedBankAccounts(accounts: bankAccounts),

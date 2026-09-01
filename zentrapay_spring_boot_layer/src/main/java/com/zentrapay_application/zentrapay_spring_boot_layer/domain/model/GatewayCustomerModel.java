@@ -6,38 +6,48 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
- * Entity mapping local users to gateway-specific Customer IDs
- * (e.g., Paystack customer_code, Flutterwave customer ID).
+ * Entity storing gateway recipient codes for bank accounts and mobile money transfers.
+ * Maps local payout destinations to external provider recipient codes (e.g., Paystack RCP_xxxx).
+ * <p>
+ * Mapped to the externally-managed {@code gateway_recipients} table:
+ * {@code id bigint GENERATED ALWAYS AS IDENTITY}, {@code user_id uuid} (FK to users),
+ * {@code gateway_recipient_id} (local record id), {@code gateway_recipient_code}
+ * (gateway token), {@code channel_code}, {@code gateway_id uuid}
+ * (FK to gateway_providers.provider_id) and {@code gateway varchar(100)}.
  */
 @Entity
 @Data
-@Table(
-        name = "gateway_customers",
-        uniqueConstraints = {
-                // Enforces a single gateway customer record per user and payment gateway pair
-                @UniqueConstraint(name = "uq_user_gateway_customer", columnNames = {"user_id", "gateway_name"})
-        }
-)
+@Table(name = "gateway_customers")
 public class GatewayCustomerModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false, updatable = false)
-    private Long id;
+    private Integer id;
 
-    @Column(name = "user_id", nullable = false, length = 64)
-    private String userId;
+    /** Local owner of the gateway recipient record (FK users.user_id). */
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(name = "gateway_name", nullable = false, length = 32)
+    /** FK to gateway_providers.provider_id for the gateway below. */
+    @Column(name = "gateway_id", nullable = false)
+    private UUID gatewayId;
+
+    @Column(name = "gateway", length = 100)
     private String gatewayName;
 
+    @Column(name = "email", length = 100)
+    private String email;
+
+    /** Locally generated record identifier (NanoId) for this mapping. */
     @Column(name = "gateway_customer_id", nullable = false, length = 128)
     private String gatewayCustomerId;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

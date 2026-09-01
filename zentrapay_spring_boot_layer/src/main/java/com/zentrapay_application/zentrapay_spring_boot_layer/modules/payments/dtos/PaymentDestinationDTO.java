@@ -16,22 +16,24 @@ import java.util.UUID;
  * PaymentsService actually moves money in.
  */
 public record PaymentDestinationDTO(
+//destination account identifier
         @NotNull(message = "Destination account Identifier is required")
         String accountIdentifier,
-
+//destination account name
+        @NotBlank(message = "Account name is required")
+        String accountName,
+//      destination currency code
         @NotBlank(message = "Destination currency code is required")
         String currencyCode,
-
+//      destination country code
         @NotBlank(message = "Destination country is required")
         String countryCode,
-
-        @NotBlank(message = "Destination source type is required")
-        String destinationSourceType,
-
+//       payout channel Bank/mobile money
+        @NotBlank(message = "Destination channel code is required")
+        String checkoutType,
+//      destination source code bank code, mobile money provider code, zentrapay_app
         @NotBlank(message = "Destination source code is required")
-        String destinationSourceCode,
+        String channelCode
 
-        @NotBlank(message = "Destination source name is required")
-        String destinationSourceName
 ) {
 }

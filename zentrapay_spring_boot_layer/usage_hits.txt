@@ -1,0 +1,59 @@
+﻿CustomerModel.java:17: public class CustomerModel {
+GatewayCustomerModel.java:23: public class GatewayCustomerModel {
+RecipientGatewayTokenModel.java:13: * {@link TransferRecipientModel} to its gateway-specific token
+RecipientModel.java:17: public class RecipientModel {
+TransferRecipientModel.java:27: public class TransferRecipientModel {
+CustomerRepository.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CustomerModel;
+CustomerRepository.java:12: public interface CustomerRepository extends JpaRepository<CustomerModel, Integer> {
+CustomerRepository.java:13: @Query("SELECT c FROM CustomerModel c WHERE c.userId = :userId AND LOWER(c.gateway) = LOWER(:gateway)")
+CustomerRepository.java:14: Optional<CustomerModel> findByUserIdAndGateway(@Param("userId") UUID userId, @Param("gateway") String gateway);
+GatewayCustomerRepository.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.GatewayCustomerModel;
+GatewayCustomerRepository.java:12: public interface GatewayCustomerRepository extends JpaRepository<GatewayCustomerModel, Long> {
+GatewayCustomerRepository.java:14: Optional<GatewayCustomerModel> findByUserIdAndGatewayName(String userId, String gatewayName);
+GatewayRepository.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.CustomerModel;
+RecipientRepository.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.RecipientModel;
+RecipientRepository.java:11: public interface RecipientRepository extends JpaRepository<RecipientModel, Integer> {
+RecipientRepository.java:12: @Query("SELECT r FROM RecipientModel r WHERE r.userId = :userId AND LOWER(r.gateway) = LOWER(:gateway)")
+RecipientRepository.java:13: Optional<RecipientModel> findByUserIdAndGateway(@Param("userId") UUID userId, @Param("gateway") String gateway);
+RecipientRepository.java:15: @Query("SELECT r FROM RecipientModel r WHERE r.userId = :userId AND LOWER(r.gateway) = LOWER(:gateway) AND r.accountIdentifier = :accountIdentifier")
+RecipientRepository.java:16: Optional<RecipientModel> findByUserIdAndGatewayAndAccountIdentifier(
+TransferRecipientRepository.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransferRecipientModel;
+TransferRecipientRepository.java:10: public interface TransferRecipientRepository extends JpaRepository<TransferRecipientModel, UUID> {
+TransferRecipientRepository.java:13: Optional<TransferRecipientModel> findByUserIdAndDestinationTypeAndAccountIdentifier(
+TransferRecipientRepository.java:16: List<TransferRecipientModel> findByUserIdOrderByCreatedAtDesc(UUID userId);
+GatewayCustomerService.java:3: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.GatewayCustomerModel;
+GatewayCustomerService.java:5: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.GatewayCustomerRepository;
+GatewayCustomerService.java:31: private final GatewayCustomerRepository gatewayCustomerRepository;
+GatewayCustomerService.java:47: Optional<GatewayCustomerModel> existing =
+GatewayCustomerService.java:48: gatewayCustomerRepository.findByUserIdAndGatewayName(userId, gateway);
+GatewayCustomerService.java:57: GatewayCustomerModel record = existing.orElseGet(GatewayCustomerModel::new);
+GatewayCustomerService.java:61: gatewayCustomerRepository.save(record);
+PaymentsService.java:49: private final CustomerRepository customerRepository;
+PaymentsService.java:132: CustomerModel senderCustomer = getOrCreateCustomer(sender, req, "internal");
+PaymentsService.java:178: TransferRecipientModel recipient = transferRecipientService.createOrReuse(sender.getUserId(),
+PaymentsService.java:225: UserModel sender, TransferRecipientModel recipient, PaymentRequestDTO req,
+PaymentsService.java:243: UserModel sender, TransferRecipientModel recipient, PaymentRequestDTO req,
+PaymentsService.java:294: public CustomerModel getOrCreateCustomer(UserModel user, PaymentRequestDTO req, String gatewayType) {
+PaymentsService.java:296: Optional<CustomerModel> existingCustomer = customerRepository.findByUserIdAndGateway(user.getUserId(), GATEWAY_INTERNAL);
+PaymentsService.java:312: private CustomerModel createInternalCustomer(UserModel user) {
+PaymentsService.java:313: CustomerModel customer = new CustomerModel();
+PaymentsService.java:319: return customerRepository.save(customer);
+TransferRecipientService.java:4: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransferRecipientModel;
+TransferRecipientService.java:6: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TransferRecipientRepository;
+TransferRecipientService.java:33: private final TransferRecipientRepository transferRecipientRepository;
+TransferRecipientService.java:43: public TransferRecipientModel createOrReuse(UUID userId, CreateRecipientRequestDTO req) {
+TransferRecipientService.java:49: Optional<TransferRecipientModel> existing = transferRecipientRepository
+TransferRecipientService.java:54: TransferRecipientModel recipient = existing.get();
+TransferRecipientService.java:60: return transferRecipientRepository.save(recipient);
+TransferRecipientService.java:63: TransferRecipientModel recipient = new TransferRecipientModel();
+TransferRecipientService.java:72: return transferRecipientRepository.save(recipient);
+TransferRecipientService.java:84: public String getOrCreateGatewayRecipientCode(TransferRecipientModel recipient, String gatewayName) {
+TransferRecipientService.java:133: public static String paystackRecipientType(TransferRecipientModel recipient) {
+TransfersService.java:13: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransferRecipientModel;
+TransfersService.java:14: import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TransferRecipientRepository;
+TransfersService.java:46: private final TransferRecipientRepository transferRecipientRepository;
+TransfersService.java:74: TransferRecipientModel recipient = resolveRecipient(senderId, req);
+TransfersService.java:103: private TransferRecipientModel resolveRecipient(UUID senderId, TransferExecuteRequestDTO req) {
+TransfersService.java:105: TransferRecipientModel recipient = transferRecipientRepository.findById(req.recipientId())
+TransfersService.java:126: TransferRecipientModel recipient,
+TransfersService.java:188: TransferRecipientModel recipient,

@@ -15,9 +15,11 @@ public record PaymentTransferDTO(
     @NotNull(message = "Amount missing")
     @DecimalMin(value = "0.01", message = "Amount must be positive")
     BigDecimal amount,
+//  currency code
     @NotBlank(message = "Currency code missing")
     @Valid
     String currencyCode,
+//  currency type, crypto / fiat currency
     @NotBlank(message = "Currency type missing")
     @Valid
     String currencyType,

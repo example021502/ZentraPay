@@ -1,0 +1,56 @@
+/**
+     * Executes outbound bank transfer payouts via external payment providers.
+     * <p>
+     * Paystack is the primary gateway. A customer and a payout recipient are
+     * created at Paystack only when they do not already exist locally for the
+     * sender / destination (check-then-create), then POST /transfer initiates
+     * the payout. When Paystack fails, the payout fails over to Flutterwave
+     * (POST /transfers), which takes the destination inline so no recipient
+     * registration is needed there.
+     */
+    private Optional<TransactionDTO> processBankTransfer(UserModel sender, FiatWalletModel senderWallet, PaymentRequestDTO req) {
+
+        // Comment: Ensure the sender is a registered customer at Paystack (check-then-create)
+        CustomerModel paystackCustomer = getOrCreateCustomerForGateway(sender, GATEWAY_PAYSTACK);
+
+        // Comment: Ensure the payout destination is registered at Paystack (reuse local row when present)
+        RecipientModel paystackRecipient = getOrCreateExternalRecipient(req, GATEWAY_PAYSTACK, sender.getUserId());
+
+        // Comment: Debit sender wallet balance prior to dispatching the external payout
+        int debited = fiatAccountRepository.debit(senderWallet.getWalletId(), req.transfer().amount(), req.transfer().currencyCode());
+        if (debited == 0) {
+            throw new IllegalArgumentException("Insufficient balance");
+        }
+
+        String entryRef = generateReference();
+        String destinationIdentifier = req.destination().accountIdentifier();
+        String purpose = (req.transfer().purpose() != null && !req.transfer().purpose().isBlank())
+                ? req.transfer().purpose()
+                : "Bank Transfer to " + req.recipient().fullName();
+
+        // Comment: Primary — initiate the Paystack bank transfer
+        try {
+            PaystackTransferResponseDTO response = initiatePaystackTransfer(
+                    req.transfer().amount(), paystackRecipient.getGatewayRecipientId(),
+                    req.transfer().currencyCode(), purpose, entryRef);
+            String transferCode = response.data() != null ? response.data().transferCode() : null;
+            String status = response.data() != null && response.data().status() != null
+                    ? response.data().status() : "processing";
+            return journalBankTransfer(sender, req, entryRef, destinationIdentifier, purpose,
+                    GATEWAY_PAYSTACK, status, transferCode,
+                    paystackCustomer.getGatewayCustomerId(), paystackRecipient.getGatewayRecipientId());
+        } catch (PaymentGatewayException paystackFailure) {
+
+            // Comment: Failover — Flutterwave (inline destination, no recipient-code registration)
+            log.warn("Paystack transfer failed for sender {}: {}", sender.getUserId(), paystackFailure.getMessage());
+            CustomerModel flutterwaveCustomer = getOrCreateCustomerForGateway(sender, GATEWAY_FLUTTERWAVE);
+            FlutterwaveTransferResponseDTO flwResponse = initiateFlutterwaveTransfer(
+                    req, req.transfer().amount(), req.transfer().currencyCode(), purpose, entryRef);
+            String flwRef = flwResponse.data() != null ? flwResponse.data().reference() : null;
+            String flwStatus = flwResponse.data() != null && flwResponse.data().status() != null
+                    ? flwResponse.data().status().toLowerCase() : "processing";
+            return journalBankTransfer(sender, req, entryRef, destinationIdentifier, purpose,
+                    GATEWAY_FLUTTERWAVE, flwStatus, flwRef,
+                    flutterwaveCustomer.getGatewayCustomerId(), null);
+        }
+    }

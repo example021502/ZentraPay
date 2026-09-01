@@ -38,8 +38,6 @@ public class PaymentsInitializeService {
 
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
-    private final GatewayCustomerService gatewayCustomerService;
-    private final PaystackClient paystackClient;
     private final FlutterwaveClient flutterwaveClient;
 
     private final SecureRandom random = new SecureRandom();

@@ -16,14 +16,11 @@ import java.math.BigDecimal;
 public record InitializePaymentRequestDTO(
         @NotNull(message = "Amount is required")
         @DecimalMin(value = "0.50", message = "Amount must be at least 0.50")
-        BigDecimal amount,
-
+        Long amount,
         @NotBlank(message = "Currency code is required")
         String currencyCode,
-
         /** Optional — falls back to the authenticated user's email. */
         String email,
-
         /** Optional narration shown on the gateway checkout page. */
         String purpose
 ) {

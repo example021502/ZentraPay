@@ -1,0 +1,648 @@
+package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service;
+
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.NanoIdGenerator;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwaveCustomerResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwaveTransferResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaystackCustomerResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaystackRecipientResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaystackTransferResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.TransactionDTO;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestTemplate;
+
+import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Service orchestrating wallet-to-wallet and outbound bank transfers.
+ * Outbound bank payouts call Paystack (primary) and Flutterwave (failover)
+ * directly over HTTP using the secret keys / base URLs from
+ * application.properties and the response DTOs in this package.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentsService {
+
+    // Comment: Constants for transaction types and payment gateways
+    private static final String TYPE_DEBIT = "debit";
+    private static final String TYPE_CREDIT = "credit";
+    private static final String GATEWAY_INTERNAL = "internal";
+    private static final String GATEWAY_NAME_INTERNAL = "internal_zentrapay";
+    private static final String GATEWAY_PAYSTACK = "paystack";
+    private static final String GATEWAY_FLUTTERWAVE = "flutterwave";
+    private static final String GATEWAY_ONAFRIQ = "onafriq";
+
+    private final UserRepository userRepository;
+    private final FiatWalletRepository fiatWalletRepository;
+    private final FiatAccountRepository fiatAccountRepository;
+    private final TransactionRepository transactionRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final CustomerRepository customerRepository;
+    private final RecipientRepository recipientRepository;
+    private final GatewayRepository gatewayRepository;
+    private final NotificationRepository notificationRepository;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final SecureRandom random = new SecureRandom();
+
+    @Value("${app.pin.pepper}")
+    private String pinPepper;
+
+    @Value("${paystack.secret.key:}")
+    private String paystackSecretKey;
+
+    @Value("${paystack.base.url:https://api.paystack.co}")
+    private String paystackBaseUrl;
+
+    @Value("${flutterwave.secret.key:}")
+    private String flutterwaveSecretKey;
+
+    @Value("${flutterwave.base.url:https://api.flutterwave.com/v3}")
+    private String flutterwaveBaseUrl;
+
+    @Transactional
+    public Optional<TransactionDTO> sendMoney(UUID senderId, @Valid PaymentRequestDTO req) {
+        // Comment: Fetch and validate sender user
+        UserModel sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Comment: Verify security PIN against stored hash with pepper
+        if (!passwordEncoder.matches(req.pin() + pinPepper, sender.getTransactionPinHash())) {
+            throw new IllegalArgumentException("Invalid PIN");
+        }
+
+        // Comment: Validate domestic transfer corridor rules
+        String recipientCountryCode = req.recipient().countryCode();
+        boolean sameCountry = recipientCountryCode == null
+                || recipientCountryCode.isBlank()
+                || recipientCountryCode.equalsIgnoreCase(sender.getCountryCode());
+
+        if (!sameCountry) {
+            throw new IllegalArgumentException("Cross border transfers are not supported at the moment");
+        }
+
+        if (req.transfer().currencyType().equalsIgnoreCase("crypto")) {
+            throw new IllegalArgumentException("Crypto currencies are not supported at the moment");
+        }
+
+        if (!req.destination().currencyCode().equalsIgnoreCase(req.transfer().currencyCode())) {
+            throw new IllegalArgumentException("Currency conversion is not supported at the moment");
+        }
+
+        // Comment: Resolve and validate sender wallet and account status
+        FiatWalletModel senderWallet = fiatWalletRepository.getWalletByUserId(senderId)
+                .orElseThrow(() -> new ResourceNotFoundException("User wallet not found"));
+
+        FiatAccountModel senderAccount = fiatAccountRepository.getWalletByWalletIdAndCurrencyCode(
+                        senderWallet.getWalletId(), req.transfer().currencyCode())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "You currently don't have a " + req.transfer().currencyCode() + " account. Please create one or choose another currency"));
+
+        if (!senderAccount.getStatus().equalsIgnoreCase("active")) {
+            throw new IllegalArgumentException("Your account is " + senderAccount.getStatus() + " at the moment");
+        }
+
+        // Comment: Route execution based on destination target
+        if (req.destination().destinationSourceType().equalsIgnoreCase("zentrapay-wallet")) {
+            return processInternalWalletTransfer(sender, senderWallet, req);
+        } else if (req.destination().destinationSourceType().equalsIgnoreCase("bank")) {
+            return processBankTransfer(sender, senderWallet, req);
+        }
+
+        throw new IllegalArgumentException("Unsupported destination source type");
+    }
+
+    /**
+     * Executes internal P2P wallet-to-wallet transfers without external recipient creation.
+     */
+    private Optional<TransactionDTO> processInternalWalletTransfer(UserModel sender, FiatWalletModel senderWallet, PaymentRequestDTO req) {
+        // Comment: Resolve receiver and receiver account details
+        UserModel receiver = userRepository.findByEmailOrPhoneNumber(req.recipient().email(), req.recipient().phoneNumber())
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver account cannot be resolved, please check receiver details"));
+
+        FiatWalletModel receiverWallet = fiatWalletRepository.findByUserId(receiver.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver wallet cannot be resolved"));
+
+        FiatAccountModel receiverAccount = fiatAccountRepository.getWalletByWalletIdAndCurrencyCode(
+                        receiverWallet.getWalletId(), req.transfer().currencyCode())
+                .orElseThrow(() -> new ResourceNotFoundException("Receiver currency account cannot be resolved"));
+
+        if (!receiverAccount.getStatus().equalsIgnoreCase("active")) {
+            throw new IllegalArgumentException("Receiver account is " + receiverAccount.getStatus() + " at the moment");
+        }
+
+        // Comment: Resolve internal customer record for internal tracking
+        CustomerModel senderCustomer = getOrCreateCustomer(sender, req, "internal");
+
+        // Comment: Perform double-entry debit/credit ledger updates
+        int debited = fiatAccountRepository.debit(senderWallet.getWalletId(), req.transfer().amount(), req.transfer().currencyCode());
+        if (debited == 0) {
+            throw new IllegalArgumentException("Insufficient balance");
+        }
+
+        int credited = fiatAccountRepository.credit(receiverWallet.getWalletId(), req.transfer().amount(), req.transfer().currencyCode());
+        if (credited == 0) {
+            throw new IllegalArgumentException("Something went wrong during crediting, try again");
+        }
+
+        String entryRef = generateReference();
+        String destinationIdentifier = req.destination().accountIdentifier();
+        boolean isPurposeExist = req.transfer().purpose() != null && !req.transfer().purpose().isBlank();
+        String purpose = isPurposeExist
+                ? req.transfer().purpose()
+                : "Sending " + req.transfer().currencyCode() + " " + req.transfer().amount() + " to " + req.recipient().fullName();
+
+        // Comment: Persist debit and credit transaction legs
+        TransactionModel debitLeg = buildTransactionModel(
+                sender, receiver, req, entryRef, destinationIdentifier, purpose, TYPE_DEBIT, senderCustomer.getGatewayCustomerId(), null
+        );
+        debitLeg = transactionRepository.save(debitLeg);
+
+        TransactionModel creditLeg = buildTransactionModel(
+                sender, receiver, req, entryRef, destinationIdentifier, purpose, TYPE_CREDIT, senderCustomer.getGatewayCustomerId(), null
+        );
+        transactionRepository.save(creditLeg);
+
+        return toDTO(debitLeg);
+    }
+
+    /**
+     * Executes outbound bank transfer payouts via external payment providers.
+     */
+
+
+
+
+    private Optional<TransactionDTO> processBankTransfer(UserModel sender, FiatWalletModel senderWallet, PaymentRequestDTO req) {
+
+        String destinationType = "mobile_money".equalsIgnoreCase(req.destination().destinationSourceType())
+                ? TransferRecipientService.DESTINATION_MOBILE_MONEY
+                : TransferRecipientService.DESTINATION_BANK;
+        TransferRecipientModel recipient = transferRecipientService.createOrReuse(sender.getUserId(),
+                new CreateRecipientRequestDTO(destinationType,
+                        req.recipient().fullName(),
+                        req.destination().accountIdentifier(),
+                        req.destination().destinationSourceCode(),
+                        req.destination().destinationSourceName(),
+                        req.destination().countryCode(),
+                        req.destination().currencyCode()));
+
+        int debited = fiatAccountRepository.debit(senderWallet.getWalletId(), req.transfer().amount(), req.transfer().currencyCode());
+        if (debited == 0) {
+            throw new IllegalArgumentException("Insufficient balance");
+        }
+
+        String entryRef = generateReference();
+        String purpose = (req.transfer().purpose() != null && !req.transfer().purpose().isBlank())
+                ? req.transfer().purpose()
+                : "Bank Transfer to " + req.recipient().fullName();
+
+        try {
+            String paystackCustomerId = gatewayCustomerService.getOrCreateGatewayCustomer(sender, GatewayCustomerService.GATEWAY_PAYSTACK);
+            String paystackRecipientCode = transferRecipientService.getOrCreateGatewayRecipientCode(recipient, GatewayCustomerService.GATEWAY_PAYSTACK);
+            PaystackTransferResponseDTO response = paystackClient.initiateTransfer(
+                    req.transfer().amount(), paystackRecipientCode, recipient.getCurrencyCode(), purpose, entryRef);
+            String transferCode = response.data() != null ? response.data().transferCode() : null;
+            String status = response.data() != null && response.data().status() != null
+                    ? response.data().status() : "processing";
+            return journalBankTransfer(sender, recipient, req, entryRef, purpose,
+                    GatewayCustomerService.GATEWAY_PAYSTACK, status, transferCode, paystackCustomerId, paystackRecipientCode);
+        } catch (PaymentGatewayException paystackFailure) {
+
+            log.warn("Paystack transfer failed for sender {}: {}", sender.getUserId(), paystackFailure.getMessage());
+            String flutterwaveCustomerId = gatewayCustomerService.getOrCreateGatewayCustomer(sender, GatewayCustomerService.GATEWAY_FLUTTERWAVE);
+            FlutterwaveTransferResponseDTO flwResponse = flutterwaveClient.initiateTransfer(
+                    recipient.getDestinationType(), recipient.getProviderCode(),
+                    recipient.getAccountIdentifier(), recipient.getRecipientName(),
+                    req.transfer().amount(), recipient.getCurrencyCode(), purpose, entryRef);
+            String flwRef = flwResponse.data() != null ? flwResponse.data().reference() : null;
+            String flwStatus = flwResponse.data() != null && flwResponse.data().status() != null
+                    ? flwResponse.data().status().toLowerCase() : "processing";
+            return journalBankTransfer(sender, recipient, req, entryRef, purpose,
+                    GatewayCustomerService.GATEWAY_FLUTTERWAVE, flwStatus, flwRef, flutterwaveCustomerId, null);
+        }
+    }
+
+    /** Persists the bank-transfer transaction leg and a notification row for the sender. */
+    private Optional<TransactionDTO> journalBankTransfer(
+            UserModel sender, TransferRecipientModel recipient, PaymentRequestDTO req,
+            String entryRef, String purpose, String gateway, String status,
+            String gatewayTransferCode, String customerId, String recipientId) {
+
+        TransactionModel bankTx = buildBankTransferTransaction(
+                sender, recipient, req, entryRef, purpose, gateway, status, gatewayTransferCode, customerId, recipientId);
+        bankTx = transactionRepository.save(bankTx);
+        String notificationMessage = "failed".equalsIgnoreCase(status)
+                ? "Your bank transfer of " + req.transfer().currencyCode() + " " + req.transfer().amount()
+                        + " to " + req.recipient().fullName() + " was not completed. Please try again later."
+                : "Your bank transfer of " + req.transfer().currencyCode() + " " + req.transfer().amount()
+                        + " to " + req.recipient().fullName() + " via " + gateway + " is " + status + ".";
+        saveNotification(sender, entryRef, "Bank transfer " + status, notificationMessage);
+        return toDTO(bankTx, notificationMessage);
+    }
+
+    /** Builds the {@code transactions} row for an outbound gateway payout. */
+    private TransactionModel buildBankTransferTransaction(
+            UserModel sender, TransferRecipientModel recipient, PaymentRequestDTO req,
+            String entryRef, String purpose, String gateway, String status,
+            String gatewayTransferCode, String customerId, String recipientId) {
+
+        TransactionModel tx = new TransactionModel();
+        tx.setEntryId(entryRef);
+        tx.setAmount(req.transfer().amount());
+        tx.setGateway(gateway);
+        tx.setStatus(status);
+        tx.setTransactionType(TYPE_DEBIT);
+        tx.setSenderId(sender.getUserId());
+        tx.setReceiverId(sender.getUserId());
+        tx.setSenderName(sender.getFirstName() + " " + sender.getLastName());
+        tx.setReceiverName(recipient.getRecipientName());
+        tx.setSourceCurrencyCode(recipient.getCurrencyCode());
+        tx.setDestinationCurrencyCode(recipient.getCurrencyCode());
+        tx.setPurpose(purpose);
+        tx.setSenderEmail(sender.getEmail());
+        tx.setSenderPhoneNumber(sender.getPhoneNumber());
+        tx.setReceiverEmail("");
+        tx.setReceiverPhoneNumber("");
+        tx.setInternalReferenceId(entryRef);
+        tx.setExternalReferenceId(gatewayTransferCode == null ? "" : gatewayTransferCode);
+        tx.setDestinationIdentifier(recipient.getAccountIdentifier());
+        tx.setFailureReason("failed".equalsIgnoreCase(status) ? "Gateway rejected the transfer" : "");
+        String metadata = "{\"channel\":\"bank_transfer\",\"gateway\":\"" + gateway
+                + "\",\"customerId\":\"" + (customerId == null ? "" : customerId)
+                + "\",\"destinationType\":\"" + recipient.getDestinationType() + "\""
+                + (recipientId != null && !recipientId.isBlank() ? ",\"recipientId\":\"" + recipientId + "\"" : "")
+                + "}";
+        tx.setMetadata(metadata);
+        return tx;
+    }
+
+    /** Persists an in-app notification row for the transfer outcome. */
+    private NotificationModel saveNotification(
+            UserModel sender, String entryRef, String title, String message) {
+
+        NotificationModel notification = new NotificationModel();
+        notification.setUserId(sender.getUserId());
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setType("TRANSFER");
+        notification.setReferenceId(entryRef);
+        notification.setIsRead(false);
+        return notificationRepository.save(notification);
+    }
+
+    /**
+     * Resolves an existing customer record or registers a new customer with the active gateway.
+     */
+    public CustomerModel getOrCreateCustomer(UserModel user, PaymentRequestDTO req, String gatewayType) {
+        if ("internal".equalsIgnoreCase(gatewayType)) {
+            Optional<CustomerModel> existingCustomer = customerRepository.findByUserIdAndGateway(user.getUserId(), GATEWAY_INTERNAL);
+            return existingCustomer.orElseGet(() -> createInternalCustomer(user));
+        }
+
+        // Comment: Resolve active external gateway dynamically for external transfers
+        GatewayModel activeGateway = resolveActiveGateway();
+        Optional<CustomerModel> existingCustomer = customerRepository.findByUserIdAndGateway(user.getUserId(), activeGateway.getProviderName());
+        if (existingCustomer.isPresent()) {
+            return existingCustomer.get();
+        }
+
+        // Comment: Dispatch registration to active provider factory
+        if (GATEWAY_PAYSTACK.equalsIgnoreCase(activeGateway.getProviderName())) {
+            return createPaystackCustomer(user, activeGateway);
+        } else if (GATEWAY_FLUTTERWAVE.equalsIgnoreCase(activeGateway.getProviderName())) {
+            return createFlutterwaveCustomer(user, activeGateway);
+        }
+
+        throw new IllegalStateException("No active gateway available for customer creation");
+    }
+
+    /**
+     * Persists a local customer record for internal transactions.
+     */
+    private CustomerModel createInternalCustomer(UserModel user) {
+        CustomerModel customer = new CustomerModel();
+        customer.setUserId(user.getUserId());
+        customer.setGateway(GATEWAY_INTERNAL);
+        customer.setGatewayCustomerId(NanoIdGenerator.generate("zp_cust_"));
+        customer.setEmail(user.getEmail());
+        customer.setGatewayName(GATEWAY_NAME_INTERNAL);
+        return customerRepository.save(customer);
+    }
+
+    /**
+     * Registers a customer entry via the Paystack /customer API.
+     */
+    private CustomerModel createPaystackCustomer(UserModel user, GatewayModel gateway) {
+        // Comment: Construct HTTP headers with Authorization Bearer token
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(paystackSecretKey);
+
+        // Comment: Construct Paystack Customer creation payload
+        Map<String, Object> body = new HashMap<>();
+        body.put("email", user.getEmail());
+        body.put("first_name", user.getFirstName());
+        body.put("last_name", user.getLastName());
+        body.put("phone", user.getPhoneNumber());
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        String remoteCustomerCode;
+
+        try {
+            // Comment: Call Paystack POST /customer endpoint
+            ResponseEntity<Map> response = restTemplate.postForEntity(paystackBaseUrl + "/customer", entity, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                Map<String, Object> data = (Map<String, Object>) responseBody.get("data");
+                remoteCustomerCode = (String) data.get("customer_code");
+            } else {
+                remoteCustomerCode = "CUS_" + NanoIdGenerator.generate("ps_");
+            }
+        } catch (Exception e) {
+            // Comment: Fallback identifier generation if external call fails
+            remoteCustomerCode = "CUS_" + NanoIdGenerator.generate("ps_");
+        }
+
+        CustomerModel customer = new CustomerModel();
+        customer.setUserId(user.getUserId());
+        customer.setGateway(gateway.getProviderName());
+        customer.setGatewayCustomerId(remoteCustomerCode);
+        customer.setEmail(user.getEmail());
+        customer.setGatewayName(gateway.getProviderName());
+        return customerRepository.save(customer);
+    }
+
+    /**
+     * Registers a customer entry for Flutterwave integrations.
+     */
+    private CustomerModel createFlutterwaveCustomer(UserModel user, GatewayModel gateway) {
+        // Comment: Remote Flutterwave customer registration (mock implementation)
+        String remoteCustomerCode = "FLW_CUS_" + NanoIdGenerator.generate("flw_");
+
+        CustomerModel customer = new CustomerModel();
+        customer.setUserId(user.getUserId());
+        customer.setGateway(gateway.getProviderName());
+        customer.setGatewayCustomerId(remoteCustomerCode);
+        customer.setEmail(user.getEmail());
+        customer.setGatewayName(gateway.getProviderName());
+        return customerRepository.save(customer);
+    }
+
+    /**
+     * Creates or retrieves an external payout recipient for the given gateway, owned by the sender.
+     * Reuses an existing recipient matched on owner + gateway + destination account identifier.
+     */
+    public RecipientModel getOrCreateExternalRecipient(PaymentRequestDTO req, GatewayModel gateway, UUID ownerUserId) {
+
+        // Comment: Check for existing recipient matching account identifier and gateway
+        Optional<RecipientModel> existingRecipient = recipientRepository.findByUserIdAndGatewayAndAccountIdentifier(
+                ownerUserId, gateway.getProviderName(), req.destination().accountIdentifier()
+        );
+
+        if (existingRecipient.isPresent()) {
+            return existingRecipient.get();
+        }
+
+        // Comment: Delegate to provider-specific payout recipient construction logic
+        if (GATEWAY_PAYSTACK.equalsIgnoreCase(gateway.getProviderName())) {
+            return createPaystackRecipient(req, gateway, ownerUserId);
+        } else if (GATEWAY_FLUTTERWAVE.equalsIgnoreCase(gateway.getProviderName())) {
+            return createFlutterwaveRecipient(req, gateway, ownerUserId);
+        } else if (GATEWAY_ONAFRIQ.equalsIgnoreCase(gateway.getProviderName())) {
+            return createOnafriqRecipient(req, gateway, ownerUserId);
+        }
+
+        throw new IllegalArgumentException("Unsupported external provider: " + gateway.getProviderName());
+    }
+
+    /**
+     * Resolves the Paystack recipient bank type string based on country code.
+     */
+    private String resolveBankType(String countryCode) {
+        if (countryCode == null || countryCode.isBlank()) {
+            return "nudb";
+        }
+        return switch (countryCode.trim().toUpperCase()) {
+            case "GH", "GHA" -> "ghipss";
+            case "NG", "NGA" -> "nudb";
+            case "ZA", "ZAF" -> "basa";
+            default -> "bank_account";
+        };
+    }
+
+    /**
+     * Maps the destination source type to the persisted recipient channel code.
+     */
+    private String resolveChannelCode(String destinationSourceType) {
+        return "mobile_money".equalsIgnoreCase(destinationSourceType) ? "MOBILE_MONEY" : "BANK_TRANSFER";
+    }
+
+    /**
+     * Builds and persists a Paystack transfer recipient via the /transferrecipient API.
+     */
+    private RecipientModel createPaystackRecipient(PaymentRequestDTO req, GatewayModel gateway, UUID ownerUserId) {
+        // Comment: Construct HTTP headers with Paystack secret key authorization
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(paystackSecretKey);
+
+        // Comment: Determine recipient type based on destination target type or country code
+        String recipientType;
+        if ("mobile_money".equalsIgnoreCase(req.destination().destinationSourceType())) {
+            recipientType = "mobile_money";
+        } else {
+            recipientType = resolveBankType(req.destination().countryCode());
+        }
+
+        // Comment: Prepare request body payload for Paystack Transfer Recipient API
+        Map<String, Object> body = new HashMap<>();
+        body.put("type", recipientType);
+        body.put("name", req.recipient().fullName());
+        body.put("account_number", req.destination().accountIdentifier());
+        body.put("bank_code", req.destination().destinationSourceCode());
+        body.put("currency", req.destination().currencyCode());
+        body.put("description", "Payout recipient for " + req.recipient().fullName());
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        String remoteRecipientCode;
+
+        try {
+            // Comment: Execute Paystack POST /transferrecipient call
+            ResponseEntity<Map> response = restTemplate.postForEntity(paystackBaseUrl + "/transferrecipient", entity, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                Map<String, Object> data = (Map<String, Object>) responseBody.get("data");
+                remoteRecipientCode = (String) data.get("recipient_code");
+            } else {
+                remoteRecipientCode = "RCP_" + NanoIdGenerator.generate("ps_");
+            }
+        } catch (Exception e) {
+            // Comment: Fallback identifier generation if external call fails
+            remoteRecipientCode = "RCP_" + NanoIdGenerator.generate("ps_");
+        }
+
+        RecipientModel recipient = new RecipientModel();
+        recipient.setUserId(ownerUserId);
+        recipient.setGatewayRecipientId(remoteRecipientCode);
+        recipient.setChannelCode(resolveChannelCode(req.destination().destinationSourceType()));
+        recipient.setGateway(gateway.getProviderName());
+        recipient.setGatewayId(gateway.getProviderId());
+        recipient.setAccountIdentifier(req.destination().accountIdentifier());
+        recipient.setProviderCode("PAYSTACK");
+        recipient.setAccountName(req.recipient().fullName());
+        return recipientRepository.save(recipient);
+    }
+
+    /**
+     * Builds and persists a Flutterwave transfer recipient.
+     */
+    private RecipientModel createFlutterwaveRecipient(PaymentRequestDTO req, GatewayModel gateway, UUID ownerUserId) {
+        // Comment: Remote Flutterwave beneficiary creation call (mock implementation)
+        String remoteRecipientCode = "FLW_RCP_" + NanoIdGenerator.generate("flw_");
+
+        RecipientModel recipient = new RecipientModel();
+        recipient.setUserId(ownerUserId);
+        recipient.setGatewayRecipientId(remoteRecipientCode);
+        recipient.setChannelCode(resolveChannelCode(req.destination().destinationSourceType()));
+        recipient.setGateway(gateway.getProviderName());
+        recipient.setGatewayId(gateway.getProviderId());
+        recipient.setAccountIdentifier(req.destination().accountIdentifier());
+        recipient.setProviderCode("FLUTTERWAVE");
+        recipient.setAccountName(req.recipient().fullName());
+        return recipientRepository.save(recipient);
+    }
+
+    /**
+     * Builds and persists an Onafriq mobile money payout recipient.
+     */
+    private RecipientModel createOnafriqRecipient(PaymentRequestDTO req, GatewayModel gateway, UUID ownerUserId) {
+        // Comment: Remote Onafriq remittance API beneficiary call (mock implementation)
+        String remoteRecipientCode = "ON_RCP_" + NanoIdGenerator.generate("on_");
+
+        RecipientModel recipient = new RecipientModel();
+        recipient.setUserId(ownerUserId);
+        recipient.setGatewayRecipientId(remoteRecipientCode);
+        recipient.setChannelCode(resolveChannelCode(req.destination().destinationSourceType()));
+        recipient.setGateway(gateway.getProviderName());
+        recipient.setGatewayId(gateway.getProviderId());
+        recipient.setAccountIdentifier(req.destination().accountIdentifier());
+        recipient.setProviderCode(GATEWAY_ONAFRIQ);
+        recipient.setAccountName(req.recipient().fullName());
+        return recipientRepository.save(recipient);
+    }
+
+    /**
+     * Resolves the primary active payment gateway or throws an exception if none are active.
+     */
+    private GatewayModel resolveActiveGateway() {
+        // Comment: Evaluate primary provider (Paystack)
+        GatewayModel paystackGateway = gatewayRepository.getGatewayProvider(GATEWAY_PAYSTACK);
+        if (paystackGateway != null && Boolean.TRUE.equals(paystackGateway.getIsActive())) {
+            return paystackGateway;
+        }
+
+        // Comment: Fallback to secondary provider (Flutterwave)
+        GatewayModel flutterwaveGateway = gatewayRepository.getGatewayProvider(GATEWAY_FLUTTERWAVE);
+        if (flutterwaveGateway != null && Boolean.TRUE.equals(flutterwaveGateway.getIsActive())) {
+            return flutterwaveGateway;
+        }
+
+        // Comment: Throw exception when all payment gateways are inactive
+        throw new IllegalStateException("All payment gateways are currently inactive. Please try again later.");
+    }
+
+    /**
+     * Helper to assemble TransactionModel entities.
+     */
+    private TransactionModel buildTransactionModel(
+            UserModel sender,
+            UserModel receiver,
+            PaymentRequestDTO req,
+            String entryRef,
+            String destinationIdentifier,
+            String purpose,
+            String type,
+            String customerId,
+            String recipientId) {
+
+        TransactionModel tx = new TransactionModel();
+        tx.setAmount(req.transfer().amount());
+        tx.setGateway(GATEWAY_INTERNAL);
+        tx.setStatus("success");
+        tx.setTransactionType(type);
+        tx.setSenderId(sender.getUserId());
+        tx.setReceiverId(receiver != null ? receiver.getUserId() : null);
+        tx.setSenderName(sender.getFirstName() + " " + sender.getLastName());
+        tx.setReceiverName(receiver != null ? receiver.getFirstName() + " " + receiver.getLastName() : req.recipient().fullName());
+        tx.setSourceCurrencyCode(req.transfer().currencyCode());
+        tx.setDestinationCurrencyCode(req.destination().currencyCode());
+        tx.setPurpose(purpose);
+        tx.setSenderEmail(sender.getEmail());
+        tx.setSenderPhoneNumber(sender.getPhoneNumber());
+        tx.setReceiverEmail(req.recipient().email());
+        tx.setReceiverPhoneNumber(req.recipient().phoneNumber());
+        tx.setInternalReferenceId(req.transfer().referenceId());
+        tx.setExternalReferenceId(entryRef);
+        tx.setEntryId(entryRef);
+        tx.setDestinationIdentifier(destinationIdentifier);
+        tx.setFailureReason("");
+        tx.setMetadata("customerId=" + customerId + (recipientId != null ? ",recipientId=" + recipientId : ""));
+        return tx;
+    }
+
+    private String generateReference() {
+        String timestamp = LocalDateTime.now().toString().replaceAll("[^0-9]", "");
+        String suffix = String.format("%04d", random.nextInt(10000));
+        return "zp_" + timestamp + "_" + suffix;
+    }
+
+    public static Optional<TransactionDTO> toDTO(TransactionModel t) {
+        return toDTO(t, null);
+    }
+
+    public static Optional<TransactionDTO> toDTO(TransactionModel t, String notification) {
+        String sign = t.getTransactionType().equalsIgnoreCase("credit") ? "+" : "-";
+        return Optional.of(new TransactionDTO(
+                t.getTransactionId(),
+                t.getReceiverId(),
+                t.getReceiverEmail(),
+                t.getReceiverPhoneNumber(),
+                sign + t.getSourceCurrencyCode() + t.getAmount().toPlainString(),
+                t.getCreatedAt(),
+                t.getFailureReason(),
+                t.getGateway(),
+                t.getMetadata(),
+                t.getStatus(),
+                t.getUpdatedAt(),
+                t.getTransactionType(),
+                t.getReceiverName(),
+                t.getPurpose(),
+                t.getInternalReferenceId(),
+                t.getExternalReferenceId(),
+                t.getDestinationIdentifier(),
+                notification
+        ));
+    }
+}

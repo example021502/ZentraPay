@@ -27,6 +27,8 @@ String receiverName,
 String purpose,
 String internalReferenceId,
 String externalReferenceId,
-String destinationIdentifier
+String destinationIdentifier,
+/** Human-readable notification returned for transaction (null for wallet-to-wallet). */
+String notification
 ) {
 }

@@ -158,36 +158,40 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        QuickActionButton(
-          icon: Icons.nfc,
-          label: "NFC Pay",
-          onTap: () => _onNFCAction(context),
-        ),
-        QuickActionButton(
-          icon: Icons.arrow_upward_outlined,
-          label: "Send",
-          onTap: () => _onPayAction(context),
-        ),
-        QuickActionButton(
-          icon: Icons.arrow_downward_outlined,
-          label: "Receive",
-          onTap: () => _onReceiveAction(context),
-        ),
-        QuickActionButton(
-          icon: Icons.history,
-          label: "History",
-          onTap: () => _onHistoryAction(context),
-        ),
-        QuickActionButton(
-          icon: Icons.more_horiz,
-          label: "More",
-          onTap: () => _onMoreAction(context),
-        ),
-      ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: double.infinity),
+      child: Row(
+        verticalDirection: VerticalDirection.down,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          QuickActionButton(
+            icon: Icons.nfc,
+            label: "NFC Pay",
+            onTap: () => _onNFCAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.arrow_upward_outlined,
+            label: "Send",
+            onTap: () => _onPayAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.arrow_downward_outlined,
+            label: "Receive",
+            onTap: () => _onReceiveAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.history,
+            label: "History",
+            onTap: () => _onHistoryAction(context),
+          ),
+          QuickActionButton(
+            icon: Icons.more_horiz,
+            label: "More",
+            onTap: () => _onMoreAction(context),
+          ),
+        ],
+      ),
     );
   }
 
