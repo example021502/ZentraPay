@@ -2,9 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/repositories/security_repository.dart';
+import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
+import 'package:zentrapay_application/features/home/notifications_overlay.dart';
+import 'package:zentrapay_application/features/profile/edit_profile_sheet.dart';
 import 'package:zentrapay_application/main.dart';
 
 /// Placeholder for the Merchant tab — content to be added later.
@@ -235,7 +238,7 @@ class _SettingsState extends State<Settings> {
                             if (!mounted || !confirmed) return;
                             Navigator.pushReplacementNamed(context, "/login");
                           }
-                        : () => showComingSoon(context, buttonData["name"]),
+                        : () => _showOptionSheet(context, buttonData["name"]),
                   ),
                 ),
                 if (index < buttons.length - 1)
@@ -380,6 +383,27 @@ class _SettingsState extends State<Settings> {
             showArrow: true,
             onTap: () => Navigator.pushNamed(context, '/fraud_detection'),
           ),
+          const SizedBox(height: AppTheme.spacingLg),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text("Recent Activity", style: AppTheme.labelLarge),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          if (isLoadingSecurity)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (protectionHistory.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                "No recent login activity",
+                style: AppTheme.bodySmall.copyWith(color: AppColors.lightGrey),
+              ),
+            )
+          else
+            ...protectionHistory.map(_buildHistoryItem),
         ],
       ),
     );
@@ -438,6 +462,168 @@ class _SettingsState extends State<Settings> {
     );
   }
 
+  // ==========================================================================
+  // Settings option overlays — each General/Feedback/Danger-Zone button used
+  // to just fire a "Coming Soon" toast. Every option now opens the same
+  // slide-up sheet (showAppOverlaySheet, the History-overlay shape) with
+  // real content where a backend already backs it (Account -> the real
+  // edit-profile flow; Notifications -> the real notifications list) and
+  // clearly-labeled standard/placeholder content where nothing exists yet
+  // to link to.
+  // ==========================================================================
+  void _showOptionSheet(BuildContext context, String option) {
+    switch (option) {
+      case "Account":
+        _showAccountSheet(context);
+        return;
+      case "Notifications":
+        // Comment: reuse the real notification bell overlay — same backend
+        // data, no separate "preferences" panel pretending to be something
+        // that isn't wired up.
+        showNotificationsOverlay(context);
+        return;
+      case "Support":
+        _showInfoSheet(
+          context,
+          title: "Support",
+          icon: Icons.support_agent_outlined,
+          rows: const [
+            _InfoRow(Icons.email_outlined, "Email", "support@zentrapay.com"),
+            _InfoRow(Icons.chat_outlined, "Live chat", "In-app chat — coming soon"),
+            _InfoRow(Icons.help_outline, "Help center", "help.zentrapay.com"),
+          ],
+        );
+        return;
+      case "Report a bug":
+        _showInfoSheet(
+          context,
+          title: "Report a Bug",
+          icon: Icons.warning_amber_outlined,
+          rows: const [
+            _InfoRow(
+              Icons.email_outlined,
+              "Email us",
+              "Describe what happened and the screen you were on: bugs@zentrapay.com",
+            ),
+          ],
+        );
+        return;
+      case "Send feedback":
+        _showInfoSheet(
+          context,
+          title: "Send Feedback",
+          icon: Icons.send_outlined,
+          rows: const [
+            _InfoRow(
+              Icons.email_outlined,
+              "We'd love to hear from you",
+              "feedback@zentrapay.com",
+            ),
+          ],
+        );
+        return;
+      case "Delete Account":
+        _showInfoSheet(
+          context,
+          title: "Delete Account",
+          icon: Icons.delete_outlined,
+          rows: const [
+            _InfoRow(
+              Icons.info_outline,
+              "Contact support to delete your account",
+              "Account deletion isn't self-service yet — email support@zentrapay.com from your registered email and we'll process it.",
+            ),
+          ],
+        );
+        return;
+    }
+  }
+
+  void _showAccountSheet(BuildContext context) {
+    showAppOverlaySheet(
+      context: context,
+      builder: (context) => ListenableBuilder(
+        listenable: UserProfileRepository.instance,
+        builder: (context, _) {
+          final user = UserProfileRepository.instance.user;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Account", style: AppTheme.headlineMedium),
+                const SizedBox(height: AppTheme.spacingLg),
+                _InfoRow(Icons.person_outline, "Name", user?.fullName ?? ''),
+                _InfoRow(Icons.email_outlined, "Email", user?.email ?? ''),
+                _InfoRow(Icons.phone_outlined, "Phone", user?.phoneNumber ?? ''),
+                _InfoRow(
+                  Icons.verified_user_outlined,
+                  "Verification",
+                  "Tier ${user?.kycTier ?? 0}",
+                ),
+                const SizedBox(height: AppTheme.spacingLg),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(context).maybePop();
+                      showEditProfileSheet(context);
+                    },
+                    child: const Text("Edit Profile"),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingSm),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.lock_reset_outlined),
+                  title: const Text("Change PIN"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showComingSoon(context, "Change PIN"),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.password_outlined),
+                  title: const Text("Change Password"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => showComingSoon(context, "Change Password"),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showInfoSheet(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<_InfoRow> rows,
+  }) {
+    showAppOverlaySheet(
+      context: context,
+      minHeightFraction: 0.35,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppTheme.secondaryNavy),
+                const SizedBox(width: AppTheme.spacingSm),
+                Text(title, style: AppTheme.headlineMedium),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingLg),
+            ...rows,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHistoryItem(Map<String, dynamic> item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -484,6 +670,45 @@ class _SettingsState extends State<Settings> {
                     fontSize: 11,
                     color: AppColors.textBlack,
                   ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single labeled row inside a settings option overlay — icon, a bold
+/// label, and a description/value line underneath. Used both for read-only
+/// info (Account) and static contact-channel content (Support, Report a
+/// bug, Send feedback, Delete Account).
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _InfoRow(this.icon, this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppTheme.gray500),
+          const SizedBox(width: AppTheme.spacingSm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTheme.labelLarge),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray700),
                 ),
               ],
             ),

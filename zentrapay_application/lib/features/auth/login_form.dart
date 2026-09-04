@@ -43,15 +43,15 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
-  void loginNow() {
-    Navigator.pushNamed(
-      context,
-      '/home',
-      arguments: {'email': "email@gmail.com", 'fullName': "bypass name"},
-    );
-  }
+  // void loginNow() {
+  //   Navigator.pushNamed(
+  //     context,
+  //     '/home',
+  //     arguments: {'email': "email@gmail.com", 'fullName': "bypass name"},
+  //   );
+  // }
 
-  void loginNowD() async {
+  void loginNow() async {
     debugPrint('LOGIN init');
     // Validate credentials before initiating the login process
     if (_emailController.text == "") {

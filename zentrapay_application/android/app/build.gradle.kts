@@ -9,9 +9,12 @@ plugins {
 // Configured using the Android Gradle Plugin ApplicationExtension scope.
 android {
     namespace = "zentrapay.com.zentrapay_application"
-    compileSdk = flutter.compileSdkVersion
+    // image_picker_android (added for Tier-2 KYC document capture) requires
+    // compileSdk 36 — the Flutter SDK's own default (flutter.compileSdkVersion)
+    // is 35, so it's pinned explicitly here rather than left to that default.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.0.0"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

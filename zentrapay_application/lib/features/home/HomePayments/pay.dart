@@ -214,9 +214,9 @@ class _PaySectionMainState extends State<PaySectionMain> {
                                 dotenv.env["zentrapay_id"];
                             Map<String, dynamic> destination = {
                               "accountIdentifier": user.phoneNumber,
-                              "destinationSourceType": "zentrapay-wallet",
-                              "destinationSourceName": "zentrapay",
-                              "destinationSourceCode": zentrapayId,
+                              "accountName": user.fullName,
+                              "checkoutType": "zentrapay_app",
+                              "channelCode": zentrapayId ?? "zentrapay_app",
                               "countryCode": user.countryCode,
                             };
                             await makePayment.processPayment(

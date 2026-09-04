@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/user.dart';
+import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
 import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/common/loadingScreen.dart';
+import 'package:zentrapay_application/features/profile/edit_profile_sheet.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -30,15 +32,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadInitialData() async {
     try {
-      // Comment: Ensure both repositories load their initial data from network/cache
+      // Comment: Ensure every repository this screen renders loads its
+      // initial data from network/cache. Linked bank accounts reuse
+      // BankAccountsRepository (already backend-wired for ZBanking) instead
+      // of a screen-local fake list, so there's one source of truth.
       await Future.wait([
         UserProfileRepository.instance.ensureLoaded(),
         WalletsRepository.instance.ensureLoaded(),
+        BankAccountsRepository.instance.ensureLoaded(),
       ]);
-      print("DATA LOADED!");
     } catch (e) {
       // Comment: Log error on failure without breaking screen UI render
-      print("USERPROFILE:: load failed: $e");
+      debugPrint("Profile screen initial load failed: $e");
     }
   }
 
@@ -51,32 +56,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ? ''
       : _formatDate(DateTime.tryParse(value));
 
-  final List<Map<String, dynamic>> bankAccounts = [
-    {
-      'name': 'Ecobank Ghana PLC',
-      'accountNumber': '•••• 4092',
-      'date': 'June 06, 2026',
-      'rate': '+14.5% Yield',
-      'balance': '1,250.00',
-      'swiftCode': 'ECOGHACXXX',
-    },
-    {
-      'name': 'Equity Bank Kenya',
-      'accountNumber': '•••• 8821',
-      'date': 'January 15, 2026',
-      'rate': '+8.2% Yield',
-      'balance': '4,100.00',
-      'swiftCode': 'EQBLKENXXXX',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    // Comment: Rebuild automatically when either repository notifies changes
+    // Comment: Rebuild automatically when any of the three repositories
+    // this screen renders notifies changes.
     return ListenableBuilder(
       listenable: Listenable.merge([
         UserProfileRepository.instance,
         WalletsRepository.instance,
+        BankAccountsRepository.instance,
       ]),
       builder: (context, child) {
         final userRepo = UserProfileRepository.instance;
@@ -85,34 +73,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final user = userRepo.user;
         final profile = userRepo.profile;
         final fiatAccounts = walletRepo.data?.fiatAccounts ?? [];
-        print("THE USER REPO:: $user AND PROFILE REPO IS:: $profile");
 
-        // Comment: Map raw fiat accounts into carousel repSresentation
-        final accounts = fiatAccounts.isNotEmpty
-            ? [
-                for (final account in fiatAccounts)
-                  {
-                    'type': account.accountName.isNotEmpty
-                        ? account.accountName
-                        : '${account.currencyCode} Wallet',
-                    'balance': formatMoney(account.balance.toStringAsFixed(2)),
-                    'currency': account.currencyCode,
-                    'accountNumber': account.zentag,
-                    'ledgerId': account.accountId,
-                    'status': account.status,
-                  },
-              ]
-            : [
-                // Comment: Fallback placeholder when no fiat accounts exist
-                {
-                  'type': 'GHS Primary Wallet',
-                  'balance': '4,500.50',
-                  'currency': 'GHS',
-                  'accountNumber': 'johnwillis5623.GHS@zentrapay',
-                  'ledgerId': 'LEDGER_GHS_8832',
-                  'status': 'Active',
-                },
-              ];
+        // Comment: Map raw fiat accounts into carousel representation — no
+        // fake fallback entry; an empty list is handled explicitly by
+        // _buildWalletCarousel/_buildPrimaryWallet as a real empty state.
+        // Explicitly typed (both the list and each map literal): mixing a
+        // bool ('isDefault') in with the String fields shifts Dart's
+        // inferred literal type from Map<String, dynamic> to
+        // Map<String, Object> unless pinned down, which crashes
+        // _buildPrimaryWallet's firstWhere(orElse: () => <String, dynamic>{})
+        // at runtime ("type '() => Map<String, dynamic>' is not a subtype
+        // of type '(() => Map<String, Object>)?' of 'orElse'").
+        final List<Map<String, dynamic>> accounts = [
+          for (final account in fiatAccounts)
+            <String, dynamic>{
+              'type': account.accountName.isNotEmpty
+                  ? account.accountName
+                  : '${account.currencyCode} Wallet',
+              'balance': formatMoney(account.balance.toStringAsFixed(2)),
+              'currency': account.currencyCode,
+              'accountNumber': account.zentag,
+              'ledgerId': account.accountId,
+              'status': account.status,
+              'isDefault': account.isDefault,
+            },
+        ];
 
         // Comment: Keep index in bounds if accounts list size changes dynamically
         if (accountIndex >= accounts.length) {
@@ -171,6 +156,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileHeader(AppUser? user) {
     final String fullName = "${user?.firstName} ${user?.lastName}";
+    final bool canTransact = user?.canTransact ?? false;
+    final int tier = user?.kycTier ?? 0;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingLg,
@@ -198,12 +185,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: AppTheme.successGreen,
+                  decoration: BoxDecoration(
+                    color: canTransact
+                        ? AppTheme.successGreen
+                        : AppTheme.warningOrange,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check,
+                  child: Icon(
+                    canTransact ? Icons.check : Icons.priority_high,
                     size: 16,
                     color: AppTheme.primaryWhite,
                   ),
@@ -220,9 +209,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppTheme.spacingSm),
           GestureDetector(
-            onTap: () => LoadingScreen(isLoading: true),
+            onTap: () {
+              if (canTransact) return;
+              showEditProfileSheet(context);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: canTransact
+                    ? AppTheme.successGreen.withValues(alpha: 0.12)
+                    : AppTheme.warningOrange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+              ),
+              child: Text(
+                canTransact
+                    ? "Tier $tier — verified"
+                    : "Tier $tier — tap to upgrade & send money",
+                style: AppTheme.labelSmall.copyWith(
+                  color: canTransact
+                      ? AppTheme.successGreen
+                      : AppTheme.warningOrange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingSm),
+          GestureDetector(
+            onTap: () => showEditProfileSheet(context),
             child: Text(
-              "Profile",
+              "Edit Profile",
               style: AppTheme.labelLarge.copyWith(
                 color: AppTheme.secondaryNavy,
                 decoration: TextDecoration.underline,
@@ -356,15 +372,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Text(
             label,
             style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
+          const SizedBox(width: AppTheme.spacingSm),
           Flexible(
             child: Text(
               value,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
               style: AppTheme.labelLarge,
               textAlign: TextAlign.right,
             ),
@@ -521,6 +540,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildWalletCarousel(List<Map<String, dynamic>> accounts) {
+    if (accounts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        decoration: BoxDecoration(
+          gradient: AppTheme.primaryGradient,
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+          boxShadow: AppTheme.elevatedShadow,
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              color: AppTheme.primaryWhite,
+            ),
+            const SizedBox(width: AppTheme.spacingSm),
+            Expanded(
+              child: Text(
+                "No wallet yet — create one from the Wallets tab to get started.",
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppTheme.primaryWhite,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final currentWallet = accounts[accountIndex];
 
     return Container(
@@ -633,6 +680,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBankAccounts() {
+    final accounts = BankAccountsRepository.instance.data ?? [];
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
@@ -640,13 +688,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           const Text("Linked Settlement Accounts", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
-          ...bankAccounts.map((account) => _buildBankCard(account)),
+          if (accounts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
+              child: Text(
+                "No linked bank accounts yet.",
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              ),
+            )
+          else
+            ...accounts.map((account) => _buildBankCard(account)),
         ],
       ),
     );
   }
 
-  Widget _buildBankCard(Map<String, dynamic> account) {
+  Widget _buildBankCard(BankAccounts account) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
       padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -661,60 +718,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Text(account.bankName, style: AppTheme.headlineSmall),
               Text(
-                "SWIFT: ${account['swiftCode']}",
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-              ),
-              Text(
-                account['date'] ?? '',
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingSm,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.successGreen,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.arrow_upward,
-                      size: 12,
-                      color: AppTheme.primaryWhite,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      account['rate'] ?? '',
-                      style: AppTheme.labelSmall.copyWith(
-                        color: AppTheme.primaryWhite,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                account['accountNumber'] ?? '',
+                _formatDate(account.createdAt),
                 style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
               ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingSm),
-          Text(account['name'] ?? '', style: AppTheme.headlineSmall),
+          Text(
+            "•••• ${account.lastDigits}",
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+          ),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                isBalanceVisible ? account['balance'] ?? '' : "••••••••",
+                isBalanceVisible
+                    ? "${account.currencyCode} ${account.balance.toStringAsFixed(2)}"
+                    : "••••••••",
                 style: AppTheme.displaySmall,
               ),
               IconButton(

@@ -5,7 +5,8 @@ import '../../../../core/repositories/payments_service.dart';
 import '../../../../core/utils/Common/AppConfirmSheet.dart';
 import '../../../../core/utils/Common/EnterAmount.dart';
 import '../../../../core/utils/Common/GenerateTransactionId.dart';
-import '../../../../core/utils/Notifier.dart';
+import '../../../../core/utils/Common/TransactionResultOverlay.dart';
+import '../../../../core/utils/LoadingOverlay.dart';
 
 class PaymentController {
   bool _payInFlight = false;
@@ -96,17 +97,34 @@ class PaymentController {
     _payInFlight = true;
     onStateChanged(_payInFlight);
 
-    // 4. Dispatch API Request & Handle Feedback
+    // 4. Dispatch API Request & Handle Feedback — the global overlay blocks
+    // the rest of the screen for the duration so the request can't be fired
+    // twice and the user can't wander off into another action mid-payment.
     try {
-      await PaymentsService.payment(payload: payload);
+      final transaction = await LoadingOverlay.run(
+        () => PaymentsService.payment(payload: payload),
+        message: "Processing payment…",
+      );
       if (!context.mounted) return;
-      ZentraNotifier.success(
-        "Payment Sent",
-        "$currencyCode $amount sent to $recipientNameForUI.",
+      await showTransactionResultOverlay(
+        context: context,
+        status: TransactionResultStatus.success,
+        title: "Payment Sent",
+        message: "$currencyCode $amount sent to $recipientNameForUI.",
+        details: [
+          TransactionResultDetail("Recipient", recipientNameForUI),
+          TransactionResultDetail("Amount", "$currencyCode $amount"),
+          TransactionResultDetail("Reference", transaction.transactionId),
+        ],
       );
     } catch (e) {
       if (!context.mounted) return;
-      ZentraNotifier.error("Payment Failed", _extractErrorMessage(e));
+      await showTransactionResultOverlay(
+        context: context,
+        status: TransactionResultStatus.error,
+        title: "Payment Failed",
+        message: _extractErrorMessage(e),
+      );
     } finally {
       _payInFlight = false;
       onStateChanged(_payInFlight);

@@ -3,13 +3,10 @@ import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 
-/// Horizontal carousel of a user's linked bank / wallet accounts.
+/// Stacked wallet view displaying linked bank accounts.
 ///
-/// Mirrors the Home "Your Cards" carousel (PageView) but renders each item as
-/// a bank-account style tile — bank name/account number/currency/balance —
-/// for the home page's "Linked Bank Accounts" section (and the ZBanking
-/// overview). Accepts a flat list of account maps so callers can feed it from
-/// whatever account-shaped list they already hold (fiat accounts, cards, ...).
+/// Features a layered wallet structure where background cards peek out from behind
+/// the active top card with lower height profiles, custom offsets, and fading opacities.
 class LinkedBankAccounts extends StatefulWidget {
   const LinkedBankAccounts({super.key, required this.accounts});
 
@@ -20,7 +17,8 @@ class LinkedBankAccounts extends StatefulWidget {
 }
 
 class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
-  final PageController _controller = PageController(viewportFraction: 0.72);
+  // Track active top card index
+  int _activeIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +42,19 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(200),
-                    color: AppTheme.secondaryNavy.withAlpha(20),
+                    color: AppTheme.gray50,
+                    border: Border.all(color: AppTheme.secondaryNavy, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.textBlack.withAlpha(20),
+                        spreadRadius: 5,
+                        blurRadius: 8,
+                        offset: Offset(0, 0),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10.0),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10.0),
                     child: Icon(Icons.add_outlined, size: 22),
                   ),
                 ),
@@ -55,29 +62,56 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
             ],
           ),
         ),
-        Container(
-          constraints: BoxConstraints(maxHeight: 210),
-          child: accounts.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Center(
-                    child: Text(
-                      "No linked bank accounts yet.",
-                      style: AppTheme.labelLarge.copyWith(
-                        color: AppTheme.lightGrey,
-                      ),
-                    ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+          child: SizedBox(
+            width: double.infinity,
+            height:
+                195, // Container height to account for card height + top offsets
+            child: accounts.isEmpty
+                ? _emptyAccountTile()
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: List.generate(accounts.length, (index) {
+                      // Calculate depth relative to active index
+                      final depth =
+                          (index - _activeIndex + accounts.length) %
+                          accounts.length;
+
+                      // Limit visible stack depth to 3 cards
+                      if (depth > 2) return const SizedBox.shrink();
+
+                      // Calculate vertical offset and opacity shift for lower wallet layers
+                      final double topOffset = depth * 14.0;
+                      final double opacity =
+                          1.0 - (depth * 0.35); // Gradual color fade
+
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        top: topOffset,
+                        left: 0,
+                        right: 0,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: opacity,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                // Rotate cards on tap
+                                _activeIndex = (index + 1) % accounts.length;
+                              });
+                            },
+                            child: _accountTile(
+                              accounts[index],
+                              isTopCard: depth == 0,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).reversed.toList(), // Render lower background layers first
                   ),
-                )
-              : PageView.builder(
-                  controller: _controller,
-                  itemCount: accounts.length,
-                  padEnds: false,
-                  itemBuilder: (_, i) => Padding(
-                    padding: const EdgeInsets.only(left: AppTheme.spacingMd),
-                    child: _accountTile(accounts[i]),
-                  ),
-                ),
+          ),
         ),
       ],
     );
@@ -102,7 +136,93 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  Widget _accountTile(BankAccounts account) {
+  /// Placeholder empty state showing layered wallet edges behind the main empty card.
+  Widget _emptyAccountTile() {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Layer 3 (Deepest back layer)
+        Positioned(
+          bottom: 28,
+          left: 0,
+          right: 0,
+          child: Opacity(
+            opacity: 0.3,
+            child: Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: AppTheme.secondaryGradient,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              ),
+            ),
+          ),
+        ),
+        // Layer 2 (Middle layer)
+        Positioned(
+          bottom: 14,
+          left: 0,
+          right: 0,
+          child: Opacity(
+            opacity: 0.65,
+            child: Container(
+              height: 160,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: AppTheme.secondaryGradient,
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              ),
+            ),
+          ),
+        ),
+        // Main front layer (Empty State Content)
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            width: double.infinity,
+            height: 160,
+            padding: const EdgeInsets.all(AppTheme.spacingLg),
+            decoration: BoxDecoration(
+              gradient: AppTheme.secondaryGradient,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: Colors.white70,
+                    size: 28,
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text(
+                    "No linked bank accounts yet.",
+                    style: AppTheme.whiteHeadline.copyWith(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Card representation of bank account layer.
+  Widget _accountTile(BankAccounts account, {required bool isTopCard}) {
     final name = account.bankName;
     final maskedNumber = '•••• •••• •••• ${account.lastDigits}';
     final currency = account.currencyCode;
@@ -110,13 +230,19 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
     final createdAt = account.createdAt;
 
     return Container(
-      width: 240,
-      margin: const EdgeInsets.only(right: AppTheme.spacingMd),
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      width: double.infinity,
+      height: 155, // Compact height across full width
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: BoxDecoration(
         gradient: AppTheme.secondaryGradient,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        boxShadow: AppTheme.elevatedShadow,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(25),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,15 +251,26 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(
-                Icons.account_balance_wallet_outlined,
-                color: Colors.white,
-                size: 26,
+              Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  const SizedBox(width: AppTheme.spacingSm),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.whiteHeadline.copyWith(fontSize: 14),
+                  ),
+                ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppTheme.spacingSm,
-                  vertical: AppTheme.spacingXs,
+                  vertical: 2.0,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white.withAlpha(40),
@@ -146,43 +283,32 @@ class _LinkedBankAccountsState extends State<LinkedBankAccounts> {
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
           Text(
             maskedNumber,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.whiteDisplayMedium.copyWith(fontSize: 18),
+            style: AppTheme.whiteDisplayMedium.copyWith(
+              fontSize: 16,
+              letterSpacing: 1.2,
+            ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Account", style: AppTheme.whiteBodySmall),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.whiteHeadline.copyWith(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Balance", style: AppTheme.whiteBodySmall),
                   Text(
                     balance,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.whiteHeadline.copyWith(fontSize: 12),
+                    style: AppTheme.whiteHeadline.copyWith(fontSize: 14),
                   ),
                 ],
               ),
+              const Icon(Icons.nfc_outlined, color: Colors.white70, size: 20),
             ],
           ),
         ],

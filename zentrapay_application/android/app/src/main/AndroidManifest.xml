@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Tier-2 KYC document capture (ID photos, selfie) — image_picker's
+         camera source needs this declared explicitly; its gallery source
+         uses the system photo picker and needs no permission at all. -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:label="zentrapay_application"
         android:name="${applicationName}"

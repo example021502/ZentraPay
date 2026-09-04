@@ -1,8 +1,18 @@
+import 'dart:async';
+
 import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/models/reference_data.dart';
+import 'package:zentrapay_application/core/repositories/payment_channels_repository.dart';
+import 'package:zentrapay_application/core/repositories/payments_service.dart';
+import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
+import 'package:zentrapay_application/core/utils/Common/TransactionResultOverlay.dart';
+import 'package:zentrapay_application/core/utils/LoadingOverlay.dart';
+import 'package:zentrapay_application/core/utils/Notifier.dart';
 
 import 'Op_Button.dart';
 
@@ -25,6 +35,20 @@ class _SendingFormState extends State<SendingForm> {
   String target = "wallet";
   Currency? selectedCurrency;
 
+  // ------------------------------------------------------------------
+  // Bank-transfer state — the picker/resolve/submit flow lives here since
+  // it needs the payment-channels directory and the sender's own
+  // registration country (for the channel list), neither of which the
+  // wallet tab needs.
+  // ------------------------------------------------------------------
+  List<PaymentChannel> _banks = [];
+  PaymentChannel? _selectedBank;
+  bool _loadingBanks = false;
+  bool _resolvingAccount = false;
+  String? _resolvedAccountName;
+  Timer? _resolveDebounce;
+  bool _sendInFlight = false;
+
   Map<String, String> formData = {
     "recipient_name": "",
     "amount": "",
@@ -33,6 +57,66 @@ class _SendingFormState extends State<SendingForm> {
     "country": "",
     "account_number": "",
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanks();
+    _bankController.addListener(_onAccountNumberChanged);
+  }
+
+  Future<void> _loadBanks() async {
+    setState(() => _loadingBanks = true);
+    try {
+      final countryCode =
+          UserProfileRepository.instance.user?.countryCode ?? "GH";
+      final banks = await PaymentChannelsRepository.instance.load(
+        countryCode: countryCode,
+        type: "BANK",
+      );
+      if (!mounted) return;
+      setState(() => _banks = banks);
+    } catch (e) {
+      debugPrint("Failed to load bank directory: $e");
+    } finally {
+      if (mounted) setState(() => _loadingBanks = false);
+    }
+  }
+
+  void _onAccountNumberChanged() {
+    _resolveDebounce?.cancel();
+    setState(() => _resolvedAccountName = null);
+    final accountNumber = _bankController.text.trim();
+    if (_selectedBank == null || accountNumber.length < 6) return;
+
+    _resolveDebounce = Timer(const Duration(milliseconds: 600), () async {
+      setState(() => _resolvingAccount = true);
+      try {
+        final name = await PaymentChannelsRepository.instance
+            .resolveAccountName(
+              channelCode: _selectedBank!.channelCode,
+              accountNumber: accountNumber,
+            );
+        if (!mounted) return;
+        setState(() {
+          _resolvedAccountName = name;
+          if (name != null && name.isNotEmpty) {
+            _nameController.text = name;
+          }
+        });
+      } catch (e) {
+        debugPrint("Account resolve failed: $e");
+        if (mounted) {
+          ZentraNotifier.error(
+            "Could not verify account",
+            "Double check the bank and account number.",
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _resolvingAccount = false);
+      }
+    });
+  }
 
   void onChange(String id, var value) {
     setState(() {
@@ -45,9 +129,101 @@ class _SendingFormState extends State<SendingForm> {
     });
   }
 
+  Future<void> _submitBankTransfer() async {
+    if (_sendInFlight) return;
+    if (_selectedBank == null) {
+      ZentraNotifier.error("Select a bank", "Choose a destination bank first.");
+      return;
+    }
+    if (_bankController.text.trim().isEmpty) {
+      ZentraNotifier.error("Account number required", "Enter the recipient's account number.");
+      return;
+    }
+    if (selectedCurrency == null || _amountController.text.trim().isEmpty) {
+      ZentraNotifier.error("Amount required", "Enter how much to send.");
+      return;
+    }
+    final accountName = _resolvedAccountName ?? _nameController.text.trim();
+    if (accountName.isEmpty) {
+      ZentraNotifier.error("Account name required", "Could not verify the account holder's name.");
+      return;
+    }
+
+    final pin = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AppConfirmPinSheet(
+        name: accountName,
+        currencyCode: selectedCurrency!.code,
+        amount: _amountController.text.trim(),
+        destination: _selectedBank!.channelName,
+      ),
+    );
+    if (pin == null || pin.isEmpty || !mounted) return;
+
+    setState(() => _sendInFlight = true);
+    try {
+      final amountText = _amountController.text.trim();
+      final currencyCode = selectedCurrency!.code;
+      final transaction = await LoadingOverlay.run(
+        () => PaymentsService.payBankTransfer(
+          pin: pin,
+          amount: amountText,
+          currencyCode: currencyCode,
+          channelCode: _selectedBank!.channelCode,
+          accountNumber: _bankController.text.trim(),
+          accountName: accountName,
+        ),
+        message: "Processing transfer…",
+      );
+      if (!mounted) return;
+      await showTransactionResultOverlay(
+        context: context,
+        status: TransactionResultStatus.success,
+        title: "Transfer Submitted",
+        message: "$currencyCode $amountText to $accountName is processing.",
+        details: [
+          TransactionResultDetail("Recipient", accountName),
+          TransactionResultDetail("Bank", _selectedBank!.channelName),
+          TransactionResultDetail("Amount", "$currencyCode $amountText"),
+          TransactionResultDetail("Reference", transaction.transactionId),
+        ],
+      );
+      if (!mounted) return;
+      _bankController.clear();
+      _amountController.clear();
+      _nameController.clear();
+      setState(() {
+        _selectedBank = null;
+        _resolvedAccountName = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      await showTransactionResultOverlay(
+        context: context,
+        status: TransactionResultStatus.error,
+        title: "Transfer Failed",
+        message: _extractErrorMessage(e),
+      );
+    } finally {
+      if (mounted) setState(() => _sendInFlight = false);
+    }
+  }
+
+  String _extractErrorMessage(Object e) {
+    final message = e.toString();
+    return message.contains("DioException")
+        ? "Something went wrong. Please try again."
+        : message;
+  }
+
   @override
   void dispose() {
     // Clean up all individual text field controllers
+    _resolveDebounce?.cancel();
+    _bankController.removeListener(_onAccountNumberChanged);
     _nameController.dispose();
     _phoneController.dispose();
     _bankController.dispose();
@@ -108,7 +284,7 @@ class _SendingFormState extends State<SendingForm> {
                 child: target == "wallet" ? _wallet_form() : _bank_form(),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: target == "bank" ? _submitBankTransfer : () {},
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                   decoration: BoxDecoration(
@@ -120,13 +296,24 @@ class _SendingFormState extends State<SendingForm> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     spacing: 10,
                     children: [
-                      Text(
-                        "Send Now",
-                        style: AppStyles.header.copyWith(
-                          color: AppTheme.primaryWhite,
+                      if (_sendInFlight)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.primaryWhite,
+                          ),
+                        )
+                      else ...[
+                        Text(
+                          "Send Now",
+                          style: AppStyles.header.copyWith(
+                            color: AppTheme.primaryWhite,
+                          ),
                         ),
-                      ),
-                      Icon(Icons.send, color: AppTheme.primaryWhite, size: 20),
+                        Icon(Icons.send, color: AppTheme.primaryWhite, size: 20),
+                      ],
                     ],
                   ),
                 ),
@@ -174,28 +361,38 @@ class _SendingFormState extends State<SendingForm> {
     return Column(
       spacing: 20,
       children: [
-        _textField(
-          label: "Recipient Full name",
-          controller: _nameController,
-          isPhoneField: false,
-          isAmount: false,
-          id: "recipient_name",
-          onValueChanging: onChange,
-        ),
-        _textField(
-          label: "Contact Number",
-          controller: _phoneController,
-          isPhoneField: true,
-          isAmount: false,
-          id: "contact_number",
-          onValueChanging: onChange,
-        ),
+        _bankPicker(),
         _textField(
           label: "Bank Ac. No. / IBAN ",
           controller: _bankController,
           isPhoneField: false,
           isAmount: false,
           id: "account_number",
+          onValueChanging: onChange,
+        ),
+        if (_resolvingAccount)
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else if (_resolvedAccountName != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              _resolvedAccountName!,
+              style: AppStyles.header.copyWith(color: AppTheme.successGreen),
+            ),
+          ),
+        _textField(
+          label: "Recipient Full name",
+          controller: _nameController,
+          isPhoneField: false,
+          isAmount: false,
+          id: "recipient_name",
           onValueChanging: onChange,
         ),
         _textField(
@@ -207,6 +404,45 @@ class _SendingFormState extends State<SendingForm> {
           onValueChanging: onChange,
         ),
       ],
+    );
+  }
+
+  /// Bank/mobile-money destination picker, backed by the payment-channels
+  /// directory for the sender's own registration country.
+  Widget _bankPicker() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(200),
+        border: Border.all(color: AppTheme.lightGrey, width: 0.5),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<PaymentChannel>(
+          isExpanded: true,
+          value: _selectedBank,
+          hint: Text(
+            _loadingBanks ? "Loading banks..." : "Select bank",
+            style: AppStyles.text,
+          ),
+          items: _banks
+              .map(
+                (bank) => DropdownMenuItem(
+                  value: bank,
+                  child: Text(bank.channelName),
+                ),
+              )
+              .toList(),
+          onChanged: _loadingBanks
+              ? null
+              : (bank) {
+                  setState(() {
+                    _selectedBank = bank;
+                    _resolvedAccountName = null;
+                  });
+                  _onAccountNumberChanged();
+                },
+        ),
+      ),
     );
   }
 

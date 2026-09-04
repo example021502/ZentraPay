@@ -8,6 +8,7 @@ class AppUser {
   final String createdAt;
   final String status;
   final String userType;
+  final int kycTier;
 
   AppUser({
     required this.userId,
@@ -19,9 +20,28 @@ class AppUser {
     required this.userType,
     required this.status,
     required this.createdAt,
+    this.kycTier = 0,
   });
 
   String get fullName => '$firstName $lastName';
+
+  /// Tier 2 is the bar for sending/receiving money (see backend
+  /// PaymentsService) — complete profile + uploaded ID documents.
+  bool get canTransact => kycTier >= 2;
+
+  AppUser copyWith({String? firstName, String? lastName, int? kycTier}) =>
+      AppUser(
+        userId: userId,
+        firstName: firstName ?? this.firstName,
+        lastName: lastName ?? this.lastName,
+        email: email,
+        phoneNumber: phoneNumber,
+        countryCode: countryCode,
+        userType: userType,
+        status: status,
+        createdAt: createdAt,
+        kycTier: kycTier ?? this.kycTier,
+      );
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
     userId: json['userId'] ?? '',
@@ -33,6 +53,7 @@ class AppUser {
     createdAt: json['createdAt'] ?? '',
     userType: json['userType'] ?? 'INDIVIDUAL',
     status: json['status'] ?? '',
+    kycTier: (json['kycTier'] as num?)?.toInt() ?? 0,
   );
 }
 
@@ -53,6 +74,11 @@ class UserProfile {
   bool isPoliticallyExposedPerson;
   String riskScoreLevel;
   String KYCStatus;
+  // Tier-2 document upload status — presence only, never the storage path
+  // (the backend keeps that server-side; see DocumentsRepository).
+  bool hasIdDocumentFront;
+  bool hasIdDocumentBack;
+  bool hasSelfie;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -73,9 +99,26 @@ class UserProfile {
     required this.isPoliticallyExposedPerson,
     required this.riskScoreLevel,
     required this.KYCStatus,
+    this.hasIdDocumentFront = false,
+    this.hasIdDocumentBack = false,
+    this.hasSelfie = false,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  /// True once the profile carries every field the backend requires for
+  /// Tier 2 (see UsersService#recomputeKycTier) — used to drive the
+  /// "what's left" checklist on the edit/upload screen.
+  bool get isComplete =>
+      dateOfBirth != null &&
+      addressLine1.isNotEmpty &&
+      cityName.isNotEmpty &&
+      occupationTitle.isNotEmpty &&
+      identityDocumentType.isNotEmpty &&
+      identityDocumentNumber.isNotEmpty &&
+      hasIdDocumentFront &&
+      hasIdDocumentBack &&
+      hasSelfie;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
     dateOfBirth: _parseDate(json['dateOfBirth']),
@@ -97,6 +140,9 @@ class UserProfile {
     isPoliticallyExposedPerson: json['isPoliticallyExposedPerson'] ?? false,
     riskScoreLevel: json['riskScoreLevel'] ?? '',
     KYCStatus: json['KYCStatus'] ?? '',
+    hasIdDocumentFront: json['hasIdDocumentFront'] ?? false,
+    hasIdDocumentBack: json['hasIdDocumentBack'] ?? false,
+    hasSelfie: json['hasSelfie'] ?? false,
     createdAt: _parseDate(json['createdAt']),
     updatedAt: _parseDate(json['updatedAt']),
   );

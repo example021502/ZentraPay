@@ -7,6 +7,7 @@ import 'package:toastification/toastification.dart'; // Notification package for
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/material_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
+import 'package:zentrapay_application/core/utils/LoadingOverlay.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/login_screen.dart';
 import 'package:zentrapay_application/features/home/HomePayments/pay.dart';
@@ -110,6 +111,11 @@ class MainApp extends StatelessWidget {
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: buildAppTheme(),
+            // Mounts the app's one global "processing, please wait" barrier
+            // (see LoadingOverlay) above the Navigator so LoadingOverlay.show()
+            // works from any screen without each one managing its own overlay.
+            builder: (context, child) =>
+                LoadingOverlay.wrap(child ?? const SizedBox.shrink()),
             // Sets the application to load into the splash screen initially upon startup
             home: const ZentrapaySplashScreenMain(),
             // Route settings interceptor to extract dynamically passed arguments safely

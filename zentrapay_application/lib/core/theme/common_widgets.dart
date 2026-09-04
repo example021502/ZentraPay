@@ -405,6 +405,53 @@ void showComingSoon(BuildContext context, String feature) {
   );
 }
 
+/// The app's one bottom-sheet-overlay shape — drag handle, rounded top
+/// corners, slides up from the bottom. Originally written for the History
+/// overlay (`home_quick_actions.dart`'s `_onHistoryAction`); shared here so
+/// Notifications and the Settings option sheets look and behave identically
+/// instead of three near-duplicate `showModalBottomSheet` calls drifting
+/// apart over time.
+Future<T?> showAppOverlaySheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  double minHeightFraction = 0.50,
+  double maxHeightFraction = 0.90,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    barrierColor: Colors.black.withValues(alpha: 0.2),
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * maxHeightFraction,
+          minHeight: MediaQuery.of(context).size.height * minHeightFraction,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4.5,
+              decoration: BoxDecoration(
+                color: AppColors.lightGrey.withAlpha(30),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingXl),
+            Expanded(child: builder(context)),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 /// Standard elevated white card — wraps AppTheme.cardDecoration so the
 /// repeated "Container with white fill + rounded corners + shadow" pattern
 /// (bottom sheets, transaction detail views, amount entry) has one home.

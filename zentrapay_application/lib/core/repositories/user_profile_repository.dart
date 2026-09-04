@@ -121,4 +121,125 @@ class UserProfileRepository with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  // ==========================================================================
+  // Edit-profile writes — cache-then-async: the UI updates from the cached
+  // value immediately (via updateUser/updateProfile above), the request
+  // fires in the background, and a failure reverts to the pre-edit snapshot
+  // (same pattern SecuritySettingsRepository already uses for its toggles).
+  // ==========================================================================
+
+  /// PATCH /api/users/me — name fields only. Null means "leave unchanged".
+  Future<void> patchMe({String? firstName, String? lastName}) async {
+    final previous = _data;
+    if (firstName != null || lastName != null) {
+      updateUser(
+        (u) => u.copyWith(firstName: firstName, lastName: lastName),
+      );
+    }
+    try {
+      final response = await _dio.patch(
+        '/api/users/me',
+        data: {
+          if (firstName != null) 'firstName': firstName,
+          if (lastName != null) 'lastName': lastName,
+        },
+      );
+      final updated = AppUser.fromJson(
+        Map<String, dynamic>.from(response.data['data'] as Map),
+      );
+      applyDelta(
+        (current) => UserProfileSnapshot(user: updated, profile: current.profile),
+      );
+    } catch (e) {
+      if (previous != null) setData(previous);
+      rethrow;
+    }
+  }
+
+  /// PUT /api/users/me/profile — KYC fields. Every parameter optional (null
+  /// = leave unchanged), so the edit form can submit one section at a time.
+  Future<void> putProfile({
+    DateTime? dateOfBirth,
+    String? nationalityCountryCode,
+    String? identityDocumentType,
+    String? identityDocumentNumber,
+    String? identityDocumentIssuingCountryCode,
+    DateTime? identityDocumentExpirationDate,
+    String? addressLine1,
+    String? addressLine2,
+    String? cityName,
+    String? stateOrRegion,
+    String? postalCode,
+    String? occupationTitle,
+  }) async {
+    final previous = _data;
+    // Comment: optimistic local merge — UserProfile's fields are mutable, so
+    // patch the cached instance directly rather than rebuilding it. A no-op
+    // when there's no cached profile yet (first-ever KYC submission); the
+    // server response below populates it in that case.
+    updateProfile((p) {
+      if (dateOfBirth != null) p.dateOfBirth = dateOfBirth;
+      if (nationalityCountryCode != null) {
+        p.nationalityCountryCode = nationalityCountryCode;
+      }
+      if (identityDocumentType != null) {
+        p.identityDocumentType = identityDocumentType;
+      }
+      if (identityDocumentNumber != null) {
+        p.identityDocumentNumber = identityDocumentNumber;
+      }
+      if (identityDocumentIssuingCountryCode != null) {
+        p.identityDocumentIssuingCountryCode =
+            identityDocumentIssuingCountryCode;
+      }
+      if (identityDocumentExpirationDate != null) {
+        p.identityDocumentExpirationDate = identityDocumentExpirationDate;
+      }
+      if (addressLine1 != null) p.addressLine1 = addressLine1;
+      if (addressLine2 != null) p.addressLine2 = addressLine2;
+      if (cityName != null) p.cityName = cityName;
+      if (stateOrRegion != null) p.stateOrRegion = stateOrRegion;
+      if (postalCode != null) p.postalCode = postalCode;
+      if (occupationTitle != null) p.occupationTitle = occupationTitle;
+      return p;
+    });
+
+    try {
+      await _dio.put(
+        '/api/users/me/profile',
+        data: {
+          if (dateOfBirth != null)
+            'dateOfBirth': dateOfBirth.toIso8601String().split('T').first,
+          if (nationalityCountryCode != null)
+            'nationalityCountryCode': nationalityCountryCode,
+          if (identityDocumentType != null)
+            'identityDocumentType': identityDocumentType,
+          if (identityDocumentNumber != null)
+            'identityDocumentNumber': identityDocumentNumber,
+          if (identityDocumentIssuingCountryCode != null)
+            'identityDocumentIssuingCountryCode':
+                identityDocumentIssuingCountryCode,
+          if (identityDocumentExpirationDate != null)
+            'identityDocumentExpirationDate': identityDocumentExpirationDate
+                .toIso8601String()
+                .split('T')
+                .first,
+          if (addressLine1 != null) 'addressLine1': addressLine1,
+          if (addressLine2 != null) 'addressLine2': addressLine2,
+          if (cityName != null) 'cityName': cityName,
+          if (stateOrRegion != null) 'stateOrRegion': stateOrRegion,
+          if (postalCode != null) 'postalCode': postalCode,
+          if (occupationTitle != null) 'occupationTitle': occupationTitle,
+        },
+      );
+      // Comment: the write also flips kycTier server-side on the user row —
+      // refresh the whole snapshot (rather than just applying the PUT's own
+      // response) so the tier badge updates in step with the profile fields.
+      await refresh();
+    } catch (e) {
+      if (previous != null) setData(previous);
+      rethrow;
+    }
+  }
 }

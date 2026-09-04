@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
+import 'package:zentrapay_application/core/repositories/notifications_repository.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
 import 'package:zentrapay_application/features/Settings/settings.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/features/home/home_wallet_main.dart';
+import 'package:zentrapay_application/features/home/notifications_overlay.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
 import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
@@ -51,6 +53,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   void initState() {
     super.initState();
     _initializePaystack();
+    NotificationsRepository.instance.ensureLoaded().catchError((_) => null);
   }
 
   // Handle the async initialization properly
@@ -169,9 +172,22 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   // _onMoreAction, which now also carries ZVoice AI and Settings/Security),
   // and the close/logout action moved into the Profile section.
   List<Widget> _buildActions() => [
-    IconButton(
-      onPressed: () {},
-      icon: const Icon(Icons.notifications, color: AppColors.primary),
+    ListenableBuilder(
+      listenable: NotificationsRepository.instance,
+      builder: (context, _) {
+        final unread = NotificationsRepository.instance.unreadCount;
+        return IconButton(
+          onPressed: () => showNotificationsOverlay(
+            context,
+            onUpgrade: () => Navigator.pushNamed(context, '/profile'),
+          ),
+          icon: Badge(
+            isLabelVisible: unread > 0,
+            label: Text('$unread'),
+            child: const Icon(Icons.notifications, color: AppColors.primary),
+          ),
+        );
+      },
     ),
   ];
 
