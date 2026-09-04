@@ -16,7 +16,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -110,11 +109,13 @@ public class GatewayDirectorySyncService {
     /**
      * Entry point used by the scheduler: probes every configured country
      * against all three gateways and rebuilds both directory tables.
-     * Populated on every boot and refreshed daily so the directory always
-     * mirrors what the gateways actually support.
+     * Populated on every boot (cold-start seed) and again daily as part of
+     * {@link com.zentrapay_application.zentrapay_spring_boot_layer.modules.schedules.schedulers#syncProvidersDaily()}'s
+     * unified run — no separate cron here, so this directory refreshes on
+     * the same trigger and country list as banks/bill-providers/momo instead
+     * of drifting on its own independent schedule.
      */
     @EventListener(ApplicationReadyEvent.class)
-    @Scheduled(cron = "0 0 2 * * *", zone = "UTC")
     @Transactional
     public void refreshGatewayDirectory() {
         final LocalDateTime now = LocalDateTime.now();

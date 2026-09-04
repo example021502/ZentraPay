@@ -3,6 +3,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.c
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.QRCodeService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.BankTransferRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
@@ -57,6 +58,22 @@ public class PaymentsController {
         Optional<TransactionDTO> transaction = Optional.of(paymentsService.sendMoney(user.getUserId(), request)
                 .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again")));
         return ResponseEntity.ok(ApiResponse.success(transaction, "Payment successful"));
+    }
+
+    /**
+     * POST /api/payments/bank-transfer — flat-payload bank disbursement
+     * (matches the Flutter {@code PaymentsService.payBankTransfer()} call
+     * shape). Reshaped into a {@link PaymentRequestDTO} and executed through
+     * the same {@link PaymentsService#sendMoney} pipeline (Paystack primary,
+     * Flutterwave failover) as every other payout.
+     */
+    @PostMapping("/bank-transfer")
+    public ResponseEntity<ApiResponse<TransactionDTO>> bankTransfer(
+            @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody BankTransferRequestDTO request) {
+        TransactionDTO transaction = paymentsService.sendBankTransfer(user.getUserId(), request)
+                .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again"));
+        return ResponseEntity.ok(ApiResponse.success(transaction, "Transfer submitted"));
     }
 
     /**

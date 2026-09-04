@@ -33,7 +33,7 @@ public class TransactionModel {
     @Column(name = "failure_reason", nullable = true, length = 255)
     private String failureReason;
 
-    @Column(name = "gateway", nullable = false, length = 3)
+    @Column(name = "gateway", nullable = false, length = 32)
     private String gateway;
 
     @JdbcTypeCode(SqlTypes.JSON)

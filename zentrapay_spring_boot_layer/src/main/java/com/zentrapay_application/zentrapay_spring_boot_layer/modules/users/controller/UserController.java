@@ -77,28 +77,27 @@ public class UserController {
 //        PinVerifyResponseDTO result = userService.verifyPin(user.userId(), request.pin());
 //        return ResponseEntity.ok(ApiResponse.success(result, "PIN verification completed"));
 //    }
-//
 
-//    @PatchMapping("/me")
-//    public ResponseEntity<ApiResponse<UserProfileDTO>> updateMe(@CurrentUser AuthenticatedUser user,
-//                                                                  @RequestBody UserMeUpdateDTO request) {
-//        UserProfileDTO profile = userService.updateMe(user.userId(), request);
-//        return ResponseEntity.ok(ApiResponse.success(profile, "Profile updated"));
-//    }
-//
-//    @GetMapping("/me/profile")
-//    public ResponseEntity<ApiResponse<UserProfileDetailsDTO>> getKycProfile(@CurrentUser AuthenticatedUser user) {
-//        UserProfileDetailsDTO profile = userService.getKycProfile(user.userId());
-//        return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile retrieved"));
-//    }
-//
-//    @PutMapping("/me/profile")
-//    public ResponseEntity<ApiResponse<UserProfileDetailsDTO>> upsertKycProfile(@CurrentUser AuthenticatedUser user,
-//                                                                                 @RequestBody UserProfileDetailsDTO request) {
-//        UserProfileDetailsDTO profile = userService.upsertKycProfile(user.userId(), request);
-//        return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile updated"));
-//    }
-//
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<UserDTO>> updateMe(@CurrentUser AuthenticatedUser user,
+                                                                  @RequestBody UserMeUpdateDTO request) {
+        UserDTO updated = userService.updateMe(user.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated"));
+    }
+
+    @GetMapping("/me/profile")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> getKycProfile(@CurrentUser AuthenticatedUser user) {
+        UserProfileDTO profile = userService.getKycProfile(user.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile retrieved"));
+    }
+
+    @PutMapping("/me/profile")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> upsertKycProfile(@CurrentUser AuthenticatedUser user,
+                                                                                 @RequestBody UserProfileUpdateDTO request) {
+        UserProfileDTO profile = userService.upsertKycProfile(user.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile updated"));
+    }
+
 //    @GetMapping("/me/receive")
 //    public ResponseEntity<ApiResponse<ReceiveInfoDTO>> getReceiveInfo(@CurrentUser AuthenticatedUser user) {
 //        ReceiveInfoDTO info = userService.getReceiveInfo(user.userId());

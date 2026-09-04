@@ -56,31 +56,36 @@ public class PaystackServices {
     private String primaryInternationalGateway;
     @Value("${zentrapay.secondary-gateway}")
     private String failoverGateway;
-    @Value("${paystack.secret.key}")
+    @Value("${paystack.secret-key}")
     private String paystackSecretKey;
     @Value("${paystack.base-url}")
     private String paystackBaseUrl;
 
 
     //  INITIATING A BANK TRANSFER
+    //  Calls Paystack POST /transfer with a previously-provisioned recipient code.
+    //  Amount is in major units (e.g. NGN); Paystack expects minor units (kobo).
     @Transactional
-    public PaystackTransferResponseDTO initiateBankTransfer(PaymentRequestDTO req) {
+    public PaystackTransferResponseDTO initiateBankTransfer(
+            BigDecimal amount,
+            String recipientCode,
+            String currencyCode,
+            String reason,
+            String reference) {
 
-        // Paystack expects amount in minor currency units (e.g., kobo/pesewas: 100.00 NGN -> 10000 kobo)
-        long amountInMinorUnits = req.transfer().amount().multiply(new BigDecimal("100")).longValueExact();
+        long amountInMinorUnits = amount.multiply(new BigDecimal("100")).longValueExact();
 
-        // Construct request payload
-        InitializePaymentRequestDTO payload = new InitializePaymentRequestDTO(
-                amountInMinorUnits,
-                req.destination().currencyCode(),
-                req.recipient().email(),
-                req.transfer().purpose()
-        );
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source", "balance");
+        payload.put("amount", amountInMinorUnits);
+        payload.put("recipient", recipientCode);
+        payload.put("reason", reason == null || reason.isBlank() ? "Bank Transfer" : reason);
+        payload.put("reference", reference);
+        payload.put("currency", currencyCode);
 
-        log.info("Sending HTTP request to Paystack to initiate transfer for reference: {}, recipient: {}", req.transfer().referenceId(), req.recipient().fullName());
+        log.info("Initiating Paystack transfer ref={} amount={} recipient={}", reference, amount, recipientCode);
 
         try {
-            // Execute outbound HTTP POST call via RestClient
             return restClient.post()
                     .uri(paystackBaseUrl + "/transfer")
                     .header("Authorization", "Bearer " + paystackSecretKey)
@@ -88,22 +93,80 @@ public class PaystackServices {
                     .accept(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
-                    // Log HTTP client errors (4xx) without throwing an exception
                     .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
-                        log.warn("Paystack transfer API client error response status: {} for reference: {}",
-                                response.getStatusCode(), req.transfer().referenceId());
+                        log.warn("Paystack transfer client error: status={} ref={}", response.getStatusCode(), reference);
                     })
-                    // Log HTTP server errors (5xx) without throwing an exception
                     .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
-                        log.warn("Paystack transfer API server error response status: {} for reference: {}",
-                                response.getStatusCode(), req.transfer().referenceId());
+                        log.warn("Paystack transfer server error: status={} ref={}", response.getStatusCode(), reference);
                     })
                     .body(PaystackTransferResponseDTO.class);
+        } catch (Exception e) {
+            log.error("Paystack transfer failed for ref {}: {}", reference, e.getMessage());
+            return null;
+        }
+    }
 
-        } catch (Exception exception) {
-            // Log failure and return null to signal downstream failover handling
-            log.error("Paystack transfer initiation failed for reference {}: {}. Triggering failover eligibility.",
-                    req.transfer().referenceId(), exception.getMessage());
+    //  INITIALIZING AN INBOUND CHECKOUT (customer wallet funding)
+    //  Calls Paystack POST /transaction/initialize. Amount is in major units;
+    //  Paystack expects minor units (kobo/pesewas).
+    @Transactional
+    public PaystackInitializeResponseDTO initializeTransaction(
+            String email,
+            BigDecimal amountMajor,
+            String currencyCode,
+            String reference) {
+
+        long amountInMinorUnits = amountMajor.multiply(new BigDecimal("100")).longValueExact();
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("email", email);
+        payload.put("amount", amountInMinorUnits);
+        payload.put("currency", currencyCode);
+        payload.put("reference", reference);
+
+        log.info("Initializing Paystack checkout ref={} amount={} email={}", reference, amountMajor, email);
+
+        try {
+            return restClient.post()
+                    .uri(paystackBaseUrl + "/transaction/initialize")
+                    .header("Authorization", "Bearer " + paystackSecretKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
+                        log.warn("Paystack initialize client error: status={} ref={}", response.getStatusCode(), reference);
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
+                        log.warn("Paystack initialize server error: status={} ref={}", response.getStatusCode(), reference);
+                    })
+                    .body(PaystackInitializeResponseDTO.class);
+        } catch (Exception e) {
+            log.error("Paystack checkout initialization failed for ref {}: {}", reference, e.getMessage());
+            return null;
+        }
+    }
+
+    //  RESOLVING AN ACCOUNT NUMBER TO ITS ACCOUNT NAME
+    //  Calls Paystack GET /bank/resolve — used by the bank-transfer UI to
+    //  show the real account holder's name before the user confirms a send.
+    public PaystackAccountResolveResponseDTO resolveAccount(String accountNumber, String bankCode) {
+        try {
+            return restClient.get()
+                    .uri(paystackBaseUrl + "/bank/resolve?account_number={accountNumber}&bank_code={bankCode}",
+                            accountNumber, bankCode)
+                    .header("Authorization", "Bearer " + paystackSecretKey)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (request, response) -> {
+                        log.warn("Paystack account resolve client error: status={} account={}", response.getStatusCode(), accountNumber);
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
+                        log.warn("Paystack account resolve server error: status={} account={}", response.getStatusCode(), accountNumber);
+                    })
+                    .body(PaystackAccountResolveResponseDTO.class);
+        } catch (Exception e) {
+            log.error("Paystack account resolve failed for account {}: {}", accountNumber, e.getMessage());
             return null;
         }
     }
@@ -177,7 +240,7 @@ public class PaystackServices {
         try {
             // Execute outbound HTTP POST call via RestClient HTTP template
             return restClient.post()
-                    .uri(paystackBaseUrl + "/recipient")
+                    .uri(paystackBaseUrl + "/transferrecipient")
                     .header("Authorization", "Bearer " + paystackSecretKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -204,9 +267,9 @@ public class PaystackServices {
     }
 
     String resolveType(String countryCode){
-        return switch (countryCode) {
+        return switch (countryCode == null ? "" : countryCode.toLowerCase()) {
             case "ng", "nga" -> "nuban";
             default -> "ghipss";
         };
-}
+    }
 }

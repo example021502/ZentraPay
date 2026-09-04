@@ -34,6 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // JwtService#parseAllowExpired, so this filter must not reject it first.
                 || path.equals("/api/users/refresh")
                 || path.equals("/api/payments/paystack/webhook")
+                || path.equals("/api/payments/flutterwave/webhook")
                 || path.equals("/api/secure/tips")
                 || path.startsWith("/api/reference/")
                 || path.startsWith("/actuator/")

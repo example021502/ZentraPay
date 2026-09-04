@@ -16,6 +16,7 @@ public record UserDTO(
         String countryCode,
         LocalDateTime createdAt,
         String status,
-        String userType
+        String userType,
+        short kycTier
 ) {
 }

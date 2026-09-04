@@ -70,6 +70,30 @@ public class UserProfileModel {
     @Column(name = "kyc_status", nullable = false, length = 20)
     private String KYCStatus = "pending";
 
+    // Tier-2 document uploads — local-disk paths (see DocumentsService),
+    // nullable until each is actually uploaded. All three plus the
+    // identity/address/occupation fields above must be present for a user
+    // to reach kycTier 2 (see UsersService#recomputeKycTier).
+    @Column(name = "id_document_front_path", length = 255)
+    private String idDocumentFrontPath;
+
+    @Column(name = "id_document_back_path", length = 255)
+    private String idDocumentBackPath;
+
+    @Column(name = "selfie_path", length = 255)
+    private String selfiePath;
+
+    // Hosted (ImgBB) URLs for the same three uploads, alongside the local
+    // paths above — see DocumentsService / UploadImageToImgBBB.
+    @Column(name = "id_document_front_image_url", length = 500)
+    private String idDocumentFrontImageUrl;
+
+    @Column(name = "id_document_back_image_url", length = 500)
+    private String idDocumentBackImageUrl;
+
+    @Column(name = "selfie_image_url", length = 500)
+    private String selfieImageUrl;
+
     // System audit timestamps.
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

@@ -184,27 +184,136 @@ public class UsersService {
 //    GETTING USER INFROMATION
     @Transactional(readOnly = true)
 public UserInformation getMe(@Valid UUID userId) {
-        UserDTO user = userRepository.getUserById(userId)
-                .map(u -> new UserDTO(
-                        u.getUserId(),
-                        u.getFirstName(),
-                        u.getLastName(),
-                        u.getEmail(),
-                        u.getPhoneNumber(),
-                        u.getCountryCode(),
-                        u.getCreatedAt(),
-                        u.getStatus(),
-                        u.getUserType()
-                ))
+        UserModel user = userRepository.getUserById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // Retrieve profile if present. The profile is optional — a row is only
         // created once the user submits their KYC details — so a missing row must
         // NOT null out the whole response. Always return the user; profile may be null.
         UserProfileModel up = userProfileRepository.getBtUserId(userId);
-        UserProfileDTO profile = null;
-        if (up != null) {
-            profile = new UserProfileDTO(
+        UserProfileDTO profile = toProfileDTO(up);
+        return new UserInformation(toUserDTO(user), profile);
+    }
+
+    // ========================================================================
+    // PATCH /api/users/me — self-service editable account fields (name only).
+    // ========================================================================
+    @Transactional
+    public UserDTO updateMe(UUID userId, UserMeUpdateDTO req) {
+        UserModel user = userRepository.getUserById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (req.firstName() != null && !req.firstName().isBlank()) {
+            user.setFirstName(req.firstName());
+        }
+        if (req.lastName() != null && !req.lastName().isBlank()) {
+            user.setLastName(req.lastName());
+        }
+        user = userRepository.save(user);
+        return toUserDTO(user);
+    }
+
+    // ========================================================================
+    // GET /api/users/me/profile — KYC profile, null until first submitted.
+    // ========================================================================
+    @Transactional(readOnly = true)
+    public UserProfileDTO getKycProfile(UUID userId) {
+        return toProfileDTO(userProfileRepository.getBtUserId(userId));
+    }
+
+    // ========================================================================
+    // PUT /api/users/me/profile — upsert KYC profile fields, then recompute
+    // the caller's kycTier (see recomputeKycTier). Every field is optional
+    // (null = leave unchanged) so the KYC form can submit incrementally.
+    // ========================================================================
+    @Transactional
+    public UserProfileDTO upsertKycProfile(UUID userId, UserProfileUpdateDTO req) {
+        UserModel user = userRepository.getUserById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        if (profile == null) {
+            profile = new UserProfileModel();
+            profile.setUserId(userId);
+        }
+
+        if (req.dateOfBirth() != null) profile.setDateOfBirth(req.dateOfBirth());
+        if (req.nationalityCountryCode() != null) profile.setNationalityCountryCode(req.nationalityCountryCode());
+        if (req.identityDocumentType() != null) profile.setIdentityDocumentType(req.identityDocumentType());
+        if (req.identityDocumentNumber() != null) profile.setIdentityDocumentNumber(req.identityDocumentNumber());
+        if (req.identityDocumentIssuingCountryCode() != null) profile.setIdentityDocumentIssuingCountryCode(req.identityDocumentIssuingCountryCode());
+        if (req.identityDocumentExpirationDate() != null) profile.setIdentityDocumentExpirationDate(req.identityDocumentExpirationDate());
+        if (req.addressLine1() != null) profile.setAddressLine1(req.addressLine1());
+        if (req.addressLine2() != null) profile.setAddressLine2(req.addressLine2());
+        if (req.cityName() != null) profile.setCityName(req.cityName());
+        if (req.stateOrRegion() != null) profile.setStateOrRegion(req.stateOrRegion());
+        if (req.postalCode() != null) profile.setPostalCode(req.postalCode());
+        if (req.occupationTitle() != null) profile.setOccupationTitle(req.occupationTitle());
+
+        profile = userProfileRepository.save(profile);
+        recomputeKycTier(user, profile);
+        return toProfileDTO(profile);
+    }
+
+    /**
+     * Tier 2 (unlocks sending/receiving money, see PaymentsService) requires
+     * a complete profile — DOB, address, occupation, ID document type+number
+     * — AND all three Tier-2 documents uploaded (front, back, selfie; see
+     * DocumentsService). This is a deliberately generic bar, the same for
+     * every country, rather than an attempt to encode real per-country KYC
+     * regulation. Anything short of that but with at least one field filled
+     * in is tier 1 ("started"); an untouched profile stays tier 0.
+     */
+    void recomputeKycTier(UserModel user, UserProfileModel profile) {
+        short newTier;
+        if (profile == null) {
+            newTier = 0;
+        } else {
+            boolean complete = profile.getDateOfBirth() != null
+                    && notBlank(profile.getAddressLine1())
+                    && notBlank(profile.getCityName())
+                    && notBlank(profile.getOccupationTitle())
+                    && notBlank(profile.getIdentityDocumentType())
+                    && notBlank(profile.getIdentityDocumentNumber())
+                    && notBlank(profile.getIdDocumentFrontPath())
+                    && notBlank(profile.getIdDocumentBackPath())
+                    && notBlank(profile.getSelfiePath());
+            boolean started = profile.getDateOfBirth() != null
+                    || notBlank(profile.getAddressLine1())
+                    || notBlank(profile.getIdentityDocumentType())
+                    || notBlank(profile.getIdDocumentFrontPath());
+            newTier = complete ? (short) 2 : started ? (short) 1 : (short) 0;
+        }
+        if (user.getKycTier() != newTier) {
+            user.setKycTier(newTier);
+            userRepository.save(user);
+        }
+    }
+
+    private boolean notBlank(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    private UserDTO toUserDTO(UserModel u) {
+        return new UserDTO(
+                u.getUserId(),
+                u.getFirstName(),
+                u.getLastName(),
+                u.getEmail(),
+                u.getPhoneNumber(),
+                u.getCountryCode(),
+                u.getCreatedAt(),
+                u.getStatus(),
+                u.getUserType(),
+                u.getKycTier()
+        );
+    }
+
+    private UserProfileDTO toProfileDTO(UserProfileModel up) {
+        if (up == null) {
+            return null;
+        }
+        return new UserProfileDTO(
                 up.getDateOfBirth(),
                 up.getNationalityCountryCode(),
                 up.getIdentityDocumentType(),
@@ -221,12 +330,11 @@ public UserInformation getMe(@Valid UUID userId) {
                 up.isPoliticallyExposedPerson(),
                 up.getRiskScoreLevel(),
                 up.getKYCStatus(),
+                notBlank(up.getIdDocumentFrontPath()),
+                notBlank(up.getIdDocumentBackPath()),
+                notBlank(up.getSelfiePath()),
                 up.getCreatedAt(),
                 up.getUpdatedAt()
-            );
-        }
-        System.out.println("THE USER EXTRACTED IS::" + user);
-        System.out.println("THE USER PROFILE EXTRACTED IS::" + up);
-        return new UserInformation(user, profile);
+        );
     }
 }

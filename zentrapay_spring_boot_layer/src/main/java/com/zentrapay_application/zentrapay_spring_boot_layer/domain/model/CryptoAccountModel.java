@@ -29,7 +29,11 @@ public class CryptoAccountModel {
     @Column(name = "wallet_id", nullable = false)
     private UUID walletId;
 
-    @Column(name = "currency_code", nullable = false, length = 3)
+    // NOTE: was length=3, but UsersService seeds this column with the
+    // placeholder "Unknown" (crypto wallets aren't wired up yet) — that
+    // doesn't fit in 3 chars, and made every Hibernate ddl-auto=update run
+    // fail trying to narrow the real (varchar(20)) column back down.
+    @Column(name = "currency_code", nullable = false, length = 20)
     private String currencyCode;
 
     @Column(name = "network", length = 30)

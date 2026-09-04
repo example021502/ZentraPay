@@ -2,6 +2,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.s
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwaveCustomerResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwavePaymentResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwaveResolveResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.FlutterwaveTransferResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -121,6 +122,18 @@ public class FlutterwaveClient {
         requireSuccess(response != null && "success".equalsIgnoreCase(response.status()),
                 "transfer execution", response == null ? null : response.message());
         return response;
+    }
+
+    // ------------------------------------------------------------------
+    // Account resolution (used by the bank-transfer UI to show the real
+    // account holder's name before the user confirms a send)
+    // ------------------------------------------------------------------
+
+    public FlutterwaveResolveResponseDTO resolveAccount(String accountNumber, String bankCode) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("account_number", accountNumber);
+        body.put("account_bank", bankCode);
+        return post("/accounts/resolve", body, FlutterwaveResolveResponseDTO.class);
     }
 
     // ------------------------------------------------------------------

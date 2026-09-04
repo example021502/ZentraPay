@@ -24,6 +24,7 @@ public class SecurityConfig {
                                 "/api/users/register",
                                 "/api/users/login",
                                 "/api/payments/paystack/webhook",
+                                "/api/payments/flutterwave/webhook",
                                 "/api/secure/tips",
                                 "/api/reference/**",
                                 "/actuator/**",

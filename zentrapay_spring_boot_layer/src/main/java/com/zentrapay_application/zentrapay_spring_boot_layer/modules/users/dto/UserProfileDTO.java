@@ -33,6 +33,11 @@ public record UserProfileDTO(
     boolean isPoliticallyExposedPerson,
     String riskScoreLevel,
     String KYCStatus,
+    // Tier-2 document upload status — presence flags only, never the actual
+    // storage path (that stays server-side; see DocumentsService).
+    boolean hasIdDocumentFront,
+    boolean hasIdDocumentBack,
+    boolean hasSelfie,
     // System audit timestamps.
     @CreationTimestamp
     LocalDateTime createdAt,

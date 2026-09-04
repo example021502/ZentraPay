@@ -1,133 +1,97 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.service;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserProfileModel;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserProfileRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 
 /**
- * Tier-2 KYC document storage — POST/GET {@code /api/users/me/documents/{type}}.
- * <p>
- * Stored on local disk under {@code app.uploads.dir} (dev-appropriate;
- * swappable for S3/Cloudinary later without changing the controller's
- * shape, since it's already keyed by an opaque path string on
- * {@link UserProfileModel}, not a raw filesystem assumption elsewhere).
- * Every upload recomputes the caller's {@code kycTier} via
- * {@link UsersService#recomputeKycTier}.
+ * Uploads an image to ImgBB and hands back its public URL — the image
+ * host for profile/KYC document pictures (see {@link DocumentsService}).
+ * Local-disk saving under {@code app.uploads.dir} is unrelated and untouched
+ * by this class; this only produces the hosted URL that gets saved alongside
+ * it on {@code UserProfileModel}.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class DocumentsService {
+public class UploadImageToImgBBB {
 
-    public static final Set<String> VALID_TYPES = Set.of("id-front", "id-back", "selfie");
+    private final RestClient restClient;
 
-    private final UserRepository userRepository;
-    private final UserProfileRepository userProfileRepository;
-    private final UsersService usersService;
+    @Value("${imgbb.api-key}")
+    private String apiKey;
 
-    @Value("${app.uploads.dir}")
-    private String uploadsDir;
+    @Value("${imgbb.base-url:https://api.imgbb.com/1/upload}")
+    private String baseUrl;
 
-    @Transactional
-    public void upload(UUID userId, String type, MultipartFile file) {
-        requireValidType(type);
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("No file was uploaded");
+    /** The hosted image's public URL and its ImgBB delete link. */
+    public record ImgBBResult(String url, String deleteUrl) {}
+
+    /**
+     * Uploads the given image bytes to ImgBB.
+     *
+     * @return the hosted URLs, or {@code null} if the upload failed for any
+     * reason (bad response, network error, missing API key) — callers decide
+     * whether that's fatal.
+     */
+    public ImgBBResult upload(String filename, byte[] imageBytes) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            return null;
         }
-
-        UserModel user = userRepository.getUserById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
-        if (profile == null) {
-            profile = new UserProfileModel();
-            profile.setUserId(userId);
+        if (apiKey == null || apiKey.isBlank() || apiKey.startsWith("YOUR_")) {
+            log.error("ImgBB upload skipped: imgbb.api-key is not configured");
+            return null;
         }
 
         try {
-            Path dir = Path.of(uploadsDir, "documents");
-            Files.createDirectories(dir);
+            ByteArrayResource fileResource = new ByteArrayResource(imageBytes) {
+                @Override
+                public String getFilename() {
+                    return filename != null && !filename.isBlank() ? filename : "upload";
+                }
+            };
 
-            String extension = extensionOf(file.getOriginalFilename());
-            String filename = userId + "_" + type + extension;
-            Path target = dir.resolve(filename);
-            file.transferTo(target);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("image", fileResource);
 
-            String relativePath = "documents/" + filename;
-            applyPath(profile, type, relativePath);
-        } catch (IOException e) {
-            log.error("Failed to store {} document for user {}: {}", type, userId, e.getMessage());
-            throw new UncheckedIOException("Could not save the uploaded document, please try again", e);
+            Map<?, ?> response = restClient.post()
+                    .uri(baseUrl + "?key={key}", apiKey)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (response == null || !Boolean.TRUE.equals(response.get("success"))) {
+                log.warn("ImgBB upload did not report success: {}", response);
+                return null;
+            }
+
+            Object dataObj = response.get("data");
+            if (!(dataObj instanceof Map<?, ?> data)) {
+                log.warn("ImgBB response had no 'data' object: {}", response);
+                return null;
+            }
+
+            Object urlObj = data.get("url");
+            if (urlObj == null) {
+                log.warn("ImgBB response had no 'url': {}", response);
+                return null;
+            }
+
+            Object deleteUrlObj = data.get("delete_url");
+            return new ImgBBResult(urlObj.toString(), deleteUrlObj == null ? null : deleteUrlObj.toString());
+        } catch (RestClientException e) {
+            log.error("ImgBB upload failed: {}", e.getMessage());
+            return null;
         }
-
-        profile = userProfileRepository.save(profile);
-        usersService.recomputeKycTier(user, profile);
-    }
-
-    /** Streams a previously-uploaded document back to its owner. */
-    public FileSystemResource retrieve(UUID userId, String type) {
-        requireValidType(type);
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
-        String relativePath = profile == null ? null : pathFor(profile, type);
-        if (relativePath == null || relativePath.isBlank()) {
-            throw new ResourceNotFoundException("No " + type + " document has been uploaded yet");
-        }
-        Path resolved = Path.of(uploadsDir).resolve(relativePath);
-        if (!Files.exists(resolved)) {
-            throw new ResourceNotFoundException("Stored document is missing");
-        }
-        return new FileSystemResource(resolved);
-    }
-
-    private void requireValidType(String type) {
-        if (type == null || !VALID_TYPES.contains(type.toLowerCase(Locale.ROOT))) {
-            throw new IllegalArgumentException("Unknown document type: " + type + " (expected one of " + VALID_TYPES + ")");
-        }
-    }
-
-    private void applyPath(UserProfileModel profile, String type, String relativePath) {
-        switch (type.toLowerCase(Locale.ROOT)) {
-            case "id-front" -> profile.setIdDocumentFrontPath(relativePath);
-            case "id-back" -> profile.setIdDocumentBackPath(relativePath);
-            case "selfie" -> profile.setSelfiePath(relativePath);
-            default -> throw new IllegalArgumentException("Unknown document type: " + type);
-        }
-    }
-
-    private String pathFor(UserProfileModel profile, String type) {
-        return switch (type.toLowerCase(Locale.ROOT)) {
-            case "id-front" -> profile.getIdDocumentFrontPath();
-            case "id-back" -> profile.getIdDocumentBackPath();
-            case "selfie" -> profile.getSelfiePath();
-            default -> null;
-        };
-    }
-
-    private String extensionOf(String originalFilename) {
-        if (originalFilename == null) return "";
-        int dot = originalFilename.lastIndexOf('.');
-        // Comment: only keep a short, plausible image/pdf extension — never
-        // trust the raw client filename beyond that into a path.
-        if (dot < 0 || originalFilename.length() - dot > 6) return "";
-        String ext = originalFilename.substring(dot).toLowerCase(Locale.ROOT);
-        return ext.matches("\\.[a-z0-9]{1,5}") ? ext : "";
     }
 }
