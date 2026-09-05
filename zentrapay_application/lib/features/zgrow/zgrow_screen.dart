@@ -54,6 +54,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SizedBox(height: AppTheme.spacingSm),
                     QuickActionsRow(),
                     SizedBox(height: AppTheme.spacingXl),
                     ChallengesSection(),

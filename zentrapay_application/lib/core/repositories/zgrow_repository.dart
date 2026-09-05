@@ -18,9 +18,7 @@ class ChallengesRepository extends CachedListResource<Challenge> {
   }
 
   Future<void> join(String challengeId) async {
-    final response = await _dio.post(
-      '/api/zgrow/challenges/$challengeId/join',
-    );
+    final response = await _dio.post('/api/zgrow/challenges/$challengeId/join');
     final updated = Challenge.fromJson(response.data['data']);
     replaceItem((c) => c.challengeId == challengeId, updated);
   }
@@ -49,28 +47,29 @@ class LiteracyRepository extends CachedListResource<LiteracyContent> {
   }
 
   Future<int> complete(String contentId) async {
-    final response = await _dio.post(
-      '/api/zgrow/literacy/$contentId/complete',
-    );
+    final response = await _dio.post('/api/zgrow/literacy/$contentId/complete');
     final pointsEarned = response.data['data']?['pointsEarned'] ?? 0;
     replaceItem(
       (c) => c.contentId == contentId,
-      data!.firstWhere((c) => c.contentId == contentId).copyWith(completed: true),
+      data!
+          .firstWhere((c) => c.contentId == contentId)
+          .copyWith(completed: true),
     );
     RewardsRepository.instance.ensureLoaded(forceRefresh: true);
     return pointsEarned;
   }
 }
 
-class RewardsRepository extends CachedResource<RewardsSummary> {
+class RewardsRepository extends CachedResource<RewardsList> {
   RewardsRepository._();
   static final RewardsRepository instance = RewardsRepository._();
 
   final Dio _dio = ApiClient().dio;
 
   @override
-  Future<RewardsSummary> fetch() async {
-    final response = await _dio.get('/api/zgrow/rewards');
-    return RewardsSummary.fromJson(response.data['data']);
+  Future<RewardsList> fetch() async {
+    final response = await _dio.get('/api/challenges/rewards');
+    print("REWARDS ARE:: ${response.data['data']}");
+    return RewardsList.fromJson(response.data['data']);
   }
 }

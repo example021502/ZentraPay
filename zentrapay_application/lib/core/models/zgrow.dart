@@ -110,22 +110,58 @@ class PointsLedgerEntry {
       );
 }
 
-class RewardsSummary {
-  final int totalPoints;
-  final String tier;
-  final List<PointsLedgerEntry> recentLedger;
+class Reward {
+  final String rewardId;
+  final String rewardType;
+  final String title;
+  final String description;
+  final double worth;
+  final String currencyCode;
+  final bool isActive;
+  final DateTime createdOn;
+  final DateTime updatedOn;
 
-  RewardsSummary({
-    required this.totalPoints,
-    required this.tier,
-    required this.recentLedger,
+  Reward({
+    required this.rewardId,
+    required this.rewardType,
+    required this.title,
+    required this.description,
+    required this.worth,
+    required this.currencyCode,
+    required this.isActive,
+    required this.createdOn,
+    required this.updatedOn,
   });
 
-  factory RewardsSummary.fromJson(Map<String, dynamic> json) => RewardsSummary(
-    totalPoints: json['totalPoints'] ?? 0,
-    tier: json['tier'] ?? 'BRONZE',
-    recentLedger: ((json['recentLedger'] as List?) ?? [])
-        .map((e) => PointsLedgerEntry.fromJson(e))
-        .toList(),
+  factory Reward.fromJson(Map<String, dynamic> json) => Reward(
+    rewardId: json['rewardId'],
+    rewardType: json['rewardType'],
+    title: json['title'],
+    description: json['description'],
+    worth: json['worth'],
+    currencyCode: json['rewardType'],
+    isActive: json['isActive'],
+    createdOn: json['createdOn'],
+    updatedOn: json['updatedOn'],
   );
+}
+
+// Container class holding a list of Reward models
+class RewardsList {
+  final List<Reward> rewards;
+
+  RewardsList({required this.rewards});
+
+  // Factory constructor to map a JSON list to a RewardsList instance
+  factory RewardsList.fromJson(List<dynamic>? json) {
+    if (json == null) {
+      return RewardsList(rewards: []);
+    }
+
+    return RewardsList(
+      rewards: json
+          .map((item) => Reward.fromJson(item as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }

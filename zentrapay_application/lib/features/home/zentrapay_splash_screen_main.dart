@@ -200,7 +200,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 2),
                           // Comment: Brand text sliding into place
                           SlideTransition(
                             position: _brandSlide,

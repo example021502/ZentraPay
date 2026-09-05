@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/repositories/zgrow_repository.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/rewards_card.dart';
 
@@ -19,10 +20,7 @@ class RewardsSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Rewards",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text("Rewards", style: AppTheme.bodyMedium),
             const SizedBox(height: 10),
             _body(),
             const SizedBox(height: 32),
