@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/card.dart';
-import 'package:zentrapay_application/core/repositories/providers_repository.dart';
-import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
-import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/widgets/LinkedCards.dart';
 

@@ -9,4 +9,13 @@ public class Datatypes {
         badge,
         gift_card
     }
+
+    public enum TutorialTypeEnum {
+      budgeting,
+              saving,
+              investing,
+              debt_management,
+              financial_planning,
+              general
+    }
 }

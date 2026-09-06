@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/core/repositories/zinvest_repository.dart';
+import 'package:zentrapay_application/features/zinvest/repository/cache_zinvestData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class LiquidityHubScreen extends StatefulWidget {

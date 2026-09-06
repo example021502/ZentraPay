@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/core/repositories/zgrow_repository.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_carousel.dart';
 
@@ -19,7 +19,7 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
   Future<void> _complete(LiteracyContent content) async {
     setState(() => _completingIds.add(content.contentId));
     try {
-      final pointsEarned = await LiteracyRepository.instance.complete(
+      final pointsEarned = await TutorialsRepository.instance.complete(
         content.contentId,
       );
       if (mounted) {

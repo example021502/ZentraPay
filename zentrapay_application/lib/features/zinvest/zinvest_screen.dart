@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/core/repositories/zinvest_repository.dart';
+import 'package:zentrapay_application/features/zinvest/repository/cache_zinvestData.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/payments/widgets/investment_list.dart';
 import 'package:zentrapay_application/main.dart';

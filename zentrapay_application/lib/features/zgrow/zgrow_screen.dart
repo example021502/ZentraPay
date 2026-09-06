@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
-import 'package:zentrapay_application/core/repositories/zgrow_repository.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/challenges_section.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/financial_tools_section.dart';
