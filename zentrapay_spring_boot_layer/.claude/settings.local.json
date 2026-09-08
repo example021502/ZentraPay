@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter --version)",
+      "Bash(flutter devices *)",
+      "Bash(./gradlew.bat compileJava --console=plain -q)",
+      "Bash(./gradlew.bat compileJava --console=plain)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(java -version)",
+      "Bash(./gradlew.bat --version)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'docs: fix stale onafriq.api-key property name in gateway README *)",
+      "Bash(./gradlew compileJava --console=plain)",
+      "Bash(unzip -l \"/c/Users/Desire Musarafu/.gradle/caches/modules-2/files-2.1/tools.jackson.core/jackson-core/3.1.4/f9fd39204bd3d4922b42f6a54b81f46bd8ed575a/jackson-core-3.1.4.jar\")",
+      "Bash(./gradlew compileTestJava --console=plain)",
+      "Bash(./gradlew clean *)",
+      "Bash(xargs -I{} sh -c 'echo \"== {} ==\"; cat \"{}\"')",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun.log)",
+      "Bash(./gradlew bootRun --console=plain)",
+      "Bash(echo \"launched pid $!\")",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun3.log)",
+      "Bash(disown)",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun4.log)",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun5.log)",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun6.log)",
+      "Bash(rm -f /c/Users/DESIRE~1/AppData/Local/Temp/claude/bootrun7.log)"
+    ]
+  }
+}

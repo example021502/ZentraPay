@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf \"zentrapay_application/zentrapay_spring_boot_layer/modules/zremit\")",
+      "Bash(rm -rf xentrapay_application)",
+      "Bash(flutter analyze *)",
+      "Bash(./gradlew.bat compileJava --console=plain)",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 59321 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(./gradlew compileJava --console=plain)",
+      "Bash(git status *)",
+      "Bash(git fetch *)",
+      "Bash(awk '{print $1}')",
+      "Bash(./gradlew compileJava -q)",
+      "Bash(./gradlew compileJava --console=plain -q)",
+      "Bash(echo \"EXITCODE:$?\")",
+      "Bash(./gradlew clean *)",
+      "Bash(timeout 60 ./gradlew bootRun --console=plain)",
+      "Bash(curl -sk https://localhost:2000/api/wallets -H 'Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM2UyYzZiZC1kM2ZmLTRkN2EtYmExOS1kNzg3MTU4MzBkMTIiLCJlbWFpbCI6IndhbGxldGRlYnVnXzE3ODY3MDk3NzhAZXhhbXBsZS5jb20iLCJmaXJzdE5hbWUiOiJUZXN0IiwibGFzdE5hbWUiOiJVc2VyIiwiemVudGFnIjoid2FsbGV0ZGVidWcxNzg2NzA5Nzc4IiwiaWF0IjoxNzg2NzA5Nzc5LCJleHAiOjE3ODY3OTYxNzl9.k4a-71E-RqaMTsDhsFbBCS71Jsztn0lAaOuiddWsRJKNucB_RbNwJ8b0WjEnj9MnlTOVPCn9_T1SQgVFYaMNnw' -w '\\\\nHTTP_STATUS:%{http_code}\\\\n')",
+      "Bash(curl -sk -X POST https://localhost:2000/api/wallets/supportedCurrencies -H 'Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhM2UyYzZiZC1kM2ZmLTRkN2EtYmExOS1kNzg3MTU4MzBkMTIiLCJlbWFpbCI6IndhbGxldGRlYnVnXzE3ODY3MDk3NzhAZXhhbXBsZS5jb20iLCJmaXJzdE5hbWUiOiJUZXN0IiwibGFzdE5hbWUiOiJVc2VyIiwiemVudGFnIjoid2FsbGV0ZGVidWcxNzg2NzA5Nzc4IiwiaWF0IjoxNzg2NzA5Nzc5LCJleHAiOjE3ODY3OTYxNzl9.k4a-71E-RqaMTsDhsFbBCS71Jsztn0lAaOuiddWsRJKNucB_RbNwJ8b0WjEnj9MnlTOVPCn9_T1SQgVFYaMNnw' -w '\\\\nHTTP_STATUS:%{http_code}\\\\n')",
+      "Bash(curl *)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist *)",
+      "Bash(taskkill //F //IM java.exe //FI \"MEMUSAGE gt 100000\")",
+      "Bash(./gradlew bootRun --console=plain)",
+      "Bash(break)"
+    ]
+  }
+}

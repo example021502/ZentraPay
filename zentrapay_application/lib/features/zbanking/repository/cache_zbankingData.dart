@@ -13,11 +13,11 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 /// Milestones screen import this file for the repositories they need.
 
 /// User's ZBank Lite accounts (`GET /api/zbanking/accounts`).
+  final Dio _dio = ApiClient().dio;
 class BankAccountsRepository extends ChangeNotifier {
   BankAccountsRepository._();
   static final BankAccountsRepository instance = BankAccountsRepository._();
 
-  final Dio _dio = ApiClient().dio;
 
   List<BankAccounts>? _data;
   bool _loading = false;

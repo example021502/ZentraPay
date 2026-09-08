@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/main.dart';
 
 class LearnEarnCard extends StatelessWidget {
-  const LearnEarnCard({
-    super.key,
-    required this.content,
-    required this.completing,
-    required this.onComplete,
-  });
+  const LearnEarnCard({super.key, required this.content});
 
-  final LiteracyContent content;
-  final bool completing;
-  final VoidCallback onComplete;
+  final Tutorial content;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +28,7 @@ class LearnEarnCard extends StatelessWidget {
                 size: 28,
               ),
               Text(
-                "${content.durationMinutes} mins",
+                "${content.durationSeconds} s",
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
@@ -51,44 +43,6 @@ class LearnEarnCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          if (content.completed)
-            Row(
-              children: const [
-                Icon(Icons.check_circle, color: Colors.greenAccent, size: 16),
-                SizedBox(width: 4),
-                Text(
-                  "Completed",
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ],
-            )
-          else
-            SizedBox(
-              width: double.infinity,
-              height: 32,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.secondary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                onPressed: completing ? null : onComplete,
-                child: completing
-                    ? const SizedBox(
-                        height: 14,
-                        width: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        "Complete (+${content.pointsReward})",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
         ],
       ),
     );

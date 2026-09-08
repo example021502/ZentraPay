@@ -4,6 +4,7 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserBa
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.AccountsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.AccountsResponseDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.UserAccountsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dtos.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,13 +26,43 @@ public class BankAccountsServices {
     * GETTING ALL THE LINKED BANK ACCOUNTS
     * */
     @Transactional(readOnly = true)
-    public AccountsResponseDTO accounts(UUID userId) {
+    public AccountsResponseDTO getUserAccounts(UUID userId) {
         List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
         List<AccountsDTO> accounts = banksRepository.getAccountsByBanksIds(bankIds)
                 .stream()
                 .map(b -> {
                     final UserBankModel balance = userBankRepository.getBalanceByUserIdAndBankId(userId, b.getBankId());
+                    return new UserAccountsDTO(
+//                            TODO:: TO BE CONTINUED HERE
+                            b.
 
+                            UUID userBankId,
+                            UUID userId,
+                            BigDecimal balance,
+                            UUID bankId,
+                            String lastDigits,
+                            String connectionStatus,
+                            String connectionId,
+                            LocalDateTime linkedAt,
+                            LocalDateTime updatedAt,
+                            String bankName,
+                            String bankCode,
+                            String countryCode,
+                            String currencyCode
+                );
+                }).toList();
+    return new AccountsResponseDTO(accounts);
+    }
+    /*
+    * GETTING ALL THE LINKED BANK ACCOUNTS
+    * */
+    @Transactional(readOnly = true)
+    public AccountsResponseDTO getAccounts(UUID userId) {
+        List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
+        List<AccountsDTO> accounts = banksRepository.getAccountsByBanksIds(bankIds)
+                .stream()
+                .map(b -> {
+                    final UserBankModel balance = userBankRepository.getBalanceByUserIdAndBankId(userId, b.getBankId());
                     return new AccountsDTO(
                         b.getBankId(),
                         b.getBankName(),

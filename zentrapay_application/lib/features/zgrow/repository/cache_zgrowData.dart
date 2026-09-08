@@ -276,25 +276,25 @@ class TutorialsRepository extends ChangeNotifier {
   TutorialsRepository._();
   static final TutorialsRepository instance = TutorialsRepository._();
 
-  RewardsList? _data;
+  TutorialsList? _data;
   bool _loading = false;
   Object? _error;
 
-  RewardsList? get data => _data;
+  TutorialsList? get data => _data;
   bool get isLoaded => _data != null;
   bool get isLoading => _loading;
   Object? get error => _error;
 
   /// The actual network call.
-  Future<RewardsList> fetch() async {
+  Future<TutorialsList> fetch() async {
     final response = await _dio.get('/api/zgrow/tutorials');
-    print("REWARDS ARE:: ${response.data['data']}");
-    return RewardsList.fromJson(response.data['data']);
+    print("TUTORIALS ARE:: ${response.data['data']}");
+    return TutorialsList.fromJson(response.data['data']);
   }
 
   /// Loads the resource the first time it's needed; subsequent calls are a
   /// no-op unless [forceRefresh] is set (pull-to-refresh, explicit retry).
-  Future<RewardsList?> ensureLoaded({bool forceRefresh = false}) async {
+  Future<TutorialsList?> ensureLoaded({bool forceRefresh = false}) async {
     if (_data != null && !forceRefresh) return _data;
     _loading = true;
     _error = null;
@@ -312,7 +312,7 @@ class TutorialsRepository extends ChangeNotifier {
   }
 
   /// Applies a POST/PUT response onto the cached value without refetching.
-  void applyDelta(RewardsList Function(RewardsList current) updater) {
+  void applyDelta(TutorialsList Function(TutorialsList current) updater) {
     final current = _data;
     if (current == null) return;
     _data = updater(current);
@@ -320,7 +320,7 @@ class TutorialsRepository extends ChangeNotifier {
   }
 
   /// Replaces the cached value outright.
-  void setData(RewardsList value) {
+  void setData(TutorialsList value) {
     _data = value;
     _error = null;
     notifyListeners();

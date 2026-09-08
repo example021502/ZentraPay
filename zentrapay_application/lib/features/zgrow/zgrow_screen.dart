@@ -25,7 +25,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
   void initState() {
     super.initState();
     ChallengesRepository.instance.ensureLoaded();
-    LiteracyRepository.instance.ensureLoaded();
+    TutorialsRepository.instance.ensureLoaded();
     RewardsRepository.instance.ensureLoaded();
     BankAccountsRepository.instance.ensureLoaded();
     BankingInsightsRepository.instance.ensureLoaded();

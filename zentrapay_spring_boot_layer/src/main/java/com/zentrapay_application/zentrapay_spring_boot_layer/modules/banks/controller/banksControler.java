@@ -33,8 +33,13 @@ public class banksControler {
     private final BankAccountsServices bankAccountsServices;
 
     @GetMapping("/accounts")
-    public ResponseEntity<ApiResponse<AccountsResponseDTO>> getAccounts(@CurrentUser AuthenticatedUser user) {
-        AccountsResponseDTO accounts = bankAccountsServices.accounts(user.getUserId());
+    public ResponseEntity<ApiResponse<AccountsResponseDTO>> accounts(@CurrentUser AuthenticatedUser user) {
+        AccountsResponseDTO accounts = bankAccountsServices.getAccounts(user.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(accounts, "Bank accounts retrieved"));
+    }
+    @GetMapping("/userAccounts")
+    public ResponseEntity<ApiResponse<AccountsResponseDTO>> userAccounts(@CurrentUser AuthenticatedUser user) {
+        AccountsResponseDTO accounts = bankAccountsServices.getUserAccounts(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(accounts, "Bank accounts retrieved"));
     }
 
