@@ -6,9 +6,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../core/repositories/providers_repository.dart';
-import '../../core/repositories/transactions_repository.dart';
-import '../../core/repositories/wallets_repository.dart';
+import '../../features/home/repository/cache_homeData.dart';
 import '../../core/theme/navigation_bar/responsive_navigation.dart';
 
 // Comment: Main splash screen widget handling initial app loading and route dispatching
@@ -200,7 +198,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 2),
                           // Comment: Brand text sliding into place
                           SlideTransition(
                             position: _brandSlide,

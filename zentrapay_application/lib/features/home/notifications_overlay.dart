@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/notification.dart';
-import 'package:zentrapay_application/core/repositories/notifications_repository.dart';
-import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
+import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 

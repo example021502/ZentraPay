@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/core/repositories/zgrow_repository.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/challenge_card.dart';
@@ -69,51 +69,57 @@ class _ChallengesSectionState extends State<ChallengesSection> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.lightGrey.withAlpha(20),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Row(
-                  children: [
-                    // Expanded widget prevents horizontal text overflow inside the Row
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  showChallenges = !showChallenges;
+                });
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.lightGrey.withAlpha(20),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(15.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
                             "Gamified Savings",
                             style: AppTheme.headlineSmall,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Transform financial goals into rewarding daily habits through engaging challenges, points, and milestone badges.",
-                            style: AppTheme.bodySmall,
+                          const SizedBox(width: 10),
+                          // Toggle switch controlling list visibility
+                          Switch(
+                            value: showChallenges,
+                            // Color of the thumb (circle) when the switch is ON
+                            activeThumbColor: AppColors.primary,
+                            // Color of the track (background bar) when the switch is ON
+                            activeTrackColor: AppColors.green,
+                            // Color of the thumb (circle) when the switch is OFF
+                            inactiveThumbColor: AppColors.primary,
+                            // Color of the track (background bar) when the switch is OFF
+                            inactiveTrackColor: AppColors.main,
+                            onChanged: (bool value) {
+                              setState(() {
+                                showChallenges = value;
+                              });
+                            },
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Toggle switch controlling list visibility
-                    Switch(
-                      value: showChallenges,
-                      // Color of the thumb (circle) when the switch is ON
-                      activeThumbColor: AppColors.primary,
-                      // Color of the track (background bar) when the switch is ON
-                      activeTrackColor: AppColors.green,
-                      // Color of the thumb (circle) when the switch is OFF
-                      inactiveThumbColor: AppColors.primary,
-                      // Color of the track (background bar) when the switch is OFF
-                      inactiveTrackColor: AppColors.main,
-                      onChanged: (bool value) {
-                        setState(() {
-                          showChallenges = value;
-                        });
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        "Transform financial goals into rewarding daily habits through engaging challenges, points, and milestone badges.",
+                        style: AppTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

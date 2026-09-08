@@ -7,11 +7,13 @@ class FinancialToolTile extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
+    required this.description,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
+  final String description;
   final VoidCallback onTap;
 
   @override
@@ -35,7 +37,22 @@ class FinancialToolTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(title, style: AppTheme.bodySmall)),
+                Column(
+                  children: [
+                    Text(
+                      title,
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      description,
+                      style: AppTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,

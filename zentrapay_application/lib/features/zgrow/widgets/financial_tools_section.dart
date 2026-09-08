@@ -20,6 +20,8 @@ class FinancialToolsSection extends StatelessWidget {
         FinancialToolTile(
           icon: Icons.list_alt,
           title: "Budget Planner",
+          description:
+              "Take control of your money. Set monthly spending limits, track expenses automatically, and hit your financial goals faster.",
           onTap: () =>
               _open(context, const PlaceholderScreen(title: "Budget Planner")),
         ),
@@ -27,12 +29,16 @@ class FinancialToolsSection extends StatelessWidget {
         FinancialToolTile(
           icon: Icons.access_time,
           title: "Saving Goal",
+          description:
+              "Save with purpose. Whether it's a vacation, emergency fund, or new car, track your progress and reach your financial goals faster",
           onTap: () => _open(context, const MilestonesScreen()),
         ),
         const SizedBox(height: 8),
         FinancialToolTile(
           icon: Icons.balance,
           title: "Debt Tracker",
+          description:
+              "Turn overwhelming debts into manageable steps. Map out snowball or avalanche payoff plans and celebrate every cleared balance.",
           onTap: () =>
               _open(context, const PlaceholderScreen(title: "Debt Tracker")),
         ),

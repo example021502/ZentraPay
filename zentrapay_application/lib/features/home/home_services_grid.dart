@@ -3,7 +3,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/main.dart';
 
-import 'package:zentrapay_application/core/repositories/providers_repository.dart';
+import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'provider_picker_sheet.dart';
 
 class HomeServicesGrid extends StatefulWidget {

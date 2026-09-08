@@ -8,9 +8,7 @@ import 'package:zentrapay_application/features/auth/api_auth_services.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../core/repositories/providers_repository.dart';
-import '../../core/repositories/transactions_repository.dart';
-import '../../core/repositories/wallets_repository.dart';
+import '../../features/home/repository/cache_homeData.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

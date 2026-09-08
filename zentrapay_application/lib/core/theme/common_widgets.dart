@@ -739,6 +739,9 @@ class AppTextField extends StatelessWidget {
         labelText: labelText,
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
+        labelStyle: AppTheme.bodyMedium.copyWith(
+          color: AppTheme.textBlack.withAlpha(100),
+        ),
       ),
     );
   }

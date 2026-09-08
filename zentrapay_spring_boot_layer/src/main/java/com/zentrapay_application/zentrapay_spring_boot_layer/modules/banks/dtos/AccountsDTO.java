@@ -1,5 +1,8 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos;
 
+import jakarta.persistence.Column;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,12 +13,21 @@ import java.util.UUID;
  */
 public record AccountsDTO(
         UUID bankId,
+        String code,
         String bankName,
-        String bankCode,
-        String lastDigits,
-        BigDecimal balance,
-        String countryCode,
+        String gateway,
+        String iban,
         String currencyCode,
-        LocalDateTime createdAt
-) {
-}
+        Boolean payWithBank,
+        String swiftBic,
+        String countryCode,
+        String country,
+        String status,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        String maxDailyValue,
+        String maxMonthlyValue,
+        String minTxnLimit,
+        String maxTxnLimit,
+        String maxWeeklyValue
+){}

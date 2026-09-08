@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/repositories/security_repository.dart';
-import 'package:zentrapay_application/core/repositories/user_profile_repository.dart';
+import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';

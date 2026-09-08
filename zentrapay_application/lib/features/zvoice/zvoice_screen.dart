@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zentrapay_application/core/models/security.dart';
-import 'package:zentrapay_application/core/repositories/security_repository.dart';
-import 'package:zentrapay_application/core/repositories/voice_command_repository.dart';
+import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
+import 'package:zentrapay_application/features/zvoice/repository/cache_zvoiceData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 /// ZVoice AI Screen — Figma redesign.

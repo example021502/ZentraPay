@@ -110,22 +110,154 @@ class PointsLedgerEntry {
       );
 }
 
-class RewardsSummary {
-  final int totalPoints;
-  final String tier;
-  final List<PointsLedgerEntry> recentLedger;
+class Reward {
+  final int rewardId;
+  final String rewardType;
+  final String title;
+  final String description;
+  final double worth;
+  final String currencyCode;
+  final bool isActive;
+  final DateTime createdOn;
+  final DateTime updatedOn;
 
-  RewardsSummary({
-    required this.totalPoints,
-    required this.tier,
-    required this.recentLedger,
+  Reward({
+    required this.rewardId,
+    required this.rewardType,
+    required this.title,
+    required this.description,
+    required this.worth,
+    required this.currencyCode,
+    required this.isActive,
+    required this.createdOn,
+    required this.updatedOn,
   });
 
-  factory RewardsSummary.fromJson(Map<String, dynamic> json) => RewardsSummary(
-    totalPoints: json['totalPoints'] ?? 0,
-    tier: json['tier'] ?? 'BRONZE',
-    recentLedger: ((json['recentLedger'] as List?) ?? [])
-        .map((e) => PointsLedgerEntry.fromJson(e))
-        .toList(),
+  factory Reward.fromJson(Map<String, dynamic> json) => Reward(
+    rewardId: _parseInt(json['rewardId']),
+    rewardType: json['rewardType']?.toString() ?? '',
+    title: json['title']?.toString() ?? '',
+    description: json['description']?.toString() ?? '',
+    worth: _parseWorth(json['worth']),
+    currencyCode:
+        (json['currencyCode'] ?? json['rewardType'])?.toString() ?? '',
+    isActive:
+        json['isActive'] == true ||
+        json['isActive'] == 'true' ||
+        json['isActive'] == 1,
+    createdOn: DateTime.tryParse('${json['createdOn']}') ?? DateTime.now(),
+    updatedOn: DateTime.tryParse('${json['updatedOn']}') ?? DateTime.now(),
   );
+
+  static int _parseInt(dynamic raw) {
+    if (raw is int) return raw;
+    return int.tryParse('$raw') ?? 0;
+  }
+
+  static double _parseWorth(dynamic raw) {
+    if (raw is num) return raw.toDouble();
+    return double.tryParse('$raw') ?? 0.0;
+  }
+
+  @override
+  String toString() =>
+      'Reward($currencyCode $worth — $title, '
+      'type: $rewardType, active: $isActive)';
+}
+
+class RewardsList {
+  final List<Reward> rewards;
+
+  RewardsList({required this.rewards});
+
+  factory RewardsList.fromJson(dynamic json) {
+    final List<dynamic> raw;
+    if (json is List) {
+      raw = json;
+    } else if (json is Map) {
+      raw = (json['rewards'] as List?) ?? const [];
+    } else {
+      raw = const [];
+    }
+
+    return RewardsList(
+      rewards: raw
+          .whereType<Map>()
+          .map((item) => Reward.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
+    );
+  }
+
+  @override
+  String toString() =>
+      'RewardsList(${rewards.length} rewards: '
+      '${rewards.map((r) => r.title).join(", ")})';
+}
+
+class Tutorial {
+  final int id;
+  final String title;
+  final String type;
+  final String description;
+  final String videoUrl;
+  final String thumbnailUrl;
+  final int durationSeconds;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Tutorial({
+    required this.id,
+    required this.title,
+    required this.type,
+    required this.description,
+    required this.videoUrl,
+    required this.thumbnailUrl,
+    required this.durationSeconds,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory Tutorial.fromJson(Map<String, dynamic> json) => Tutorial(
+    id: _parseInt(json['id']),
+    title: json['title'] ?? 'Unknown',
+    type: json['type'] ?? 'Unknown',
+    description: json['description'] ?? 'Unknown',
+    videoUrl: json['videoUrl'] ?? 'Unknown',
+    thumbnailUrl: json['thumbnailUrl'] ?? 'Unknown',
+    durationSeconds: _parseInt(json['durationSeconds']),
+    isActive: json['isActive'] == true,
+    createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+    updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
+  );
+
+  static int _parseInt(dynamic raw) {
+    if (raw is int) return raw;
+    return int.tryParse('$raw') ?? 0;
+  }
+
+  @override
+  String toString() =>
+      'Tutorial(#$id: $title, duration: ${durationSeconds}s, '
+      'active: $isActive)';
+}
+
+class TutorialsList {
+  final List<Tutorial> tutorials;
+
+  TutorialsList({required this.tutorials});
+
+  factory TutorialsList.fromJson(List<dynamic> json) {
+    return TutorialsList(
+      tutorials: json
+          .map((item) => Tutorial.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
+    );
+  }
+
+  @override
+  String toString() =>
+      'TutorialsList(${tutorials.length} tutorials: '
+      '${tutorials.map((t) => t.title).join(", ")})';
 }

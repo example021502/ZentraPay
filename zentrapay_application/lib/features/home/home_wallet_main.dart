@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/card.dart';
-import 'package:zentrapay_application/core/repositories/providers_repository.dart';
-import 'package:zentrapay_application/core/repositories/transactions_repository.dart';
-import 'package:zentrapay_application/core/repositories/wallets_repository.dart';
+import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/widgets/LinkedCards.dart';
 
@@ -63,7 +61,6 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
   Widget _buildContent(bool isTablet) {
     final width = isTablet ? 400.0 : MediaQuery.of(context).size.width;
     return Container(
-      height: MediaQuery.of(context).size.height,
       width: width,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
@@ -73,7 +70,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         padding: const EdgeInsets.all(15.0),
         child: Column(
           children: [
-            const SizedBox(height: AppTheme.spacingXl),
+            const SizedBox(height: AppTheme.spacingMd),
             // QUICK ACTIONS HERE
             const HomeQuickActions(),
             SizedBox(height: AppTheme.spacingXl),
@@ -148,9 +145,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                     .toList(),
               ),
             ),
-            // const SizedBox(
-            //   height: 100,
-            // ), // Space for floating bottom nav on mobile
+            const SizedBox(height: 100),
           ],
         ),
       ),

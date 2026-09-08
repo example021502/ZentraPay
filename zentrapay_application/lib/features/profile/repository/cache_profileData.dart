@@ -1,7 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:zentrapay_application/core/models/user.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
+
+/// Profile data caches: the `/api/users/me` user+profile snapshot and the
+/// Tier-2 KYC document uploads. The profile repository implements the
+/// "load once, then apply deltas" contract inline — there is no shared
+/// abstract cache base anymore; it owns its own state and notifies
+/// listeners. Home (notification tier badge), Payments (SendingForm) and
+/// Settings also import this file.
 
 /// Data snapshot holding both user and profile instances.
 class UserProfileSnapshot {
@@ -243,3 +250,27 @@ class UserProfileRepository with ChangeNotifier {
     }
   }
 }
+
+/// Tier-2 KYC document uploads — POST/GET `/api/users/me/documents/{type}`.
+/// `type` is one of `id-front|id-back|selfie`. Every successful upload
+/// flips fields on the backend profile (and possibly `kycTier`), so callers
+/// should refresh `UserProfileRepository` afterward rather than trying to
+/// guess the new state locally.
+class DocumentsRepository {
+  static final Dio _dio = ApiClient().dio;
+
+  static const List<String> validTypes = ['id-front', 'id-back', 'selfie'];
+
+  static Future<void> upload({
+    required String type,
+    required String filePath,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    await _dio.post('/api/users/me/documents/$type', data: formData);
+  }
+}
+
+
+

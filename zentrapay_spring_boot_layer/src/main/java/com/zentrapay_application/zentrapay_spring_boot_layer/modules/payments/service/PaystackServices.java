@@ -149,7 +149,7 @@ public class PaystackServices {
 
     //  RESOLVING AN ACCOUNT NUMBER TO ITS ACCOUNT NAME
     //  Calls Paystack GET /bank/resolve — used by the bank-transfer UI to
-    //  show the real account holder's name before the user confirms a send.
+    //  show the real account holder's name before the user confirms send.
     public PaystackAccountResolveResponseDTO resolveAccount(String accountNumber, String bankCode) {
         try {
             return restClient.get()

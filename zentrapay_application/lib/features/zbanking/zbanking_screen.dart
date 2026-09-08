@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
-import 'package:zentrapay_application/core/repositories/zbanking_repository.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
@@ -343,7 +343,11 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
 
   Widget _buildAccountOptionsSection(BuildContext context) {
     List<Map<String, dynamic>> goals = [
-      {"title": "testing", "description": "hellow there, testing goals"},
+      {
+        "title": "testing",
+        "description": "hellow there, testing goals",
+        "progress": "80%",
+      },
     ];
     return Column(
       children: [
@@ -368,7 +372,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
           icon: Icons.currency_exchange_outlined,
           label: "Smart Conversion",
           about: "Real-time currency conversion basing on live markets.",
-          onTap: () => showComingSoon(context, "Smart Conversion"),
+          onTap: () => Navigator.pushNamed(context, "/converter"),
         ),
         const SizedBox(height: AppTheme.spacingMd),
         _accountOptionTile(
@@ -570,34 +574,115 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                     const SizedBox(height: AppTheme.spacingMd),
                     if (goals.isNotEmpty)
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxHeight: 200),
+                        constraints: BoxConstraints(maxHeight: 150),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.vertical,
                           child: Column(
                             children: [
                               ListView.builder(
                                 itemCount: goals.length,
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
                                 itemBuilder: (context, index) {
                                   // Builder function returning a widget for each index
                                   final goal =
                                       goals[index]; // Access the individual goal item
-                                  return ListTile(
-                                    leading: const Icon(
-                                      Icons.flag,
-                                    ), // Icon on the left side
-                                    title: Text(
-                                      goal["title"] ?? "Unknown",
-                                    ), // Primary text element
-                                    subtitle: Text(
-                                      goal["description"] ?? "Unknown",
-                                    ), // Secondary text element
-                                    trailing: const Icon(
-                                      Icons.chevron_right,
-                                    ), // Icon on the right side
-                                    onTap: () {
-                                      // Interaction callback when tapped
-                                      // Handle tap action
-                                    },
+                                  final n = double.parse(
+                                    goal['progress'].replaceAll('%', ''),
+                                  );
+                                  final bool isGreen = n > 50;
+                                  return Material(
+                                    child: ListTile(
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 5.0,
+                                        horizontal: 10.0,
+                                      ),
+                                      tileColor: AppTheme.secondaryNavy
+                                          .withAlpha(
+                                            20,
+                                          ), // Background color in normal state
+                                      selectedTileColor: AppTheme.lightGrey,
+                                      selected: false,
+                                      iconColor: AppTheme
+                                          .textBlack, // Color for leading & trailing icons
+                                      textColor: AppTheme.textBlack,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          15.0,
+                                        ),
+                                        side: BorderSide(
+                                          color: AppTheme.lightGrey,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      leading: Container(
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.secondaryNavy
+                                              .withAlpha(20),
+                                          borderRadius: BorderRadius.circular(
+                                            200,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: const Icon(Icons.flag),
+                                        ),
+                                      ), // Icon on the left side
+                                      title: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            goal["title"] ?? "Unknown",
+                                            style: AppTheme.bodyMedium,
+                                          ),
+                                          Text(
+                                            goal["progress"] ?? "0%",
+                                            style: AppTheme.headlineSmall
+                                                .copyWith(
+                                                  color: isGreen
+                                                      ? AppTheme.successGreen
+                                                      : AppTheme.warningOrange,
+                                                ),
+                                          ),
+
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryPink
+                                                  .withAlpha(20),
+                                              borderRadius:
+                                                  BorderRadius.circular(200),
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 2.0,
+                                                    horizontal: 10.0,
+                                                  ),
+                                              child: Text(
+                                                "active",
+                                                style: AppTheme.bodySmall,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ), // Primary text element
+                                      subtitle: Text(
+                                        goal["description"] ?? "Unknown",
+                                        style: AppTheme.bodySmall.copyWith(
+                                          color: AppTheme.textBlack.withAlpha(
+                                            100,
+                                          ),
+                                        ),
+                                      ), // Secondary text element
+                                      trailing: const Icon(
+                                        Icons.chevron_right,
+                                      ), // Icon on the right side
+                                      onTap: () {
+                                        // Interaction callback when tapped
+                                        // Handle tap action
+                                      },
+                                    ),
                                   );
                                 },
                               ),
@@ -606,9 +691,14 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                         ),
                       ),
                     const SizedBox(height: AppTheme.spacingMd),
+                    Text(
+                      "You want to set a new goal?",
+                      style: AppTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: AppTheme.spacingSm),
                     AppTextField(
                       controller: nameController,
-                      labelText: 'Savings name',
+                      labelText: 'Name',
                       hintText: 'e.g. Rent Fund',
                     ),
                     const SizedBox(height: AppTheme.spacingSm),
@@ -629,7 +719,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                     ),
                     const SizedBox(height: AppTheme.spacingLg),
                     PrimaryButton(
-                      label: 'Create Savings',
+                      label: 'Create',
                       loading: submitting,
                       onPressed: () async {
                         final name = nameController.text.trim();
@@ -638,7 +728,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                         if (name.isEmpty) {
                           ZentraNotifier.error(
                             'Missing Name',
-                            'Give your Account a name.',
+                            'Give your Goal a name.',
                           );
                           return;
                         }
