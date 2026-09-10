@@ -1,8 +1,6 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:zentrapay_application/core/utils/http_adapter.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 
 class ApiClient {
@@ -27,18 +25,12 @@ class ApiClient {
 
     dio = Dio(options);
 
-    // Comment: Accept self-signed certificates using the updated createHttpClient property
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient();
-        client.badCertificateCallback =
-            (X509Certificate cert, String host, int port) {
-              // Comment: Accept all certificates for development environment
-              return true;
-            };
-        return client;
-      },
-    );
+    // Comment: Accept self-signed certificates using the updated createHttpClient property.
+    // Web has no dart:io HttpClient, so the adapter is chosen per-platform in
+    // http_adapter.dart. On native/desktop this trusts the dev self-signed TLS
+    // cert; on web the browser owns TLS (install the mkcert CA / accept the
+    // warning instead).
+    dio.httpClientAdapter = createHttpAdapter();
 
     // Comment: Attach our global interceptors for security and platform tracking
     dio.interceptors.add(
@@ -48,7 +40,7 @@ class ApiClient {
           options.headers['X-Client-Platform'] = 'zentrapay_application.com';
 
           // Comment: Fetch the active user's authorization session token asynchronously from secure storage
-          String? token = await SecureStorageService.getToken();
+          String? token = SecureStorageService.getToken();
           // Comment: Inject the JWT token into the headers if the user is authenticated
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';

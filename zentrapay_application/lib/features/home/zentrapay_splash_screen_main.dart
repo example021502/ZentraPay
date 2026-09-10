@@ -86,7 +86,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   // Comment: Check stored token validity asynchronously
   Future<Map<String, dynamic>?> _checkLoginStatus() async {
     try {
-      final token = await SecureStorageService.getToken();
+      final token = SecureStorageService.getToken();
       if (token != null && token.isNotEmpty) {
         bool isExpired = JwtDecoder.isExpired(token);
         if (!isExpired) {

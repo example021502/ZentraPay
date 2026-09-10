@@ -169,13 +169,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Comment: Replacing IntrinsicHeight with ConstrainedBox prevents Chrome layout overflow calculations
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
-                    Container(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
                       constraints: BoxConstraints(maxWidth: maxWidth),
                       decoration: AppTheme.cardDecoration.copyWith(
                         borderRadius: const BorderRadius.vertical(
@@ -427,8 +428,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );

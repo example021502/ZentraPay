@@ -1,17 +1,13 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.services;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserBankModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.AccountsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.AccountsResponseDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.banks.dtos.UserAccountsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.wallets.dtos.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,31 +23,10 @@ public class BankAccountsServices {
     * */
     @Transactional(readOnly = true)
     public AccountsResponseDTO getUserAccounts(UUID userId) {
-        List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
-        List<AccountsDTO> accounts = banksRepository.getAccountsByBanksIds(bankIds)
-                .stream()
-                .map(b -> {
-                    final UserBankModel balance = userBankRepository.getBalanceByUserIdAndBankId(userId, b.getBankId());
-                    return new UserAccountsDTO(
-//                            TODO:: TO BE CONTINUED HERE
-                            b.
-
-                            UUID userBankId,
-                            UUID userId,
-                            BigDecimal balance,
-                            UUID bankId,
-                            String lastDigits,
-                            String connectionStatus,
-                            String connectionId,
-                            LocalDateTime linkedAt,
-                            LocalDateTime updatedAt,
-                            String bankName,
-                            String bankCode,
-                            String countryCode,
-                            String currencyCode
-                );
-                }).toList();
-    return new AccountsResponseDTO(accounts);
+        // Reuse the canonical implementation below (the previous inline body was
+        // left half-written and referenced undefined variables, so it would not
+        // compile). Both methods return the user's linked bank accounts.
+        return getAccounts(userId);
     }
     /*
     * GETTING ALL THE LINKED BANK ACCOUNTS
@@ -61,20 +36,28 @@ public class BankAccountsServices {
         List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
         List<AccountsDTO> accounts = banksRepository.getAccountsByBanksIds(bankIds)
                 .stream()
-                .map(b -> {
-                    final UserBankModel balance = userBankRepository.getBalanceByUserIdAndBankId(userId, b.getBankId());
-                    return new AccountsDTO(
+                .map(b -> new AccountsDTO(
                         b.getBankId(),
-                        b.getBankName(),
                         b.getCode(),
-                        balance.getLastDigits(),
-                        balance.getBalance(),
-                        b.getCountryCode(),
+                        b.getBankName(),
+                        b.getGateway(),
+                        b.getIban(),
                         b.getCurrencyCode(),
-                        b.getCreatedAt()
-                );
-                }).toList();
-    return new AccountsResponseDTO(accounts);
+                        b.getPayWithBank(),
+                        b.getSwiftBic(),
+                        b.getCountryCode(),
+                        b.getCountry(),
+                        b.getStatus(),
+                        b.getCreatedAt(),
+                        b.getUpdatedAt(),
+                        b.getMaxDailyValue(),
+                        b.getMaxMonthlyValue(),
+                        b.getMinTxnLimit(),
+                        b.getMaxTxnLimit(),
+                        b.getMaxWeeklyValue()
+                ))
+                .toList();
+        return new AccountsResponseDTO(accounts);
     }
 
 /*
@@ -85,21 +68,28 @@ public class BankAccountsServices {
         List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
         List<AccountsDTO> accounts = banksRepository.getAccountsByBanksIds(bankIds)
                 .stream()
-                .map(b -> {
-                    final UserBankModel balance = userBankRepository.getBalanceByUserIdAndBankId(userId, b.getBankId());
-
-                    return new AccountsDTO(
+                .map(b -> new AccountsDTO(
                         b.getBankId(),
-                        b.getBankName(),
                         b.getCode(),
-                        balance.getLastDigits(),
-                        balance.getBalance(),
-                        b.getCountryCode(),
+                        b.getBankName(),
+                        b.getGateway(),
+                        b.getIban(),
                         b.getCurrencyCode(),
-                        b.getCreatedAt()
-                );
-                }).toList();
-    return new AccountsResponseDTO(accounts);
+                        b.getPayWithBank(),
+                        b.getSwiftBic(),
+                        b.getCountryCode(),
+                        b.getCountry(),
+                        b.getStatus(),
+                        b.getCreatedAt(),
+                        b.getUpdatedAt(),
+                        b.getMaxDailyValue(),
+                        b.getMaxMonthlyValue(),
+                        b.getMinTxnLimit(),
+                        b.getMaxTxnLimit(),
+                        b.getMaxWeeklyValue()
+                ))
+                .toList();
+        return new AccountsResponseDTO(accounts);
     }
 
 

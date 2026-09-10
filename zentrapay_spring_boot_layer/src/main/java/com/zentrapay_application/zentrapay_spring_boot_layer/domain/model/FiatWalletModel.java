@@ -5,7 +5,6 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -25,8 +24,8 @@ public class FiatWalletModel {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Column(name = "wallet_name", nullable = false)
+    private String walletName;
 
     @Column(name = "country_code", nullable = false, length = 3)
     private String countryCode;

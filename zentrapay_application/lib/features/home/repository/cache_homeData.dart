@@ -110,7 +110,7 @@ class WalletsRepository with ChangeNotifier {
       data: {
         'accountName': accountName,
         'currencyCode': currencyCode,
-        if (countryCode != null) 'countryCode': countryCode,
+        'countryCode': ?countryCode,
       },
     );
 
@@ -815,9 +815,7 @@ class CountriesRepository extends ChangeNotifier {
   }
 
   /// Applies a POST/PUT response onto the cached value without refetching.
-  void applyDelta(
-    List<AppCountry> Function(List<AppCountry> current) updater,
-  ) {
+  void applyDelta(List<AppCountry> Function(List<AppCountry> current) updater) {
     final current = _data;
     if (current == null) return;
     _data = updater(current);
@@ -918,8 +916,7 @@ class CurrenciesRepository extends ChangeNotifier {
   }
 
   /// List convenience mutators.
-  void addItem(AppCurrency item) =>
-      applyDelta((current) => [...current, item]);
+  void addItem(AppCurrency item) => applyDelta((current) => [...current, item]);
 
   void replaceItem(
     bool Function(AppCurrency item) matches,
@@ -1055,10 +1052,7 @@ class PaymentChannelsRepository {
 
     final response = await _dio.get(
       '/api/payment-channels',
-      queryParameters: {
-        'countryCode': countryCode,
-        'type': ?type,
-      },
+      queryParameters: {'countryCode': countryCode, 'type': ?type},
     );
     final channels = ((response.data['data'] as List?) ?? [])
         .map((e) => PaymentChannel.fromJson(e))
@@ -1114,11 +1108,3 @@ class SearchRepository {
     return Map<String, dynamic>.from(response.data['data']['contact']);
   }
 }
-
-
-
-
-
-
-
-

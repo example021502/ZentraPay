@@ -93,7 +93,7 @@ public class UsersService {
             FiatWalletModel fiatWallet = new FiatWalletModel();
             fiatWallet.setUserId(user.getUserId());
             fiatWallet.setCountryCode(req.countryCode());
-            fiatWallet.setStatus("active");
+            fiatWallet.setWalletName("Zentrapay_Wallet");
            fiatWallet = fiatWalletRepository.save(fiatWallet);
 //            CRYPTO WALLET CREATION
             CryptoWalletModel cryptoWallet = new CryptoWalletModel();

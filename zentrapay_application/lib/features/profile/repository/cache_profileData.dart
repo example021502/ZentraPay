@@ -140,23 +140,19 @@ class UserProfileRepository with ChangeNotifier {
   Future<void> patchMe({String? firstName, String? lastName}) async {
     final previous = _data;
     if (firstName != null || lastName != null) {
-      updateUser(
-        (u) => u.copyWith(firstName: firstName, lastName: lastName),
-      );
+      updateUser((u) => u.copyWith(firstName: firstName, lastName: lastName));
     }
     try {
       final response = await _dio.patch(
         '/api/users/me',
-        data: {
-          if (firstName != null) 'firstName': firstName,
-          if (lastName != null) 'lastName': lastName,
-        },
+        data: {'firstName': ?firstName, 'lastName': ?lastName},
       );
       final updated = AppUser.fromJson(
         Map<String, dynamic>.from(response.data['data'] as Map),
       );
       applyDelta(
-        (current) => UserProfileSnapshot(user: updated, profile: current.profile),
+        (current) =>
+            UserProfileSnapshot(user: updated, profile: current.profile),
       );
     } catch (e) {
       if (previous != null) setData(previous);
@@ -218,26 +214,22 @@ class UserProfileRepository with ChangeNotifier {
         data: {
           if (dateOfBirth != null)
             'dateOfBirth': dateOfBirth.toIso8601String().split('T').first,
-          if (nationalityCountryCode != null)
-            'nationalityCountryCode': nationalityCountryCode,
-          if (identityDocumentType != null)
-            'identityDocumentType': identityDocumentType,
-          if (identityDocumentNumber != null)
-            'identityDocumentNumber': identityDocumentNumber,
-          if (identityDocumentIssuingCountryCode != null)
-            'identityDocumentIssuingCountryCode':
-                identityDocumentIssuingCountryCode,
+          'nationalityCountryCode': ?nationalityCountryCode,
+          'identityDocumentType': ?identityDocumentType,
+          'identityDocumentNumber': ?identityDocumentNumber,
+          'identityDocumentIssuingCountryCode':
+              ?identityDocumentIssuingCountryCode,
           if (identityDocumentExpirationDate != null)
             'identityDocumentExpirationDate': identityDocumentExpirationDate
                 .toIso8601String()
                 .split('T')
                 .first,
-          if (addressLine1 != null) 'addressLine1': addressLine1,
-          if (addressLine2 != null) 'addressLine2': addressLine2,
-          if (cityName != null) 'cityName': cityName,
-          if (stateOrRegion != null) 'stateOrRegion': stateOrRegion,
-          if (postalCode != null) 'postalCode': postalCode,
-          if (occupationTitle != null) 'occupationTitle': occupationTitle,
+          'addressLine1': ?addressLine1,
+          'addressLine2': ?addressLine2,
+          'cityName': ?cityName,
+          'stateOrRegion': ?stateOrRegion,
+          'postalCode': ?postalCode,
+          'occupationTitle': ?occupationTitle,
         },
       );
       // Comment: the write also flips kycTier server-side on the user row —
@@ -271,6 +263,3 @@ class DocumentsRepository {
     await _dio.post('/api/users/me/documents/$type', data: formData);
   }
 }
-
-
-

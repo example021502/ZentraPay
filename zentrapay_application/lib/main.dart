@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_portal/flutter_portal.dart';
@@ -32,9 +33,12 @@ import 'features/auth/onboarding_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/auth/verify_screen.dart';
 
-// Declare a globally accessible instance of the Privy client engine
-// This will be initialized by api_auth_services.dart with custom auth support
-late final privy_sdk.Privy privyClient;
+// Declare a globally accessible instance of the Privy client engine.
+// Nullable + only initialised on mobile (Android/iOS) where the native
+// plugin exists. Web/Windows/Desktop have no privy_flutter implementation,
+// so initialising unconditionally crashes those targets with
+// MissingPluginException.
+privy_sdk.Privy? privyClient;
 
 void main() async {
   // Ensure that plugin services are initialized properly before running the application
@@ -44,18 +48,25 @@ void main() async {
     // Load your configuration keys from the local .env file into memory
     await dotenv.load(fileName: ".env");
     await SecureStorageService.init();
-    // Initialize Privy with custom auth configuration
-    // This is done here to ensure it's initialized before any auth operations
-    final privyConfig = privy_sdk.PrivyConfig(
-      appId: dotenv.get('PRIVY_APP_ID', fallback: ''),
-      appClientId: dotenv.get('PRIVY_CLIENT_ID', fallback: ''),
-      customAuthConfig: privy_sdk.LoginWithCustomAuthConfig(
-        tokenProvider: () async => SecureStorageService.getToken(),
-      ),
-    );
+    // Privy native SDK only exists on Android/iOS. Skip on web/desktop so
+    // `flutter run -d chrome/windows` boots without MissingPluginException.
+    final isMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    if (isMobile) {
+      // Initialize Privy with custom auth configuration
+      // This is done here to ensure it's initialized before any auth operations
+      final privyConfig = privy_sdk.PrivyConfig(
+        appId: dotenv.get('PRIVY_APP_ID', fallback: ''),
+        appClientId: dotenv.get('PRIVY_CLIENT_ID', fallback: ''),
+        customAuthConfig: privy_sdk.LoginWithCustomAuthConfig(
+          tokenProvider: () async => SecureStorageService.getToken(),
+        ),
+      );
 
-    // Initialize the global Privy instance with custom auth support
-    privyClient = privy_sdk.Privy.init(config: privyConfig);
+      // Initialize the global Privy instance with custom auth support
+      privyClient = privy_sdk.Privy.init(config: privyConfig);
+    }
   } catch (e) {
     // Fallback error logging if the environmental file fails to load or cannot be found
     print("WARNING:: Could not load configuration infrastructure keys: $e");

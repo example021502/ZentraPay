@@ -35,7 +35,7 @@ public class schedulers {
     // gateway_currencies directory from Paystack / Flutterwave / Onafriq.
     // Each sync is idempotent (upsert by gateway code), so a missed run is
     // harmless and a manual re-run just refreshes the directory.
-    @Scheduled(cron = "0 0 0 * * *", zone = "UTC")
+    @Scheduled(cron = "0 */5 * * * *", zone = "UTC")
     public void syncProvidersDaily() {
         System.out.println("Executing scheduled task: Starting provider data synchronization...");
         final List<String> countries = Arrays.stream(configuredCountries.split(","))

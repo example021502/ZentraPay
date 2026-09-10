@@ -23,7 +23,7 @@ import java.util.UUID;
 public class CryptoAccountModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "crypto_account_id", nullable = false, unique = true)
+    @Column(name = "account_id", nullable = false, unique = true)
     private UUID cryptoAccountId;
 
     @Column(name = "wallet_id", nullable = false)

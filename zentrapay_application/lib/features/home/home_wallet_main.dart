@@ -62,6 +62,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
     final width = isTablet ? 400.0 : MediaQuery.of(context).size.width;
     return Container(
       width: width,
+      height: MediaQuery.of(context).size.height,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

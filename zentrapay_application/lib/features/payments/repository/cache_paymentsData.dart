@@ -241,7 +241,7 @@ class PaymentsService {
         'channelCode': channelCode,
         'accountNumber': accountNumber,
         'accountName': accountName,
-        if (description != null) 'description': description,
+        'description': ?description,
       },
     );
     return _applyTransactionResult(response.data['data']);
@@ -385,6 +385,3 @@ class PaymentsService {
     return transaction;
   }
 }
-
-
-
