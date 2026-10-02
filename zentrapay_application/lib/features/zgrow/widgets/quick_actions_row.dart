@@ -4,7 +4,6 @@ import 'package:zentrapay_application/core/theme/placeholder_screen.dart';
 import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../../core/theme/common_widgets.dart';
 
 /// Emergency Fund / Pay-Loans / Z-Invest row. Z-Invest opens the real
 /// ZInvestScreen; the other two don't have dedicated pages yet, so they
@@ -19,20 +18,13 @@ class QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
-
+      spacing: AppTheme.spacingXl,
       children: [
         _QuickActionButton(
-          icon: Icons.arrow_downward_outlined,
-          label: "Save Now",
-          onTap: () {
-            showComingSoon(context, "This feature");
-          },
-        ),
-        _QuickActionButton(
           icon: Icons.verified_user_outlined,
-          label: "Emergence\nFund",
+          label: "Emergence",
           onTap: () =>
               _open(context, const PlaceholderScreen(title: "Emergency Fund")),
         ),

@@ -14,7 +14,7 @@ public record RewardsDTO(
     BigDecimal worth,
     String currencyCode,
     Boolean isActive,
-    LocalDateTime createdOn,
-    LocalDateTime updatedOn
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt
 ) {
 }

@@ -118,7 +118,7 @@ class _SendingFormState extends State<SendingForm> {
     });
   }
 
-  void onChange(String id, var value) {
+  void onChange(String id, value) {
     setState(() {
       id == "contact_number"
           ? (

@@ -42,8 +42,14 @@ public class BanksModel {
     @Column(name = "country")
     private String country;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Column(name = "routing_number", unique=true)
+    private String routingNumber;
+
+    @Column(name = "type")
+    private String type;
+
+    @Column(name = "active", nullable = false)
+    private Boolean active;
 
     @CreationTimestamp
     @Column(name = "created_at")
@@ -65,7 +71,7 @@ public class BanksModel {
     @Column(name = "max_txn_limit")
     private String maxTxnLimit;
 
-    @Column(name = "maxWeeklyValue")
+    @Column(name = "max_weekly_value")
     private String maxWeeklyValue;
 
 }

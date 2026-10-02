@@ -85,8 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "lastName": _lastNameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
-      "phoneNumber": contactForm['phone_number']!,
-      "countryCode": contactForm['country_code']!,
+      "phoneNumber": contactForm['phone_number']!.trim(),
+      "countryCode": contactForm['country_code']!.trim(),
       "pin": pin,
       "termsConsent": termsConsent,
     };

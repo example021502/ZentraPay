@@ -29,6 +29,7 @@ public class OnafriqBankMapper implements BankMapper<OnafriqBankResponseDTO> {
             bank.setMaxTxnLimit(item.maxPerTxLimit());
             bank.setMinTxnLimit(item.minPerTxLimit());
             bank.setMaxWeeklyValue(item.maxWeeklyValue());
+            bank.setActive(true);
             return bank;
         }).toList();
     }

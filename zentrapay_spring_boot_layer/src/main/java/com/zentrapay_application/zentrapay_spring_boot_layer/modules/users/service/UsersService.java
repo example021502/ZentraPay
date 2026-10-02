@@ -39,7 +39,6 @@ public class UsersService {
     private final CryptoAccountRepository cryptoAccountRepository;
     private final UserProfileRepository userProfileRepository;
 
-
     @Value("${app.password.pepper}")
     private String passwordPepper;
 
@@ -81,8 +80,8 @@ public class UsersService {
         user.setCountryCode(req.countryCode());
         user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
         user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
-        user.setUserType("app-user");
-        user.setStatus("active");
+        user.setUserType("INDIVIDUAL");
+        user.setStatus("ACTIVE");
 
         // Save the user record to the database
         user = userRepository.save(user);
@@ -98,7 +97,7 @@ public class UsersService {
 //            CRYPTO WALLET CREATION
             CryptoWalletModel cryptoWallet = new CryptoWalletModel();
             cryptoWallet.setUserId(user.getUserId());
-            cryptoWallet.setStatus("active");
+            cryptoWallet.setStatus("ACTIVE");
             cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
            final String currencyCode = gatewayCurrenciesRepository
@@ -113,7 +112,7 @@ public class UsersService {
             fiatAccount.setZentag(zentag);
             fiatAccount.setBalance(BigDecimal.ZERO);
             fiatAccount.setDefault(true);
-            fiatAccount.setStatus("active");
+            fiatAccount.setStatus("ACTIVE");
             fiatAccountRepository.save(fiatAccount);
 
             CryptoAccountModel cryptoAccount = new CryptoAccountModel();
@@ -123,7 +122,7 @@ public class UsersService {
             cryptoAccount.setWalletAddress("pending-" + user.getUserId());
             cryptoAccount.setBalance(BigDecimal.ZERO);
             cryptoAccount.setIsDefault(true);
-            cryptoAccount.setStatus("active");
+            cryptoAccount.setStatus("ACTIVE");
             cryptoAccountRepository.save(cryptoAccount);
         }else{
             throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");

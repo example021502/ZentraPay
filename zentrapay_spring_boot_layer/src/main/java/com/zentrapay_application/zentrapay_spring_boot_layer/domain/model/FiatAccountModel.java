@@ -41,7 +41,7 @@ public class FiatAccountModel {
     private boolean isDefault;
 
     @Column(nullable = false, length = 50)
-    private String status = "active";
+    private String status = "ACTIVE";
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

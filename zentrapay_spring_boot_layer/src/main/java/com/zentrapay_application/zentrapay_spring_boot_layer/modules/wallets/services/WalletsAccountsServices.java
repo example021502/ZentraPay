@@ -89,7 +89,7 @@ public class WalletsAccountsServices {
         account.setZentag(user.getPhoneNumber() + "_" + req.currencyCode() + "@zentrapay");
         account.setBalance(BigDecimal.ZERO);
         account.setDefault(false);
-        account.setStatus("active");
+        account.setStatus("ACTIVE");
         fiatAccountRepository.save(account);
 
         return new FiatAccountDTO(

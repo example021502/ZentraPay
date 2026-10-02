@@ -2,10 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
+import 'package:zentrapay_application/features/Settings/widgets/list_section.dart';
+import 'package:zentrapay_application/features/Settings/widgets/security_section.dart';
 import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/features/home/notifications_overlay.dart';
 import 'package:zentrapay_application/features/profile/edit_profile_sheet.dart';
 import 'package:zentrapay_application/main.dart';
@@ -138,325 +139,56 @@ class _SettingsState extends State<Settings> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Security Score half-ring gauge meter at the top
-          _buildSecurityScore(),
-          const SizedBox(height: AppTheme.spacingXl),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.gray50,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppTheme.spacingMd),
-                  // General Settings Section
-                  _buildListSection(context, "GENERAL", _generalButtons),
-                  const SizedBox(height: 40),
-                  // Security Controls Section
-                  _buildSecuritySection(context),
-                  const SizedBox(height: 40),
-                  // Feedback and Reporting Section
-                  _buildListSection(context, "FEEDBACK", _feedbackButtons),
-                  const SizedBox(height: 40),
-                  // Danger zone Section
-                  _buildListSection(context, "DANGER ZONE", _dangerZoneButtons),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String title) {
-    return Padding(
-      // Tightened vertical padding to eliminate bloated gaps
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text(
-        title,
-        style: AppTheme.bodyMedium.copyWith(
-          color: AppTheme.textBlack.withAlpha(80),
-          fontWeight: FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildListSection(
-    BuildContext context,
-    String title,
-    List<Map<String, dynamic>> buttons,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _sectionLabel(title),
-        const SizedBox(height: 4),
-        // Card decoration removed completely and layout wrapped in a compact Column
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(buttons.length, (index) {
-            final buttonData = buttons[index];
-            final bool isLogout = buttonData['name'] == "Logout";
-            final bool isRedColored =
-                isLogout || buttonData['name'] == "Delete Account";
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(
-                      buttonData["icon"],
-                      color: isRedColored ? AppColors.main : AppTheme.textBlack,
-                    ),
-                    title: Text(
-                      buttonData["name"],
-                      style: TextStyle(
-                        color: isRedColored
-                            ? AppColors.main
-                            : AppTheme.textBlack,
-                      ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right, size: 20),
-                    onTap: isLogout
-                        ? () async {
-                            final confirmed = await showCloseConfirmationDialog(
-                              context,
-                            );
-                            if (!mounted || !confirmed) return;
-                            Navigator.pushReplacementNamed(context, "/login");
-                          }
-                        : () => _showOptionSheet(context, buttonData["name"]),
-                  ),
-                ),
-                if (index < buttons.length - 1)
-                  AppTheme.divider(context, AppTheme.lightGrey),
-              ],
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  // Refactored security section to remove unnecessary outer spacing
-  Widget _buildSecuritySection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _sectionLabel("SECURITY"),
-        const SizedBox(height: 4),
-        _buildSecurityOptions(context),
-      ],
-    );
-  }
-
-  // Horizontal expanding half-circular gauge meter for security score
-  Widget _buildSecurityScore() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 10),
-      child: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double height = MediaQuery.of(context).size.height * 0.16;
-            final double width = MediaQuery.of(context).size.width * 0.65;
-            final int score = (securityScorePercent * 100).toInt();
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: width,
-                  height: height,
-                  child: CustomPaint(
-                    painter: HalfCircleGaugePainter(
-                      progress: securityScorePercent,
-                      backgroundColor: AppColors.primary.withAlpha(80),
-                      valueColor: score < 20
-                          ? AppColors.main
-                          : score < 50
-                          ? AppColors.orange
-                          : AppColors.green,
-                      strokeWidth: 25,
-                    ),
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: height * 0.2),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: score < 20
-                                    ? AppColors.main
-                                    : score < 50
-                                    ? AppColors.orange
-                                    : AppColors.green,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.lock,
-                                size: 22,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "$score%",
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryWhite,
-                              ),
-                            ),
-                            const Text(
-                              "Protected",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSecurityOptions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildOptionTile(
-            icon: Icons.fingerprint,
-            title: "Biometric Authentication",
-            trailing: biometricEnabled ? "Enabled" : "Disabled",
-            trailingColor: biometricEnabled ? AppColors.green : AppColors.main,
-            onTap: _toggleBiometric,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.lock_outline,
-            title: "Two-Factor Authentication",
-            trailing: twoFactorEnabled ? "Enabled" : "Disabled",
-            trailingColor: twoFactorEnabled ? AppColors.green : AppColors.main,
-            onTap: _toggleTwoFactor,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.shield_outlined,
-            title: "Real-Time Fraud Protection",
-            trailing: fraudProtection ? "Active" : "Inactive",
-            trailingColor: fraudProtection
-                ? AppColors.green
-                : AppColors.textBlack,
-            onTap: _toggleFraudProtection,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.notifications_active,
-            title: "Security Alerts",
-            trailing: "",
-            showArrow: true,
-            onTap: () => Navigator.pushNamed(context, '/fraud_detection'),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Recent Activity", style: AppTheme.labelLarge),
-          ),
-          const SizedBox(height: AppTheme.spacingSm),
-          if (isLoadingSecurity)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (protectionHistory.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                "No recent login activity",
-                style: AppTheme.bodySmall.copyWith(color: AppColors.lightGrey),
-              ),
-            )
-          else
-            ...protectionHistory.map(_buildHistoryItem),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionTile({
-    required IconData icon,
-    required String title,
-    required String trailing,
-    Color? trailingColor,
-    bool showArrow = false,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
+      scrollDirection: Axis.vertical,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.lightGrey.withAlpha(50),
-              width: 0.5,
-            ),
-          ),
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height,
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.textBlack, size: 22),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textBlack,
-                ),
+        decoration: BoxDecoration(
+          color: AppTheme.gray50,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: AppTheme.spacingMd),
+              // General Settings Section
+              ListSection(
+                title: "GENERAL",
+                buttons: _generalButtons,
+                onTapOption: _showOptionSheet,
               ),
-            ),
-            if (trailing.isNotEmpty)
-              Text(
-                trailing,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: trailingColor ?? AppColors.textBlack,
-                ),
+              const SizedBox(height: 40),
+              // Security Controls Section
+              SecuritySection(
+                biometricEnabled: biometricEnabled,
+                twoFactorEnabled: twoFactorEnabled,
+                fraudProtection: fraudProtection,
+                isLoading: isLoadingSecurity,
+                protectionHistory: protectionHistory,
+                onToggleBiometric: _toggleBiometric,
+                onToggleTwoFactor: _toggleTwoFactor,
+                onToggleFraudProtection: _toggleFraudProtection,
               ),
-            if (showArrow)
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: AppColors.textBlack,
+              const SizedBox(height: 40),
+              // Feedback and Reporting Section
+              ListSection(
+                title: "FEEDBACK",
+                buttons: _feedbackButtons,
+                onTapOption: _showOptionSheet,
               ),
-          ],
+              const SizedBox(height: 40),
+              // Danger zone Section
+              ListSection(
+                title: "DANGER ZONE",
+                buttons: _dangerZoneButtons,
+                onTapOption: _showOptionSheet,
+              ),
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );
@@ -489,7 +221,11 @@ class _SettingsState extends State<Settings> {
           icon: Icons.support_agent_outlined,
           rows: const [
             _InfoRow(Icons.email_outlined, "Email", "support@zentrapay.com"),
-            _InfoRow(Icons.chat_outlined, "Live chat", "In-app chat — coming soon"),
+            _InfoRow(
+              Icons.chat_outlined,
+              "Live chat",
+              "In-app chat — coming soon",
+            ),
             _InfoRow(Icons.help_outline, "Help center", "help.zentrapay.com"),
           ],
         );
@@ -555,7 +291,11 @@ class _SettingsState extends State<Settings> {
                 const SizedBox(height: AppTheme.spacingLg),
                 _InfoRow(Icons.person_outline, "Name", user?.fullName ?? ''),
                 _InfoRow(Icons.email_outlined, "Email", user?.email ?? ''),
-                _InfoRow(Icons.phone_outlined, "Phone", user?.phoneNumber ?? ''),
+                _InfoRow(
+                  Icons.phone_outlined,
+                  "Phone",
+                  user?.phoneNumber ?? '',
+                ),
                 _InfoRow(
                   Icons.verified_user_outlined,
                   "Verification",
@@ -620,61 +360,6 @@ class _SettingsState extends State<Settings> {
             ...rows,
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryItem(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: item['color'] as Color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.shield, color: AppColors.primary, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  item['title'],
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                if ((item['device'] as String).isNotEmpty)
-                  Text(
-                    item['device'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textBlack,
-                    ),
-                  ),
-                Text(
-                  item['time'],
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

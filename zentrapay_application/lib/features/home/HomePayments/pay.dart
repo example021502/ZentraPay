@@ -206,6 +206,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
                               "email": user.email,
                               "phoneNumber": user.phoneNumber,
                               "countryCode": user.countryCode,
+                              "id": user.userId,
                             };
                             final String? zentrapayId =
                                 dotenv.env["zentrapay_id"];

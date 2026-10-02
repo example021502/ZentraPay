@@ -49,7 +49,7 @@ public class CryptoAccountModel {
     private Boolean isDefault;
 
     @Column(name = "status", nullable = false)
-    private String status = "active";
+    private String status = "ACTIVE";
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

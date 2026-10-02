@@ -143,9 +143,10 @@ class ContactSearchResult {
     // "fundingSources" (List<BankSearchDTO>) — funding sources are now
     // represented as banks, so map them into the frontend `Banks` model,
     // whose fields (bankId/bankName/bankCode/countryCode) mirror
-    // BankSearchDTO exactly. Parsing the wrong key ('banks') returns an
-    // empty list at runtime, so this must follow the backend envelope key.
-    banks: ((json['banks'] as List?) ?? [])
+    // BankSearchDTO exactly. Reading only 'banks' silently yields an empty
+    // list at runtime, so read the contract key first and keep 'banks' as a
+    // fallback for older backend builds.
+    banks: ((json['fundingSources'] ?? json['banks'] as List?) ?? [])
         .map((e) => Banks.fromJson(e as Map<String, dynamic>))
         .toList(),
   );

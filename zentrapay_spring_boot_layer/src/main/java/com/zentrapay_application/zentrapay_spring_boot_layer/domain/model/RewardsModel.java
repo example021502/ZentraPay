@@ -49,11 +49,11 @@ public class RewardsModel {
 
     // Automatic creation timestamp
     @CreationTimestamp
-    @Column(name = "created_on", nullable = false, updatable = false)
-    private LocalDateTime createdOn;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     // Automatic update timestamp
     @UpdateTimestamp
-    @Column(name = "updated_on", nullable = false)
-    private LocalDateTime updatedOn;
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

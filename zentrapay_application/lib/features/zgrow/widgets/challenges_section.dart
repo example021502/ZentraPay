@@ -11,21 +11,21 @@ class ChallengesSection extends StatefulWidget {
   const ChallengesSection({super.key});
 
   @override
-  State<ChallengesSection> createState() => _ChallengesSectionState();
+  State createState() => _ChallengesSectionState();
 }
 
-class _ChallengesSectionState extends State<ChallengesSection> {
+class _ChallengesSectionState extends State {
   // Tracking IDs for challenges currently undergoing join network calls
-  final Set<String> _joiningIds = {};
+  final Set _joiningIds = {};
 
   // Tracking IDs for challenges currently undergoing decline network calls
-  final Set<String> _decliningIds = {};
+  final Set _decliningIds = {};
 
   // Toggle state to control visibility of challenges list content
   bool showChallenges = false;
 
   // Asynchronously handles joining (or re-accepting) a specific challenge
-  Future<void> _joinChallenge(Challenge challenge) async {
+  Future _joinChallenge(Challenge challenge) async {
     setState(() => _joiningIds.add(challenge.challengeId));
     try {
       await ChallengesRepository.instance.join(challenge.challengeId);
@@ -42,7 +42,7 @@ class _ChallengesSectionState extends State<ChallengesSection> {
   }
 
   // Asynchronously handles declining a joined challenge
-  Future<void> _declineChallenge(Challenge challenge) async {
+  Future _declineChallenge(Challenge challenge) async {
     setState(() => _decliningIds.add(challenge.challengeId));
     try {
       await ChallengesRepository.instance.decline(challenge.challengeId);
@@ -97,6 +97,10 @@ class _ChallengesSectionState extends State<ChallengesSection> {
                           // Toggle switch controlling list visibility
                           Switch(
                             value: showChallenges,
+                            // Set border/outline color to transparent to remove switch border
+                            trackOutlineColor: WidgetStateProperty.all(
+                              Colors.transparent,
+                            ),
                             // Color of the thumb (circle) when the switch is ON
                             activeThumbColor: AppColors.primary,
                             // Color of the track (background bar) when the switch is ON
@@ -173,7 +177,7 @@ class _ChallengesSectionState extends State<ChallengesSection> {
     );
   }
 
-  List<Widget> _cards(List<Challenge> challenges) => [
+  List _cards(List challenges) => [
     for (final challenge in challenges)
       Padding(
         padding: const EdgeInsets.only(bottom: 16.0),

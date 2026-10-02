@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 
 /// "Rewards" header + summary, collapsed entirely until RewardsRepository
 /// actually has data.
@@ -33,7 +33,7 @@ class RewardsSection extends StatelessWidget {
                   child: Text(
                     "See more",
                     style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.primaryPink,
+                      decoration: TextDecoration.underline,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

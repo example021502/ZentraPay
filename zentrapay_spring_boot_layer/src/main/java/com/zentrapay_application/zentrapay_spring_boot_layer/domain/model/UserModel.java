@@ -44,10 +44,10 @@ public class UserModel {
     private String transactionPinHash;
 
     @Column(name = "user_type", nullable = false, length = 20)
-    private String userType = "app-user"; // INDIVIDUAL, MERCHANT
+    private String userType = "INDIVIDUAL"; // INDIVIDUAL, MERCHANT
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "active"; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
+    private String status = "ACTIVE"; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
 
     @Column(name = "kyc_tier", nullable = false)
     private short kycTier = 0;

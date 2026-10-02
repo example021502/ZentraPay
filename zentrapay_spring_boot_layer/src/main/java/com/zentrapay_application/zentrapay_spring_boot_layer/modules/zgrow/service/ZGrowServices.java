@@ -34,8 +34,8 @@ public class ZGrowServices {
                         r.getWorth(),
                         r.getCurrencyCode(),
                         r.getIsActive(),
-                        r.getCreatedOn(),
-                        r.getUpdatedOn()
+                        r.getCreatedAt(),
+                        r.getUpdatedAt()
                                 )
         ).toList();
     }
