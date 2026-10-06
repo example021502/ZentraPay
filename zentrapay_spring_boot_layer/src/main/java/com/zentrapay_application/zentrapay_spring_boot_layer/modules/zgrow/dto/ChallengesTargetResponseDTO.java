@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /** GET /api/notifications item shape. */
-public record AllChallengesDTO(
+public record ChallengesResponseDTO(
         UUID notificationId,
         String title,
         String message,
