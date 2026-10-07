@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
+import 'package:zentrapay_application/features/home/bouncing_logo.dart';
 import 'package:zentrapay_application/main.dart';
 
 import '../../features/home/repository/cache_homeData.dart';
@@ -125,7 +126,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
-      TransactionsRepository.instance.ensureLoaded();
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
       Future.delayed(Duration(seconds: 3), () {
         if (!mounted) return;
 
@@ -151,106 +152,84 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppColors.primary,
       // Comment: Force full screen height safely without infinite layout collisions
       body: SizedBox.expand(
-        child: Stack(
-          children: [
-            // Comment: 1. BACKGROUND IMAGE - Placed first in stack so it covers the entire page underneath everything
-            if (MediaQuery.of(context).size.width < 470)
-              Positioned.fill(
-                child: Image.asset(
-                  "images/SplashscreenImage.png",
-                  fit: BoxFit.cover,
-                ),
-              ),
-            // Comment: 2. CONTENT CONTAINER - Positioned at the top center with padding
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 60.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.center,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 60.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // THE BOUNCING LOGO
+                  BouncingLogo(),
+                  // THE ANIMATED BRAND NAME AND SLOGAN
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Comment: Row aligning Z Logo and text side-by-side cleanly at top center
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Comment: Z Logo container
-                          ScaleTransition(
-                            scale: _logoScale,
-                            child: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'Z',
-                                style: TextStyle(
-                                  color: AppColors.main,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 40,
-                                ),
-                              ),
-                            ),
+                      // Comment: Z Logo container
+                      ScaleTransition(
+                        scale: _logoScale,
+                        child: const Text(
+                          'Z',
+                          style: TextStyle(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 40,
                           ),
-                          const SizedBox(width: 2),
-                          // Comment: Brand text sliding into place
-                          SlideTransition(
-                            position: _brandSlide,
-                            child: FadeTransition(
-                              opacity: _brandOpacity,
-                              child: const Text(
-                                'entrapay',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 35,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: -1.0,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Comment: Slogan dropping down vertically beneath the brand name
-                      ClipRect(
-                        child: SlideTransition(
-                          position: _sloganSlide,
-                          child: FadeTransition(
-                            opacity: _sloganOpacity,
-                            child: const Text(
-                              'One Africa, One Wallet',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: 0.5,
-                              ),
+                      const SizedBox(width: 2),
+                      // Comment: Brand text sliding into place
+                      SlideTransition(
+                        position: _brandSlide,
+                        child: FadeTransition(
+                          opacity: _brandOpacity,
+                          child: const Text(
+                            'entrapay',
+                            style: TextStyle(
+                              color: AppColors.main,
+                              fontSize: 35,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -1.0,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppTheme.spacingXl),
-                      // LOADING
-                      if (_isLoading) ...[
-                        const CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(height: 30),
-                      ],
                     ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+
+                  // Comment: Slogan dropping down vertically beneath the brand name
+                  ClipRect(
+                    child: SlideTransition(
+                      position: _sloganSlide,
+                      child: FadeTransition(
+                        opacity: _sloganOpacity,
+                        child: const Text(
+                          'One Africa, One Wallet',
+                          style: TextStyle(
+                            color: AppColors.secondary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingXl),
+                  // LOADING
+                  if (_isLoading) ...[
+                    const CircularProgressIndicator(color: AppColors.secondary),
+                    const SizedBox(height: 30),
+                  ],
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

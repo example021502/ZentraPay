@@ -3,7 +3,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import java.time.LocalDateTime;
 
-/** GET /api/notifications item shape. */
+/** GET /api/zgrow/tutorials item shape. */
 public record TutorialsDTO(
     int id,
     String title,

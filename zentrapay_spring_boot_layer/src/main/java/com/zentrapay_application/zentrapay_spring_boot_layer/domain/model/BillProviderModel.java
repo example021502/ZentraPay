@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -61,7 +62,7 @@ public class BillProviderModel {
     private String gateway;
 
     @Transient
-    private String userType = "bill-provider";
+    private Datatypes.UserType userType = Datatypes.UserType.OTHERS;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

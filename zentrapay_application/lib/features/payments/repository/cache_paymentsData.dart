@@ -216,11 +216,20 @@ class ConverterService {
 class PaymentsService {
   static final Dio _dio = ApiClient().dio;
 
-  static Future<AppTransaction> payment({
+  static Future<Map<String, dynamic>> payment({
     required Map<String, dynamic> payload,
   }) async {
-    final response = await _dio.post('/api/payments', data: payload);
-    return _applyTransactionResult(response.data['data']);
+    final response = await _dio.post('/api/payments/initialize', data: payload);
+    final String message = response.data['message'] ?? 'Payment successful';
+    if (response.data['success'] && response.data['data'] != null) {
+      _applyTransactionResult(response.data['data']);
+      return {'data': response.data['data'], 'message': message};
+    } else {
+      return {
+        'data': null,
+        'message': 'Payment response missing transaction data',
+      };
+    }
   }
 
   static Future<AppTransaction> payBankTransfer({
@@ -244,7 +253,10 @@ class PaymentsService {
         'description': ?description,
       },
     );
-    return _applyTransactionResult(response.data['data']);
+    _applyTransactionResult(response.data['data']);
+    return response.data['data'] != null
+        ? AppTransaction.fromJson(response.data['data'])
+        : throw Exception('Bank transfer response missing transaction data');
   }
 
   static Future<Map<String, dynamic>> getPaystackAccessCode({
@@ -375,13 +387,12 @@ class PaymentsService {
     return '$f $l'.trim();
   }
 
-  static AppTransaction _applyTransactionResult(Map<String, dynamic> json) {
+  static void _applyTransactionResult(Map<String, dynamic> json) {
     final transaction = AppTransaction.fromJson(json);
     TransactionsRepository.instance.prepend(transaction);
     // The wallet's balance changed server-side; the cheapest correct move
     // is a forced refresh of the (already-loaded) wallets snapshot rather
     // than trying to recompute the new balance client-side.
     WalletsRepository.instance.ensureLoaded();
-    return transaction;
   }
 }

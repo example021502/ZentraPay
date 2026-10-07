@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 import 'package:zentrapay_application/main.dart';
@@ -21,7 +22,11 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     super.initState();
     // Defer repository load so it doesn't trigger state updates during the active build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      TransactionsRepository.instance.ensureLoaded();
+      // ensureLoaded rethrows on failure; unhandled here it became an
+      // "unhandled exception" that still left the list permanently empty.
+      TransactionsRepository.instance.ensureLoaded().catchError(
+        (Object e) => debugPrint('History load failed: $e'),
+      );
     });
     _scrollController.addListener(_onScroll);
   }
@@ -42,27 +47,24 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     return items.where((t) {
       final name = (t.receiverName).toLowerCase();
       final identifier = (t.receiverId).toLowerCase();
-      final description = (t.purpose)?.toLowerCase();
+      final reference = (t.TXN_Ref).toLowerCase();
+      final amount = (t.amount).toLowerCase();
+
       return name.contains(_query) ||
           identifier.contains(_query) ||
-          description!.contains(_query);
+          reference.contains(_query) ||
+          amount.contains(_query);
     }).toList();
   }
 
-  IconData _getIconForType(String typeCode) {
-    switch (typeCode) {
-      case 'BILL_PAYMENT':
-        return Icons.receipt_long;
-      case 'BANK_TRANSFER':
-      case 'WALLET_FUNDING':
-        return Icons.account_balance;
-      case 'CARD_PAYMENT':
-        return Icons.credit_card;
-      case 'REMITTANCE_SEND':
-        return Icons.public;
-      default:
-        return Icons.person;
-    }
+  IconData _getIcon(String amount) {
+    if (amount.startsWith("-")) return Icons.call_made_rounded;
+    return Icons.call_received_rounded;
+  }
+
+  Color _getColor(String amount) {
+    if (amount.startsWith("+")) return AppColors.secondary;
+    return AppColors.main;
   }
 
   @override
@@ -107,9 +109,13 @@ class _PaymentHistoryState extends State<PaymentHistory> {
               ),
 
               const SizedBox(height: 20),
-              Text("Transaction History", style: AppStyles.header),
+              Text(
+                "History",
+                style: AppTheme.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 10),
-
               Expanded(
                 child: ListenableBuilder(
                   listenable: TransactionsRepository.instance,
@@ -124,11 +130,17 @@ class _PaymentHistoryState extends State<PaymentHistory> {
                     }
 
                     if (displayed.isEmpty) {
+                      final err = repo.error;
                       return Container(
                         alignment: Alignment.center,
                         height: 100,
                         child: Text(
-                          "No history found",
+                          // Distinguish "genuinely no transactions" from
+                          // "the request/parse failed" — these looked identical.
+                          err != null
+                              ? 'Could not load history.\n$err'
+                              : "No history found",
+                          textAlign: TextAlign.center,
                           style: AppStyles.text.copyWith(
                             color: AppColors.lightGrey,
                           ),
@@ -139,7 +151,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
                     return ListView.builder(
                       controller: _scrollController,
                       scrollDirection: Axis.vertical,
-                      physics: const BouncingScrollPhysics(),
+                      // physics: const BouncingScrollPhysics(),
                       itemCount: displayed.length + (repo.hasMore ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index >= displayed.length) {
@@ -173,22 +185,24 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   // Comment: Standardized design container blueprint rendering unified payment node cards
   Widget _buildTransactionItem(AppTransaction transaction) {
     final displayName = transaction.receiverName;
-    final displayIdentifier = transaction.receiverId;
+    // completedAt arrives as an ISO-8601 string; format it first so the row
+    // matches the "YYYY-MM-DD • HH:mm" style used by home_transactions.
+    final date = formatDateTimeString(transaction.completedAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12.0),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.lightGrey.withAlpha(20),
+        borderRadius: BorderRadius.circular(15),
       ),
       child: ListTile(
         leading: CircleAvatar(
           radius: 22,
-          backgroundColor: AppColors.secondary.withValues(alpha: 0.1),
+          backgroundColor: AppColors.secondary.withAlpha(20),
           child: Icon(
-            _getIconForType(transaction.transactionType),
+            _getIcon(transaction.amount),
             size: 22,
-            color: AppColors.secondary,
+            color: _getColor(transaction.amount),
           ),
         ),
         title: Text(
@@ -202,7 +216,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           ),
         ),
         subtitle: Text(
-          formatDateTimeString(transaction.createdAt),
+          date,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w400,
@@ -244,8 +258,8 @@ class _PaymentHistoryState extends State<PaymentHistory> {
             ),
             const SizedBox(height: 12),
             _detailRow("Status", transaction.status),
-            _detailRow("Reference", transaction.internalReferenceId),
-            _detailRow("Date", formatDateTimeString(transaction.createdAt)),
+            _detailRow("Reference", transaction.TXN_Ref),
+            _detailRow("Date", formatDateTimeString(transaction.completedAt)),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

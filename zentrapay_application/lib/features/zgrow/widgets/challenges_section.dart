@@ -26,9 +26,9 @@ class _ChallengesSectionState extends State {
 
   // Asynchronously handles joining (or re-accepting) a specific challenge
   Future _joinChallenge(Challenge challenge) async {
-    setState(() => _joiningIds.add(challenge.challengeId));
+    setState(() => _joiningIds.add(challenge.id));
     try {
-      await ChallengesRepository.instance.join(challenge.challengeId);
+      await ChallengesRepository.instance.join(challenge.id);
     } catch (_) {
       if (mounted) {
         ZentraNotifier.error(
@@ -37,15 +37,15 @@ class _ChallengesSectionState extends State {
         );
       }
     } finally {
-      if (mounted) setState(() => _joiningIds.remove(challenge.challengeId));
+      if (mounted) setState(() => _joiningIds.remove(challenge.id));
     }
   }
 
   // Asynchronously handles declining a joined challenge
   Future _declineChallenge(Challenge challenge) async {
-    setState(() => _decliningIds.add(challenge.challengeId));
+    setState(() => _decliningIds.add(challenge.id));
     try {
-      await ChallengesRepository.instance.decline(challenge.challengeId);
+      await ChallengesRepository.instance.decline(challenge.id);
     } catch (_) {
       if (mounted) {
         ZentraNotifier.error(
@@ -54,7 +54,7 @@ class _ChallengesSectionState extends State {
         );
       }
     } finally {
-      if (mounted) setState(() => _decliningIds.remove(challenge.challengeId));
+      if (mounted) setState(() => _decliningIds.remove(challenge.id));
     }
   }
 
@@ -64,6 +64,8 @@ class _ChallengesSectionState extends State {
       listenable: ChallengesRepository.instance,
       builder: (context, _) {
         final challenges = ChallengesRepository.instance.data;
+        final joinedChallenges = UserChallengesRepository.instance.data;
+
         final hasChallenges = challenges != null && challenges.isNotEmpty;
 
         return Column(
@@ -144,34 +146,38 @@ class _ChallengesSectionState extends State {
   // Joined challenges are grouped and shown ahead of the rest of the
   // AI-suggested pool the user hasn't joined yet.
   Widget _list() {
-    final challenges = ChallengesRepository.instance.data;
-
-    if (ChallengesRepository.instance.isLoading) {
+    final challenges = ChallengesRepository.instance.data?.take(4).toList();
+    final userChallenges = UserChallengesRepository.instance.data
+        ?.take(4)
+        .toList();
+    final isLoading =
+        ChallengesRepository.instance.isLoading ||
+        UserChallengesRepository.instance.isLoading;
+    if (isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    if (challenges == null || challenges.isEmpty) {
+    if ((userChallenges == null || userChallenges.isEmpty) &&
+        (challenges == null || challenges.isEmpty)) {
       return const SizedBox.shrink();
     }
-
-    final joined = challenges.where((c) => c.joined).toList();
-    final others = challenges.where((c) => !c.joined).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (joined.isNotEmpty) ...[
+        if (userChallenges!.isNotEmpty) ...[
           Text("Joined Challenges", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingSm),
-          ..._cards(joined),
-          if (others.isNotEmpty) const SizedBox(height: AppTheme.spacingMd),
+          ..._cards(userChallenges),
+          if (challenges!.isNotEmpty)
+            const SizedBox(height: AppTheme.spacingMd),
         ],
-        if (others.isNotEmpty) ...[
+        if (challenges!.isNotEmpty) ...[
           Text("Other Challenges", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingSm),
-          ..._cards(others),
+          ..._cards(challenges),
         ],
       ],
     );
@@ -183,8 +189,8 @@ class _ChallengesSectionState extends State {
         padding: const EdgeInsets.only(bottom: 16.0),
         child: ChallengeCard(
           challenge: challenge,
-          joining: _joiningIds.contains(challenge.challengeId),
-          declining: _decliningIds.contains(challenge.challengeId),
+          joining: _joiningIds.contains(challenge.id),
+          declining: _decliningIds.contains(challenge.id),
           onJoin: () => _joinChallenge(challenge),
           onDecline: () => _declineChallenge(challenge),
         ),

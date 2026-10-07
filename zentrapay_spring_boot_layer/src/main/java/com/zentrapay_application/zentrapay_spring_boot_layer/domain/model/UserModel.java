@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -43,11 +44,13 @@ public class UserModel {
     @Column(name = "transaction_pin_hash", nullable = false, length = 120)
     private String transactionPinHash;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "user_type", nullable = false, length = 20)
-    private String userType = "INDIVIDUAL"; // INDIVIDUAL, MERCHANT
+    private Datatypes.UserType userType=Datatypes.UserType.APP_USER; // INDIVIDUAL, MERCHANT
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE"; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
+    private Datatypes.UserStatus status = Datatypes.UserStatus.ACTIVE; // ACTIVE, SUSPENDED, PENDING_VERIFICATION, CLOSED
 
     @Column(name = "kyc_tier", nullable = false)
     private short kycTier = 0;

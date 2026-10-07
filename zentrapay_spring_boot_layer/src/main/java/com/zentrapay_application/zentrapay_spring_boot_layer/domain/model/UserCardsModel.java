@@ -5,6 +5,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -47,6 +48,12 @@ public class UserCardsModel {
 
     @Column(name = "qr_enabled", nullable = false)
     private Boolean qrEnabled;
+
+    @Column(name = "balance", nullable = false)
+    private BigDecimal balance = BigDecimal.ZERO;
+
+    @Column(name = "currencyCode", nullable = false, length = 3)
+    private String currencyCode;
 
     @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";

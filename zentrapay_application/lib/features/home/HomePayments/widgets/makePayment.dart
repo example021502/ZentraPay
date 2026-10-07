@@ -6,6 +6,7 @@ import '../../../../core/utils/Common/AppConfirmSheet.dart';
 import '../../../../core/utils/Common/EnterAmount.dart';
 import '../../../../core/utils/Common/GenerateTransactionId.dart';
 import '../../../../core/utils/Common/TransactionResultOverlay.dart';
+import '../../../../core/models/transaction.dart';
 import '../../../../core/utils/LoadingOverlay.dart';
 
 class PaymentController {
@@ -17,23 +18,17 @@ class PaymentController {
   Map<String, dynamic> _buildPayload({
     required String pin,
     required String txnRef,
-    required double amount,
-    required String currencyCode,
+    required String channelType,
+    required String label,
+    required Map<String, dynamic> transfer,
     required Map<String, dynamic> recipient,
-    required Map<String, dynamic> destination,
-    String purpose = "",
   }) {
     return {
       "pin": pin,
-      "recipient": recipient,
-      "destination": destination,
-      "transfer": {
-        "referenceId": txnRef,
-        "amount": amount,
-        "currencyCode": currencyCode,
-        "currencyType": "fiat",
-        "purpose": purpose,
-      },
+      "TXN_Ref": txnRef,
+      "transfer": transfer,
+      label: recipient,
+      "channelType": channelType,
     };
   }
 
@@ -42,8 +37,8 @@ class PaymentController {
     required BuildContext context,
     required String
     recipientNameForUI, // Used for dialogs (e.g., User Name, Bank Name)
+    required String channelType,
     required Map<String, dynamic> recipientMap,
-    required Map<String, dynamic> destinationMap,
     required void Function(bool) onStateChanged,
     String purpose = "",
   }) async {
@@ -74,7 +69,6 @@ class PaymentController {
         name: recipientNameForUI,
         currencyCode: amountResult['currencyCode'],
         amount: amountResult['amount'],
-        destination: recipientNameForUI,
       ),
     );
     if (pin == null || pin.isEmpty || !context.mounted) return;
@@ -82,16 +76,23 @@ class PaymentController {
     final txnRef = generateTxnRef();
     final amount = double.tryParse(amountResult['amount'].toString()) ?? 0;
     final currencyCode = amountResult['currencyCode'].toString();
-
+    final Map<String, dynamic> amountDetails = {
+      "amount": amount,
+      "currencyCode": currencyCode,
+      "purpose": purpose,
+    };
     // 3. Build the universal payload
     final payload = _buildPayload(
       pin: pin,
       txnRef: txnRef,
-      amount: amount,
-      currencyCode: currencyCode,
+      transfer: amountDetails,
       recipient: recipientMap,
-      destination: {...destinationMap, "currencyCode":currencyCode},
-      purpose: purpose,
+      label: channelType == "INTERNAL"
+          ? "appUser"
+          : channelType == "BANK"
+          ? "bank"
+          : "recipient",
+      channelType: channelType,
     );
 
     _payInFlight = true;
@@ -105,16 +106,33 @@ class PaymentController {
         () => PaymentsService.payment(payload: payload),
         message: "Processing payment…",
       );
+      print("============= THE TRANSACTION RESULT:: $transaction");
       if (!context.mounted) return;
+      // payment() hands back {'data': AppTransaction, 'message': String}; a
+      // response that carried no transaction data is a failure, not a success.
+      final AppTransaction? data = transaction['data'] as AppTransaction?;
+      if (data == null) {
+        await showTransactionResultOverlay(
+          context: context,
+          status: TransactionResultStatus.error,
+          title: "Payment Failed",
+          message: (transaction['message'] ?? "Payment failed").toString(),
+        );
+        return;
+      }
       await showTransactionResultOverlay(
         context: context,
         status: TransactionResultStatus.success,
-        title: "Payment Sent",
-        message: "$currencyCode $amount sent to $recipientNameForUI.",
+        title: (transaction['message'] ?? "Payment Successful").toString(),
+        message:
+            "${data.currencyCode} ${data.amount} sent to $recipientNameForUI.",
         details: [
           TransactionResultDetail("Recipient", recipientNameForUI),
           TransactionResultDetail("Amount", "$currencyCode $amount"),
-          TransactionResultDetail("Reference", transaction.transactionId),
+          TransactionResultDetail(
+            "Reference",
+            data.TXN_Ref.isNotEmpty ? data.TXN_Ref : txnRef,
+          ),
         ],
       );
     } catch (e) {
@@ -138,6 +156,6 @@ class PaymentController {
         return data['message'];
       }
     }
-    return "Something went wrong. Please try again.";
+    return "Something went wrong! Please try again. Don't worry. no money was deducted from your account.";
   }
 }

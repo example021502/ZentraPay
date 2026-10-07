@@ -25,6 +25,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
   void initState() {
     super.initState();
     ChallengesRepository.instance.ensureLoaded();
+    UserChallengesRepository.instance.ensureLoaded();
     TutorialsRepository.instance.ensureLoaded();
     RewardsRepository.instance.ensureLoaded();
     BankAccountsRepository.instance.ensureLoaded();
@@ -68,10 +69,6 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
                       RewardsSection(),
                     SizedBox(height: AppTheme.spacingMd),
                     LearnEarnSection(),
-                    if (RewardsRepository.instance.isLoading ||
-                        TutorialsRepository.instance.isLoading)
-                      const CircularProgressIndicator(),
-
                     SizedBox(height: 100),
                   ],
                 ),

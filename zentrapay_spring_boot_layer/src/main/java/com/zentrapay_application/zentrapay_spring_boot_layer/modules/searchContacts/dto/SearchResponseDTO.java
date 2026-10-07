@@ -12,6 +12,6 @@ import java.util.List;
 public record SearchResponseDTO(
         List<UserSearchDTO> appUsers,
         List<BillProviderSearchDTO> billProviders,
-        List<BankSearchDTO> fundingSources
+        List<BankSearchDTO> banks
 ) {
 }

@@ -5,10 +5,10 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Dataty
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** GET /api/notifications item shape. */
+/** GET /api/zgrow/rewards item shape. */
 public record RewardsDTO(
     int rewardId,
-    Datatypes.RewardTypeEnum rewardType,
+    Datatypes.RewardType rewardType,
     String title,
     String description,
     BigDecimal worth,

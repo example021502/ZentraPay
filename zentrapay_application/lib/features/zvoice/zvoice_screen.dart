@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zentrapay_application/core/models/security.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
 import 'package:zentrapay_application/features/zvoice/repository/cache_zvoiceData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
@@ -536,7 +537,7 @@ class _ZVoiceSecurityPage extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  alert.createdAt,
+                  formatDateTimeString(alert.createdAt),
                   style: AppTheme.bodySmall.copyWith(color: AppTheme.lightGrey),
                 ),
               ],

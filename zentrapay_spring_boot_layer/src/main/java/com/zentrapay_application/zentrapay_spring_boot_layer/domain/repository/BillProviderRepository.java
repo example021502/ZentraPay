@@ -32,11 +32,11 @@ public interface BillProviderRepository extends JpaRepository<BillProviderModel,
 
     @Query("""
             SELECT p FROM BillProviderModel p
-            WHERE p.providerId = :query
+            WHERE p.providerId = :receiverId
             AND LOWER(p.countryCode) = :countryCode AND p.active = true
             """)
     Optional<BillProviderModel> getContactByQueryAndCountryCode(
-            @Param("query") UUID query,
+            @Param("receiverId") UUID receiverId,
             @Param("countryCode") String countryCode
     );
 }

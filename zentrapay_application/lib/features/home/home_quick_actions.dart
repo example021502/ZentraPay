@@ -9,7 +9,6 @@ import 'package:zentrapay_application/features/home/provider_picker_sheet.dart';
 import 'package:zentrapay_application/features/home/receive_sheet.dart';
 import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
 import 'package:zentrapay_application/main.dart';
-
 import 'history.dart';
 
 /// Home Quick Actions Widget
@@ -170,12 +169,12 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
             onTap: () => _onNFCAction(context),
           ),
           QuickActionButton(
-            icon: Icons.arrow_upward_outlined,
+            icon: Icons.arrow_upward_rounded,
             label: "Send",
             onTap: () => _onPayAction(context),
           ),
           QuickActionButton(
-            icon: Icons.arrow_downward_outlined,
+            icon: Icons.arrow_downward_rounded,
             label: "Receive",
             onTap: () => _onReceiveAction(context),
           ),

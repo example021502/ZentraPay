@@ -1,11 +1,14 @@
--- CREATING A NEW ENUM TYPE FOR USER TYPE
-CREATE TYPE user_type AS ENUM('APP_USER', 'AGENT', 'MERCHANT');
-
--- CREATING A NEW ENUM FOR USER STATUSES
-CREATE TYPE user_status AS ENUM('ACTIVE', 'INACTIVE', 'FROZEN');
-
--- ALTERING THE USER TYPE OF THE USERS TABLE
+-- Always put comments on all responses.
+-- 1. Drop the existing outdated check constraint
 ALTER TABLE users
-    ALTER COLUMN user_type user_type DEFAULT 'APP_USER';
-    ALTER COLUMN status user_status DEFAULT 'ACTIVE';
+DROP CONSTRAINT users_user_type_check;
 
+-- 2. Add the updated check constraint containing all supported user types
+ALTER TABLE users
+    ADD CONSTRAINT users_user_type_check
+        CHECK (user_type IN (
+                             'APP_USER',
+                             'MERCHANT',
+                             'AGENT',
+                             'OTHERS',
+            ));

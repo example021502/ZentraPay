@@ -1,5 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,8 +17,8 @@ public record UserDTO(
         String phoneNumber,
         String countryCode,
         LocalDateTime createdAt,
-        String status,
-        String userType,
+        Datatypes.UserStatus status,
+        Datatypes.UserType userType,
         short kycTier
 ) {
 }

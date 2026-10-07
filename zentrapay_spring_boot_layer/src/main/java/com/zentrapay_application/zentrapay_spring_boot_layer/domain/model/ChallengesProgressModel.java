@@ -1,23 +1,16 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-// Active user participation record for a challenge
+// Historical ledger tracking each incremental savings contribution
 @Entity
-@Table(
-        name = "user_challenges",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "unique_user_active_challenge", columnNames = {"user_id", "challenge_id"})
-        }
-)
+@Table(name = "challenges_progress")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,34 +22,23 @@ public class ChallengesProgressModel {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "challenge_id", nullable = false)
-    private ChallengesModel challenge;
+    @JoinColumn(name = "user_challenge_id", nullable = false)
+    private UserChallengesModel userChallenge;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private Datatypes.ChallengeStatus status;
+    @Column(name = "amount_contributed", nullable = false, precision = 19, scale = 4)
+    private BigDecimal amountContributed;
 
-    @Builder.Default
-    @Column(name = "current_amount", nullable = false, precision = 19, scale = 4)
-    private BigDecimal currentAmount = BigDecimal.ZERO;
+    @Column(name = "new_total_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal newTotalAmount;
 
-    @Column(name = "target_amount", nullable = false, precision = 19, scale = 4)
-    private BigDecimal targetAmount;
+    @Column(name = "transaction_reference")
+    private UUID transactionReference;
 
-    @Column(name = "started_at", nullable = false)
-    private LocalDateTime startedAt;
+    @Column(length = 255)
+    private String notes;
 
-    @Column(name = "ends_at", nullable = false)
-    private LocalDateTime endsAt;
-
-    @Column(name = "completed_at")
-    private LocalDateTime completedAt;
-
-    @Builder.Default
-    @OneToMany(mappedBy = "userChallenge", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ChallengesProgressModel> progressLogs = new ArrayList<>();
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 }

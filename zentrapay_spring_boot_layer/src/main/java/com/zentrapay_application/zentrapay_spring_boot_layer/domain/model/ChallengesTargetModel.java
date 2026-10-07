@@ -4,63 +4,44 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Dataty
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-// Master entity defining available challenges in ZGrow
+// Target milestone and reward payout entity
 @Entity
-@Table(name = "challenges")
+@Table(name = "challenges_targets")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ChallengesModel {
+public class ChallengesTargetModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, length = 150)
-    private String title;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "challenge_id", nullable = false)
+    private ChallengesModel challenge;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    private Datatypes.ChallengeCategory category;
+    @Column(name = "target_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal targetAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "challenge_type", nullable = false, length = 50)
-    private Datatypes.ChallengeType challengeType;
+    @Column(name = "reward_type", nullable = false, length = 50)
+    private Datatypes.RewardType rewardType;
 
-    @Column(name = "duration_days", nullable = false)
-    private Integer durationDays;
-
-    @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
-
-    @Column(name = "start_date")
-    private LocalDateTime startDate;
-
-    @Column(name = "end_date")
-    private LocalDateTime endDate;
+    @Column(name = "reward_value", nullable = false, length = 100)
+    private String rewardValue;
 
     @Builder.Default
-    @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ChallengeTargetModel> targets = new ArrayList<>();
+    @Column(name = "tier_level", nullable = false)
+    private Integer tierLevel = 1;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 }

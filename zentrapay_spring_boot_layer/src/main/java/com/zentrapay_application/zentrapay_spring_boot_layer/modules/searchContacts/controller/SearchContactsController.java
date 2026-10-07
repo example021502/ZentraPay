@@ -2,11 +2,11 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchCont
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.ContactResponseDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchContactRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.SearchResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.service.SearchContactsService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -36,7 +35,6 @@ public class SearchContactsController {
     ) {
         // Extract the user UUID from the principal name (assuming your JWT subject stores the user UUID string)
         UUID userId = user.getUserId();
-        System.out.println("THE USER ID:: userId::" + userId);
         // Alternatively, if your SecurityContext stores the UUID directly as the principal object, use:
         // UUID userId = (UUID) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
@@ -52,12 +50,13 @@ public class SearchContactsController {
 
     @GetMapping("/search-contact/{query}")
     public ResponseEntity<ApiResponse<ContactResponseDTO>> searchContact(
-            @PathVariable("query") UUID query,
+            @PathVariable("query")
+            @NotBlank(message = "Query missing")
+            String query,
             @AuthenticationPrincipal AuthenticatedUser user // Captures the authenticated principal set by your JWT filter
     ) {
-        SearchContactRequestDTO req = new SearchContactRequestDTO(query);
         final UUID userId = user.getUserId();
-        ContactResponseDTO contact = searchContactsService.getContact(userId, req);
+        ContactResponseDTO contact = searchContactsService.getContact(userId, query);
         return ResponseEntity.ok(ApiResponse.success(contact, "Search Successful"));
     }
 }

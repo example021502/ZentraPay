@@ -16,21 +16,25 @@ CREATE TABLE cards (
 
 -- 3. Create the Issued User Cards Table
 -- Stores actual card instance data returned by provider after user selects a template
-CREATE TABLE user_cards (
-    id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    card_id         UUID NOT NULL REFERENCES cards(card_id) ON DELETE RESTRICT, -- Links to chosen template
-    wallet_id       UUID REFERENCES wallets(wallet_id) ON DELETE SET NULL,
-    provider_card_id VARCHAR(100) UNIQUE NOT NULL, -- Card token / ID returned by provider API
-    last4           CHAR(4) NOT NULL,
-    expiry_month    SMALLINT NOT NULL CHECK (expiry_month BETWEEN 1 AND 12),
-    expiry_year     SMALLINT NOT NULL,
-    nfc_enabled     BOOLEAN NOT NULL DEFAULT TRUE,
-    qr_enabled      BOOLEAN NOT NULL DEFAULT TRUE,
-    status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','FROZEN','CLOSED')),
-    issued_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE user_cards
+(
+    id               UUID PRIMARY KEY             DEFAULT gen_random_uuid(),
+    user_id          UUID                NOT NULL REFERENCES users (user_id) ON DELETE CASCADE,
+    card_id          UUID                NOT NULL REFERENCES cards (card_id) ON DELETE RESTRICT, -- Links to chosen template
+    wallet_id        UUID                REFERENCES wallets (wallet_id) ON DELETE SET NULL,
+    provider_card_id VARCHAR(100) UNIQUE NOT NULL,                                               -- Card token / ID returned by provider API
+    last4            CHAR(4)             NOT NULL,
+    balance          DECIMAL(19, 4)      NOT NULL DEFAULT 0.0000,
+    currencyCode     VARCHAR(3)          NOT NULL,
+    expiry_month     SMALLINT            NOT NULL CHECK (expiry_month BETWEEN 1 AND 12),
+    expiry_year      SMALLINT            NOT NULL,
+    nfc_enabled      BOOLEAN             NOT NULL DEFAULT TRUE,
+    qr_enabled       BOOLEAN             NOT NULL DEFAULT TRUE,
+    status           VARCHAR(20)         NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'FROZEN', 'CLOSED')),
+    issued_at        TIMESTAMPTZ         NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ         NOT NULL DEFAULT now()
 );
+
 
 -- Indexes for fast querying
 CREATE INDEX idx_cards_active ON cards(is_active);

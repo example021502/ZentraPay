@@ -35,11 +35,12 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
 
     @Query("""
             SELECT b FROM BanksModel b
-            WHERE b.bankId = :query
+            WHERE b.bankId = :receiverId
+            AND b.active = true
             AND LOWER(b.countryCode)= :countryCode
             """)
     Optional<BanksModel> getContactByQueryAndCountryCode(
-            @Param("query") UUID query,
+            @Param("receiverId") UUID receiverId,
             @Param("countryCode") String countryCode
     );
 }

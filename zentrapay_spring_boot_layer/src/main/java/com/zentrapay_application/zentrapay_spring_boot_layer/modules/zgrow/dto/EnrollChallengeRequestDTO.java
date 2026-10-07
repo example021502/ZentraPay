@@ -1,16 +1,11 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto;
 
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotNull;
+
 import java.util.UUID;
 
-/** GET /api/notifications item shape. */
-public record DeclinedChallengesDTO(
-        UUID notificationId,
-        String title,
-        String message,
-        String type,
-        String referenceId,
-        boolean isRead,
-        LocalDateTime createdAt
-) {
-}
+// Payload sent by frontend when accepting a challenge
+public record EnrollChallengeRequestDTO(
+        @NotNull(message = "Challenge ID is required")
+        UUID challengeId
+) {}

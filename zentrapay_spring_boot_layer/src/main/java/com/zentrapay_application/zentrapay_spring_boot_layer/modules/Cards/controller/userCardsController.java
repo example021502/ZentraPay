@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.Cards.controller;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.Cards.dtos.CardsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.Cards.dtos.UserCardsDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.Cards.services.CardsServices;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
@@ -20,11 +21,15 @@ import java.util.List;
  * POST /api/wallets/supportedCurrencies -> supported currencies (frontend contract)
  */
 @RestController
-@RequestMapping("/api/zbanking")
+@RequestMapping("/api/cards")
 @RequiredArgsConstructor
 public class userCardsController {
-
-    private CardsServices cardsServices;
+    private final CardsServices cardsServices;
+    @GetMapping("/otherCards")
+    public ResponseEntity<ApiResponse<List<CardsDTO>>> otherCards(@CurrentUser AuthenticatedUser user) {
+        List<CardsDTO> cards = cardsServices.otherCards();
+        return ResponseEntity.ok(ApiResponse.success(cards, "UserCards retrieved"));
+    }
 
     @GetMapping("/userCards")
     public ResponseEntity<ApiResponse<List<UserCardsDTO>>> userCards(@CurrentUser AuthenticatedUser user) {

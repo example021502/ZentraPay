@@ -2,6 +2,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactio
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TransactionRepository;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionPageDTO;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class TransactionsQueryService {
                 userId, PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
 
         return new TransactionPageDTO(
-                result.getContent().stream().map(this::toDTO).toList(),
+                result.getContent().stream().map((txn)->_resolveTransactionDetails(txn, userId)).toList(),
                 result.getNumber(),
                 result.getSize(),
                 result.getTotalElements(),
@@ -42,13 +43,15 @@ public class TransactionsQueryService {
         );
     }
 
-    private TransactionDTO toDTO(TransactionModel t) {
-        String sign = t.getTransactionType().equalsIgnoreCase("credit") ? "+" : "-";
+    private TransactionDTO _resolveTransactionDetails(TransactionModel t, UUID userId) {
+        String sign = userId.toString().equalsIgnoreCase(t.getReceiverId().toString())? "+" : "-";
+          String amount = sign + t.getSourceCurrencyCode() +" "+ t.getAmount().toPlainString();
         return new TransactionDTO(
                 t.getTransactionId(),
+                t.getSenderId(),
                 t.getReceiverId(),
                 t.getEntryId(),
-                sign + t.getSourceCurrencyCode() + t.getAmount().toPlainString(),
+                amount,
                 t.getCreatedAt(),
                 t.getFailureReason(),
                 t.getStatus(),

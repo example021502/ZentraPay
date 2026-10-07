@@ -110,14 +110,17 @@ class _LoginFormState extends State<LoginForm> {
       final userData = res?['data'];
       final token = userData?['token'];
       final email = userData?['email'];
-      final fullName = userData?['fullName'];
+      final fullName = "${userData?['firstName']} ${userData?['lastName']}";
       final zentag = userData?['zentag'];
 
       await SecureStorageService.saveToken(token);
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
-      TransactionsRepository.instance.ensureLoaded();
+      // Fire-and-forget preload: a history failure must never block login
+      // navigation. ensureLoaded rethrows, so it needs an explicit swallow.
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
+      CardsRepository.instance.ensureLoaded();
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
 

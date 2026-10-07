@@ -118,7 +118,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
-      TransactionsRepository.instance.ensureLoaded();
+      // Fire-and-forget preload: must not block post-registration navigation.
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
         Navigator.pushNamed(

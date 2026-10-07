@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.Cards.dtos;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -13,7 +14,11 @@ public record UserCardsDTO(
       UUID cardId,
       UUID walletId,
       UUID providerId,
+      String cardName,
+      String cardBrand,
       String last4,
+      BigDecimal balance,
+      String currencyCode,
       Integer expiryMonth,
       Integer expiryYear,
       Boolean nfcEnabled,

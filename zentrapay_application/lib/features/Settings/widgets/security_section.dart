@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 import 'package:zentrapay_application/features/Settings/widgets/section_label.dart';
 
 /// The SECURITY block of the Settings screen: the three live security toggles
@@ -214,7 +215,7 @@ class SecuritySection extends StatelessWidget {
                     ),
                   ),
                 Text(
-                  item['time'],
+                  formatDateTimeString(item['time']?.toString()),
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textBlack,

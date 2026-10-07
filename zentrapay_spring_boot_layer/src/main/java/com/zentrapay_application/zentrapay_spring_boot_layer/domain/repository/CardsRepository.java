@@ -9,4 +9,5 @@ import java.util.UUID;
 
 public interface CardsRepository extends JpaRepository<CardsModel, UUID> {
     Optional<CardsModel> findByCardIdOrderByCreatedAtDesc(UUID cardId);
+    CardsModel findByCardId(UUID cardId);
 }

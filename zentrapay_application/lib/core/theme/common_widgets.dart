@@ -217,7 +217,6 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actionColor = color ?? AppColors.primary;
     return GestureDetector(
       onTap: onTap,
       child: Column(

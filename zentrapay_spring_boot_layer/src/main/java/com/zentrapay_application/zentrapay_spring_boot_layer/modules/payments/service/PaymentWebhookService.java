@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import tools.jackson.databind.JsonNode;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.FiatWalletModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.NotificationModel;
@@ -114,7 +115,7 @@ public class PaymentWebhookService {
         }
 
         TransactionModel tx = match.get();
-        if (!STATUS_PROCESSING.equalsIgnoreCase(tx.getStatus())) {
+        if (!Datatypes.TransactionStatus.INITIATED.equals(tx.getStatus())) {
             log.info("Transfer {} already in terminal status {} — ignoring duplicate webhook", tx.getInternalReferenceId(), tx.getStatus());
             return;
         }
@@ -124,11 +125,11 @@ public class PaymentWebhookService {
         }
 
         if (success) {
-            tx.setStatus(STATUS_SUCCESS);
+            tx.setStatus(Datatypes.TransactionStatus.SUCCESS);
             notify(tx.getSenderId(), tx.getInternalReferenceId(), "Transfer Successful",
-                    "Your transfer of " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " to " + tx.getReceiverName() + " was successful.");
+                    "Your transfer of " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " to " + tx.getReceiverName() + " was successful.", tx.getTransactionType());
         } else {
-            tx.setStatus(STATUS_FAILED);
+            tx.setStatus(Datatypes.TransactionStatus.FAILED);
             tx.setFailureReason(failureReason == null ? "Transfer failed at the gateway" : failureReason);
             // Comment: Credit-back — the original processBankTransfer debit
             // never actually settled, so the money must return to the sender.
@@ -137,7 +138,7 @@ public class PaymentWebhookService {
                     () -> log.error("Could not credit back sender {} for failed transfer {} — wallet not found", tx.getSenderId(), tx.getInternalReferenceId())
             );
             notify(tx.getSenderId(), tx.getInternalReferenceId(), "Transfer Failed",
-                    "Your transfer of " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " to " + tx.getReceiverName() + " failed and has been refunded.");
+                    "Your transfer of " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " to " + tx.getReceiverName() + " failed and has been refunded.", tx.getTransactionType());
         }
 
         transactionRepository.save(tx);
@@ -156,13 +157,13 @@ public class PaymentWebhookService {
         }
 
         TransactionModel tx = match.get();
-        if (!STATUS_PROCESSING.equalsIgnoreCase(tx.getStatus())) {
+        if (!Datatypes.TransactionStatus.INITIATED.equals(tx.getStatus())) {
             log.info("Charge {} already in terminal status {} — ignoring duplicate webhook", tx.getInternalReferenceId(), tx.getStatus());
             return;
         }
 
         if (success) {
-            tx.setStatus(STATUS_SUCCESS);
+            tx.setStatus(Datatypes.TransactionStatus.SUCCESS);
             FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(tx.getReceiverId()).orElse(null);
             if (wallet != null) {
                 fiatAccountRepository.credit(wallet.getWalletId(), tx.getAmount(), tx.getSourceCurrencyCode());
@@ -170,12 +171,12 @@ public class PaymentWebhookService {
                 log.error("Could not credit payer {} for confirmed checkout {} — wallet not found", tx.getReceiverId(), tx.getInternalReferenceId());
             }
             notify(tx.getReceiverId(), tx.getInternalReferenceId(), "Wallet Funded",
-                    "Your wallet was topped up with " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + ".");
+                    "Your wallet was topped up with " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + ".", tx.getTransactionType());
         } else {
-            tx.setStatus(STATUS_FAILED);
+            tx.setStatus(Datatypes.TransactionStatus.FAILED);
             tx.setFailureReason(failureReason == null ? "Checkout failed at the gateway" : failureReason);
             notify(tx.getReceiverId(), tx.getInternalReferenceId(), "Wallet Funding Failed",
-                    "Your attempt to fund your wallet with " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " failed.");
+                    "Your attempt to fund your wallet with " + tx.getSourceCurrencyCode() + " " + tx.getAmount().toPlainString() + " failed.", tx.getTransactionType());
         }
 
         transactionRepository.save(tx);
@@ -194,13 +195,13 @@ public class PaymentWebhookService {
         return Optional.empty();
     }
 
-    private void notify(java.util.UUID userId, String reference, String title, String message) {
+    private void notify(java.util.UUID userId, String reference, String title, String message, Datatypes.TransactionType type) {
         NotificationModel notification = new NotificationModel();
         notification.setUserId(userId);
         notification.setReferenceId(reference);
         notification.setTitle(title);
         notification.setMessage(message);
-        notification.setType("TRANSFER");
+        notification.setType(type);
         notification.setIsRead(false);
         notificationRepository.save(notification);
     }
