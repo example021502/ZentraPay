@@ -1,0 +1,24 @@
+package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto;
+
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Response shape for {@code GET/PATCH /api/users/me} (API contract §1):
+ * {@code {userId,firstName,lastName,email,phoneNumber,countryCode,zentag,userType,status,kycTier}}.
+ */
+public record UserDTO(
+        UUID userId,
+        String firstName,
+        String lastName,
+        String email,
+        String phoneNumber,
+        String countryCode,
+        LocalDateTime createdAt,
+        Datatypes.UserStatus status,
+        Datatypes.UserType userType,
+        short kycTier
+) {
+}
