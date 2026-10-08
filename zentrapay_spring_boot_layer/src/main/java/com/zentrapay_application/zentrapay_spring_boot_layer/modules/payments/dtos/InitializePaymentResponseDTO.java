@@ -1,5 +1,7 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dto.TransferDataDTO;
+
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -8,14 +10,8 @@ import java.util.UUID;
  * needs to hand the payer off to the gateway's hosted checkout page.
  */
 public record InitializePaymentResponseDTO(
-        UUID transactionId,
-        /** Gateway that owns this checkout: paystack | onafriq | flutterwave. */
-        String gateway,
-        String reference,
-        String authorizationUrl,
-        String accessCode,
-        BigDecimal amount,
-        String currencyCode,
-        String status
+        Boolean success,
+        String message,
+        TransferDataDTO data
 ) {
 }

@@ -13,6 +13,10 @@
 -- ============================================================
 
 -- BANKS (BanksModel)
+-- `status VARCHAR` was replaced by the `active BOOLEAN` flag, and
+-- `maxWeeklyValue` normalised to snake_case `max_weekly_value` to match every
+-- other limit column. `type` carries the gateway's own classification and
+-- `routing_number` is unique so the same domestic bank can't be linked twice.
 CREATE TABLE IF NOT EXISTS banks (
     bank_id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code                VARCHAR(120) NOT NULL,
@@ -25,18 +29,23 @@ CREATE TABLE IF NOT EXISTS banks (
     country_code        VARCHAR(3),
     country             VARCHAR(120),
     routing_number      VARCHAR(60),
+    type                VARCHAR(60),
+    active              BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     max_daily_value     VARCHAR(60),
     max_monthly_value   VARCHAR(60),
     min_txn_limit       VARCHAR(60),
     max_txn_limit       VARCHAR(60),
-    maxWeeklyValue      VARCHAR(60),
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+    max_weekly_value    VARCHAR(60)
 );
 CREATE INDEX IF NOT EXISTS idx_banks_code_gateway_country ON banks(code, gateway, country_code);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_banks_routing_number ON banks(routing_number) WHERE routing_number IS NOT NULL;
 
 -- If a Hibernate-created `banks` table pre-exists without routing_number, add it.
 ALTER TABLE banks ADD COLUMN IF NOT EXISTS routing_number VARCHAR(60);
+ALTER TABLE banks ADD COLUMN IF NOT EXISTS type VARCHAR(60);
+ALTER TABLE banks ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- MOBILE MONEY PROVIDERS (MobileMoneyProvidersModel)
 CREATE TABLE IF NOT EXISTS momo_providers (

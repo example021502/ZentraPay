@@ -11,10 +11,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.util.*;
+
 
 /**
- * Individually-committing ledger writes for {@link PaymentsService}.
  * <p>
  * {@code processBankTransfer} spans slow external gateway HTTP calls between
  * ledger writes and, on total failure, needs to both compensate (credit
@@ -54,7 +54,7 @@ public class LedgerOperations {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveNotification(NotificationModel notification) {
-        notificationRepository.save(notification);
+    public void saveNotification(NotificationModel notification1, NotificationModel notification2) {
+        notificationRepository.saveAll(List.of(notification1, notification2));
     }
 }

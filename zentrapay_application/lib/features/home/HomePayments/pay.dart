@@ -1,13 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/makePayment.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
@@ -182,17 +180,6 @@ class _PaySectionMainState extends State<PaySectionMain> {
                                 ),
                               ],
                             ),
-
-                            if (_payInFlight) ...[
-                              const SizedBox(width: AppTheme.spacingSm),
-                              const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                         const SizedBox(height: AppTheme.spacingLg),
@@ -203,25 +190,33 @@ class _PaySectionMainState extends State<PaySectionMain> {
                           onChanged: _onSearchChanged,
                           onSelectUser: (SearchAppUser user) async {
                             Map<String, dynamic> recipient = {
-                              "fullName": user.fullName,
-                              "email": user.email,
+                              "userId": user.userId,
+                              "name": "${user.firstName} ${user.lastName}",
+                              "zentag": user.zentag,
+                              "accountNumber": "",
                               "phoneNumber": user.phoneNumber,
                               "countryCode": user.countryCode,
+                              "type": user.userType,
                             };
-                            final String? zentrapayId =
-                                dotenv.env["zentrapay_id"];
-                            Map<String, dynamic> destination = {
-                              "accountIdentifier": user.phoneNumber,
-                              "accountName": user.fullName,
-                              "checkoutType": "zentrapay_app",
-                              "channelCode": zentrapayId ?? "zentrapay_app",
-                              "countryCode": user.countryCode,
-                            };
+
+                            // CONSTRUCTING THE DESTINATION ------ COMMNENTEND FOR NOW
+                            // final String? zentrapayId =
+                            //     dotenv.env["zentrapay_id"];
+                            // Map<String, dynamic> destination = {
+                            //   "accountIdentifier": user.phoneNumber,
+                            //   "accountName":
+                            //       "${user.firstName} ${user.lastName}",
+                            //   "checkoutType": "zentrapay_app",
+                            //   "channelCode": zentrapayId ?? "zentrapay_app",
+                            //   "countryCode": user.countryCode,
+                            // };
+
                             await makePayment.processPayment(
                               context: context,
-                              recipientNameForUI: user.fullName,
+                              recipientNameForUI:
+                                  "${user.firstName} ${user.lastName}",
                               recipientMap: recipient,
-                              destinationMap: destination,
+                              channelType: "INTERNAL",
                               onStateChanged: (bool newInFlight) {
                                 setState(() {
                                   _payInFlight = newInFlight;
@@ -255,15 +250,16 @@ class _PaySectionMainState extends State<PaySectionMain> {
                       // back to the identifiers stored on the transaction so
                       // tapping ALWAYS starts the payment flow (Enter Amount
                       // -> PIN confirmation) instead of dead-ending.
-                      final String identifier = transaction.receiverId.trim();
-                      if (identifier.isNotEmpty) {
+                      final String query =
+                          "${transaction.receiverId.trim()}+${transaction.transactionType.trim()}";
+                      if (query.isNotEmpty) {
                         try {
                           final response = await SearchRepository.targetSearch(
-                            identifier,
+                            query,
                           );
 
                           if (response.isNotEmpty &&
-                              response['userType'] == 'app-user') {
+                              response['userType'] == 'APP_USER') {
                             final String fullName =
                                 "${response['firstName']} ${response['lastName']}";
                             Map<String, dynamic> recipient = {
@@ -272,21 +268,13 @@ class _PaySectionMainState extends State<PaySectionMain> {
                               "phoneNumber": response['phoneNumber'],
                               "countryCode": response['countryCode'],
                             };
-                            final String? zentrapayId =
-                                dotenv.env["zentrapay_id"];
-                            Map<String, dynamic> destination = {
-                              "accountIdentifier": response['phoneNumber'],
-                              "destinationSourceType": "zentrapay-wallet",
-                              "destinationSourceName": "zentrapay",
-                              "destinationSourceCode": zentrapayId,
-                              "countryCode": response['countryCode'],
-                            };
+
                             if (!mounted) return;
                             await makePayment.processPayment(
                               context: context,
                               recipientNameForUI: fullName,
+                              channelType: transaction.transactionType,
                               recipientMap: recipient,
-                              destinationMap: destination,
                               onStateChanged: (bool newInFlight) {
                                 setState(() {
                                   _payInFlight = newInFlight;
@@ -303,26 +291,28 @@ class _PaySectionMainState extends State<PaySectionMain> {
                       }
                     },
                   ),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Other people", style: AppTheme.labelLarge),
-                        const SizedBox(height: AppTheme.spacingSm),
-                        Center(
-                          child: Text(
-                            "Nothing yet",
-                            style: AppTheme.labelLarge.copyWith(
-                              color: AppTheme.lightGrey,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+
+                  // FOR FUTURE:: FOR ACCESSING THE USER PHONE CONTACTS AND SHOWING THEM IN THE PAY SECTION
+                  // const SizedBox(height: AppTheme.spacingLg),
+                  // Padding(
+                  //   padding: const EdgeInsets.all(15.0),
+                  //   child: Column(
+                  //     mainAxisAlignment: MainAxisAlignment.start,
+                  //     crossAxisAlignment: CrossAxisAlignment.start,
+                  //     children: [
+                  //       Text("Other people", style: AppTheme.labelLarge),
+                  //       const SizedBox(height: AppTheme.spacingSm),
+                  //       Center(
+                  //         child: Text(
+                  //           "Nothing yet",
+                  //           style: AppTheme.labelLarge.copyWith(
+                  //             color: AppTheme.lightGrey,
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
                   const SizedBox(height: 100),
                 ],
               ),

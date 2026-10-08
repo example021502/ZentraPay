@@ -20,6 +20,13 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
     return ListenableBuilder(
       listenable: TutorialsRepository.instance,
       builder: (context, _) {
+        if (TutorialsRepository.instance.isLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final tutorialData = TutorialsRepository.instance.data;
 
         // Hide section entirely until data is available
@@ -33,7 +40,7 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Learn & Earn", style: AppTheme.bodyMedium),
+                const Text("Tutorials", style: AppTheme.bodyMedium),
                 GestureDetector(
                   onTap: () {
                     showComingSoon(context, "See more tutorials");
@@ -41,7 +48,7 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
                   child: Text(
                     "See more",
                     style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.primaryPink,
+                      decoration: TextDecoration.underline,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

@@ -1,6 +1,8 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository;
 
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,33 +22,59 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
 //    checking if phone number exist for account creation
     boolean existsByPhoneNumber(String phoneNumber);
 
-    //  getting the sender details ======
-    @Query("SELECT u FROM UserModel u WHERE u.userId = :userId")
-    Optional<UserModel> getUserById(@Param("userId") UUID userId);
+    //  getting the user details ======
+    Optional<UserModel> getUserByUserId(@Param("userId") UUID userId);
 
     //  getting the users matched contacts
     @Query("""
-            SELECT u FROM UserModel u
-            WHERE (
-                LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
-                OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
-                OR LOWER(u.phoneNumber) LIKE LOWER(CONCAT('%', :query, '%'))
-            )
-            AND LOWER(u.countryCode) = :countryCode AND LOWER(u.status) = "active" AND u.userId != :userId
-            """)
-    List<UserModel> searchByQueryAndCountryCode(
+    SELECT new com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO(
+        u.userId,
+        u.countryCode,
+        u.email,
+        u.firstName,
+        u.lastName,
+        u.phoneNumber,
+        fa.zentag,
+        u.userType
+    )
+    FROM FiatAccountModel fa
+    JOIN FiatWalletModel w ON fa.walletId = w.walletId
+    JOIN UserModel u ON w.userId = u.userId
+    WHERE (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+       OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
+       OR LOWER(fa.zentag) LIKE LOWER(CONCAT('%', :query, '%'))
+       OR u.phoneNumber LIKE CONCAT('%', :query, '%'))
+      AND LOWER(u.countryCode) = LOWER(:countryCode)
+      AND u.userId != :userId
+""")
+    List<UserSearchDTO> searchByQueryAndCountryCode(
             @Param("query") String query,
             @Param("countryCode") String countryCode,
             @Param("userId") UUID userId
     );
 
     @Query("""
-            SELECT u FROM UserModel u
+            SELECT new com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO(
+                    u.userId,
+                    u.countryCode,
+                    u.email,
+                    u.firstName,
+                    u.lastName,
+                    u.phoneNumber,
+                    fa.zentag,
+                    u.userType
+            ) FROM FiatAccountModel fa
+            JOIN FiatWalletModel w ON fa.walletId = w.walletId
+            JOIN UserModel u ON w.userId = u.userId
             WHERE u.userId = :query
-            AND LOWER(u.countryCode) = :countryCode AND LOWER(u.status) = "active"
+            AND LOWER(u.countryCode) = :countryCode AND u.status = :status
             """)
-    Optional<UserModel> getContactByQueryAndCountryCode(
+    Optional<UserSearchDTO> getContactByQueryAndCountryCode(
             @Param("query") UUID query,
-            @Param("countryCode") String countryCode
+            @Param("countryCode") String countryCode,
+            @Param("status") Datatypes.UserStatus status
     );
+
+    @Query("SELECT u FROM UserModel u WHERE u.phoneNumber = :phoneNumber")
+    Optional<UserModel> findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 }

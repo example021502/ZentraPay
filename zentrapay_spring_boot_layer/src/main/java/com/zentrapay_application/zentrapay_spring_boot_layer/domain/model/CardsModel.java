@@ -15,41 +15,26 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "cards")
-public class Card {
+public class CardsModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "card_id", nullable = false)
     private UUID cardId;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "name", nullable = false)
+    private String name;
 
-    @Column(name = "wallet_id")
-    private UUID walletId;
-
-    @Column(nullable = false, length = 30)
+    @Column(name = "brand", nullable=false)
     private String brand;
 
     @Column(name = "card_type", nullable = false, length = 20)
     private String cardType = "VIRTUAL"; // VIRTUAL, PHYSICAL
 
-    @Column(nullable = false, length = 4)
-    private String last4;
+    @Column(name = "description")
+    private String description;
 
-    @Column(name = "expiry_month", nullable = false)
-    private short expiryMonth;
-
-    @Column(name = "expiry_year", nullable = false)
-    private short expiryYear;
-
-    @Column(name = "nfc_enabled", nullable = false)
-    private boolean nfcEnabled = true;
-
-    @Column(name = "qr_enabled", nullable = false)
-    private boolean qrEnabled = true;
-
-    @Column(nullable = false, length = 20)
-    private String status = "ACTIVE";
+    @Column(name = "active", nullable = false)
+    private Boolean active;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

@@ -3,14 +3,14 @@ class SearchAppUser {
   final String firstName;
   final String lastName;
   final String phoneNumber;
-  final String email;
+  final String zentag;
   final String countryCode;
   final String userType;
 
   SearchAppUser({
     required this.userId,
     required this.phoneNumber,
-    required this.email,
+    required this.zentag,
     required this.userType,
     required this.countryCode,
     required this.firstName,
@@ -18,13 +18,18 @@ class SearchAppUser {
   });
 
   factory SearchAppUser.fromJson(Map<String, dynamic> json) => SearchAppUser(
-    userId: json['userId'] ?? '',
-    phoneNumber: json['phoneNumber'] ?? '',
-    email: json['email'] ?? '',
-    userType: json['userType'] ?? '',
-    countryCode: json['countryCode'] ?? '',
-    firstName: json['firstName'] ?? '',
-    lastName: json['lastName'] ?? '',
+    userId: json['userId']?.toString() ?? '',
+    phoneNumber: json['phoneNumber']?.toString() ?? '',
+    zentag: json['zentag']?.toString() ?? '',
+    // Backend UserSearchDTO serializes the discriminator as `type`
+    // (Datatypes.UserType); older payloads / recent-contact re-search may
+    // surface it as `userType` — accept either so INTERNAL routing never
+    // silently drops to the fallback path.
+    userType:
+        json['type']?.toString() ?? json['userType']?.toString() ?? '',
+    countryCode: json['countryCode']?.toString() ?? '',
+    firstName: json['firstName']?.toString() ?? '',
+    lastName: json['lastName']?.toString() ?? '',
   );
 
   String get fullName => "$firstName $lastName".trim();
@@ -35,7 +40,7 @@ class SearchAppUser {
     'userId': userId,
     'firstName': firstName,
     'lastName': lastName,
-    'email': email,
+    'zentag': zentag,
     'phoneNumber': phoneNumber,
     'countryCode': countryCode,
     'userType': userType,
@@ -139,12 +144,6 @@ class ContactSearchResult {
     billProviders: ((json['billProviders'] as List?) ?? [])
         .map((e) => SearchBillProvider.fromJson(e))
         .toList(),
-    // Backend SearchResponseDTO serializes this under the key
-    // "fundingSources" (List<BankSearchDTO>) — funding sources are now
-    // represented as banks, so map them into the frontend `Banks` model,
-    // whose fields (bankId/bankName/bankCode/countryCode) mirror
-    // BankSearchDTO exactly. Parsing the wrong key ('banks') returns an
-    // empty list at runtime, so this must follow the backend envelope key.
     banks: ((json['banks'] as List?) ?? [])
         .map((e) => Banks.fromJson(e as Map<String, dynamic>))
         .toList(),

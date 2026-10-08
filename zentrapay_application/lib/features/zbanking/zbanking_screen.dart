@@ -919,8 +919,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                             await BudgetRepository.instance.setMonthlyLimit(
                               limit,
                             );
-                            if (dialogContext.mounted)
+                            if (dialogContext.mounted) {
                               Navigator.pop(dialogContext);
+                            }
                             ZentraNotifier.success(
                               'Budget Updated',
                               'Your monthly limit is now GHS $limit.',

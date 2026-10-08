@@ -42,7 +42,7 @@ class NavigationBarMain extends StatelessWidget {
     final currentVisualIndex = _visualOrder.indexOf(selectedIndex);
 
     return Material(
-      color: AppTheme.gray50,
+      color: Colors.transparent,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
         child: ClipRRect(

@@ -25,6 +25,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
   void initState() {
     super.initState();
     ChallengesRepository.instance.ensureLoaded();
+    UserChallengesRepository.instance.ensureLoaded();
     TutorialsRepository.instance.ensureLoaded();
     RewardsRepository.instance.ensureLoaded();
     BankAccountsRepository.instance.ensureLoaded();
@@ -51,7 +52,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(15.0),
-                child: const Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(height: AppTheme.spacingSm),
@@ -63,7 +64,9 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
                     SizedBox(height: AppTheme.spacingMd),
                     FinancialToolsSection(),
                     SizedBox(height: AppTheme.spacingMd),
-                    RewardsSection(),
+                    if (!RewardsRepository.instance.isLoading ||
+                        !TutorialsRepository.instance.isLoading)
+                      RewardsSection(),
                     SizedBox(height: AppTheme.spacingMd),
                     LearnEarnSection(),
                     SizedBox(height: 100),

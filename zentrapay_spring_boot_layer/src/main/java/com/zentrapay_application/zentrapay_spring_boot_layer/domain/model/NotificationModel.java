@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,9 +33,9 @@ public class NotificationModel {
     @Column(name = "message", nullable = false, length = 500)
     private String message;
 
-    /** e.g. TRANSFER, PAYMENT, SYSTEM. */
+    /** e.g. INTERNAL, MOMO_TRANSFER, BANK_TRANSFER. */
     @Column(name = "type", nullable = false, length = 30)
-    private String type;
+    private Datatypes.TransactionType type;
 
     /** Points at the transaction entry for correlation (e.g. zp_... entry ref). */
     @Column(name = "reference_id", length = 100)

@@ -1,4 +1,4 @@
--- ZentraPay core schema — normalized (3NF), Africa-first.
+-- ZentraPay core schema â€” normalized (3NF), Africa-first.
 --
 -- Design notes:
 --  * All surrogate keys are UUID (gen_random_uuid()), matching the JWT `sub`
@@ -7,7 +7,7 @@
 --    this app serves.
 --  * Reference data (countries, currencies, transaction types, provider
 --    categories) is normalized into lookup tables instead of being repeated
---    as free-text on every row — this is what "supports Africa at large"
+--    as free-text on every row â this is what "supports Africa at large"
 --    concretely means here: adding a new country or currency is a seed-data
 --    INSERT, not a schema change or a new magic string scattered across
 --    Java/Dart code.
@@ -17,7 +17,7 @@
 --    more decimal places.
 --  * One physical table per real-world concept. The old codebase had three
 --    independent @Entity classes mapped onto "cards", two onto
---    "crypto_currencies", two onto "user_wallets" — each with a different,
+--    "crypto_currencies", two onto "user_wallets" â€” each with a different,
 --    incompatible column set. This migration collapses each collision to a
 --    single table.
 
@@ -28,7 +28,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- ============================================================
 
 CREATE TABLE currencies (
-    currency_code   CHAR(3) PRIMARY KEY,              -- ISO 4217, or a short crypto ticker
+    currency_code   VARCHAR(8) PRIMARY KEY,              -- ISO 4217, or a short crypto ticker
     currency_name   VARCHAR(60) NOT NULL,
     symbol          VARCHAR(8) NOT NULL,
     is_crypto       BOOLEAN NOT NULL DEFAULT FALSE,
@@ -41,7 +41,7 @@ CREATE TABLE countries (
     iso3_code                CHAR(3) NOT NULL UNIQUE,
     country_name             VARCHAR(80) NOT NULL,
     dial_code                VARCHAR(6) NOT NULL,      -- e.g. +233
-    default_currency_code    CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    default_currency_code    VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     region                   VARCHAR(40),               -- e.g. West Africa, East Africa
     is_active                BOOLEAN NOT NULL DEFAULT TRUE
 );
@@ -84,7 +84,6 @@ CREATE TABLE users (
     country_code             CHAR(2) NOT NULL REFERENCES countries(country_code),
     password_hash             VARCHAR(120) NOT NULL,
     transaction_pin_hash      VARCHAR(120) NOT NULL,
-    zentag                    VARCHAR(40) NOT NULL UNIQUE,
     user_type                 VARCHAR(20) NOT NULL DEFAULT 'INDIVIDUAL' CHECK (user_type IN ('INDIVIDUAL','MERCHANT')),
     status                    VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','SUSPENDED','PENDING_VERIFICATION','CLOSED')),
     kyc_tier                  SMALLINT NOT NULL DEFAULT 0,
@@ -93,7 +92,7 @@ CREATE TABLE users (
 );
 CREATE INDEX idx_users_country ON users(country_code);
 
--- 1:1 KYC/identity extension — split out of `users` because most rows here
+-- 1:1 KYC/identity extension â€” split out of `users` because most rows here
 -- start NULL (progressive KYC: full name/phone/email at signup, documents
 -- only once a user tries to move meaningful amounts of money).
 CREATE TABLE user_profiles (
@@ -137,26 +136,18 @@ CREATE TABLE wallets (
     wallet_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     wallet_name     VARCHAR(60) NOT NULL,
-    currency_code   CHAR(3) NOT NULL REFERENCES currencies(currency_code),
     country_code    CHAR(2) REFERENCES countries(country_code),
-    balance         NUMERIC(19,4) NOT NULL DEFAULT 0 CHECK (balance >= 0),
-    is_default      BOOLEAN NOT NULL DEFAULT FALSE,
-    status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','FROZEN','CLOSED')),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, wallet_name)
 );
 CREATE INDEX idx_wallets_user ON wallets(user_id);
 
--- Crypto wallet holding. Table only — service logic for balances/transfers
+-- Crypto wallet holding. Table only â€” service logic for balances/transfers
 -- here is intentionally left as TODO (implemented in a later pass).
 CREATE TABLE crypto_wallets (
-    crypto_wallet_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id           UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    currency_code     CHAR(3) NOT NULL REFERENCES currencies(currency_code),
-    network           VARCHAR(30),
-    wallet_address    VARCHAR(120) NOT NULL UNIQUE,
-    balance           NUMERIC(28,10) NOT NULL DEFAULT 0,
     status            VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','FROZEN','CLOSED')),
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -182,7 +173,7 @@ CREATE TABLE cards (
 );
 CREATE INDEX idx_cards_user ON cards(user_id);
 
--- Canonical money-movement ledger — every wallet balance change (transfer,
+-- Canonical money-movement ledger â€” every wallet balance change (transfer,
 -- bill payment, savings deposit, loan disbursement, remittance, card
 -- payment, reward credit...) is recorded here exactly once.
 CREATE TABLE transactions (
@@ -191,7 +182,7 @@ CREATE TABLE transactions (
     wallet_id             UUID REFERENCES wallets(wallet_id),
     type_code             VARCHAR(30) NOT NULL REFERENCES transaction_types(type_code),
     amount                NUMERIC(19,4) NOT NULL CHECK (amount >= 0),
-    currency_code         CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    currency_code         VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     status                VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','SUCCESS','FAILED','REVERSED')),
     gateway               VARCHAR(30),
     reference             VARCHAR(100) NOT NULL UNIQUE,
@@ -255,7 +246,7 @@ CREATE TABLE bill_payments (
     transaction_id       UUID NOT NULL UNIQUE REFERENCES transactions(transaction_id),
     customer_reference   VARCHAR(60) NOT NULL,       -- e.g. meter number, account number
     amount               NUMERIC(19,4) NOT NULL,
-    currency_code        CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    currency_code        VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     status               VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','SUCCESS','FAILED')),
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -267,12 +258,12 @@ CREATE INDEX idx_bill_payments_user ON bill_payments(user_id);
 
 -- Append-only rate history; the "current" rate for a pair is the row with
 -- the latest effective_at (see the ConverterService/RemittanceService
--- query, not a separate mutable "current rate" table — avoids update
+-- query, not a separate mutable "current rate" table â€” avoids update
 -- anomalies between a history table and a duplicate current-value table).
 CREATE TABLE exchange_rates (
     rate_id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    base_currency_code    CHAR(3) NOT NULL REFERENCES currencies(currency_code),
-    quote_currency_code   CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    base_currency_code    VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
+    quote_currency_code   VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     rate                  NUMERIC(24,10) NOT NULL CHECK (rate > 0),
     source                VARCHAR(40) NOT NULL,
     effective_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -286,8 +277,8 @@ CREATE TABLE remittances (
     receiver_id                UUID REFERENCES users(user_id),      -- NULL when receiver isn't an app user
     transaction_id             UUID NOT NULL UNIQUE REFERENCES transactions(transaction_id),
     amount                     NUMERIC(19,4) NOT NULL,
-    source_currency_code       CHAR(3) NOT NULL REFERENCES currencies(currency_code),
-    destination_currency_code  CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    source_currency_code       VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
+    destination_currency_code  VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     exchange_rate               NUMERIC(24,10) NOT NULL,
     fee                          NUMERIC(19,4) NOT NULL DEFAULT 0,
     status                       VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','SUCCESS','FAILED','REVERSED')),
@@ -310,7 +301,7 @@ CREATE TABLE savings_accounts (
     user_id           UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     wallet_id         UUID REFERENCES wallets(wallet_id),
     savings_name      VARCHAR(80) NOT NULL,
-    currency_code     CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    currency_code     VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     balance           NUMERIC(19,4) NOT NULL DEFAULT 0 CHECK (balance >= 0),
     description       TEXT,
     target_date       DATE,
@@ -324,7 +315,7 @@ CREATE INDEX idx_savings_user ON savings_accounts(user_id);
 CREATE TABLE loans (
     loan_id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id                     UUID NOT NULL REFERENCES users(user_id),
-    currency_code                CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    currency_code                VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     principal_amount              NUMERIC(19,4) NOT NULL CHECK (principal_amount > 0),
     interest_rate                  NUMERIC(6,4) NOT NULL,      -- annual percentage rate
     term_months                     SMALLINT NOT NULL CHECK (term_months > 0),
@@ -404,7 +395,7 @@ CREATE INDEX idx_content_completions_user ON content_completions(user_id);
 -- Append-only ledger of every point award (challenge completion, learn-and-
 -- earn, referral, ...). `user_reward_balances` is a transactionally
 -- maintained running total kept only so reads don't need to SUM() the
--- whole ledger every time — the ledger remains the source of truth.
+-- whole ledger every time â€” the ledger remains the source of truth.
 CREATE TABLE points_ledger (
     ledger_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id           UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -435,7 +426,7 @@ CREATE TABLE investments (
     symbol            VARCHAR(20),
     quantity          NUMERIC(19,4) NOT NULL CHECK (quantity > 0),
     buy_price         NUMERIC(19,4) NOT NULL,
-    currency_code     CHAR(3) NOT NULL REFERENCES currencies(currency_code),
+    currency_code     VARCHAR(8) NOT NULL REFERENCES currencies(currency_code),
     status            VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','CLOSED')),
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()

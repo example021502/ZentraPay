@@ -11,8 +11,8 @@ import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<TransactionModel, UUID> {
     @Query("SELECT t FROM TransactionModel t WHERE " +
-            "(t.senderId = :userId AND t.transactionType = 'debit') OR " +
-            "(t.receiverId = :userId AND t.transactionType = 'credit') " +
+            "(t.senderId = :userId) OR " +
+            "(t.receiverId = :userId) " +
             "ORDER BY t.createdAt DESC")
     Page<TransactionModel> findUserHistory(UUID userId, Pageable pageable);
 

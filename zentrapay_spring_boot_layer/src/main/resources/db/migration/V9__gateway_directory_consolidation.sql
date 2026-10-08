@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS gateway_countries (
     iso3_code       VARCHAR(3),
     dial_code       VARCHAR(6),
     region          VARCHAR(40),
-    currency_code   VARCHAR(3) NOT NULL DEFAULT '',     -- default payout currency for this country
+    currency_code   VARCHAR(8) NOT NULL DEFAULT '',     -- default payout currency for this country
     gateways        TEXT NOT NULL DEFAULT '',           -- comma-separated gateways supporting it, e.g. 'paystack,flutterwave'
     is_default      BOOLEAN NOT NULL DEFAULT FALSE,
     active          BOOLEAN NOT NULL DEFAULT TRUE,
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_gateway_countries_active ON gateway_countries(act
 -- NORMALISE pre-existing Hibernate-created copies of these tables.
 -- ddl-auto=update runs before Flyway ever did (Boot 4 needs the
 -- spring-boot-flyway module for that), so some dev databases already hold
--- these tables WITHOUT the canonical column defaults — which breaks the
+-- these tables WITHOUT the canonical column defaults â€” which breaks the
 -- seeding below. Re-applying SET DEFAULT on a freshly created table is a
 -- harmless no-op, so this always runs.
 ALTER TABLE gateway_countries ALTER COLUMN currency_code SET DEFAULT '';
@@ -45,7 +45,7 @@ ALTER TABLE gateway_countries ALTER COLUMN created_at SET DEFAULT now();
 ALTER TABLE gateway_countries ALTER COLUMN updated_at SET DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS gateway_currencies (
-    currency_code   VARCHAR(3) PRIMARY KEY,             -- ISO 4217
+    currency_code   VARCHAR(8) PRIMARY KEY,             -- ISO 4217
     currency_name   VARCHAR(60) NOT NULL,
     symbol          VARCHAR(8) NOT NULL DEFAULT '',
     is_crypto       BOOLEAN NOT NULL DEFAULT FALSE,
@@ -80,7 +80,7 @@ BEGIN
         -- Legacy `countries` shapes vary: the original V1 table carried the
         -- full reference columns, but some hand-built/Hibernate dev databases
         -- only have (country_code, country_name[, region]). Try the richest
-        -- mapping first and degrade gracefully on undefined columns — the
+        -- mapping first and degrade gracefully on undefined columns â€” the
         -- scheduler refresh fills in whatever metadata is missing anyway.
         BEGIN
             INSERT INTO gateway_countries

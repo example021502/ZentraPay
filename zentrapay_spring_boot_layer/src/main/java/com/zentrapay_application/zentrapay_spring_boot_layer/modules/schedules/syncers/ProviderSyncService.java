@@ -208,11 +208,14 @@ public class ProviderSyncService {
                     .ifPresentOrElse(existing -> {
                         // Keep the original bank_id; refresh the mutable catalog fields.
                         existing.setBankName(bank.getBankName());
+                        existing.setType(bank.getType());
                         existing.setIban(bank.getIban());
+                        existing.setRoutingNumber(bank.getRoutingNumber());
                         existing.setPayWithBank(bank.getPayWithBank());
                         existing.setSwiftBic(bank.getSwiftBic());
                         existing.setCountry(bank.getCountry());
                         existing.setCurrencyCode(bank.getCurrencyCode());
+                        existing.setActive(bank.getActive());
                         existing.setMaxDailyValue(bank.getMaxDailyValue());
                         existing.setMaxMonthlyValue(bank.getMaxMonthlyValue());
                         existing.setMinTxnLimit(bank.getMinTxnLimit());

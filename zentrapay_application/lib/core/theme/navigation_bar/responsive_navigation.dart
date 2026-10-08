@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
 import 'package:zentrapay_application/features/Settings/settings.dart';
@@ -113,11 +114,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       centerTitle: false,
       title: Text(
         _tabTitles[_selectedIndex],
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+        style: AppTheme.headlineMedium.copyWith(color: AppColors.primary),
       ),
     );
   }
@@ -145,7 +142,8 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   );
 
   Widget _buildGreeting() {
-    final name = widget.userData["full_name"] ?? "Welcome to ZentraPay";
+    final name =
+        "${widget.userData["firstName"]} ${widget.userData["lastName"]}";
     final email = widget.userData["email"] ?? "";
 
     return Column(
@@ -153,15 +151,14 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       children: [
         Text(
           name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          style: AppTheme.bodyLarge.copyWith(
             color: AppColors.primary,
+            fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           email,
-          style: const TextStyle(fontSize: 14, color: AppColors.primary),
+          style: AppTheme.bodySmall.copyWith(color: AppColors.primary),
         ),
       ],
     );

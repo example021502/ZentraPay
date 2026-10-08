@@ -58,7 +58,7 @@ class FeatureScreenHeader extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (icon != null) Icon(icon, color: Colors.amber, size: 30),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
           Text(
@@ -217,7 +217,6 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actionColor = color ?? AppColors.primary;
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -348,7 +347,7 @@ class SectionTitle extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(title, style: AppTheme.headlineSmall),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }

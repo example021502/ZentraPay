@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 
 class HomeTransactions extends StatelessWidget {
   const HomeTransactions({super.key, required this.history});
@@ -22,35 +23,23 @@ class HomeTransactions extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppTheme.spacingXl),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Recent Activities", style: AppTheme.bodyMedium),
-            TextButton(
-              onPressed: () {
-                // TODO: TO BE IMPLEMENTED LATER
-                showComingSoon(context, "See All History");
-              },
-              child: Text(
-                "See All",
-                style: AppTheme.bodyMedium.copyWith(
-                  color: AppTheme.primaryPink,
-                ),
-              ),
-            ),
-          ],
-        ),
+        Text("Latest Activities", style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingMd),
         Column(
           children: clippedHistory.map((item) {
             final title = item["title"] ?? "Transaction";
-            final timeRaw = item["time"]?.toString() ?? '';
-            final dateTime = DateTime.tryParse(timeRaw) ?? DateTime.now();
-            String dateOnly =
-                "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
-            String timeOnly =
-                "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
-            final date = "$dateOnly • $timeOnly";
+            // `time` is the raw backend timestamp string — always format it
+            // before display rather than relying on the caller to have done so.
+            final date = formatDateTimeString(item['time']?.toString());
+
+            // final dateTime =
+            //     DateTime.tryParse(item["time"]?.toString() ?? '') ??
+            //     DateTime.now();
+            // String dateOnly =
+            //     "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+            // String timeOnly =
+            //     "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+            // final String date = "$dateOnly • $timeOnly";
             final amount = item["amount"] ?? "Unknown";
             final icon = item["icon"] ?? Icons.receipt_long;
             final type = item["type"] ?? "payment";

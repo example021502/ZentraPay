@@ -1,59 +1,64 @@
 class AppTransaction {
   final String transactionId;
   final String receiverId;
+  final String TXN_Ref;
+  final String destinationIdentifier;
   final String amount;
-  final String createdAt;
-  final String? failureReason;
+  final String currencyCode;
   final String status;
-  final String updatedAt;
-  final String transactionType;
   final String receiverName;
-  final String receiverEmail;
-  final String receiverPhoneNumber;
-  final String? purpose;
-  final String internalReferenceId;
-  final String entryId;
+  final String? receiverPhoneNumber;
+  final String completedAt;
+  final String transactionType;
 
   AppTransaction({
     required this.transactionId,
     required this.receiverId,
+    required this.TXN_Ref,
+    required this.destinationIdentifier,
     required this.amount,
-    required this.createdAt,
+    required this.currencyCode,
     required this.status,
-    required this.internalReferenceId,
     required this.receiverName,
-    required this.receiverEmail,
     required this.receiverPhoneNumber,
-    this.purpose,
-    this.failureReason,
-    required this.updatedAt,
+    required this.completedAt,
     required this.transactionType,
-    required this.entryId,
   });
 
   factory AppTransaction.fromJson(Map<String, dynamic> json) {
     return AppTransaction(
       transactionId: (json['transactionId']?.toString()) ?? '',
       receiverId: (json['receiverId']?.toString()) ?? '',
-      transactionType: (json['transactionType']?.toString()) ?? '',
-      amount: (json['amount']?.toString()) ?? '',
+      // The ledger's unique, human-quotable reference is internalReferenceId;
+      // this model still exposes it under its legacy TXN_Ref name.
+      TXN_Ref:
+          (json['internalReferenceId'] ?? json['TXN_Ref'])?.toString() ?? '',
+      destinationIdentifier:
+          (json['destinationIdentifier'] ?? json['receiverPhoneNumber'])
+              ?.toString() ??
+          '',
+      amount: (json['amount'] ?? '').toString(),
+      // The backend folds the currency into the amount string
+      // (e.g. "-GHS 0.2500") and sends no separate currencyCode field.
+      currencyCode:
+          (json['currencyCode'] ?? json['sourceCurrencyCode'])?.toString() ??
+          '',
       status: (json['status']?.toString()) ?? '',
-      internalReferenceId: (json['internalReferenceId']?.toString()) ?? '',
       receiverName: (json['receiverName']?.toString()) ?? '',
-      receiverEmail: (json['receiverEmail']?.toString()) ?? '',
       receiverPhoneNumber: (json['receiverPhoneNumber']?.toString()) ?? '',
-      purpose: json['purpose']?.toString(),
-      failureReason: json['failureReason']?.toString(),
-      updatedAt: (json['updatedAt']?.toString()) ?? '',
-      createdAt: (json['createdAt']?.toString()) ?? '',
-      entryId: (json['entryId']?.toString()) ?? '',
+      // The backend's TransactionDTO exposes createdAt, not completedAt.
+      // This used to be a non-null assertion (`json['completedAt']!`), which
+      // threw a TypeError on every row and silently emptied the whole history
+      // list — the request succeeded but the parse aborted before item 1.
+      completedAt: (json['completedAt'] ?? json['createdAt'])?.toString() ?? '',
+      transactionType: (json['transactionType']?.toString()) ?? '',
     );
   }
 
-  @override
-  String toString() {
-    return 'AppTransaction(id: $transactionId, name: $receiverName, identifier: $receiverId)';
-  }
+  // @override
+  // String toString() {
+  //   return 'AppTransaction(id: $transactionId, txn_ref: $TXN_Ref, name: $receiverName, identifier: $receiverPhoneNumber)';
+  // }
 }
 
 class TransactionPage {

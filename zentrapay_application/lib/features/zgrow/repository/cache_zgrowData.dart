@@ -90,18 +90,127 @@ class ChallengesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Enrolls the user in a challenge. The backend expects the id in the body
+  /// ({@code POST /api/zgrow/challenges/enroll}) and returns the created
+  /// enrollment, which lives in UserChallengesRepository — not back here.
   Future<void> join(String challengeId) async {
-    final response = await _dio.post('/api/zgrow/challenges/$challengeId/join');
-    final updated = Challenge.fromJson(response.data['data']);
-    replaceItem((c) => c.challengeId == challengeId, updated);
+    await _dio.post(
+      '/api/zgrow/challenges/enroll',
+      data: {'challengeId': challengeId},
+    );
+    // The catalog itself is unchanged by enrolling, so there is nothing to
+    // patch locally; the caller refreshes UserChallengesRepository.
   }
 
+  /// Declines a challenge. The endpoint returns a plain message rather than a
+  /// challenge object, so there is no replacement payload to apply.
   Future<void> decline(String challengeId) async {
-    final response = await _dio.post(
-      '/api/zgrow/challenges/$challengeId/decline',
+    await _dio.post('/api/zgrow/challenges/$challengeId/decline');
+  }
+}
+
+class UserChallengesRepository extends ChangeNotifier {
+  UserChallengesRepository._();
+  static final UserChallengesRepository instance = UserChallengesRepository._();
+
+  List<UserChallenge>? _data;
+  bool _loading = false;
+  Object? _error;
+
+  List<UserChallenge>? get data => _data;
+  bool get isLoaded => _data != null;
+  bool get isLoading => _loading;
+  Object? get error => _error;
+
+  /// The actual network call.
+  Future<List<UserChallenge>> fetch() async {
+    final response = await _dio.get('/api/zgrow/myChallenges');
+    return ((response.data['data'] as List?) ?? [])
+        .whereType<Map>()
+        .map((e) => UserChallenge.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// Loads the resource the first time it's needed; subsequent calls are a
+  /// no-op unless [forceRefresh] is set (pull-to-refresh, explicit retry).
+  Future<List<UserChallenge>?> ensureLoaded({bool forceRefresh = false}) async {
+    if (_data != null && !forceRefresh) return _data;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _data = await fetch();
+      return _data;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Applies a POST/PUT response onto the cached value without refetching.
+  void applyDelta(
+    List<UserChallenge> Function(List<UserChallenge> current) updater,
+  ) {
+    final current = _data;
+    if (current == null) return;
+    _data = updater(current);
+    notifyListeners();
+  }
+
+  /// Replaces the cached value outright.
+  void setData(List<UserChallenge> value) {
+    _data = value;
+    _error = null;
+    notifyListeners();
+  }
+
+  /// List convenience mutators.
+  void addItem(UserChallenge item) =>
+      applyDelta((current) => [...current, item]);
+
+  void replaceItem(
+    bool Function(UserChallenge item) matches,
+    UserChallenge replacement,
+  ) {
+    applyDelta(
+      (current) => [
+        for (final item in current) matches(item) ? replacement : item,
+      ],
     );
-    final updated = Challenge.fromJson(response.data['data']);
-    replaceItem((c) => c.challengeId == challengeId, updated);
+  }
+
+  void removeItem(bool Function(UserChallenge item) matches) {
+    applyDelta((current) => current.where((item) => !matches(item)).toList());
+  }
+
+  void clear() {
+    _data = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
+  // Enrolls the user in a challenge and appends the returned enrollment.
+  // Takes the *challenge* id (not the enrollment id) since that's what
+  // POST /api/zgrow/challenges/enroll expects in its body.
+  Future<void> join(String challengeId) async {
+    final response = await _dio.post(
+      '/api/zgrow/challenges/enroll',
+      data: {'challengeId': challengeId},
+    );
+    final raw = response.data['data'];
+    if (raw is Map) {
+      addItem(UserChallenge.fromJson(Map<String, dynamic>.from(raw)));
+    }
+  }
+
+  /// Declining removes the enrollment server-side, so drop it from the cache.
+  Future<void> decline(String challengeId) async {
+    await _dio.post('/api/zgrow/challenges/$challengeId/decline');
+    removeItem((c) => c.challenge.id == challengeId);
   }
 }
 

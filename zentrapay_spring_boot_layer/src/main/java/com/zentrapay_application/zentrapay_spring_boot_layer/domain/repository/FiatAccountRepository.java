@@ -14,6 +14,12 @@ import java.util.UUID;
 public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, UUID> {
     List<FiatAccountModel> findByWalletId(@Param("walletId") UUID walletId);
 
+    @Query("SELECT a.walletId FROM FiatAccountModel a WHERE a.zentag = :zentag")
+    Optional<UUID> getWalletIdByZentag(@Param("zentag") String zentag);
+
+   @Query("SELECT a FROM FiatAccountModel a WHERE a.walletId IN :walletdIds")
+    List<FiatAccountModel> getAccountsByWalletIds(@Param("walletIds") List<UUID> walletIds);
+
 //  GETTING THE ACCOUNT USING WALLET ID FOR MAKING A PAYMENT
     Optional<FiatAccountModel> getWalletByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 //  CHECKING IF THE WALLET EXIST FOR WALLET CURRENCY ACCOUNT CREATION
@@ -22,6 +28,13 @@ public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, U
 //  GETTING USER FIAT ACCOUNT CURRENCIES FOR GETTING SUPPORTED CURRENCIES EXCLUDING THEM
     @Query("SELECT a.currencyCode FROM FiatAccountModel a WHERE a.walletId = :walletId")
     List<String> getAccountsCurrenciesByWalletId(@Param("walletId") UUID walletId);
+
+    //  GETTING USER FIAT ACCOUNT FOR QR CODE GENERATION
+    Optional<FiatAccountModel> getAccountByWalletId(@Param("walletId") UUID walletId);
+
+    //  GETTING USER FIAT ACCOUNT BALANCE
+    @Query("SELECT a.balance FROM FiatAccountModel a WHERE a.walletId = :walletId AND a.currencyCode = :currencyCode")
+    Optional<BigDecimal> getBalanceByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 
 //  not decorative, or this would debit every currency this wallet holds.
     @Modifying

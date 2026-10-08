@@ -2,6 +2,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.serv
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.dto.*;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.LoginHistoryModel;
@@ -10,6 +11,7 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.security.JwtService
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +40,6 @@ public class UsersService {
     private final FiatAccountRepository fiatAccountRepository;
     private final CryptoAccountRepository cryptoAccountRepository;
     private final UserProfileRepository userProfileRepository;
-
 
     @Value("${app.password.pepper}")
     private String passwordPepper;
@@ -81,8 +82,8 @@ public class UsersService {
         user.setCountryCode(req.countryCode());
         user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
         user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
-        user.setUserType("app-user");
-        user.setStatus("active");
+        user.setUserType(Datatypes.UserType.APP_USER);
+        user.setStatus(Datatypes.UserStatus.ACTIVE);
 
         // Save the user record to the database
         user = userRepository.save(user);
@@ -93,27 +94,19 @@ public class UsersService {
             FiatWalletModel fiatWallet = new FiatWalletModel();
             fiatWallet.setUserId(user.getUserId());
             fiatWallet.setCountryCode(req.countryCode());
-            fiatWallet.setStatus("active");
+            fiatWallet.setWalletName("Zentrapay_Wallet");
            fiatWallet = fiatWalletRepository.save(fiatWallet);
 //            CRYPTO WALLET CREATION
             CryptoWalletModel cryptoWallet = new CryptoWalletModel();
             cryptoWallet.setUserId(user.getUserId());
-            cryptoWallet.setStatus("active");
+            cryptoWallet.setStatus("ACTIVE");
             cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
            final String currencyCode = gatewayCurrenciesRepository
                     .getCurrencyCodesByCountryCode(user.getCountryCode()).stream()
                     .findFirst()
                     .orElse("GHS");
-           final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
-            FiatAccountModel fiatAccount = new FiatAccountModel();
-            fiatAccount.setWalletId(fiatWallet.getWalletId());
-            fiatAccount.setAccountName("Default Account");
-            fiatAccount.setCurrencyCode(currencyCode);
-            fiatAccount.setZentag(zentag);
-            fiatAccount.setBalance(BigDecimal.ZERO);
-            fiatAccount.setDefault(true);
-            fiatAccount.setStatus("active");
+            FiatAccountModel fiatAccount = getFiatAccount(req, currencyCode, fiatWallet);
             fiatAccountRepository.save(fiatAccount);
 
             CryptoAccountModel cryptoAccount = new CryptoAccountModel();
@@ -123,7 +116,7 @@ public class UsersService {
             cryptoAccount.setWalletAddress("pending-" + user.getUserId());
             cryptoAccount.setBalance(BigDecimal.ZERO);
             cryptoAccount.setIsDefault(true);
-            cryptoAccount.setStatus("active");
+            cryptoAccount.setStatus("ACTIVE");
             cryptoAccountRepository.save(cryptoAccount);
         }else{
             throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");
@@ -132,6 +125,19 @@ public class UsersService {
         // Generate the authentication token and return the response DTO
         String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
         return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+    }
+
+    private static @NonNull FiatAccountModel getFiatAccount(RegisterRequestDTO req, String currencyCode, FiatWalletModel fiatWallet) {
+        final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
+        FiatAccountModel fiatAccount = new FiatAccountModel();
+        fiatAccount.setWalletId(fiatWallet.getWalletId());
+        fiatAccount.setAccountName("Default Account");
+        fiatAccount.setCurrencyCode(currencyCode);
+        fiatAccount.setZentag(zentag);
+        fiatAccount.setBalance(BigDecimal.ZERO);
+        fiatAccount.setDefault(true);
+        fiatAccount.setStatus("ACTIVE");
+        return fiatAccount;
     }
 
     // ========================================================================
@@ -184,7 +190,7 @@ public class UsersService {
 //    GETTING USER INFROMATION
     @Transactional(readOnly = true)
 public UserInformation getMe(@Valid UUID userId) {
-        UserModel user = userRepository.getUserById(userId)
+        UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // Retrieve profile if present. The profile is optional — a row is only
@@ -200,7 +206,7 @@ public UserInformation getMe(@Valid UUID userId) {
     // ========================================================================
     @Transactional
     public UserDTO updateMe(UUID userId, UserMeUpdateDTO req) {
-        UserModel user = userRepository.getUserById(userId)
+        UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (req.firstName() != null && !req.firstName().isBlank()) {
@@ -228,7 +234,7 @@ public UserInformation getMe(@Valid UUID userId) {
     // ========================================================================
     @Transactional
     public UserProfileDTO upsertKycProfile(UUID userId, UserProfileUpdateDTO req) {
-        UserModel user = userRepository.getUserById(userId)
+        UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         UserProfileModel profile = userProfileRepository.getBtUserId(userId);

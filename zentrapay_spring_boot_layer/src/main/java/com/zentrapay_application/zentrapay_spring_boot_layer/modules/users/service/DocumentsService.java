@@ -53,7 +53,7 @@ public class DocumentsService {
             throw new IllegalArgumentException("No file was uploaded");
         }
 
-        UserModel user = userRepository.getUserById(userId)
+        UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         byte[] bytes;

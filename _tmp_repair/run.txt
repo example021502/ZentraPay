@@ -1,0 +1,8 @@
+﻿
+Repair actions: 1
+  - Aligned applied migration checksums
+
+Pending migrations after repair:
+  - 14 add bill providers gateway
+
+

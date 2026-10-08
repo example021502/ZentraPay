@@ -1,31 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/features/home/widgets/NewCardOverlay.dart';
+import 'package:zentrapay_application/main.dart';
 
 import '../../../core/models/card.dart';
 import '../../../core/theme/common_widgets.dart' as common;
 
 /// Horizontal carousel of a user's linked bank / wallet cards.
-///
-/// Mirrors the Home "Your Cards" carousel (PageView) but renders each item as
-/// a bank-account style tile — bank name/account number/currency/balance —
-/// for the home page's "Linked Bank Accounts" section (and the ZBanking
-/// overview). Accepts a flat list of account maps so callers can feed it from
-/// whatever account-shaped list they already hold (fiat cards, cards, ...).
 class LinkedCards extends StatefulWidget {
   const LinkedCards({super.key, required this.cards});
 
-  final List<AppCard> cards;
+  final List cards;
 
   @override
-  State<LinkedCards> createState() => _LinkedCardsState();
+  State createState() => _LinkedCardsState();
 }
 
-class _LinkedCardsState extends State<LinkedCards> {
+class _LinkedCardsState extends State with TickerProviderStateMixin {
   final PageController _controller = PageController(viewportFraction: 0.72);
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cards = widget.cards;
+    final cards = [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,17 +39,14 @@ class _LinkedCardsState extends State<LinkedCards> {
             Text("Your Cards", style: AppTheme.bodyMedium),
             const SizedBox(width: AppTheme.spacingSm),
             InkWell(
-              onTap: () => common.showComingSoon(
-                context,
-                "Linking a card is coming soon.",
-              ),
+              onTap: () => _onLinkCard(context),
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(200),
                   color: AppTheme.secondaryNavy.withAlpha(20),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
+                child: const Padding(
+                  padding: EdgeInsets.all(10.0),
                   child: Icon(Icons.add_outlined, size: 22),
                 ),
               ),
@@ -59,14 +59,14 @@ class _LinkedCardsState extends State<LinkedCards> {
                 child: Center(
                   child: Text(
                     "No linked cards yet.",
-                    style: AppTheme.labelLarge.copyWith(
+                    style: AppTheme.bodyMedium.copyWith(
                       color: AppTheme.lightGrey,
                     ),
                   ),
                 ),
               )
             : Container(
-                constraints: BoxConstraints(maxHeight: 210),
+                constraints: const BoxConstraints(maxHeight: 210),
                 child: PageView.builder(
                   controller: _controller,
                   itemCount: cards.length,
@@ -81,31 +81,12 @@ class _LinkedCardsState extends State<LinkedCards> {
     );
   }
 
-  /// Compact date label for the account card (e.g. "19 Aug 2026").
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  Widget _accountTile(AppCard card) {
-    final name = card.brand;
+  Widget _accountTile(UserCard card) {
+    final name = card.name;
     final maskedNumber = '•••• •••• •••• ${card.last4}';
     final currency = card.currencyCode;
-    final balance = '$currency ${card.balance}';
-    final createdAt = card.createdAt;
+    final balance = '(currency){card.balance}';
+    final createdAt = card.issuedAt;
 
     return Container(
       width: 240,
@@ -138,7 +119,7 @@ class _LinkedCardsState extends State<LinkedCards> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 ),
                 child: Text(
-                  _formatDate(createdAt as DateTime),
+                  formatDateTimeString(createdAt),
                   style: AppTheme.whiteBodySmall.copyWith(fontSize: 10),
                 ),
               ),
@@ -185,6 +166,64 @@ class _LinkedCardsState extends State<LinkedCards> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Show Link Card bottom sheet
+  void _onLinkCard(BuildContext context) {
+    // Create a fresh animation controller for each modal presentation
+    final AnimationController customAnimationController =
+        BottomSheet.createAnimationController(this)
+          ..duration = const Duration(milliseconds: 1000)
+          ..reverseDuration = const Duration(milliseconds: 600);
+
+    showModalBottomSheet(
+      transitionAnimationController: customAnimationController,
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      backgroundColor: AppColors.primary,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width,
+            maxHeight: MediaQuery.of(context).size.height * 0.3,
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: AppColors.lightGrey.withAlpha(30),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingSm),
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.all(10.0),
+                  child: Column(
+                    children: [
+                      Text("Not Supported at the moment!"),
+                      Icon(
+                        Icons.info_outline,
+                        color: AppColors.lightGrey,
+                        size: 30,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

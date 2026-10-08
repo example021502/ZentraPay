@@ -23,7 +23,12 @@ public class FlutterwaveBankMapper implements BankMapper<FlutterwaveBankResponse
             bank.setCode(item.code());
             bank.setGateway("flutterwave");
             bank.setCountryCode(countryCode);
-            bank.setCurrencyCode(getCurrencyCode(countryCode));
+            // Flutterwave's /banks/{country} payload carries no per-bank
+            // currency, so derive it from the country. Fall back to USD rather
+            // than persisting null — banks.currency_code is NOT NULL.
+            String currency = getCurrencyCode(countryCode);
+            bank.setCurrencyCode(currency != null ? currency : "USD");
+            bank.setActive(true);
             return bank;
         }).toList();
     }

@@ -1,53 +1,66 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.domain.model;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
-/**
- * The single canonical mapping of the "users" table. Every module that
- * needs a user (payments, search, transactions, ...) reads/writes this
- * entity — no module should declare its own parallel @Entity for "users".
- */
+// Master entity defining available challenges in ZGrow
 @Entity
-@Data
 @Table(name = "challenges")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ChallengesModel {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "challenge_id", nullable = false, unique = true)
-    private UUID challengeId;
+    private UUID id;
 
-    @Column(name = "category", nullable = false)
-    private String category;
-
-    @Column(name = "description", nullable = false)
-    private String description;
-
-    @Column(name = "difficult", nullable = false)
-    private String difficult;
-
-    @Column(name = "duration_days", nullable = false)
-    private int durationDays;
-
-    @Column(name = "points_reward", nullable = false)
-    private int pointsReward;
-
-    @Column(name = "status", nullable = false)
-    private String status;
-
-    @Column(name = "title", nullable = false)
+    @Column(nullable = false, length = 150)
     private String title;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private Datatypes.ChallengeCategory category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "challenge_type", nullable = false, length = 50)
+    private Datatypes.ChallengeType challengeType;
+
+    @Column(name = "duration_days", nullable = false)
+    private Integer durationDays;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
+    @Column(name = "start_date")
+    private LocalDateTime startDate;
+
+    @Column(name = "end_date")
+    private LocalDateTime endDate;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ChallengesTargetModel> targets = new ArrayList<>();
+
     @CreationTimestamp
-    @Column(name = "created_on", nullable = false)
-    private LocalDateTime createdOn;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_on", nullable = false)
-    private LocalDateTime updatedOn;
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

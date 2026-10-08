@@ -110,7 +110,7 @@ class WalletsRepository with ChangeNotifier {
       data: {
         'accountName': accountName,
         'currencyCode': currencyCode,
-        if (countryCode != null) 'countryCode': countryCode,
+        'countryCode': ?countryCode,
       },
     );
 
@@ -163,7 +163,7 @@ class CardsRepository extends ChangeNotifier {
 
   /// The actual network call.
   Future<List<AppCard>> fetch() async {
-    final response = await _dio.get('/api/cards');
+    final response = await _dio.get('/api/cards/otherCards');
     return ((response.data['data'] as List?) ?? [])
         .map((e) => AppCard.fromJson(e))
         .toList();
@@ -256,6 +256,116 @@ class CardsRepository extends ChangeNotifier {
   }
 }
 
+class UserCardsRepository extends ChangeNotifier {
+  UserCardsRepository._();
+  static final UserCardsRepository instance = UserCardsRepository._();
+
+  final Dio _dio = ApiClient().dio;
+
+  List<UserCard>? _data;
+  bool _loading = false;
+  Object? _error;
+
+  List<UserCard>? get data => _data;
+  bool get isLoaded => _data != null;
+  bool get isLoading => _loading;
+  Object? get error => _error;
+
+  /// The actual network call.
+  Future<List<UserCard>> fetch() async {
+    final response = await _dio.get('/api/cards/userCards');
+    return ((response.data['data'] as List?) ?? [])
+        .map((e) => UserCard.fromJson(e))
+        .toList();
+  }
+
+  /// Loads the resource the first time it's needed; subsequent calls are a
+  /// no-op unless [forceRefresh] is set (pull-to-refresh, explicit retry).
+  Future<List<UserCard>?> ensureLoaded({bool forceRefresh = false}) async {
+    if (_data != null && !forceRefresh) return _data;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _data = await fetch();
+      return _data;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Applies a POST/PUT response onto the cached value without refetching.
+  void applyDelta(List<UserCard> Function(List<UserCard> current) updater) {
+    final current = _data;
+    if (current == null) return;
+    _data = updater(current);
+    notifyListeners();
+  }
+
+  /// Replaces the cached value outright.
+  void setData(List<UserCard> value) {
+    _data = value;
+    _error = null;
+    notifyListeners();
+  }
+
+  /// List convenience mutators.
+  void addItem(UserCard item) => applyDelta((current) => [...current, item]);
+
+  void replaceItem(bool Function(UserCard item) matches, UserCard replacement) {
+    applyDelta(
+      (current) => [
+        for (final item in current) matches(item) ? replacement : item,
+      ],
+    );
+  }
+
+  void removeItem(bool Function(UserCard item) matches) {
+    applyDelta((current) => current.where((item) => !matches(item)).toList());
+  }
+
+  void clear() {
+    _data = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
+  Future<UserCard> createVirtualCard(String brand) async {
+    final response = await _dio.post(
+      '/api/cards/virtual',
+      data: {'brand': brand},
+    );
+    final card = UserCard.fromJson(response.data['data']);
+    addItem(card);
+    return card;
+  }
+
+  Future<UserCard> setNfcEnabled(String cardId, bool enabled) async {
+    final response = await _dio.patch(
+      '/api/cards/$cardId/nfc',
+      data: {'enabled': enabled},
+    );
+    final card = UserCard.fromJson(response.data['data']);
+    replaceItem((c) => c.cardId == cardId, card);
+    return card;
+  }
+
+  Future<UserCard> setQrEnabled(String cardId, bool enabled) async {
+    final response = await _dio.patch(
+      '/api/cards/$cardId/qr',
+      data: {'enabled': enabled},
+    );
+    final card = UserCard.fromJson(response.data['data']);
+    replaceItem((c) => c.cardId == cardId, card);
+    return card;
+  }
+}
+
 /// Transaction history is paginated, so it doesn't fit the plain
 /// single-value cache shape: the "load once" behavior here means page 0 is
 /// fetched once and cached; scrolling further pages appends rather than
@@ -272,6 +382,7 @@ class TransactionsRepository extends ChangeNotifier {
   final List<AppTransaction> _items = [];
   int _page = 0;
   int _totalPages = 1;
+  Object? _error;
   bool _loading = false;
   bool _loadedOnce = false;
 
@@ -279,11 +390,16 @@ class TransactionsRepository extends ChangeNotifier {
 
   bool get isLoading => _loading;
 
+  /// Last load/parse failure, surfaced so the UI can show why history is
+  /// empty instead of silently rendering "No history found".
+  Object? get error => _error;
+
   bool get hasMore => _page + 1 < _totalPages;
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
     if (_loadedOnce && !forceRefresh) return;
     _loading = true;
+    _error = null;
     notifyListeners();
     try {
       final result = await _fetchPage(0);
@@ -293,6 +409,9 @@ class TransactionsRepository extends ChangeNotifier {
       _page = result.page;
       _totalPages = result.totalPages;
       _loadedOnce = true;
+    } catch (e) {
+      _error = e;
+      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
@@ -302,12 +421,16 @@ class TransactionsRepository extends ChangeNotifier {
   Future<void> loadNextPage() async {
     if (!hasMore || _loading) return;
     _loading = true;
+    _error = null;
     notifyListeners();
     try {
       final result = await _fetchPage(_page + 1);
       _items.addAll(result.content);
       _page = result.page;
       _totalPages = result.totalPages;
+    } catch (e) {
+      _error = e;
+      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
@@ -316,7 +439,7 @@ class TransactionsRepository extends ChangeNotifier {
 
   Future<TransactionPage> _fetchPage(int page) async {
     final response = await _dio.get(
-      '/api/transactions',
+      '/api/history',
       queryParameters: {'page': page, 'size': 20},
     );
     return TransactionPage.fromJson(response.data['data']);
@@ -815,9 +938,7 @@ class CountriesRepository extends ChangeNotifier {
   }
 
   /// Applies a POST/PUT response onto the cached value without refetching.
-  void applyDelta(
-    List<AppCountry> Function(List<AppCountry> current) updater,
-  ) {
+  void applyDelta(List<AppCountry> Function(List<AppCountry> current) updater) {
     final current = _data;
     if (current == null) return;
     _data = updater(current);
@@ -918,8 +1039,7 @@ class CurrenciesRepository extends ChangeNotifier {
   }
 
   /// List convenience mutators.
-  void addItem(AppCurrency item) =>
-      applyDelta((current) => [...current, item]);
+  void addItem(AppCurrency item) => applyDelta((current) => [...current, item]);
 
   void replaceItem(
     bool Function(AppCurrency item) matches,
@@ -1055,10 +1175,7 @@ class PaymentChannelsRepository {
 
     final response = await _dio.get(
       '/api/payment-channels',
-      queryParameters: {
-        'countryCode': countryCode,
-        'type': ?type,
-      },
+      queryParameters: {'countryCode': countryCode, 'type': ?type},
     );
     final channels = ((response.data['data'] as List?) ?? [])
         .map((e) => PaymentChannel.fromJson(e))
@@ -1114,11 +1231,3 @@ class SearchRepository {
     return Map<String, dynamic>.from(response.data['data']['contact']);
   }
 }
-
-
-
-
-
-
-
-

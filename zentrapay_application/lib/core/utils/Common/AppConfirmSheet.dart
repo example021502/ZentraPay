@@ -12,14 +12,12 @@ class AppConfirmPinSheet extends StatefulWidget {
   /// Where the money is landing — e.g. the recipient's zentag for the
   /// specific currency account selected. Optional so existing callers that
   /// don't have this (bill/provider payments) keep working unchanged.
-  final String? destination;
 
   const AppConfirmPinSheet({
     super.key,
     required this.name,
     required this.currencyCode,
     required this.amount,
-    this.destination,
   });
 
   @override
@@ -48,10 +46,9 @@ class _AppConfirmPinSheetState extends State<AppConfirmPinSheet> {
   String get _headline => "Enter Your PIN";
 
   String get _subtitle {
-    final destination = widget.destination;
-    final base = "Sending ${widget.currencyCode} ${widget.amount} to ${widget.name}";
-    return "Enter your PIN to continue\n"
-        "${destination != null && destination.isNotEmpty ? "$base ($destination)" : base}";
+    final base =
+        "Sending ${widget.currencyCode} ${widget.amount} to ${widget.name}";
+    return "Enter your PIN to continue\n $base";
   }
 
   @override
@@ -95,7 +92,10 @@ class _AppConfirmPinSheetState extends State<AppConfirmPinSheet> {
               Text(
                 _subtitle,
                 textAlign: TextAlign.center,
-                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+                style: AppTheme.bodyLarge.copyWith(
+                  color: AppTheme.lightGrey,
+                  fontWeight: FontWeight.w600,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

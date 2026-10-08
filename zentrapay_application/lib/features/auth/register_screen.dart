@@ -85,8 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       "lastName": _lastNameController.text.trim(),
       "email": _emailController.text.trim(),
       "password": _passwordController.text.trim(),
-      "phoneNumber": contactForm['phone_number']!,
-      "countryCode": contactForm['country_code']!,
+      "phoneNumber": contactForm['phone_number']!.trim(),
+      "countryCode": contactForm['country_code']!.trim(),
       "pin": pin,
       "termsConsent": termsConsent,
     };
@@ -118,7 +118,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
-      TransactionsRepository.instance.ensureLoaded();
+      // Fire-and-forget preload: must not block post-registration navigation.
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
         Navigator.pushNamed(
@@ -169,13 +170,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Comment: Replacing IntrinsicHeight with ConstrainedBox prevents Chrome layout overflow calculations
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
-                    Container(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
                       constraints: BoxConstraints(maxWidth: maxWidth),
                       decoration: AppTheme.cardDecoration.copyWith(
                         borderRadius: const BorderRadius.vertical(
@@ -427,8 +429,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );

@@ -13,6 +13,7 @@ public record PaystackBankResponseDTO(
             boolean pay_with_bank,
             boolean active,
             String country,
-            String currency
+            String currency,
+            String type
     ) {}
 }

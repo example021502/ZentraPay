@@ -118,7 +118,7 @@ class _SendingFormState extends State<SendingForm> {
     });
   }
 
-  void onChange(String id, var value) {
+  void onChange(String id, value) {
     setState(() {
       id == "contact_number"
           ? (
@@ -136,7 +136,10 @@ class _SendingFormState extends State<SendingForm> {
       return;
     }
     if (_bankController.text.trim().isEmpty) {
-      ZentraNotifier.error("Account number required", "Enter the recipient's account number.");
+      ZentraNotifier.error(
+        "Account number required",
+        "Enter the recipient's account number.",
+      );
       return;
     }
     if (selectedCurrency == null || _amountController.text.trim().isEmpty) {
@@ -145,7 +148,10 @@ class _SendingFormState extends State<SendingForm> {
     }
     final accountName = _resolvedAccountName ?? _nameController.text.trim();
     if (accountName.isEmpty) {
-      ZentraNotifier.error("Account name required", "Could not verify the account holder's name.");
+      ZentraNotifier.error(
+        "Account name required",
+        "Could not verify the account holder's name.",
+      );
       return;
     }
 
@@ -158,7 +164,6 @@ class _SendingFormState extends State<SendingForm> {
         name: accountName,
         currencyCode: selectedCurrency!.code,
         amount: _amountController.text.trim(),
-        destination: _selectedBank!.channelName,
       ),
     );
     if (pin == null || pin.isEmpty || !mounted) return;
@@ -312,7 +317,11 @@ class _SendingFormState extends State<SendingForm> {
                             color: AppTheme.primaryWhite,
                           ),
                         ),
-                        Icon(Icons.send, color: AppTheme.primaryWhite, size: 20),
+                        Icon(
+                          Icons.send,
+                          color: AppTheme.primaryWhite,
+                          size: 20,
+                        ),
                       ],
                     ],
                   ),

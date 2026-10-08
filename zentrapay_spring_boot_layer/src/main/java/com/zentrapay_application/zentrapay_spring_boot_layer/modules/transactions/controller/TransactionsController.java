@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * GET /api/transactions?page=&size= -> paginated history for the authenticated user
  */
 @RestController
-@RequestMapping("/api/transactions")
+@RequestMapping("/api/history")
 @RequiredArgsConstructor
 public class TransactionsController {
 

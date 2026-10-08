@@ -22,7 +22,7 @@ public record AccountsDTO(
         String swiftBic,
         String countryCode,
         String country,
-        String status,
+        Boolean active,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         String maxDailyValue,

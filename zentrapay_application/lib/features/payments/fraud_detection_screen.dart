@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/security.dart';
+import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
 import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
@@ -337,7 +338,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  alert.createdAt,
+                  formatDateTimeString(alert.createdAt),
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textBlack,

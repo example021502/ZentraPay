@@ -9,8 +9,10 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Remitt
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.*;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.remittances.dtos.*;
+import jakarta.validation.constraints.Null;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -297,9 +299,9 @@ public class RemittancesService {
 
         TransactionModel debitLeg = new TransactionModel();
         debitLeg.setAmount(amount.add(fee));
-        debitLeg.setGateway("internal");
-        debitLeg.setStatus("success");
-        debitLeg.setTransactionType(type_debit);
+        debitLeg.setGateway(null);
+        debitLeg.setStatus(Datatypes.TransactionStatus.SUCCESS);
+        debitLeg.setTransactionType(Datatypes.TransactionType.INTERNAL);
         debitLeg.setSenderId(sender.getUserId());
         debitLeg.setReceiverId(receiverId);
         debitLeg.setSenderName(sender.getFirstName() + sender.getLastName());

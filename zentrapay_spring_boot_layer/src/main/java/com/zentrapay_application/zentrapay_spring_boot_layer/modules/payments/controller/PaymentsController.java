@@ -2,14 +2,9 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.c
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.QRCodeService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ApiResponse;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.BankTransferRequestDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentRequestDTO;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dto.InitializePaymentRequestDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.InitializePaymentResponseDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentRequestDTO;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.TransactionDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service.PaymentsInitializeService;
-import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.service.PaymentsService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.AuthenticatedUser;
 import com.zentrapay_application.zentrapay_spring_boot_layer.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -19,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -31,7 +25,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentsController {
 
-    private final PaymentsService paymentsService;
     private final PaymentsInitializeService paymentsInitializeService;
     private final QRCodeService qrCodeService;
 
@@ -48,33 +41,18 @@ public class PaymentsController {
         InitializePaymentResponseDTO checkout =
                 paymentsInitializeService.initialize(user.getUserId(), request);
         return ResponseEntity.ok(
-                ApiResponse.success(checkout, "Checkout session created"));
+                ApiResponse.success(checkout, "Payment successful"));
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<Optional<TransactionDTO>>> pay(
-            @CurrentUser AuthenticatedUser user,
-            @Valid @RequestBody PaymentRequestDTO request) {
-        Optional<TransactionDTO> transaction = Optional.of(paymentsService.sendMoney(user.getUserId(), request)
-                .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again")));
-        return ResponseEntity.ok(ApiResponse.success(transaction, "Payment successful"));
-    }
 
-    /**
-     * POST /api/payments/bank-transfer — flat-payload bank disbursement
-     * (matches the Flutter {@code PaymentsService.payBankTransfer()} call
-     * shape). Reshaped into a {@link PaymentRequestDTO} and executed through
-     * the same {@link PaymentsService#sendMoney} pipeline (Paystack primary,
-     * Flutterwave failover) as every other payout.
-     */
-    @PostMapping("/bank-transfer")
-    public ResponseEntity<ApiResponse<TransactionDTO>> bankTransfer(
-            @CurrentUser AuthenticatedUser user,
-            @Valid @RequestBody BankTransferRequestDTO request) {
-        TransactionDTO transaction = paymentsService.sendBankTransfer(user.getUserId(), request)
-                .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again"));
-        return ResponseEntity.ok(ApiResponse.success(transaction, "Transfer submitted"));
-    }
+//    @PostMapping("/bank-transfer")
+//    public ResponseEntity<ApiResponse<TransactionDTO>> bankTransfer(
+//            @CurrentUser AuthenticatedUser user,
+//            @Valid @RequestBody BankTransferRequestDTO request) {
+//        TransactionDTO transaction = paymentsService.sendBankTransfer(user.getUserId(), request)
+//                .orElseThrow(() -> new ResourceNotFoundException("Something went wrong, try again"));
+//        return ResponseEntity.ok(ApiResponse.success(transaction, "Transfer submitted"));
+//    }
 
     /**
      * Accepts account/checkout ID, fetches details on backend, and returns PNG bytes.

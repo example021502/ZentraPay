@@ -34,8 +34,7 @@ Future<void> showTransactionResultOverlay({
 
   return showAppOverlaySheet<void>(
     context: context,
-    minHeightFraction: 0.42,
-    maxHeightFraction: 0.80,
+    maxHeightFraction: 0.70,
     builder: (sheetContext) {
       return SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingLg),
@@ -63,7 +62,7 @@ Future<void> showTransactionResultOverlay({
             const SizedBox(height: AppTheme.spacingXs),
             Text(
               message,
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              style: AppTheme.labelLarge.copyWith(color: AppTheme.gray500),
               textAlign: TextAlign.center,
             ),
             if (details.isNotEmpty) ...[
@@ -111,13 +110,13 @@ class _DetailRow extends StatelessWidget {
       children: [
         Text(
           detail.label,
-          style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+          style: AppTheme.labelLarge.copyWith(color: AppTheme.gray500),
         ),
         const SizedBox(width: AppTheme.spacingMd),
         Flexible(
           child: Text(
             detail.value,
-            style: AppTheme.labelLarge,
+            style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w600),
             textAlign: TextAlign.right,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

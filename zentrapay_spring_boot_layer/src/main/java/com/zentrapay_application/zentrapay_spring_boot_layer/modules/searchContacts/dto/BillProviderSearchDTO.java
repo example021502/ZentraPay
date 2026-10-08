@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import org.springframework.boot.jackson.autoconfigure.JacksonProperties;
 
 import java.time.LocalDateTime;
@@ -8,7 +9,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public record BillProviderSearchDTO(
-
      UUID providerId,
      String billerCode,
      String billerName,
@@ -20,7 +20,7 @@ public record BillProviderSearchDTO(
      LocalDateTime updatedAt,
      String channelCode,
      Boolean isCrossBorderAllowed,
-     Boolean active,
+     Datatypes.UserType userType,
      LocalDateTime createdAt
 ) {
 }

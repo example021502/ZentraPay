@@ -16,7 +16,7 @@ public record UnlinkBankAccountRequestDTO(
         String zentag,
         BigDecimal balance,
         boolean isDefault,
-        String status,
+        String active,
         LocalDateTime createdAt
 ) {
 }
