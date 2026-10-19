@@ -9,6 +9,8 @@ import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/makePayment.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
+import 'package:zentrapay_application/features/home/HomePayments/qr_scan_screen.dart';
+import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 
 class PaySectionMain extends StatefulWidget {
   const PaySectionMain({super.key});
@@ -46,9 +48,13 @@ class _PaySectionMainState extends State<PaySectionMain> {
   /// collapse repeated payments to the same counterparty into a single tile
   /// so a response never appears twice, keeping each response's most recent
   /// transaction (items are newest-first).
+  ///
+  /// Only outgoing rows qualify: an incoming row records the user themself
+  /// as receiver (see [canSendAgain]), which is not a payable counterparty.
   List<AppTransaction> get _recentPayments {
     final unique = <String, AppTransaction>{};
     for (final transaction in TransactionsRepository.instance.items) {
+      if (!canSendAgain(transaction)) continue;
       final id = transaction.receiverId.trim().toLowerCase();
       final name = transaction.receiverName.trim().toLowerCase();
       final key = (id.isNotEmpty)
@@ -86,18 +92,48 @@ class _PaySectionMainState extends State<PaySectionMain> {
     });
   }
 
-  /// backend DTOs were simplified), so the recipient's destination account is
-  /// no longer picked from their searched accounts. Instead we drive the
-  /// transfer currency from the *sender's own* fiat accounts and let the
-  /// backend resolve the recipient's wallet by email/phone in the currency
-  /// of the transfer.
+  /// Tapping a Recent Payments tile: raises the global loading overlay
+  /// (top of the stack), runs the contact re-search while it's up, then
+  /// hands off to the normal Enter Amount -> PIN flow. See
+  /// [sendAgainFromTransaction] — it owns the in-flight latch for the whole
+  /// run and always reports back, so `_payInFlight` can never stick on.
+  Future<void> _onSelectRecentPayment(AppTransaction transaction) async {
+    if (_payInFlight) return;
+    await sendAgainFromTransaction(
+      context: context,
+      transaction: transaction,
+      controller: makePayment,
+      onStateChanged: (bool inFlight) {
+        if (mounted) setState(() => _payInFlight = inFlight);
+      },
+    );
+  }
 
-  /// Recent Payments only carries the counterparty's name/identifier, not
-  /// their full searchable profile — try to re-search them so the same flow
-  /// (with a live, verified profile) can run again. If the search comes back
-  /// empty or fails, fall back to a recipient built from the transaction
-  /// itself so tapping a response ALWAYS starts the payment flow (Enter
-  /// Amount -> PIN confirmation) instead of dead-ending with an error.
+  /// Scan the receiver's QR code, extract their details from the payload and
+  /// jump straight into the shared payment flow (Enter Amount -> PIN ->
+  /// POST /api/payments/initialize), exactly like selecting a searched
+  /// contact does.
+  Future<void> _onScanQr() async {
+    if (_payInFlight) return;
+
+    final ScannedPaymentTarget? target = await QrScanScreen.show(context);
+    if (target == null || !mounted) return;
+
+    await makePayment.processPayment(
+      context: context,
+      recipientNameForUI: target.recipient['name'] as String,
+      recipientMap: target.recipient,
+      channelType: "INTERNAL",
+      // Preselect the currency the scanned QR account is denominated in so
+      // the transfer lands in an account the receiver actually holds.
+      preferredCurrencyCode: target.receiveCurrency,
+      onStateChanged: (bool newInFlight) {
+        setState(() {
+          _payInFlight = newInFlight;
+        });
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,9 +143,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
       floatingActionButton: SizedBox(
         height: 100,
         child: FloatingActionButton(
-          onPressed: () {
-            showComingSoon(context, "scanning qr code");
-          },
+          onPressed: _onScanQr,
           elevation: 0,
           backgroundColor: AppTheme.primaryWhite,
           child: Column(
@@ -242,54 +276,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
                   ),
                   RecentPaymentsList(
                     recentPayments: _recentPayments,
-                    onSelectTransaction: (AppTransaction transaction) async {
-                      if (_payInFlight) return;
-                      // Try to re-resolve the counterparty's live profile so
-                      // we send to their current email/phone. If the search
-                      // fails, comes back empty, or isn't an app user, fall
-                      // back to the identifiers stored on the transaction so
-                      // tapping ALWAYS starts the payment flow (Enter Amount
-                      // -> PIN confirmation) instead of dead-ending.
-                      final String query =
-                          "${transaction.receiverId.trim()}+${transaction.transactionType.trim()}";
-                      if (query.isNotEmpty) {
-                        try {
-                          final response = await SearchRepository.targetSearch(
-                            query,
-                          );
-
-                          if (response.isNotEmpty &&
-                              response['userType'] == 'APP_USER') {
-                            final String fullName =
-                                "${response['firstName']} ${response['lastName']}";
-                            Map<String, dynamic> recipient = {
-                              "fullName": fullName,
-                              "email": response['email'],
-                              "phoneNumber": response['phoneNumber'],
-                              "countryCode": response['countryCode'],
-                            };
-
-                            if (!mounted) return;
-                            await makePayment.processPayment(
-                              context: context,
-                              recipientNameForUI: fullName,
-                              channelType: transaction.transactionType,
-                              recipientMap: recipient,
-                              onStateChanged: (bool newInFlight) {
-                                setState(() {
-                                  _payInFlight = newInFlight;
-                                });
-                              },
-                            );
-                          }
-                        } catch (e) {
-                          debugPrint(
-                            "Recent-contact re-search failed, using stored "
-                            "details: $e",
-                          );
-                        }
-                      }
-                    },
+                    onSelectTransaction: _onSelectRecentPayment,
                   ),
 
                   // FOR FUTURE:: FOR ACCESSING THE USER PHONE CONTACTS AND SHOWING THEM IN THE PAY SECTION

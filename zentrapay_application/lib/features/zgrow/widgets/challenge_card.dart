@@ -46,18 +46,20 @@ class ChallengeCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             challenge.title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             challenge.description,
-            style: const TextStyle(fontSize: 13, color: Colors.black87),
+            style: AppTheme.labelSmall.copyWith(color: AppTheme.textBlack),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               // durationDays is the catalog field that replaced the old
               // (never-populated) participantsCount.
@@ -67,13 +69,14 @@ class ChallengeCard extends StatelessWidget {
                     : "Ongoing challenge",
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
+              const SizedBox(width: AppTheme.spacingSm),
               if (reward.isNotEmpty)
                 Text(
                   reward,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.zgrowColor,
-                    fontWeight: FontWeight.w600,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.labelSmall.copyWith(
+                    color: AppTheme.textBlack,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
             ],

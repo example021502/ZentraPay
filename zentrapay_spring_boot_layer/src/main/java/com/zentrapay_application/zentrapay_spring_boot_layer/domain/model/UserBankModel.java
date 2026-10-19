@@ -42,6 +42,24 @@ public class UserBankModel {
     @Column(name = "connection_id", nullable = false)
     private String connectionId;
 
+    /**
+     * Per-user primary marker for the ZBank screen header. At most one row
+     * per user may be primary (enforced by the partial unique index
+     * {@code uq_user_bank_primary_per_user}); the flag lives here — not on
+     * the shared {@code banks} catalog — because "primary" is a property of
+     * the user's link, not of the bank itself.
+     */
+    @Column(name = "is_primary", nullable = false)
+    private Boolean primary = false;
+
+    /**
+     * User-facing display name chosen in the link sheet (e.g. "Salary").
+     * Nullable so older rows keep working; the app falls back to the catalog
+     * bank name when absent.
+     */
+    @Column(name = "link_label", length = 120)
+    private String linkLabel;
+
     @CreationTimestamp
     @Column(name = "linked_at", nullable = false)
     private LocalDateTime linkedAt;

@@ -221,8 +221,8 @@ class Reward {
   final double worth;
   final String currencyCode;
   final bool isActive;
-  final DateTime createdOn;
-  final DateTime updatedOn;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Reward({
     required this.rewardId,
@@ -232,8 +232,8 @@ class Reward {
     required this.worth,
     required this.currencyCode,
     required this.isActive,
-    required this.createdOn,
-    required this.updatedOn,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Reward.fromJson(Map<String, dynamic> json) => Reward(
@@ -248,8 +248,8 @@ class Reward {
         json['isActive'] == true ||
         json['isActive'] == 'true' ||
         json['isActive'] == 1,
-    createdOn: DateTime.tryParse('${json['createdOn']}') ?? DateTime.now(),
-    updatedOn: DateTime.tryParse('${json['updatedOn']}') ?? DateTime.now(),
+    createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+    updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
   );
 
   static int _parseInt(dynamic raw) {
@@ -275,6 +275,7 @@ class RewardsList {
 
   factory RewardsList.fromJson(dynamic json) {
     final List<dynamic> raw;
+    print("THE REWARDS IN THE REPOSITORY :: $json");
     if (json is List) {
       raw = json;
     } else if (json is Map) {
@@ -364,3 +365,35 @@ class TutorialsList {
       'TutorialsList(${tutorials.length} tutorials: '
       '${tutorials.map((t) => t.title).join(", ")})';
 }
+
+/// One currency bucket of the user's savings total — mirrors
+/// SavingsSummaryDTO (GET /api/zgrow/savings). The hero card's "Overall
+/// Savings" figure is the [totalAmount] of the bucket in the user's wallet
+/// currency; it is computed server-side so the client never sums money.
+class SavingsSummary {
+  final String currencyCode;
+  final double totalAmount;
+  final int entryCount;
+  final String? lastSavedAt;
+
+  SavingsSummary({
+    required this.currencyCode,
+    required this.totalAmount,
+    required this.entryCount,
+    this.lastSavedAt,
+  });
+
+  factory SavingsSummary.fromJson(Map<String, dynamic> json) =>
+      SavingsSummary(
+        currencyCode: json['currencyCode']?.toString() ?? '',
+        totalAmount: _toDouble(json['totalAmount']),
+        entryCount: (json['entryCount'] as num?)?.toInt() ?? 0,
+        lastSavedAt: json['lastSavedAt']?.toString(),
+      );
+
+  @override
+  String toString() =>
+      'SavingsSummary($currencyCode ${totalAmount.toStringAsFixed(2)}, '
+      '$entryCount entr${entryCount == 1 ? 'y' : 'ies'})';
+}
+

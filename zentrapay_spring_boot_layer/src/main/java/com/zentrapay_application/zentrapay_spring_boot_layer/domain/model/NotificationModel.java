@@ -33,7 +33,8 @@ public class NotificationModel {
     @Column(name = "message", nullable = false, length = 500)
     private String message;
 
-    /** e.g. INTERNAL, MOMO_TRANSFER, BANK_TRANSFER. */
+    /** e.g. INTERNAL, MOMO_TRANSFER, BANK_TRANSFER. Persisted as the enum name. */
+    @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 30)
     private Datatypes.TransactionType type;
 

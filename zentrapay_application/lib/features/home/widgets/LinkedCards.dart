@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
-import 'package:zentrapay_application/features/home/widgets/NewCardOverlay.dart';
 import 'package:zentrapay_application/main.dart';
 
 import '../../../core/models/card.dart';
-import '../../../core/theme/common_widgets.dart' as common;
 
 /// Horizontal carousel of a user's linked bank / wallet cards.
 class LinkedCards extends StatefulWidget {
@@ -185,7 +183,7 @@ class _LinkedCardsState extends State with TickerProviderStateMixin {
       barrierColor: Colors.black.withValues(alpha: 0.2),
       backgroundColor: AppColors.primary,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) {
         return ConstrainedBox(

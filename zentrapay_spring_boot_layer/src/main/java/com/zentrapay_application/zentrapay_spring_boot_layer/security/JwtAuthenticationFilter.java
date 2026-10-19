@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.security;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -59,10 +60,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtService.parseAndValidate(token);
             UUID userId = UUID.fromString(claims.getSubject());
             String email = claims.get("email", String.class);
-            String fullName = claims.get("full_name", String.class);
+            String phoneNumber = claims.get("phoneNumber", String.class);
+            String countryCode = claims.get("countryCode", String.class);
+            String firstName = claims.get("firstName", String.class);
+            String lastName = claims.get("lastName", String.class);
             String zentag = claims.get("zentag", String.class);
+            // The role is stored under the "userType" claim (see
+            // JwtService#generateToken). Tokens without it (retired Node.js
+            // layer's tokens, malformed claims) must not blow up the filter —
+            // fall back to APP_USER instead of throwing an NPE that used to
+            // escape this catch block and 500 every authenticated request.
+            String userTypeClaim = claims.get("userType", String.class);
+            Datatypes.UserType userType = userTypeClaim == null
+                    ? Datatypes.UserType.APP_USER
+                    : Datatypes.UserType.valueOf(userTypeClaim);
 
-            AuthenticatedUser authenticatedUser = new AuthenticatedUser(userId, email, fullName, zentag);
+            AuthenticatedUser authenticatedUser = new AuthenticatedUser(
+                    userId, email, phoneNumber, countryCode, firstName, lastName, zentag, userType
+
+            );
+
             request.setAttribute("authenticatedUser", authenticatedUser);
 
             UsernamePasswordAuthenticationToken authentication =
@@ -73,7 +90,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (ExpiredJwtException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Token expired");
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (JwtException | IllegalArgumentException | NullPointerException e) {
+            // A null/malformed claim must degrade to 401, never to a 500 that
+            // aborts the filter chain (a 500 here blocked every authenticated
+            // endpoint, i.e. no data could load at all).
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid token");
         }

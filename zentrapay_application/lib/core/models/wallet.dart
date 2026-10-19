@@ -147,3 +147,60 @@ class WalletsAccountsSnapshot {
     return copyWith(fiatAccounts: next);
   }
 }
+
+// MINI USER INFORMATION TO CREATE THE QR CODE FOR EACH WALLET ACCOUNT
+class UserQRInfo {
+  final String userId;
+  final String email;
+  final String firstName;
+  final String lastName;
+  final String phoneNumber;
+  final String countryCode;
+  final String zentag;
+  final String userType;
+
+  UserQRInfo({
+    required this.userId,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+    required this.phoneNumber,
+    required this.countryCode,
+    required this.zentag,
+    required this.userType,
+  });
+
+  // CREATING AND LOCALLY SAVING THE USER INFORMATION
+  factory UserQRInfo.fromJson(Map<String, dynamic> json) => UserQRInfo(
+    userId: json['userId'],
+    email: json['email'],
+    firstName: json['firstName'],
+    lastName: json['lastName'],
+    phoneNumber: json['phoneNumber'],
+    countryCode: json['countryCode'],
+    // The backend resolves this from the default fiat account; tolerate its
+    // absence so an older cached/error response can't break QR generation.
+    zentag: json['zentag'] ?? "",
+    userType: json['userType'],
+  );
+  // COPYING THE USER QR INFORMATION
+  UserQRInfo copyWith({
+    String? userId,
+    String? email,
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+    String? countryCode,
+    String? zentag,
+    String? userType,
+  }) => UserQRInfo(
+    userId: userId ?? "",
+    email: email ?? "",
+    firstName: firstName ?? "",
+    lastName: lastName ?? "",
+    phoneNumber: phoneNumber ?? "",
+    countryCode: countryCode ?? "",
+    zentag: zentag ?? "",
+    userType: userType ?? "",
+  );
+}

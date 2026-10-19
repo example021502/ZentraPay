@@ -56,7 +56,7 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          borderRadius: BorderRadius.circular(30),
         ),
         title: const Text("ZVoice AI"),
         content: const Text(

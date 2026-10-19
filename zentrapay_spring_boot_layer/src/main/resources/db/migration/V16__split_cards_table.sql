@@ -1,4 +1,4 @@
-1. Drop the existing cards table
+-- 1. Drop the existing cards table
 DROP TABLE IF EXISTS cards CASCADE;
 
 -- 2. Create the Cards Catalog / Template Table
@@ -9,7 +9,7 @@ CREATE TABLE cards (
     brand           VARCHAR(30) NOT NULL,         -- e.g. 'VISA', 'MASTERCARD'
     card_type       VARCHAR(20) NOT NULL DEFAULT 'VIRTUAL' CHECK (card_type IN ('VIRTUAL','PHYSICAL')),
     description     TEXT,                         -- Optional text for UI display
-    active       BOOLEAN NOT NULL DEFAULT TRUE, -- Controls if available for users to pick
+    active          BOOLEAN NOT NULL DEFAULT TRUE, -- Controls if available for users to pick
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -37,6 +37,6 @@ CREATE TABLE user_cards
 
 
 -- Indexes for fast querying
-CREATE INDEX idx_cards_active ON cards(is_active);
+CREATE INDEX idx_cards_active ON cards(active);
 CREATE INDEX idx_user_cards_user ON user_cards(user_id);
 CREATE INDEX idx_user_cards_provider ON user_cards(provider_card_id);

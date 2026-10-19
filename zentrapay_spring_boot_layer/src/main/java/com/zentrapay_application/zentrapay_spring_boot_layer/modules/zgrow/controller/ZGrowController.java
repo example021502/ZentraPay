@@ -64,6 +64,42 @@ public class ZGrowController {
         return ResponseEntity.ok(ApiResponse.success(challenges, "Challenges retrieved"));
     }
 
+    /**
+     * Persisted ZGrow toggle for the caller. The app reads this on load to
+     * decide whether the challenges section is shown and tracked; the gamified
+     * switch writes it back.
+     */
+    @GetMapping("/gamification")
+    public ResponseEntity<ApiResponse<GamificationSettingsDTO>> gamification(
+            @CurrentUser AuthenticatedUser user) {
+        return ResponseEntity.ok(ApiResponse.success(
+                zGrowServices.getGamificationSettings(user.getUserId()),
+                "Gamification settings retrieved"));
+    }
+
+    /** Records a toggle change; echoes the stored state for the client. */
+    @PutMapping("/gamification")
+    public ResponseEntity<ApiResponse<GamificationSettingsDTO>> updateGamification(
+            @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody UpdateGamificationSettingsRequestDTO request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                zGrowServices.updateGamificationSettings(user.getUserId(), request.challengesEnabled()),
+                "Gamification settings updated"));
+    }
+
+    /**
+     * Per-currency savings buckets. The ZGrow hero card's overall-savings
+     * figure is the {@code totalAmount} of the bucket in the user's wallet
+     * currency — computed server-side so the client never sums money itself.
+     */
+    @GetMapping("/savings")
+    public ResponseEntity<ApiResponse<List<SavingsSummaryDTO>>> savings(
+            @CurrentUser AuthenticatedUser user) {
+        return ResponseEntity.ok(ApiResponse.success(
+                zGrowServices.getSavingsSummary(user.getUserId()),
+                "Savings retrieved"));
+    }
+
     @GetMapping("/challenges/declined")
     public ResponseEntity<ApiResponse<List<UUID>>> declinedChallenges(@CurrentUser AuthenticatedUser user) {
         List<UUID> declined = zGrowServices.listDeclinedChallengeIds(user.getUserId());
@@ -92,7 +128,7 @@ public class ZGrowController {
             @PathVariable UUID userChallengeId,
             @Valid @RequestBody LogProgressRequestDTO request) {
         UserChallengesResponseDTO updated = zGrowServices.logProgress(
-                user.getUserId(), userChallengeId, request.amount(),
+                user.getUserId(), user.getCountryCode(), userChallengeId, request.amount(),
                 request.transactionReference(), request.notes());
         return ResponseEntity.ok(ApiResponse.success(updated, "Progress logged"));
     }

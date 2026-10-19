@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/placeholder_screen.dart';
 import 'package:zentrapay_application/features/zinvest/zinvest_screen.dart';
-import 'package:zentrapay_application/main.dart';
 
 
 /// Emergency Fund / Pay-Loans / Z-Invest row. Z-Invest opens the real
@@ -21,23 +20,32 @@ class QuickActionsRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: AppTheme.spacingXl,
+      // Expanded keeps the three fixed actions inside the available width on
+      // narrow screens instead of overflowing the Row (the labels are wider
+      // than the icon circles once the font is wide or the screen is small).
       children: [
-        _QuickActionButton(
-          icon: Icons.verified_user_outlined,
-          label: "Emergence",
-          onTap: () =>
-              _open(context, const PlaceholderScreen(title: "Emergency Fund")),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.verified_user_outlined,
+            label: "Emergence",
+            onTap: () =>
+                _open(context, const PlaceholderScreen(title: "Emergency Fund")),
+          ),
         ),
-        _QuickActionButton(
-          icon: Icons.account_balance_wallet_outlined,
-          label: "Pay-Loans",
-          onTap: () =>
-              _open(context, const PlaceholderScreen(title: "Pay Loans")),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.account_balance_wallet_outlined,
+            label: "Pay-Loans",
+            onTap: () =>
+                _open(context, const PlaceholderScreen(title: "Pay Loans")),
+          ),
         ),
-        _QuickActionButton(
-          icon: Icons.trending_up,
-          label: "Z-Invest",
-          onTap: () => _open(context, const ZInvestScreen()),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.trending_up,
+            label: "Z-Invest",
+            onTap: () => _open(context, const ZInvestScreen()),
+          ),
         ),
       ],
     );
@@ -57,25 +65,34 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mirrors home_services_grid's _buildItem: a tinted icon chip on top with
+    // the label underneath in bodySmall. Kept inside Expanded (rather than a
+    // fixed 76px tile like home's scrolling row) so the three actions share the
+    // width on narrow screens instead of overflowing.
     return InkWell(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Tinted rounded chip — matches home's transaction/provider chip
+          // (secondaryNavy tint, secondaryNavy icon).
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.secondary.withAlpha(20),
-              shape: BoxShape.circle,
+              color: AppTheme.secondaryNavy.withAlpha(20),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: Icon(
-              icon,
-              color: AppColors.textBlack,
-              size: 22,
-              fontWeight: FontWeight.w300,
-            ),
+            child: Icon(icon, color: AppTheme.secondaryNavy, size: 22),
           ),
-          const SizedBox(height: 5),
-          Text(label, textAlign: TextAlign.center, style: AppTheme.bodySmall),
+          const SizedBox(height: AppTheme.spacingSm),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.textBlack),
+          ),
         ],
       ),
     );

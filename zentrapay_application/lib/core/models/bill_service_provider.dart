@@ -4,6 +4,9 @@ class BillProvider {
   final String categoryCode;
   final String? logoUrl;
   final String? fetchRequirement;
+  /// ISO country code of the corridor this biller serves — used by the home
+  /// grid to render the country flag when the biller has no logo.
+  final String? countryCode;
 
   BillProvider({
     required this.providerId,
@@ -11,6 +14,7 @@ class BillProvider {
     required this.categoryCode,
     this.logoUrl,
     this.fetchRequirement,
+    this.countryCode,
   });
 
   factory BillProvider.fromJson(Map<String, dynamic> json) => BillProvider(
@@ -19,6 +23,7 @@ class BillProvider {
     categoryCode: json['categoryCode'] ?? '',
     logoUrl: json['logoUrl'],
     fetchRequirement: json['fetchRequirement'],
+    countryCode: json['countryCode'],
   );
 }
 
@@ -29,6 +34,9 @@ class ServiceProvider {
   final String? logoUrl;
   final String? minAmount;
   final String? maxAmount;
+  /// ISO country code of the corridor this provider serves — used by the
+  /// home grid to render the country flag when the provider has no logo.
+  final String? countryCode;
 
   ServiceProvider({
     required this.providerId,
@@ -37,6 +45,7 @@ class ServiceProvider {
     this.logoUrl,
     this.minAmount,
     this.maxAmount,
+    this.countryCode,
   });
 
   factory ServiceProvider.fromJson(Map<String, dynamic> json) =>
@@ -47,6 +56,7 @@ class ServiceProvider {
         logoUrl: json['logoUrl'],
         minAmount: json['minAmount']?.toString(),
         maxAmount: json['maxAmount']?.toString(),
+        countryCode: json['countryCode']?.toString(),
       );
 }
 

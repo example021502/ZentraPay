@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/main.dart';
 
-/// The Home "Receive" quick action: one card per fiat currency account the
-/// user owns, each carrying its own zentag (accounts, not users, are the
-/// payable identity now — see WalletsRepository). The default account's QR
-/// is shown open; every other account is collapsed behind a show/hide
-/// button but still shows its name/currency/zentag. The QR itself is built
-/// and rendered entirely on-device from the account's own zentag — nothing
-/// image-shaped is fetched from the backend.
-///
-/// Sourced from [WalletsRepository]'s existing cache — the sheet doesn't
-/// hit the network on its own, it just reads whatever Home already loaded
-/// (and triggers a load if nothing has fetched yet).
+import '../../main.dart';
+
+/// The Home "Receive" quick action: renders pretty QR codes for fiat currency accounts.
+/// Integrates user details (Name, Email, Phone) from [UserQRRepository] and wallet info
+/// from [WalletsRepository].
 class ReceiveSheet extends StatefulWidget {
   const ReceiveSheet({super.key});
 
@@ -29,7 +22,7 @@ class ReceiveSheet extends StatefulWidget {
       useSafeArea: true,
       backgroundColor: AppTheme.primaryWhite,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => const ReceiveSheet(),
     );
@@ -40,21 +33,43 @@ class ReceiveSheet extends StatefulWidget {
 }
 
 class _ReceiveSheetState extends State<ReceiveSheet> {
-  /// accountId -> whether a non-default account's QR is currently shown.
+  /// Tracks expanded account QRs (non-default wallets)
   final Set<String> _expanded = {};
 
   @override
   void initState() {
     super.initState();
+    // Comment: Trigger data loading for both repositories on init
     WalletsRepository.instance.ensureLoaded();
+    UserQRRepository.instance.loadQRUserInfo();
   }
 
-  /// The payload a sender's scanner reads — enough to resolve exactly which
-  /// currency account to pay into without a name-search round trip.
-  String _qrPayload(FiatAccount account) =>
-      'zentrapay://pay?zentag=${Uri.encodeComponent(account.zentag)}'
-      '&currency=${Uri.encodeComponent(account.currencyCode)}'
-      '&accountId=${Uri.encodeComponent(account.accountId)}';
+  /// Builds a comprehensive URI payload including account & user identity info.
+  /// Every field here is something the scanner needs to hand the payments
+  /// backend: `zentag`/`phoneNumber` route the money, `name`/`countryCode`/
+  /// `userType` fill the backend's `AppUserDetails`, `userId` identifies the
+  /// receiver for re-searches/records, and `currency`/`accountId` tell the
+  /// sender which account (and therefore currency) the receiver expects.
+  String _qrPayload(FiatAccount account, UserQRRepository userRepo) {
+    final userName =
+        "${userRepo.userData!.firstName} ${userRepo.userData!.lastName}";
+    final email = userRepo.userData!.email;
+    final phoneNumber = userRepo.userData!.phoneNumber;
+    final userType = userRepo.userData!.userType;
+    final countryCode = userRepo.userData!.countryCode;
+    final userId = userRepo.userData!.userId;
+
+    return 'zentrapay://pay?'
+        'zentag=${Uri.encodeComponent(account.zentag)}'
+        '&currency=${Uri.encodeComponent(account.currencyCode)}'
+        '&accountId=${Uri.encodeComponent(account.accountId)}'
+        '&userId=${Uri.encodeComponent(userId)}'
+        '&name=${Uri.encodeComponent(userName)}'
+        '&email=${Uri.encodeComponent(email)}'
+        '&phoneNumber=${Uri.encodeComponent(phoneNumber)}'
+        '&countryCode=${Uri.encodeComponent(countryCode)}'
+        '&userType=${Uri.encodeComponent(userType)}';
+  }
 
   void _copy(String value, String label) {
     Clipboard.setData(ClipboardData(text: value));
@@ -63,8 +78,12 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.85,
+    bool isTablet = MediaQuery.of(context).size.width < 600;
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        maxWidth: isTablet ? MediaQuery.of(context).size.width : 600,
+      ),
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -81,8 +100,8 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
               ),
             ),
             const Padding(
-              padding: EdgeInsets.all(AppTheme.spacingLg),
-              child: Text("Receive Money", style: AppTheme.headlineLarge),
+              padding: EdgeInsets.all(AppTheme.spacingMd),
+              child: Text("Receive Money", style: AppTheme.headlineSmall),
             ),
             Expanded(child: _buildBody()),
           ],
@@ -93,21 +112,33 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
 
   Widget _buildBody() {
     return ListenableBuilder(
-      listenable: WalletsRepository.instance,
+      listenable: Listenable.merge([
+        WalletsRepository.instance,
+        UserQRRepository.instance,
+      ]),
       builder: (context, _) {
         final repo = WalletsRepository.instance;
+        final userRepo = UserQRRepository.instance;
 
-        if (repo.isLoading && !repo.isLoaded) {
+        // Comment: Show loading indicator while primary data resolves
+        if ((repo.isLoading && !repo.isLoaded) ||
+            (userRepo.isUserLoading && !userRepo.isUserLoaded)) {
           return const Center(
             child: CircularProgressIndicator(color: AppColors.main),
           );
         }
-        if (repo.error != null && !repo.isLoaded) {
+
+        // Comment: Display error state if initial load failed
+        if ((repo.error != null && !repo.isLoaded) ||
+            (userRepo.userError != null && !userRepo.isUserLoaded)) {
           return EmptyStateWidget(
             icon: Icons.error_outline,
             message: "Could not load your accounts.",
             actionLabel: "Retry",
-            onAction: () => repo.ensureLoaded(),
+            onAction: () {
+              repo.ensureLoaded();
+              userRepo.loadQRUserInfo();
+            },
           );
         }
 
@@ -119,7 +150,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
           );
         }
 
-        // Default account leads the list; the rest keep their fetch order.
+        // Comment: Sort default account to top
         accounts.sort((a, b) {
           if (a.isDefault == b.isDefault) return 0;
           return a.isDefault ? -1 : 1;
@@ -130,8 +161,13 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // User Details Card Header
+              _buildUserSummaryHeader(userRepo),
+              const SizedBox(height: AppTheme.spacingMd),
+
+              // Wallet Cards with Pretty QR
               for (final account in accounts) ...[
-                _buildAccountCard(account),
+                _buildAccountCard(account, userRepo),
                 const SizedBox(height: AppTheme.spacingLg),
               ],
               const SizedBox(height: AppTheme.spacingXl),
@@ -142,12 +178,51 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
     );
   }
 
-  Widget _buildAccountCard(FiatAccount account) {
+  /// Displays user profile details fetched from UserQRRepository
+  Widget _buildUserSummaryHeader(UserQRRepository userRepo) {
+    final String userName =
+        "${userRepo.userData!.firstName} ${userRepo.userData!.lastName}";
+    final String email = userRepo.userData!.email;
+
+    return SizedBox(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppTheme.secondaryNavy.withAlpha(20),
+            child: Icon(
+              Icons.person_2_rounded,
+              color: AppTheme.secondaryNavy,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: AppTheme.spacingMd),
+          Column(
+            children: [
+              Text(
+                userName,
+                style: AppTheme.titleLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (email.isNotEmpty == true)
+                Text(
+                  email,
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountCard(FiatAccount account, UserQRRepository userRepo) {
     final showQr = account.isDefault || _expanded.contains(account.accountId);
 
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: AppTheme.cardDecoration,
       child: Column(
         children: [
           Row(
@@ -161,19 +236,21 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                         Flexible(
                           child: Text(
                             account.accountName,
-                            style: AppTheme.titleLarge,
+                            style: AppTheme.labelLarge,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (account.isDefault) ...[
-                          const SizedBox(width: AppTheme.spacingXs),
+                          const SizedBox(width: AppTheme.spacingSm),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.main.withValues(alpha: 0.12),
+                              color: AppColors.textBlack.withValues(
+                                alpha: 0.12,
+                              ),
                               borderRadius: BorderRadius.circular(
                                 AppTheme.radiusFull,
                               ),
@@ -183,7 +260,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.main,
+                                color: AppColors.green,
                               ),
                             ),
                           ),
@@ -192,7 +269,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                     ),
                     const SizedBox(height: AppTheme.spacingXs),
                     Text(
-                      "${account.currencyCode} · @${account.zentag}",
+                      "${account.currencyCode} • ${account.zentag}",
                       style: AppTheme.bodyMedium.copyWith(
                         color: AppTheme.gray500,
                       ),
@@ -212,40 +289,70 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                   icon: Icon(
                     showQr ? Icons.visibility_off : Icons.qr_code_2,
                     size: 18,
+                    color: AppTheme.secondaryNavy,
                   ),
-                  label: Text(showQr ? "Hide QR" : "Show QR"),
+                  label: Text(
+                    showQr ? "Hide QR" : "Show QR",
+                    style: AppTheme.labelLarge.copyWith(
+                      color: AppTheme.secondaryNavy,
+                    ),
+                  ),
                 ),
             ],
           ),
           if (showQr) ...[
             const SizedBox(height: AppTheme.spacingLg),
+
+            // Comment: Pretty QR code container using smooth modules
             Container(
+              width: 200,
+              height: 200,
               padding: const EdgeInsets.all(AppTheme.spacingMd),
               decoration: BoxDecoration(
-                color: AppTheme.gray50,
-                border: Border.all(color: AppTheme.gray300, width: 1.5),
+                color: AppTheme.primaryWhite,
+                border: Border.all(
+                  color: AppTheme.secondaryNavy.withAlpha(20),
+                  width: 1.5,
+                ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
-              child: QrImageView(
-                data: _qrPayload(account),
-                version: QrVersions.auto,
-                size: 180,
-                backgroundColor: AppTheme.gray50,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: AppTheme.textBlack,
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: AppTheme.textBlack,
+              child: PrettyQrView.data(
+                data: _qrPayload(account, userRepo),
+                errorCorrectLevel: QrErrorCorrectLevel.H,
+                decoration: const PrettyQrDecoration(
+                  background: Colors.white,
+                  shape: PrettyQrSmoothSymbol(
+                    color: AppColors.textBlack,
+                    roundFactor: 1.0,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: AppTheme.spacingSm),
-            TextButton.icon(
-              onPressed: () => _copy(account.zentag, "Zentag"),
-              icon: const Icon(Icons.alternate_email, size: 18),
-              label: const Text("Copy Zentag"),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _copy(account.zentag, "Zentag"),
+                  icon: Icon(
+                    Icons.copy,
+                    size: 18,
+                    color: AppTheme.secondaryNavy,
+                  ),
+                  label: Text("Copy Zentag", style: AppTheme.labelSmall),
+                ),
+                const SizedBox(width: AppTheme.spacingMd),
+                TextButton.icon(
+                  onPressed: () =>
+                      _copy(_qrPayload(account, userRepo), "QR Payload"),
+                  icon: const Icon(
+                    Icons.copy,
+                    size: 18,
+                    color: AppTheme.secondaryNavy,
+                  ),
+                  label: const Text("Copy Payload", style: AppTheme.labelSmall),
+                ),
+              ],
             ),
           ],
         ],

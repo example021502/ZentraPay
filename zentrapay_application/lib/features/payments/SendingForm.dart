@@ -193,7 +193,20 @@ class _SendingFormState extends State<SendingForm> {
           TransactionResultDetail("Recipient", accountName),
           TransactionResultDetail("Bank", _selectedBank!.channelName),
           TransactionResultDetail("Amount", "$currencyCode $amountText"),
-          TransactionResultDetail("Reference", transaction.transactionId),
+          TransactionResultDetail(
+            "Status",
+            transaction.status.trim().isEmpty
+                ? "PENDING"
+                : transaction.status,
+          ),
+          // Prefer the human-quotable ledger reference; the raw UUID is
+          // only a fallback for responses that carried no TXN_Ref.
+          TransactionResultDetail(
+            "Reference",
+            transaction.TXN_Ref.isNotEmpty
+                ? transaction.TXN_Ref
+                : transaction.transactionId,
+          ),
         ],
       );
       if (!mounted) return;

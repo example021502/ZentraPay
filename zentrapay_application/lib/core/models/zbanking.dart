@@ -1,7 +1,19 @@
 /*
 * BANK ACCOUNTS DATA STRUCTURE
 * */
+/// A single bank account linked to the user (ZBank Lite).
+///
+/// Maps to the backend `UserAccountsDTO` from `GET /api/zbanking/userAccounts`,
+/// which joins the user's `user_bank` link rows with the read-only `banks`
+/// catalog. Two ids travel with it:
+/// - [userBankId] identifies the *link* row — that's what the promote/unlink
+///   endpoints take, NOT [bankId] (the shared catalog id).
+/// - [isPrimary] marks the one account shown in the ZBank header.
+/// - [displayName] is the user-facing name: the link label when set, else the
+///   catalog bank name.
 class BankAccounts {
+  final String userBankId;
+  final String userId;
   final String bankId;
   final String bankName;
   final String bankCode;
@@ -9,9 +21,13 @@ class BankAccounts {
   final String lastDigits;
   final String countryCode;
   final String currencyCode;
-  final DateTime createdAt;
+  final String? linkLabel;
+  final bool isPrimary;
+  final String connectionStatus;
+  final DateTime linkedAt;
 
   BankAccounts({
+    required this.userBankId,
     required this.bankId,
     required this.bankName,
     required this.bankCode,
@@ -19,22 +35,150 @@ class BankAccounts {
     required this.lastDigits,
     required this.countryCode,
     required this.currencyCode,
-    required this.createdAt,
-  });
+    this.userId = '',
+    this.linkLabel,
+    this.isPrimary = false,
+    this.connectionStatus = 'active',
+    DateTime? linkedAt,
+  }) : linkedAt = linkedAt ?? DateTime.now();
+
+  /// Name to show in the UI: the user's own label wins, else the bank name.
+  String get displayName =>
+      (linkLabel?.trim().isNotEmpty ?? false) ? linkLabel!.trim() : bankName;
+
+  /// Masked account number for the card face, e.g. `•••• •••• •••• 4821`.
+  String get maskedNumber => lastDigits.isEmpty
+      ? '•••• •••• •••• ••••'
+      : '•••• •••• •••• $lastDigits';
+
+  /// `GHS 1,240.00` — currency-qualified balance for the card face.
+  String get formattedBalance {
+    final code = currencyCode.isEmpty ? 'GHS' : currencyCode;
+    return '$code ${balance.toStringAsFixed(2)}';
+  }
 
   factory BankAccounts.fromJson(Map<String, dynamic> json) => BankAccounts(
+    userBankId: (json['userBankId'] ?? '').toString(),
+    userId: (json['userId'] ?? '').toString(),
     bankId: (json['bankId'] ?? '').toString(),
     bankName: json['bankName'] ?? '',
     bankCode: json['bankCode'] ?? '',
-    // Backend AccountsDTO.balance is BigDecimal → JSON number; convert to double.
+    // Backend balance is BigDecimal → JSON number; convert to double.
     balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
-    lastDigits: json['lastDigits'] ?? '',
+    lastDigits: (json['lastDigits'] ?? '').toString(),
     countryCode: json['countryCode'] ?? '',
     currencyCode: json['currencyCode'] ?? '',
-    createdAt: json['createdAt'] != null
-        ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
+    linkLabel: json['linkLabel'] as String?,
+    // DTO field is `primary`, not `isPrimary` — keep the wire name here.
+    isPrimary: json['primary'] == true,
+    connectionStatus: json['connectionStatus'] ?? 'active',
+    linkedAt: json['linkedAt'] != null
+        ? (DateTime.tryParse(json['linkedAt'].toString()) ?? DateTime.now())
         : DateTime.now(),
   );
+
+  /// Copy used for optimistic UI (e.g. flipping [isPrimary] right after the
+  /// promote call so the header re-renders before the refetch lands).
+  BankAccounts copyWith({
+    String? userBankId,
+    String? userId,
+    String? bankId,
+    String? bankName,
+    String? bankCode,
+    double? balance,
+    String? lastDigits,
+    String? countryCode,
+    String? currencyCode,
+    String? linkLabel,
+    bool? isPrimary,
+    String? connectionStatus,
+    DateTime? linkedAt,
+  }) => BankAccounts(
+    userBankId: userBankId ?? this.userBankId,
+    userId: userId ?? this.userId,
+    bankId: bankId ?? this.bankId,
+    bankName: bankName ?? this.bankName,
+    bankCode: bankCode ?? this.bankCode,
+    balance: balance ?? this.balance,
+    lastDigits: lastDigits ?? this.lastDigits,
+    countryCode: countryCode ?? this.countryCode,
+    currencyCode: currencyCode ?? this.currencyCode,
+    linkLabel: linkLabel ?? this.linkLabel,
+    isPrimary: isPrimary ?? this.isPrimary,
+    connectionStatus: connectionStatus ?? this.connectionStatus,
+    linkedAt: linkedAt ?? this.linkedAt,
+  );
+}
+
+/// The user's linked bank accounts as one snapshot: the single primary account
+/// (ZBank header) plus every account (bottom horizontal strip).
+class BankAccountsSnapshot {
+  final BankAccounts? primary;
+  final List<BankAccounts> accounts;
+
+  const BankAccountsSnapshot({this.primary, this.accounts = const []});
+
+  static const BankAccountsSnapshot empty = BankAccountsSnapshot();
+
+  /// Accounts to render in the bottom strip — the primary is excluded because
+  /// it already has its own card in the header.
+  List<BankAccounts> get others => accounts
+      .where((a) => a.userBankId.isEmpty || a.userBankId != primary?.userBankId)
+      .toList();
+
+  /// Total across every linked account (mixed currencies are summed as-is;
+  /// the header formats with the primary account's currency).
+  double get totalBalance =>
+      accounts.fold<double>(0, (sum, a) => sum + a.balance);
+
+  factory BankAccountsSnapshot.fromJson(Map<String, dynamic> json) {
+    final accountsJson = (json['accounts'] as List?) ?? const [];
+    final accounts = accountsJson
+        .whereType<Map<String, dynamic>>()
+        .map(BankAccounts.fromJson)
+        .toList();
+
+    // Backend always sends `primary`, but tolerate it being absent/empty.
+    final primaryJson = json['primary'];
+    final BankAccounts? primary = primaryJson is Map<String, dynamic>
+        ? BankAccounts.fromJson(primaryJson)
+        : null;
+
+    return BankAccountsSnapshot(primary: primary, accounts: accounts);
+  }
+}
+
+/// A bank in the read-only catalog — what the "link a bank" sheet lets the user
+/// pick from (`GET /api/reference/banks`).
+class BankCatalogEntry {
+  final String bankId;
+  final String code;
+  final String bankName;
+  final String gateway;
+  final String currencyCode;
+  final String countryCode;
+  final String country;
+
+  const BankCatalogEntry({
+    required this.bankId,
+    required this.code,
+    required this.bankName,
+    required this.gateway,
+    required this.currencyCode,
+    required this.countryCode,
+    required this.country,
+  });
+
+  factory BankCatalogEntry.fromJson(Map<String, dynamic> json) =>
+      BankCatalogEntry(
+        bankId: (json['bankId'] ?? '').toString(),
+        code: json['code'] ?? '',
+        bankName: json['bankName'] ?? '',
+        gateway: json['gateway'] ?? '',
+        currencyCode: json['currencyCode'] ?? '',
+        countryCode: json['countryCode'] ?? '',
+        country: json['country'] ?? '',
+      );
 }
 
 /*

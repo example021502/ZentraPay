@@ -611,7 +611,7 @@ class _InvestFormState extends State<_InvestForm> {
         padding: const EdgeInsets.all(AppTheme.spacingLg),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: SingleChildScrollView(
           child: Column(

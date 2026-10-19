@@ -221,9 +221,15 @@ class PaymentsService {
   }) async {
     final response = await _dio.post('/api/payments/initialize', data: payload);
     final String message = response.data['message'] ?? 'Payment successful';
-    if (response.data['success'] && response.data['data'] != null) {
-      _applyTransactionResult(response.data['data']);
-      return {'data': response.data['data'], 'message': message};
+    if (response.data['success'] == true && response.data['data'] != null) {
+      // _applyTransactionResult hands back the parsed AppTransaction; the
+      // caller used to receive the RAW response map here and then cast it
+      // `as AppTransaction?` — a TypeError that surfaced as "Payment Failed"
+      // even though the backend had already committed the transfer.
+      final AppTransaction transaction = _applyTransactionResult(
+        response.data['data'],
+      );
+      return {'data': transaction, 'message': message};
     } else {
       return {
         'data': null,
@@ -253,10 +259,10 @@ class PaymentsService {
         'description': ?description,
       },
     );
-    _applyTransactionResult(response.data['data']);
-    return response.data['data'] != null
-        ? AppTransaction.fromJson(response.data['data'])
-        : throw Exception('Bank transfer response missing transaction data');
+    if (response.data['data'] == null) {
+      throw Exception('Bank transfer response missing transaction data');
+    }
+    return _applyTransactionResult(response.data['data']);
   }
 
   static Future<Map<String, dynamic>> getPaystackAccessCode({
@@ -387,12 +393,13 @@ class PaymentsService {
     return '$f $l'.trim();
   }
 
-  static void _applyTransactionResult(Map<String, dynamic> json) {
+  static AppTransaction _applyTransactionResult(Map<String, dynamic> json) {
     final transaction = AppTransaction.fromJson(json);
     TransactionsRepository.instance.prepend(transaction);
     // The wallet's balance changed server-side; the cheapest correct move
     // is a forced refresh of the (already-loaded) wallets snapshot rather
     // than trying to recompute the new balance client-side.
     WalletsRepository.instance.ensureLoaded();
+    return transaction;
   }
 }

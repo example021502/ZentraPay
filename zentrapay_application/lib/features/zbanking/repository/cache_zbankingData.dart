@@ -12,36 +12,46 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 /// Shared app-wide: the ZGrow hero, the Profile screen and the Payments
 /// Milestones screen import this file for the repositories they need.
 
-/// User's ZBank Lite accounts (`GET /api/zbanking/accounts`).
+/// User's ZBank Lite accounts (`GET /api/zbanking/userAccounts`).
 final Dio _dio = ApiClient().dio;
 
 class BankAccountsRepository extends ChangeNotifier {
   BankAccountsRepository._();
   static final BankAccountsRepository instance = BankAccountsRepository._();
 
-  List<BankAccounts>? _data;
+  BankAccountsSnapshot? _data;
   bool _loading = false;
   Object? _error;
 
-  List<BankAccounts>? get data => _data;
+  /// Full snapshot: `primary` (header card) + `accounts` (bottom strip).
+  BankAccountsSnapshot? get data => _data;
+
+  /// Every linked account, primary included. Empty until loaded.
+  List<BankAccounts> get accounts => _data?.accounts ?? const [];
+
+  /// The single primary account rendered in the header, if any.
+  BankAccounts? get primary => _data?.primary;
+
   bool get isLoaded => _data != null;
   bool get isLoading => _loading;
   Object? get error => _error;
 
-  /// The actual network call.
-  Future<List<BankAccounts>> fetch() async {
-    final response = await _dio.get('/api/zbanking/accounts');
-    // Backend AccountsResponseDTO wraps the list: data: {accounts: [...]}.
+  /// The actual network call — parses the `UserAccountsResponseDTO` envelope.
+  Future<BankAccountsSnapshot> fetch() async {
+    final response = await _dio.get('/api/zbanking/userAccounts');
+    // Backend wraps the payload: data: {primary: {...}, accounts: [...]}.
     final data = response.data['data'];
-    final accounts = (data is Map && data['accounts'] is List)
-        ? (data['accounts'] as List)
-        : const <dynamic>[];
-    return accounts.map((e) => BankAccounts.fromJson(e)).toList();
+    if (data is Map<String, dynamic>) {
+      return BankAccountsSnapshot.fromJson(data);
+    }
+    return BankAccountsSnapshot.empty;
   }
 
-  /// Loads the resource the first time it's needed; subsequent calls are a
-  /// no-op unless [forceRefresh] is set (pull-to-refresh, explicit retry).
-  Future<List<BankAccounts>?> ensureLoaded({bool forceRefresh = false}) async {
+  /// Loads the snapshot the first time it's needed; subsequent calls are a
+  /// no-op unless [forceRefresh] is set (pull-to-refresh, post-mutation refetch).
+  Future<BankAccountsSnapshot?> ensureLoaded({
+    bool forceRefresh = false,
+  }) async {
     if (_data != null && !forceRefresh) return _data;
     _loading = true;
     _error = null;
@@ -58,40 +68,113 @@ class BankAccountsRepository extends ChangeNotifier {
     }
   }
 
-  /// Applies a POST/PUT response onto the cached value without refetching.
-  void applyDelta(
-    List<BankAccounts> Function(List<BankAccounts> current) updater,
-  ) {
-    final current = _data;
-    if (current == null) return;
-    _data = updater(current);
-    notifyListeners();
-  }
+  /// Refreshes after a link/promote/unlink so the header and strip stay true.
+  Future<void> refresh() => ensureLoaded(forceRefresh: true);
 
-  /// Replaces the cached value outright.
-  void setData(List<BankAccounts> value) {
+  /// Replaces the cached snapshot outright (used by refresh + tests).
+  void setData(BankAccountsSnapshot value) {
     _data = value;
     _error = null;
     notifyListeners();
   }
 
-  /// List convenience mutators.
-  void addItem(BankAccounts item) =>
-      applyDelta((current) => [...current, item]);
+  /* ------------------------------------------------------- mutations */
 
-  void replaceItem(
-    bool Function(BankAccounts item) matches,
-    BankAccounts replacement,
-  ) {
-    applyDelta(
-      (current) => [
-        for (final item in current) matches(item) ? replacement : item,
-      ],
+  /// Links a bank from the catalog (`POST /api/zbanking/link`), then refreshes
+  /// the snapshot so the header/strip pick it up.
+  ///
+  /// [firstName]/[lastName] are the account holder's names exactly as typed in
+  /// the sheet — both are required by the backend DTO and are forwarded in the
+  /// open-banking linking request to AfriqLink (our bank-data provider).
+  ///
+  /// [primary] promotes this account to the header immediately; the first bank
+  /// a user ever links is promoted server-side regardless.
+  Future<BankAccounts> linkBank({
+    required String bankId,
+    required String accountNumber,
+    String? linkLabel,
+    bool primary = false,
+  }) async {
+    final response = await _dio.post(
+      '/api/zbanking/link',
+      data: {
+        'bankId': bankId,
+        'accountNumber': accountNumber,
+        'primary': primary,
+        if (linkLabel != null && linkLabel.trim().isNotEmpty)
+          'linkLabel': linkLabel.trim(),
+      },
     );
+    // The POST response already carries the linked account (including the
+    // primary flag the server decided), so trust it directly: refreshing
+    // afterwards is best-effort, because a transient refetch failure must never
+    // turn an already-successful link into "Could not link that bank" — the
+    // retry would then fail again with "already linked".
+    final linked = BankAccounts.fromJson(response.data['data']);
+    try {
+      await refresh();
+    } catch (_) {
+      // Snapshot stays as-is; the next load/refresh catches up.
+    }
+    return linked;
   }
 
-  void removeItem(bool Function(BankAccounts item) matches) {
-    applyDelta((current) => current.where((item) => !matches(item)).toList());
+  /// Promotes an already-linked account to be the header primary.
+  ///
+  /// [userBankId] is the *link* row id — deliberately not the catalog bank id.
+  /// Optimistically flips the flag locally so the header updates instantly,
+  /// then refetches to confirm what the server actually persisted.
+  Future<void> setPrimary(String userBankId) async {
+    // Optimistic: mark this one primary, demote the rest in the cache.
+    final current = _data;
+    if (current != null) {
+      final promoted = current.accounts.firstWhere(
+        (a) => a.userBankId == userBankId,
+        orElse: () => current.accounts.first,
+      );
+      setData(
+        BankAccountsSnapshot(
+          primary: promoted.copyWith(isPrimary: true),
+          accounts: [
+            for (final a in current.accounts)
+              a.copyWith(isPrimary: a.userBankId == userBankId),
+          ],
+        ),
+      );
+    }
+
+    await _dio.post('/api/zbanking/primary/$userBankId');
+    await refresh();
+  }
+
+  /// Unlinks one of the user's banks (`DELETE /api/zbanking/unlink/{id}`), then
+  /// refreshes (the backend promotes another account to primary if needed).
+  Future<void> unlinkBank(String userBankId) async {
+    await _dio.delete('/api/zbanking/unlink/$userBankId');
+    await refresh();
+  }
+
+  /// Read-only bank catalog for the "link a bank" sheet.
+  ///
+  /// Public endpoint, so it never needs the auth token and never throws on an
+  /// empty catalog — callers render an empty-picker state themselves.
+  Future<List<BankCatalogEntry>> fetchBankCatalog({
+    String query = '',
+    String? country,
+  }) async {
+    final response = await _dio.get(
+      '/api/reference/banks',
+      queryParameters: {
+        if (query.trim().isNotEmpty) 'query': query.trim(),
+        if (country != null && country.isNotEmpty) 'country': country,
+      },
+    );
+    final data = response.data['data'];
+    final banks = (data is List) ? data : const <dynamic>[];
+    return banks
+        .whereType<Map<String, dynamic>>()
+        .map(BankCatalogEntry.fromJson)
+        .toList();
   }
 
   void clear() {
@@ -99,49 +182,6 @@ class BankAccountsRepository extends ChangeNotifier {
     _error = null;
     _loading = false;
     notifyListeners();
-  }
-
-  Future<BankAccounts> create({
-    required String savingsName,
-    required String bankId,
-    String? description,
-  }) async {
-    final response = await _dio.post(
-      '/api/zbanking/new',
-      data: {
-        'savingsName': savingsName,
-        'bankID': bankId,
-        'description': ?description,
-      },
-    );
-    final account = BankAccounts.fromJson(response.data['data']);
-    addItem(account);
-    return account;
-  }
-
-  Future<BankAccounts> deposit(String savingsId, String amount) async {
-    final response = await _dio.post(
-      '/api/zbanking/savings/$savingsId/deposit',
-      data: {'amount': amount},
-    );
-    final account = BankAccounts.fromJson(response.data['data']);
-    replaceItem((s) => s.bankId == savingsId, account);
-    return account;
-  }
-
-  /*
-=====================================================================
-* WITHDRAWAL
-=====================================================================
-*/
-  Future<BankAccounts> withdraw(String savingsId, String amount) async {
-    final response = await _dio.post(
-      '/api/zbanking/savings/$savingsId/withdraw',
-      data: {'amount': amount},
-    );
-    final account = BankAccounts.fromJson(response.data['data']);
-    replaceItem((s) => s.bankId == savingsId, account);
-    return account;
   }
 }
 

@@ -228,7 +228,15 @@ public class ProviderSyncService {
 
     private void persistBillProviders(List<BillProviderModel> providers) {
         for (BillProviderModel provider : providers) {
-            billProviderRepository.findByBillerCode(provider.getBillerCode())
+            // biller_code is no longer unique (same biller can come from
+            // several gateways), so match on (biller_code, gateway) first
+            // and only fall back to any row with that biller code.
+            billProviderRepository.findByBillerCodeAndGateway(
+                            provider.getBillerCode(), provider.getGateway())
+                    .or(() -> billProviderRepository
+                            .findByBillerCode(provider.getBillerCode())
+                            .stream()
+                            .findFirst())
                     .ifPresentOrElse(existing -> {
                         // Keep the original provider_id; refresh the mutable catalog fields.
                         existing.setBillerName(provider.getBillerName());

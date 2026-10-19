@@ -25,6 +25,13 @@ public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, U
 //  CHECKING IF THE WALLET EXIST FOR WALLET CURRENCY ACCOUNT CREATION
     boolean existsByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
 
+//  GETTING THE WALLET'S DEFAULT ACCOUNT — source of the zentag returned by
+//  GET /api/users/qr_me for QR-code generation (every currency account mints
+//  its own zentag; the default account's tag is the user's canonical one).
+    @Query("SELECT a FROM FiatAccountModel a WHERE a.walletId = :walletId AND a.isDefault = true")
+    Optional<FiatAccountModel> getDefaultAccountByWalletId(@Param("walletId") UUID walletId);
+
+
 //  GETTING USER FIAT ACCOUNT CURRENCIES FOR GETTING SUPPORTED CURRENCIES EXCLUDING THEM
     @Query("SELECT a.currencyCode FROM FiatAccountModel a WHERE a.walletId = :walletId")
     List<String> getAccountsCurrenciesByWalletId(@Param("walletId") UUID walletId);

@@ -21,5 +21,9 @@ public record UserAccountsDTO(
     String bankName,
     String bankCode,
     String countryCode,
-    String currencyCode
+    String currencyCode,
+    /** Display name chosen in the link sheet; falls back to {@code bankName}. */
+    String linkLabel,
+    /** True for the user's primary account (ZBank header). */
+    Boolean primary
     ) {}

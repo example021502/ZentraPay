@@ -68,36 +68,33 @@ class _LoadingOverlayScope extends StatelessWidget {
                     // this overlay — while still painting over it.
                     absorbing: true,
                     child: ColoredBox(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      // Dull, non-distracting backdrop — deliberately NOT a
+                      // bright white card: the barrier should feel like the
+                      // app dimmed while it works, not a modal popup.
+                      color: Colors.black.withValues(alpha: 0.55),
                       child: Center(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacingXxl,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacingXl,
-                            vertical: AppTheme.spacingLg,
-                          ),
-                          decoration: AppTheme.cardDecoration,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(
-                                width: 28,
-                                height: 28,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                  color: AppTheme.primaryPink,
-                                ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 44,
+                              height: 44,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 4,
+                                // Green against the dark scrim (secondaryNavy
+                                // would be invisible here); track kept faint
+                                // so the spinning arc reads clearly.
+                                color: AppTheme.successGreen,
+                                backgroundColor: Colors.white24,
                               ),
-                              const SizedBox(height: AppTheme.spacingMd),
-                              Text(
-                                message,
-                                textAlign: TextAlign.center,
-                                style: AppTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: AppTheme.spacingMd),
+                            Text(
+                              message,
+                              textAlign: TextAlign.center,
+                              style: AppTheme.whiteBody,
+                            ),
+                          ],
                         ),
                       ),
                     ),

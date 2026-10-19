@@ -11,9 +11,19 @@ import 'package:zentrapay_application/features/home/getCurrencyISOCodeHelper.dar
 /// that follows it. Pops a {"amount": "12.50", "currencyCode": "GHS"} map,
 /// or null if dismissed.
 class EnterAmount extends StatefulWidget {
-  const EnterAmount({super.key, required this.recipient});
+  const EnterAmount({
+    super.key,
+    required this.recipient,
+    this.preferredCurrency,
+  });
 
   final String recipient;
+
+  /// Currency to preselect when the sheet opens — e.g. the currency of the
+  /// account whose QR code was just scanned (a transfer must land in an
+  /// account the receiver actually holds). Falls back to GHS when absent or
+  /// not a valid 3-letter code.
+  final String? preferredCurrency;
 
   @override
   State<EnterAmount> createState() => _EnterAmountState();
@@ -24,8 +34,14 @@ class _EnterAmountState extends State<EnterAmount> {
   // convention the old DecimalTextInputFormatter used) — "1234" -> "12.34".
   String _digits = '';
 
-  late String currency_code = "GHS";
-  late String country_flag = "GH";
+  late String currency_code = _initialCurrency;
+  late String country_flag = extractCountryIsoCode(currency_code);
+
+  String get _initialCurrency {
+    final String preferred =
+        widget.preferredCurrency?.trim().toUpperCase() ?? '';
+    return preferred.length == 3 ? preferred : "GHS";
+  }
 
   String get _formattedAmount {
     final padded = _digits.padLeft(3, '0');

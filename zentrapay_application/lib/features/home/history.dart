@@ -3,6 +3,7 @@ import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 import 'package:zentrapay_application/main.dart';
 
 class PaymentHistory extends StatefulWidget {
@@ -57,13 +58,16 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     }).toList();
   }
 
-  IconData _getIcon(String amount) {
-    if (amount.startsWith("-")) return Icons.call_made_rounded;
+  // Comment: the amount string from the backend carries a credit/debit sign
+  // ("+GHS 100.00" / "-GHS 100.00") — the sign picks the arrow direction.
+  IconData _getIcon(AppTransaction transaction) {
+    if (transaction.isDebit) return Icons.call_made_rounded;
     return Icons.call_received_rounded;
   }
 
-  Color _getColor(String amount) {
-    if (amount.startsWith("+")) return AppColors.secondary;
+  // Comment: debits render in the app's main color, credits in green.
+  Color _getColor(AppTransaction transaction) {
+    if (transaction.isCredit) return AppColors.green;
     return AppColors.main;
   }
 
@@ -200,9 +204,9 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           radius: 22,
           backgroundColor: AppColors.secondary.withAlpha(20),
           child: Icon(
-            _getIcon(transaction.amount),
+            _getIcon(transaction),
             size: 22,
-            color: _getColor(transaction.amount),
+            color: _getColor(transaction),
           ),
         ),
         title: Text(
@@ -228,9 +232,9 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: transaction.amount.startsWith("-")
-                ? AppColors.main
-                : AppColors.green,
+            // The signed amount from the backend decides the color: a "-"
+            // debit is outgoing (main), a "+" credit is incoming (green).
+            color: transaction.isDebit ? AppColors.main : AppColors.green,
           ),
         ),
         onTap: () => _showTransactionDetails(transaction),
@@ -239,12 +243,21 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   }
 
   void _showTransactionDetails(AppTransaction transaction) {
+    // Captured before the sheet opens: the sheet's own context is disposed
+    // on pop, but the page context stays valid for launching the send-again
+    // flow once the sheet is out of the way.
+    final BuildContext pageContext = context;
+    // Only outgoing rows record a real counterparty — an incoming payment
+    // stores the user themself as receiver, so "Send Again" would prefill a
+    // transfer to your own account (see canSendAgain).
+    final bool showSendAgain = canSendAgain(transaction);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -261,10 +274,29 @@ class _PaymentHistoryState extends State<PaymentHistory> {
             _detailRow("Reference", transaction.TXN_Ref),
             _detailRow("Date", formatDateTimeString(transaction.completedAt)),
             const SizedBox(height: 16),
+            if (showSendAgain) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    // Close the details sheet first so the loading overlay
+                    // and the amount screen own the stage from here on.
+                    Navigator.pop(sheetContext);
+                    await sendAgainFromTransaction(
+                      context: pageContext,
+                      transaction: transaction,
+                    );
+                  },
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: const Text("Send Again"),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(sheetContext),
                 child: const Text("Close"),
               ),
             ),

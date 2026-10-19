@@ -1,0 +1,105 @@
+
+> Task :compileJava
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:40: error: ';' expected
+    public AccountsResponseDTO getAccounts(UUID userId) {
+                                          ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:40: error: ';' expected
+    public AccountsResponseDTO getAccounts(UUID userId) {
+                                                      ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+    public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                   ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+    public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                      ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: not a statement
+    public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                       ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+    public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                              ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+    public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                     ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+    public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                       ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: not a statement
+    public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                        ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+    public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                                  ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:130: error: illegal start of expression
+    private UserAccountsDTO toUserAccount(UserBankModel row, BanksModel bank) {
+    ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:151: error: ';' expected
+    public AccountsResponseDTO newBank(UUID userId) {
+                                      ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:151: error: ';' expected
+    public AccountsResponseDTO newBank(UUID userId) {
+                                                  ^
+C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:179: error: reached end of file while parsing
+}
+ ^
+14 errors
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///C:/Users/Desire/Desktop/Zentrapay_Workspace/zentrapay_spring_boot_layer/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava' (registered by plugin class 'org.gradle.api.plugins.JavaBasePlugin').
+> Compilation failed; see the compiler output below.
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: not a statement
+      public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                         ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: not a statement
+      public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                          ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:179: error: reached end of file while parsing
+  }
+   ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:130: error: illegal start of expression
+      private UserAccountsDTO toUserAccount(UserBankModel row, BanksModel bank) {
+      ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:40: error: ';' expected
+      public AccountsResponseDTO getAccounts(UUID userId) {
+                                            ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:40: error: ';' expected
+      public AccountsResponseDTO getAccounts(UUID userId) {
+                                                        ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+      public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                     ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+      public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                        ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:71: error: ';' expected
+      public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
+                                                                                ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+      public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                       ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+      public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                         ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:117: error: ';' expected
+      public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
+                                                                    ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:151: error: ';' expected
+      public AccountsResponseDTO newBank(UUID userId) {
+                                        ^
+  C:\Users\Desire\Desktop\Zentrapay_Workspace\zentrapay_spring_boot_layer\src\main\java\com\zentrapay_application\zentrapay_spring_boot_layer\modules\banks\services\BankAccountsServices.java:151: error: ';' expected
+      public AccountsResponseDTO newBank(UUID userId) {
+                                                    ^
+  14 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 24s
+1 actionable task: 1 executed

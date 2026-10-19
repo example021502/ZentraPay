@@ -680,7 +680,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBankAccounts() {
-    final accounts = BankAccountsRepository.instance.data ?? [];
+    // `data` is a snapshot (primary + accounts); the settlement list wants
+    // every linked account.
+    final accounts = BankAccountsRepository.instance.accounts;
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
@@ -720,7 +722,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(account.bankName, style: AppTheme.headlineSmall),
               Text(
-                _formatDate(account.createdAt),
+                _formatDate(account.linkedAt),
                 style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
               ),
             ],

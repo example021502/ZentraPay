@@ -172,12 +172,17 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                       // Comment: Z Logo container
                       ScaleTransition(
                         scale: _logoScale,
-                        child: const Text(
-                          'Z',
-                          style: TextStyle(
-                            color: AppColors.secondary,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 40,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryWhite,
+                          ),
+                          child: const Text(
+                            'Z',
+                            style: TextStyle(
+                              color: AppColors.main,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 40,
+                            ),
                           ),
                         ),
                       ),
@@ -200,7 +205,6 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
 
                   // Comment: Slogan dropping down vertically beneath the brand name
                   ClipRect(
@@ -212,7 +216,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                           'One Africa, One Wallet',
                           style: TextStyle(
                             color: AppColors.secondary,
-                            fontSize: 18,
+                            fontSize: 12,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0.5,
                           ),
@@ -220,12 +224,6 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingXl),
-                  // LOADING
-                  if (_isLoading) ...[
-                    const CircularProgressIndicator(color: AppColors.secondary),
-                    const SizedBox(height: 30),
-                  ],
                 ],
               ),
             ),

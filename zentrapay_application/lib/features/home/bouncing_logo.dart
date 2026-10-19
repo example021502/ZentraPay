@@ -4,31 +4,35 @@ class BouncingLogo extends StatefulWidget {
   const BouncingLogo({super.key});
 
   @override
-  State createState() => _BouncingLogoState();
+  State<BouncingLogo> createState() => _BouncingLogoState();
 }
 
-class _BouncingLogoState extends State with SingleTickerProviderStateMixin {
+class _BouncingLogoState extends State<BouncingLogo>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation _bounceAnimation;
+  late Animation<double> _translateAnimation;
 
-  // Maximum height the container bounces up (in pixels)
-  final double _bounceHeight = 100.0;
+  // Maximum height the container moves up (in pixels)
+  final double _translateHeight = 50.0;
 
   @override
   void initState() {
     super.initState();
 
-    // Set up the animation controller for continuous looping
+    // Set up the animation controller to play once and stop
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
-    // Bounce trajectory using easeOut to rise smoothly and bounceOut to fall
-    _bounceAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
     );
+
+    // Smooth upward trajectory that decelerates as it reaches the top
+    _translateAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    // Start the animation to move upward and stop at the final position
+    _controller.forward();
   }
 
   @override
@@ -44,20 +48,23 @@ class _BouncingLogoState extends State with SingleTickerProviderStateMixin {
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          // Value ranges from 0.0 (ground) to 1.0 (peak apex)
-          final double value = _bounceAnimation.value;
-          final double currentTranslateY = -value * _bounceHeight;
+          // Value ranges from 0.0 (start) to 1.0 (final top resting position)
+          final double value = _translateAnimation.value;
+          final double currentTranslateY = -value * _translateHeight;
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 1. Bouncing Container / Image / Icon
+              // Translates upward and remains fixed at currentTranslateY
               Transform.translate(
                 offset: Offset(0, currentTranslateY),
                 child: Container(
-                  constraints: BoxConstraints(maxWidth: 100, maxHeight: 100),
+                  constraints: const BoxConstraints(
+                    maxWidth: 70,
+                    maxHeight: 70,
+                  ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(200),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(
@@ -66,24 +73,6 @@ class _BouncingLogoState extends State with SingleTickerProviderStateMixin {
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
-                  ),
-                ),
-              ),
-              // GAP BETWEEN THE SHADOW AND THE LOGO
-              const SizedBox(height: 5),
-
-              // 2. Dynamic Floor Shadow (Scales down and fades as object rises)
-              Opacity(
-                opacity: (1.0 - value * 0.7).clamp(0.2, 1.0),
-                child: Transform.scale(
-                  scaleX: (1.0 - value * 0.5).clamp(0.4, 1.0),
-                  child: Container(
-                    width: 70,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(200),
-                    ),
                   ),
                 ),
               ),

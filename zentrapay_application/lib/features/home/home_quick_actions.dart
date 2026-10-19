@@ -126,7 +126,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       barrierColor: Colors.black.withValues(alpha: 0.2),
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) {
         return ConstrainedBox(
@@ -262,7 +262,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => SafeArea(
         child: Padding(
@@ -331,7 +331,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     final brand = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => SafeArea(
         child: Column(
@@ -381,7 +381,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       barrierColor: Colors.black.withValues(alpha: 0.2),
       backgroundColor: AppColors.primary,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) {
         return ConstrainedBox(

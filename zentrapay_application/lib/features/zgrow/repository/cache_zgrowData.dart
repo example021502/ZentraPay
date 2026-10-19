@@ -90,22 +90,14 @@ class ChallengesRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Enrolls the user in a challenge. The backend expects the id in the body
-  /// ({@code POST /api/zgrow/challenges/enroll}) and returns the created
-  /// enrollment, which lives in UserChallengesRepository — not back here.
-  Future<void> join(String challengeId) async {
-    await _dio.post(
-      '/api/zgrow/challenges/enroll',
-      data: {'challengeId': challengeId},
-    );
-    // The catalog itself is unchanged by enrolling, so there is nothing to
-    // patch locally; the caller refreshes UserChallengesRepository.
-  }
-
-  /// Declines a challenge. The endpoint returns a plain message rather than a
-  /// challenge object, so there is no replacement payload to apply.
-  Future<void> decline(String challengeId) async {
-    await _dio.post('/api/zgrow/challenges/$challengeId/decline');
+  /// Declined challenge ids for the caller — used to split the catalog into
+  /// "All" vs declined. Never cached: the split must reflect the latest
+  /// join/decline action even mid-session.
+  Future<Set<String>> fetchDeclinedIds() async {
+    final response = await _dio.get('/api/zgrow/challenges/declined');
+    final raw = response.data['data'];
+    if (raw is! List) return const {};
+    return {for (final e in raw) e.toString()};
   }
 }
 
@@ -333,7 +325,7 @@ class RewardsRepository extends ChangeNotifier {
   /// The actual network call.
   Future<RewardsList> fetch() async {
     final response = await _dio.get('/api/zgrow/rewards');
-    print("REWARDS ARE:: ${response.data['data']}");
+    debugPrint("REWARDS ARE:: ${response.data['data']}");
     return RewardsList.fromJson(response.data['data']);
   }
 
@@ -397,8 +389,10 @@ class TutorialsRepository extends ChangeNotifier {
   /// The actual network call.
   Future<TutorialsList> fetch() async {
     final response = await _dio.get('/api/zgrow/tutorials');
-    print("TUTORIALS ARE:: ${response.data['data']}");
-    return TutorialsList.fromJson(response.data['data']);
+    debugPrint("TUTORIALS ARE:: ${response.data['data']}");
+    final raw = response.data['data'];
+    final List<dynamic> list = raw is List ? raw : const [];
+    return TutorialsList.fromJson(list);
   }
 
   /// Loads the resource the first time it's needed; subsequent calls are a
@@ -437,6 +431,146 @@ class TutorialsRepository extends ChangeNotifier {
 
   void clear() {
     _data = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+}
+
+/// ZGrow gamified toggle state — persisted server-side (GET/PUT
+/// /api/zgrow/gamification), not a local switch. The challenges groups
+/// render only while [challengesEnabled], and the screen loads the
+/// challenge catalogs only after this cache resolves to enabled.
+class GamificationSettingsRepository extends ChangeNotifier {
+  GamificationSettingsRepository._();
+  static final GamificationSettingsRepository instance =
+      GamificationSettingsRepository._();
+
+  bool _challengesEnabled = false;
+  bool _loading = true;
+  Object? _error;
+  bool _saving = false;
+
+  bool get challengesEnabled => _challengesEnabled;
+  bool get isLoading => _loading;
+  bool get isSaving => _saving;
+  Object? get error => _error;
+
+  /// Resolves the persisted toggle position. Never throws — an unreachable
+  /// backend leaves the switch off rather than breaking the whole screen.
+  Future<bool> ensureLoaded({bool forceRefresh = false}) async {
+    if (!_loading && !forceRefresh) return _challengesEnabled;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await _dio.get('/api/zgrow/gamification');
+      final raw = response.data['data'];
+      final bool enabled = raw is Map && raw['challengesEnabled'] == true;
+      _challengesEnabled = enabled;
+      return enabled;
+    } catch (e) {
+      _error = e;
+      debugPrint('Gamification settings load failed: $e');
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Persists a toggle flip. Optimistic: the switch moves immediately, the
+  /// stored value rolls back to the server echo on failure.
+  Future<void> setChallengesEnabled(bool enabled) async {
+    final bool previous = _challengesEnabled;
+    _challengesEnabled = enabled;
+    _saving = true;
+    notifyListeners();
+    try {
+      final response = await _dio.put(
+        '/api/zgrow/gamification',
+        data: {'challengesEnabled': enabled},
+      );
+      final raw = response.data['data'];
+      if (raw is Map && raw['challengesEnabled'] is bool) {
+        _challengesEnabled = raw['challengesEnabled'] as bool;
+      }
+      _error = null;
+    } catch (e) {
+      _challengesEnabled = previous;
+      _error = e;
+      rethrow;
+    } finally {
+      _saving = false;
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _challengesEnabled = false;
+    _loading = true;
+    _error = null;
+    _saving = false;
+    notifyListeners();
+  }
+}
+
+/// ZGrow "Overall Savings" — the server-computed per-currency totals from
+/// GET /api/zgrow/savings (source of the hero card figure).
+class SavingsRepository extends ChangeNotifier {
+  SavingsRepository._();
+  static final SavingsRepository instance = SavingsRepository._();
+
+  List<SavingsSummary>? _buckets;
+  bool _loading = false;
+  Object? _error;
+
+  List<SavingsSummary>? get buckets => _buckets;
+  bool get isLoading => _loading;
+  Object? get error => _error;
+
+  /// The bucket in [currencyCode], or the first bucket when no wallet
+  /// currency matches, or null when the ledger is empty.
+  SavingsSummary? bucketFor(String? currencyCode) {
+    final buckets = _buckets;
+    if (buckets == null || buckets.isEmpty) return null;
+    final code = (currencyCode ?? '').trim().toUpperCase();
+    if (code.isNotEmpty) {
+      for (final b in buckets) {
+        if (b.currencyCode.trim().toUpperCase() == code) return b;
+      }
+    }
+    return buckets.first;
+  }
+
+  double totalFor(String? currencyCode) =>
+      bucketFor(currencyCode)?.totalAmount ?? 0.0;
+
+  Future<List<SavingsSummary>?> ensureLoaded({bool forceRefresh = false}) async {
+    if (_buckets != null && !forceRefresh) return _buckets;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final response = await _dio.get('/api/zgrow/savings');
+      final raw = response.data['data'];
+      final List<dynamic> list = raw is List ? raw : const [];
+      _buckets = list
+          .whereType<Map>()
+          .map((e) => SavingsSummary.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      return _buckets;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _buckets = null;
     _error = null;
     _loading = false;
     notifyListeners();

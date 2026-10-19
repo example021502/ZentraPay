@@ -91,6 +91,21 @@ ThemeData buildAppTheme() {
       ),
       margin: EdgeInsets.zero,
     ),
+    // White modal overlays — dialogs and bottom sheets that don't pass their
+    // own `shape`/`backgroundColor` — share the same 30px top-corner radius so
+    // every overlay in the app looks identical.
+    dialogTheme: const DialogThemeData(
+      backgroundColor: AppTheme.primaryWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(30)),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: AppTheme.primaryWhite,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+    ),
     dividerColor: AppTheme.dividerColor,
   );
 }

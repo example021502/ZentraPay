@@ -2,7 +2,6 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactio
 
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.TransactionModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TransactionRepository;
-import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.transactions.dtos.TransactionPageDTO;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -44,24 +43,43 @@ public class TransactionsQueryService {
     }
 
     private TransactionDTO _resolveTransactionDetails(TransactionModel t, UUID userId) {
-        String sign = userId.toString().equalsIgnoreCase(t.getReceiverId().toString())? "+" : "-";
-          String amount = sign + t.getSourceCurrencyCode() +" "+ t.getAmount().toPlainString();
         return new TransactionDTO(
                 t.getTransactionId(),
-                t.getSenderId(),
                 t.getReceiverId(),
-                t.getEntryId(),
-                amount,
-                t.getCreatedAt(),
-                t.getFailureReason(),
+                // The client shows/quotes internalReferenceId as TXN_Ref.
+                t.getInternalReferenceId(),
+                t.getDestinationIdentifier(),
+                _resolveSignedAmount(t, userId),
                 t.getStatus(),
-                t.getUpdatedAt(),
-                t.getTransactionType(),
                 t.getReceiverName(),
-                t.getReceiverEmail(),
+                // The client searches/filters rows by the counterparty phone.
                 t.getReceiverPhoneNumber(),
-                t.getPurpose(),
-                t.getInternalReferenceId()
+                // The client's model reads completedAt (falling back to
+                // createdAt); the ledger only tracks createdAt.
+                t.getCreatedAt(),
+                t.getTransactionType()
         );
+    }
+
+    /**
+     * Builds the display amount the client expects: a leading "+" when the
+     * authenticated user is the receiver (credit) or "-" when they are the
+     * sender (debit), followed by the currency code and the plain amount —
+     * e.g. "+GHS 100.00" / "-GHS 100.00". The sign is what drives the
+     * client's green/red coloring, call_received/call_made icons and
+     * "Send Again" visibility, and the currency code is folded into the
+     * same string (there is no separate currencyCode field anymore).
+     */
+    private String _resolveSignedAmount(TransactionModel t, UUID userId) {
+        boolean isCredit = t.getReceiverId() != null
+                && userId.toString().equalsIgnoreCase(t.getReceiverId().toString());
+        String sign = isCredit ? "+" : "-";
+        // Credits arrive in the destination currency; debits leave in the
+        // source currency (identical for wallet-to-wallet, differs for FX).
+        String currencyCode = isCredit
+                ? t.getDestinationCurrencyCode()
+                : t.getSourceCurrencyCode();
+        BigDecimal amount = t.getAmount();
+        return sign + currencyCode + " " + (amount != null ? amount.toPlainString() : "0.00");
     }
 }

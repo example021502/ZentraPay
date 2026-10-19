@@ -1,0 +1,407 @@
+###COLUMNS###
+bill_payments|payment_id|uuid|NO|gen_random_uuid()
+bill_payments|user_id|uuid|NO|-
+bill_payments|provider_id|uuid|NO|-
+bill_payments|transaction_id|uuid|NO|-
+bill_payments|customer_reference|character varying|NO|-
+bill_payments|amount|numeric|NO|-
+bill_payments|currency_code|character varying|NO|-
+bill_payments|status|character varying|NO|'PENDING'::character varying
+bill_payments|created_at|timestamp with time zone|NO|now()
+cards|card_id|uuid|NO|gen_random_uuid()
+cards|name|character varying|NO|-
+cards|brand|character varying|NO|-
+cards|card_type|character varying|NO|'VIRTUAL'::character varying
+cards|description|text|YES|-
+cards|active|boolean|NO|true
+cards|created_at|timestamp with time zone|NO|now()
+cards|updated_at|timestamp with time zone|NO|now()
+content_completions|completion_id|uuid|NO|gen_random_uuid()
+content_completions|content_id|uuid|NO|-
+content_completions|user_id|uuid|NO|-
+content_completions|completed_at|timestamp with time zone|NO|now()
+content_completions|points_earned|integer|NO|0
+conversions|conversion_id|uuid|NO|gen_random_uuid()
+conversions|user_id|uuid|NO|-
+conversions|from_currency_code|character|NO|-
+conversions|to_currency_code|character|NO|-
+conversions|amount|numeric|NO|-
+conversions|converted_amount|numeric|NO|-
+conversions|rate|numeric|NO|-
+conversions|created_at|timestamp with time zone|NO|now()
+crypto_wallets|wallet_id|uuid|NO|gen_random_uuid()
+crypto_wallets|user_id|uuid|NO|-
+crypto_wallets|status|character varying|NO|'ACTIVE'::character varying
+crypto_wallets|created_at|timestamp with time zone|NO|now()
+crypto_wallets|updated_at|timestamp with time zone|NO|now()
+financial_literacy_content|content_id|uuid|NO|gen_random_uuid()
+financial_literacy_content|title|character varying|NO|-
+financial_literacy_content|category|character varying|YES|-
+financial_literacy_content|content_url|text|YES|-
+financial_literacy_content|duration_minutes|integer|YES|-
+financial_literacy_content|points_reward|integer|NO|0
+financial_literacy_content|is_active|boolean|NO|true
+financial_literacy_content|created_at|timestamp with time zone|NO|now()
+financial_literacy_content|updated_at|timestamp with time zone|NO|now()
+fraud_alerts|alert_id|uuid|NO|gen_random_uuid()
+fraud_alerts|user_id|uuid|NO|-
+fraud_alerts|alert_type|character varying|NO|-
+fraud_alerts|message|text|NO|-
+fraud_alerts|severity|character varying|NO|'LOW'::character varying
+fraud_alerts|is_resolved|boolean|NO|false
+fraud_alerts|related_transaction_id|uuid|YES|-
+fraud_alerts|created_at|timestamp with time zone|NO|now()
+investment_price_snapshots|snapshot_id|uuid|NO|gen_random_uuid()
+investment_price_snapshots|investment_id|uuid|NO|-
+investment_price_snapshots|price|numeric|NO|-
+investment_price_snapshots|recorded_at|timestamp with time zone|NO|now()
+investments|investment_id|uuid|NO|gen_random_uuid()
+investments|user_id|uuid|NO|-
+investments|name|character varying|NO|-
+investments|investment_type|character varying|NO|-
+investments|symbol|character varying|YES|-
+investments|quantity|numeric|NO|-
+investments|buy_price|numeric|NO|-
+investments|currency_code|character varying|NO|-
+investments|status|character varying|NO|'ACTIVE'::character varying
+investments|created_at|timestamp with time zone|NO|now()
+investments|updated_at|timestamp with time zone|NO|now()
+ledger_entries|ledger_id|uuid|NO|gen_random_uuid()
+ledger_entries|transaction_id|uuid|NO|-
+ledger_entries|entry_id|character varying|NO|-
+ledger_entries|account_id|uuid|NO|-
+ledger_entries|type|character varying|NO|-
+ledger_entries|amount|numeric|NO|-
+ledger_entries|running_balance|numeric|NO|-
+ledger_entries|currency_code|character varying|NO|'GHS'::character varying
+ledger_entries|narration|character varying|NO|-
+ledger_entries|created_at|timestamp with time zone|YES|now()
+loan_repayments|repayment_id|uuid|NO|gen_random_uuid()
+loan_repayments|loan_id|uuid|NO|-
+loan_repayments|transaction_id|uuid|NO|-
+loan_repayments|amount|numeric|NO|-
+loan_repayments|paid_at|timestamp with time zone|NO|now()
+loans|loan_id|uuid|NO|gen_random_uuid()
+loans|user_id|uuid|NO|-
+loans|currency_code|character varying|NO|-
+loans|principal_amount|numeric|NO|-
+loans|interest_rate|numeric|NO|-
+loans|term_months|smallint|NO|-
+loans|outstanding_balance|numeric|NO|-
+loans|status|character varying|NO|'PENDING'::character varying
+loans|disbursement_transaction_id|uuid|YES|-
+loans|applied_at|timestamp with time zone|NO|now()
+loans|approved_at|timestamp with time zone|YES|-
+loans|due_date|date|YES|-
+loans|created_at|timestamp with time zone|NO|now()
+loans|updated_at|timestamp with time zone|NO|now()
+merchant_profiles|user_id|uuid|NO|-
+merchant_profiles|business_name|character varying|NO|-
+merchant_profiles|business_registration_number|character varying|YES|-
+merchant_profiles|tax_identification_number|character varying|YES|-
+merchant_profiles|business_category_code|character varying|YES|-
+merchant_profiles|business_country_code|character varying|NO|-
+merchant_profiles|business_address|character varying|YES|-
+merchant_profiles|created_at|timestamp with time zone|NO|now()
+merchant_profiles|updated_at|timestamp with time zone|NO|now()
+momo_gateway_mappings|id|uuid|NO|gen_random_uuid()
+momo_gateway_mappings|provider_id|uuid|NO|-
+momo_gateway_mappings|gateway|character varying|NO|-
+momo_gateway_mappings|gateway_code|character varying|NO|-
+momo_gateway_mappings|country_code|character varying|NO|-
+momo_gateway_mappings|created_at|timestamp with time zone|NO|now()
+momo_gateway_mappings|updated_at|timestamp with time zone|NO|now()
+points_ledger|ledger_id|uuid|NO|gen_random_uuid()
+points_ledger|user_id|uuid|NO|-
+points_ledger|points|integer|NO|-
+points_ledger|reason|character varying|NO|-
+points_ledger|reference_type|character varying|YES|-
+points_ledger|reference_id|uuid|YES|-
+points_ledger|created_at|timestamp with time zone|NO|now()
+remittances|remittance_id|uuid|NO|gen_random_uuid()
+remittances|sender_id|uuid|NO|-
+remittances|receiver_id|uuid|YES|-
+remittances|transaction_id|uuid|NO|-
+remittances|amount|numeric|NO|-
+remittances|source_currency_code|character varying|NO|-
+remittances|destination_currency_code|character varying|NO|-
+remittances|exchange_rate|numeric|NO|-
+remittances|fee|numeric|NO|0
+remittances|status|character varying|NO|'PENDING'::character varying
+remittances|channel|character varying|NO|-
+remittances|recipient_name|character varying|NO|-
+remittances|recipient_phone_number|character varying|YES|-
+remittances|recipient_country_code|character varying|NO|-
+remittances|reference|character varying|NO|-
+remittances|created_at|timestamp with time zone|NO|now()
+remittances|updated_at|timestamp with time zone|NO|now()
+savings_accounts|savings_id|uuid|NO|gen_random_uuid()
+savings_accounts|user_id|uuid|NO|-
+savings_accounts|wallet_id|uuid|YES|-
+savings_accounts|savings_name|character varying|NO|-
+savings_accounts|currency_code|character varying|NO|-
+savings_accounts|balance|numeric|NO|0
+savings_accounts|description|text|YES|-
+savings_accounts|target_date|date|YES|-
+savings_accounts|target_amount|numeric|YES|-
+savings_accounts|status|character varying|NO|'ACTIVE'::character varying
+savings_accounts|created_at|timestamp with time zone|NO|now()
+savings_accounts|updated_at|timestamp with time zone|NO|now()
+transactions|transaction_id|uuid|NO|gen_random_uuid()
+transactions|amount|numeric|NO|-
+transactions|status|character varying|NO|'PENDING'::character varying
+transactions|gateway|character varying|YES|-
+transactions|metadata|jsonb|YES|-
+transactions|failure_reason|text|YES|-
+transactions|created_at|timestamp with time zone|NO|now()
+transactions|updated_at|timestamp with time zone|NO|now()
+transactions|entry_id|character varying|YES|-
+transactions|transaction_type|character varying|YES|-
+transactions|sender_id|uuid|YES|-
+transactions|receiver_id|uuid|YES|-
+transactions|sender_name|character varying|YES|-
+transactions|receiver_name|character varying|YES|-
+transactions|source_currency_code|character varying|YES|-
+transactions|destination_currency_code|character varying|YES|-
+transactions|destination_identifier|character varying|YES|-
+transactions|purpose|text|YES|-
+transactions|sender_email|character varying|YES|-
+transactions|sender_phone_number|character varying|YES|-
+transactions|receiver_email|character varying|YES|-
+transactions|receiver_phone_number|character varying|YES|-
+transactions|internal_reference_id|character varying|NO|-
+transactions|external_reference_id|character varying|YES|-
+user_budgets|user_id|uuid|NO|-
+user_budgets|monthly_limit|numeric|NO|-
+user_budgets|currency_code|character|NO|-
+user_budgets|created_at|timestamp with time zone|NO|now()
+user_budgets|updated_at|timestamp with time zone|NO|now()
+user_cards|id|uuid|NO|gen_random_uuid()
+user_cards|user_id|uuid|NO|-
+user_cards|card_id|uuid|NO|-
+user_cards|wallet_id|uuid|YES|-
+user_cards|last4|character varying|NO|-
+user_cards|balance|numeric|NO|0.0000
+user_cards|expiry_month|integer|NO|-
+user_cards|expiry_year|integer|NO|-
+user_cards|nfc_enabled|boolean|NO|true
+user_cards|qr_enabled|boolean|NO|true
+user_cards|status|character varying|NO|'ACTIVE'::character varying
+user_cards|issued_at|timestamp with time zone|NO|now()
+user_cards|updated_at|timestamp with time zone|NO|now()
+user_cards|currency_code|character varying|YES|-
+user_cards|provider_id|uuid|YES|-
+voice_commands|command_id|uuid|NO|gen_random_uuid()
+voice_commands|user_id|uuid|NO|-
+voice_commands|command_type|character varying|NO|-
+voice_commands|language|character varying|NO|'en'::character varying
+voice_commands|transcript|text|NO|-
+voice_commands|response_text|text|YES|-
+voice_commands|status|character varying|NO|'PROCESSED'::character varying
+voice_commands|fraud_alert|boolean|NO|false
+voice_commands|fraud_reason|text|YES|-
+voice_commands|created_at|timestamp with time zone|NO|now()
+voice_commands|updated_at|timestamp with time zone|NO|now()
+###FK###
+bill_payments|provider_id|bill_providers|provider_id
+bill_payments|transaction_id|transactions|transaction_id
+bill_payments|user_id|users|user_id
+content_completions|content_id|financial_literacy_content|content_id
+content_completions|user_id|users|user_id
+conversions|user_id|users|user_id
+crypto_wallets|user_id|users|user_id
+fraud_alerts|related_transaction_id|transactions|transaction_id
+fraud_alerts|user_id|users|user_id
+investment_price_snapshots|investment_id|investments|investment_id
+investments|user_id|users|user_id
+ledger_entries|transaction_id|transactions|transaction_id
+loan_repayments|loan_id|loans|loan_id
+loan_repayments|transaction_id|transactions|transaction_id
+loans|disbursement_transaction_id|transactions|transaction_id
+loans|user_id|users|user_id
+merchant_profiles|business_category_code|provider_categories|category_code
+merchant_profiles|user_id|users|user_id
+momo_gateway_mappings|provider_id|momo_providers|provider_id
+points_ledger|user_id|users|user_id
+remittances|receiver_id|users|user_id
+remittances|sender_id|users|user_id
+remittances|transaction_id|transactions|transaction_id
+savings_accounts|user_id|users|user_id
+savings_accounts|wallet_id|wallets|wallet_id
+user_budgets|user_id|users|user_id
+user_cards|card_id|cards|card_id
+user_cards|user_id|users|user_id
+user_cards|wallet_id|wallets|wallet_id
+voice_commands|user_id|users|user_id
+###CHECK###
+bill_payments|user_id IS NOT NULL
+bill_payments|amount IS NOT NULL
+bill_payments|created_at IS NOT NULL
+bill_payments|currency_code IS NOT NULL
+bill_payments|customer_reference IS NOT NULL
+bill_payments|payment_id IS NOT NULL
+bill_payments|provider_id IS NOT NULL
+bill_payments|((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying])::text[]))
+bill_payments|status IS NOT NULL
+bill_payments|transaction_id IS NOT NULL
+cards|name IS NOT NULL
+cards|active IS NOT NULL
+cards|brand IS NOT NULL
+cards|updated_at IS NOT NULL
+cards|card_id IS NOT NULL
+cards|((card_type)::text = ANY ((ARRAY['VIRTUAL'::character varying, 'PHYSICAL'::character varying])::text[]))
+cards|card_type IS NOT NULL
+cards|created_at IS NOT NULL
+content_completions|completion_id IS NOT NULL
+content_completions|content_id IS NOT NULL
+content_completions|points_earned IS NOT NULL
+content_completions|user_id IS NOT NULL
+content_completions|completed_at IS NOT NULL
+conversions|user_id IS NOT NULL
+conversions|from_currency_code IS NOT NULL
+conversions|converted_amount IS NOT NULL
+conversions|created_at IS NOT NULL
+conversions|conversion_id IS NOT NULL
+conversions|amount IS NOT NULL
+conversions|rate IS NOT NULL
+conversions|to_currency_code IS NOT NULL
+crypto_wallets|updated_at IS NOT NULL
+crypto_wallets|created_at IS NOT NULL
+crypto_wallets|((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'FROZEN'::character varying, 'CLOSED'::character varying])::text[]))
+crypto_wallets|status IS NOT NULL
+crypto_wallets|user_id IS NOT NULL
+crypto_wallets|wallet_id IS NOT NULL
+fraud_alerts|message IS NOT NULL
+fraud_alerts|((severity)::text = ANY ((ARRAY['LOW'::character varying, 'MEDIUM'::character varying, 'HIGH'::character varying, 'CRITICAL'::character varying])::text[]))
+fraud_alerts|severity IS NOT NULL
+fraud_alerts|user_id IS NOT NULL
+fraud_alerts|alert_id IS NOT NULL
+fraud_alerts|alert_type IS NOT NULL
+fraud_alerts|created_at IS NOT NULL
+fraud_alerts|is_resolved IS NOT NULL
+investment_price_snapshots|snapshot_id IS NOT NULL
+investment_price_snapshots|investment_id IS NOT NULL
+investment_price_snapshots|recorded_at IS NOT NULL
+investment_price_snapshots|price IS NOT NULL
+investments|(quantity > (0)::numeric)
+investments|name IS NOT NULL
+investments|investment_type IS NOT NULL
+investments|((investment_type)::text = ANY ((ARRAY['STOCK'::character varying, 'ETF'::character varying, 'COMMODITY'::character varying, 'CRYPTO'::character varying, 'OTHER'::character varying])::text[]))
+investments|user_id IS NOT NULL
+investments|buy_price IS NOT NULL
+investments|((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'CLOSED'::character varying])::text[]))
+investments|status IS NOT NULL
+investments|updated_at IS NOT NULL
+investments|investment_id IS NOT NULL
+investments|currency_code IS NOT NULL
+investments|created_at IS NOT NULL
+investments|quantity IS NOT NULL
+ledger_entries|amount IS NOT NULL
+ledger_entries|currency_code IS NOT NULL
+ledger_entries|entry_id IS NOT NULL
+ledger_entries|ledger_id IS NOT NULL
+ledger_entries|account_id IS NOT NULL
+ledger_entries|type IS NOT NULL
+ledger_entries|transaction_id IS NOT NULL
+ledger_entries|running_balance IS NOT NULL
+ledger_entries|narration IS NOT NULL
+loan_repayments|(amount > (0)::numeric)
+loan_repayments|transaction_id IS NOT NULL
+loan_repayments|repayment_id IS NOT NULL
+loan_repayments|paid_at IS NOT NULL
+loan_repayments|amount IS NOT NULL
+loan_repayments|loan_id IS NOT NULL
+loans|term_months IS NOT NULL
+loans|applied_at IS NOT NULL
+loans|created_at IS NOT NULL
+loans|currency_code IS NOT NULL
+loans|interest_rate IS NOT NULL
+loans|loan_id IS NOT NULL
+loans|outstanding_balance IS NOT NULL
+loans|(principal_amount > (0)::numeric)
+loans|principal_amount IS NOT NULL
+loans|((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'ACTIVE'::character varying, 'CLOSED'::character varying, 'DEFAULTED'::character varying])::text[]))
+loans|status IS NOT NULL
+loans|(term_months > 0)
+loans|updated_at IS NOT NULL
+loans|user_id IS NOT NULL
+merchant_profiles|business_country_code IS NOT NULL
+merchant_profiles|user_id IS NOT NULL
+merchant_profiles|business_name IS NOT NULL
+merchant_profiles|created_at IS NOT NULL
+merchant_profiles|updated_at IS NOT NULL
+momo_gateway_mappings|gateway IS NOT NULL
+momo_gateway_mappings|created_at IS NOT NULL
+momo_gateway_mappings|gateway_code IS NOT NULL
+momo_gateway_mappings|country_code IS NOT NULL
+momo_gateway_mappings|updated_at IS NOT NULL
+momo_gateway_mappings|provider_id IS NOT NULL
+momo_gateway_mappings|id IS NOT NULL
+points_ledger|points IS NOT NULL
+points_ledger|created_at IS NOT NULL
+points_ledger|user_id IS NOT NULL
+points_ledger|reason IS NOT NULL
+points_ledger|ledger_id IS NOT NULL
+remittances|fee IS NOT NULL
+remittances|updated_at IS NOT NULL
+remittances|transaction_id IS NOT NULL
+remittances|status IS NOT NULL
+remittances|((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REVERSED'::character varying])::text[]))
+remittances|source_currency_code IS NOT NULL
+remittances|sender_id IS NOT NULL
+remittances|remittance_id IS NOT NULL
+remittances|reference IS NOT NULL
+remittances|recipient_name IS NOT NULL
+remittances|recipient_country_code IS NOT NULL
+remittances|exchange_rate IS NOT NULL
+remittances|destination_currency_code IS NOT NULL
+remittances|created_at IS NOT NULL
+remittances|channel IS NOT NULL
+remittances|amount IS NOT NULL
+savings_accounts|savings_name IS NOT NULL
+savings_accounts|(balance >= (0)::numeric)
+savings_accounts|((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'CLOSED'::character varying])::text[]))
+savings_accounts|status IS NOT NULL
+savings_accounts|updated_at IS NOT NULL
+savings_accounts|user_id IS NOT NULL
+savings_accounts|created_at IS NOT NULL
+savings_accounts|balance IS NOT NULL
+savings_accounts|currency_code IS NOT NULL
+savings_accounts|savings_id IS NOT NULL
+transactions|internal_reference_id IS NOT NULL
+transactions|(amount >= (0)::numeric)
+transactions|amount IS NOT NULL
+transactions|created_at IS NOT NULL
+transactions|((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SUCCESS'::character varying, 'FAILED'::character varying, 'REVERSED'::character varying])::text[]))
+transactions|status IS NOT NULL
+transactions|transaction_id IS NOT NULL
+transactions|updated_at IS NOT NULL
+user_budgets|user_id IS NOT NULL
+user_budgets|created_at IS NOT NULL
+user_budgets|currency_code IS NOT NULL
+user_budgets|monthly_limit IS NOT NULL
+user_budgets|updated_at IS NOT NULL
+user_cards|updated_at IS NOT NULL
+user_cards|balance IS NOT NULL
+user_cards|card_id IS NOT NULL
+user_cards|((expiry_month >= 1) AND (expiry_month <= 12))
+user_cards|expiry_month IS NOT NULL
+user_cards|expiry_year IS NOT NULL
+user_cards|id IS NOT NULL
+user_cards|issued_at IS NOT NULL
+user_cards|last4 IS NOT NULL
+user_cards|nfc_enabled IS NOT NULL
+user_cards|qr_enabled IS NOT NULL
+user_cards|((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'FROZEN'::character varying, 'CLOSED'::character varying])::text[]))
+user_cards|status IS NOT NULL
+user_cards|user_id IS NOT NULL
+voice_commands|updated_at IS NOT NULL
+voice_commands|command_id IS NOT NULL
+voice_commands|((command_type)::text = ANY ((ARRAY['VOICE'::character varying, 'CHAT'::character varying])::text[]))
+voice_commands|command_type IS NOT NULL
+voice_commands|created_at IS NOT NULL
+voice_commands|fraud_alert IS NOT NULL
+voice_commands|language IS NOT NULL
+voice_commands|status IS NOT NULL
+voice_commands|transcript IS NOT NULL
+voice_commands|user_id IS NOT NULL

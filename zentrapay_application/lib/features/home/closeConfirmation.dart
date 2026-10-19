@@ -14,7 +14,7 @@ Future<bool> showCloseConfirmationDialog(BuildContext context) async {
         backgroundColor: AppColors.primary,
         elevation: 10,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20), // Cleaner look for dialogs
+          borderRadius: BorderRadius.circular(30), // Cleaner look for dialogs
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),

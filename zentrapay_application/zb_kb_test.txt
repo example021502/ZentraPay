@@ -1,0 +1,9 @@
+00:00 +0: loading C:/Users/Desire/Desktop/Zentrapay_Workspace/zentrapay_application/test/zbank_section_test.dart
+00:00 +0: BankAccounts model parses the backend DTO, including the `primary` wire name
+00:00 +1: BankAccounts model falls back to the bank name when there is no link label
+00:00 +2: BankAccounts model copyWith flips isPrimary without touching other fields
+00:00 +3: BankAccountsSnapshot parses primary and accounts, and excludes primary from `others`
+00:00 +4: BankAccountsSnapshot tolerates a missing primary and empty account list
+00:00 +5: OtherBankAccountsStrip renders one card per non-primary account, horizontally scrollable
+00:02 +6: OtherBankAccountsStrip empty account list still renders without overflow
+00:02 +7: All tests passed!

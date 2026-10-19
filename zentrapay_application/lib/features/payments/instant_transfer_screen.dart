@@ -290,7 +290,7 @@ class _InstantTransferScreenState extends State<InstantTransferScreen> {
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

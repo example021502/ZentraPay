@@ -1,0 +1,4 @@
+[challenges] missing: is_active
+[gateway_recipients] missing: gateway_recipient_code
+[user_cards] missing: currencyCode, provider_id
+[user_profiles] missing: risk_score_level

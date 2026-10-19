@@ -30,7 +30,6 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
     SELECT new com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO(
         u.userId,
         u.countryCode,
-        u.email,
         u.firstName,
         u.lastName,
         u.phoneNumber,
@@ -57,7 +56,6 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
             SELECT new com.zentrapay_application.zentrapay_spring_boot_layer.modules.searchContacts.dto.UserSearchDTO(
                     u.userId,
                     u.countryCode,
-                    u.email,
                     u.firstName,
                     u.lastName,
                     u.phoneNumber,

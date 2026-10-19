@@ -1,16 +1,35 @@
--- ADD A COLUMN FOR REWARD ID STORING AND REFRENCING
-ALTER TABLE challenges ADD COLUMN reward_id INT CONSTRAINT rewards_ids_fkey FOREIGN KEY (reward_id) REFERENCES rewards(reward_id) ON DELETE SET NULL;
+-- ADD A COLUMN FOR REWARD ID STORING AND REFERENCING
+-- PostgreSQL does not allow an inline `CONSTRAINT ... FOREIGN KEY` clause on
+-- ADD COLUMN, so add the (nullable) column and its FK separately. The FK is
+-- added guarded + DEFERRABLE-free ON DELETE SET NULL; challenges rows seeded
+-- before this point simply have NULL reward_id, which is valid.
+ALTER TABLE challenges ADD COLUMN IF NOT EXISTS reward_id INT;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rewards_ids_fkey') THEN
+        ALTER TABLE challenges
+            ADD CONSTRAINT rewards_ids_fkey
+            FOREIGN KEY (reward_id) REFERENCES rewards(reward_id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- DROP TRANSACTION TYPE TABLE
-DROP TABLE transaction_types
+-- IF EXISTS + CASCADE keeps this idempotent and safe even if another table
+-- ever references it (V1 created it, but nothing depends on it today).
+DROP TABLE IF EXISTS transaction_types CASCADE;
 
 -- Always add inline comments for context
 -- Migration to optimize transactions table for high throughput
 
 -- 1. Create Enums for static domain constants
 CREATE TYPE payment_status AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'EXPIRED', 'REVERSED');
+-- NOTE: labels must exactly match Datatypes.TransactionType (mapped as VARCHAR, NOT this enum,
+-- so this type is created only for reuse/consistency and is left unused by the transactions table).
 CREATE TYPE transaction_type AS ENUM ('MOMO_TRANSFER', 'BANK_TRANSFER', 'CARD_PAYMENT', 'WALLET_TOPUP', 'INTERNAL');
-CREATE TYPE payment_gateway AS ENUM ('PAYSTACK', 'FLUTTERWAVE', 'ONAFRIQ');
+-- NOTE: enum labels must exactly match Datatypes.PaymentGateway (PAYSTACK, FLUTTERWAV, ONAFRI).
+-- The entity actually spells the second label FLUTTERWAV and third ONAFRI, so the enum
+-- matches the entity exactly. (transactions.gateway is stored as VARCHAR, not this enum.)
+CREATE TYPE payment_gateway AS ENUM ('PAYSTACK', 'FLUTTERWAV', 'ONAFRI');
 
 
 -- 2. Modify existing transactions table constraints

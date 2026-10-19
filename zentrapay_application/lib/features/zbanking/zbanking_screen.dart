@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
@@ -5,7 +6,10 @@ import 'package:zentrapay_application/features/zbanking/repository/cache_zbankin
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/features/zbanking/widgets/LinkedBankAccounts.dart';
+import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/core/utils/tab_switch_notifier.dart';
+import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
+import 'package:zentrapay_application/features/zbanking/widgets/other_bank_accounts_strip.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ZBankingScreen extends StatefulWidget {
@@ -17,6 +21,10 @@ class ZBankingScreen extends StatefulWidget {
 
 class _ZBankingScreenState extends State<ZBankingScreen> {
   bool _balanceHidden = false;
+
+  // Used only by the savings-create sheet until a dedicated savings
+  // repository exists; the token/interceptor config lives in ApiClient.
+  final Dio _dio = ApiClient().dio;
 
   @override
   void initState() {
@@ -30,42 +38,60 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isTablet = MediaQuery.of(context).size.width > 470;
-    final double maxWidth = isTablet ? 400 : MediaQuery.of(context).size.width;
-    final bankAccounts = BankAccountsRepository.instance.data ?? [];
-    return SizedBox(
-      width: maxWidth,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Column(
-          children: [
-            _buildHeader(context, Map<String, dynamic>.of({})),
-            const SizedBox(height: AppTheme.spacingMd),
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.gray50,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: AppTheme.spacingMd,
-                  children: [
-                    // if (bankAccounts.isNotEmpty)
-                    LinkedBankAccounts(accounts: bankAccounts),
-                    const SizedBox(height: AppTheme.spacingLg),
-                    _buildAccountOptionsSection(context),
-                    const SizedBox(height: AppTheme.spacingLg),
-                    _buildAiInsights(context),
-                    const SizedBox(height: 100),
-                  ],
+    // Full width by design: the header and the white sheet below it both run
+    // edge-to-edge (no tablet cap) so the sheet reads as one continuous panel.
+    return ListenableBuilder(
+      listenable: BankAccountsRepository.instance,
+      builder: (context, _) {
+        final repo = BankAccountsRepository.instance;
+        final snapshot = repo.data ?? BankAccountsSnapshot.empty;
+        final primary = snapshot.primary;
+        // The primary already has its own card in the header, so the
+        // bottom strip renders only the remaining accounts.
+        final others = snapshot.others;
+
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader(context, primary)),
+            SliverToBoxAdapter(
+              child: const SizedBox(height: AppTheme.spacingMd),
+            ),
+            // Fills whatever vertical space is left in the viewport and only
+            // starts scrolling once its content genuinely needs more room —
+            // so the white sheet always reaches the bottom of the screen.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.gray50,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: AppTheme.spacingMd,
+                    children: [
+                      // Header shows the empty-state card until a primary
+                      // exists, so the strip only makes sense alongside one.
+                      if (primary != null) ...[
+                        OtherBankAccountsStrip(accounts: others),
+                        const SizedBox(height: AppTheme.spacingLg),
+                      ],
+                      _buildAccountOptionsSection(context),
+                      const SizedBox(height: AppTheme.spacingLg),
+                      _buildAiInsights(context),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -73,171 +99,270 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // HEADER
   // ============================================================
 
-  Widget _buildHeader(
-    BuildContext context,
-    Map<String, dynamic> primaryAccount,
-  ) {
+  Widget _buildHeader(BuildContext context, BankAccounts? primaryAccount) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15.0),
-      child: primaryAccount.isEmpty
+      child: primaryAccount == null
           ? _emptyAccount()
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "ZBanking Overview",
-                  style: AppTheme.bodyMedium.copyWith(color: AppColors.primary),
-                ),
-                const SizedBox(height: AppTheme.spacingSm),
+                // ---------------------------------------------------- title row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      "Next-gen banking\nEffortless living",
-                      style: AppTheme.whiteHeadline,
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.expand_less_outlined,
-                          size: 22,
-                          color: AppColors.primary,
-                        ),
-                        Text(
-                          "14.2",
-                          style: AppTheme.headlineSmall.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingMd),
-                ConstrainedBox(
-                  constraints: AppTheme.constraintsXs(context),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      ListenableBuilder(
-                        listenable: BankAccountsRepository.instance,
-                        builder: (context, _) {
-                          final repo = BankAccountsRepository.instance;
-                          final accounts = repo.data;
-                          if (_balanceHidden) {
-                            return const Text(
-                              "•••••",
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            );
-                          }
-                          if (accounts == null && repo.isLoading) {
-                            return const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            );
-                          }
-                          if (accounts == null && repo.error != null) {
-                            return Text(
-                              "-- GHS",
-                              style: TextStyle(
-                                color: AppColors.primary.withAlpha(180),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            );
-                          }
-                          final total = (accounts ?? []).fold<double>(
-                            0,
-                            (sum, a) => sum + a.balance,
-                          );
-                          return Text(
-                            formatMoney(
-                              total.toStringAsFixed(2),
-                              symbol: 'GHS ',
-                            ),
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          );
-                        },
-                      ),
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _balanceHidden = !_balanceHidden),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(20),
-                            borderRadius: BorderRadius.circular(200),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10.0),
-                            child: Icon(
-                              _balanceHidden
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              size: 22,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingMd),
-                ConstrainedBox(
-                  constraints: AppTheme.constraintsXs(context),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
-                      borderRadius: BorderRadius.circular(200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 4.0,
-                        horizontal: 10.0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "primary",
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w200,
+                            'Primary account',
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppColors.primary.withAlpha(185),
+                              letterSpacing: 0.5,
                             ),
                           ),
-                          AppTheme.dot(AppColors.primary),
+                          const SizedBox(height: 3),
                           Text(
-                            "active",
-                            style: TextStyle(
+                            primaryAccount.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.headlineSmall.copyWith(
                               color: AppColors.primary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w200,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: AppTheme.spacingSm),
+                    // A labelled pill reads far better than a bare "+" now the
+                    // screen can hold several banks and linking is a real flow.
+                    _headerActionPill(
+                      label: 'Link bank',
+                      onTap: () => showLinkBankSheet(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingMd),
+                // -------------------------------------------- account / balance
+                // One glass card groups the account face and the balance so the
+                // header reads as a single object instead of loose text blocks.
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacingMd),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(16),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                    border: Border.all(
+                      color: AppColors.primary.withAlpha(38),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(30),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_outlined,
+                              size: 18,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Account number',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppColors.primary.withAlpha(165),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  primaryAccount.maskedNumber,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTheme.bodyLarge.copyWith(
+                                    color: AppColors.primary,
+                                    letterSpacing: 1.6,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingXs),
+                          _statusChip(primaryAccount.connectionStatus),
+                        ],
+                      ),
+                      Divider(
+                        color: AppColors.primary.withAlpha(35),
+                        height: AppTheme.spacingLg,
+                        thickness: 1,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total balance',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppColors.primary.withAlpha(165),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                _balanceAmount(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          _visibilityToggle(),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacingMd),
               ],
             ),
+    );
+  }
+
+  // Labelled pill for the header's call to action. Filled with secondaryNavy so
+  // every primary action in the app reads the same way.
+  Widget _headerActionPill({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppTheme.secondaryNavy,
+      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add, size: 16, color: AppColors.primary),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: AppTheme.labelLarge.copyWith(color: AppColors.primary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// "active" / "pending" marker next to the account number.
+  Widget _statusChip(String status) {
+    final isActive = status.toLowerCase() != 'inactive';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: (isActive ? AppColors.primary : AppTheme.warningOrange)
+            .withAlpha(30),
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive ? AppColors.primary : AppTheme.warningOrange,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            status,
+            style: AppTheme.bodySmall.copyWith(color: AppColors.primary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Total balance, or the mask placeholder when the eye is toggled off.
+  ///
+  /// Wrapped in a `ListenableBuilder` so the figure appears the moment the
+  /// repository resolves — the header is built once by `build()` and would
+  /// otherwise keep showing the pre-load placeholder.
+  Widget _balanceAmount() {
+    if (_balanceHidden) {
+      return Text(
+        'GHS ••••••',
+        style: AppTheme.headlineSmall.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+        ),
+      );
+    }
+    return ListenableBuilder(
+      listenable: BankAccountsRepository.instance,
+      builder: (context, _) {
+        final data = BankAccountsRepository.instance.data;
+        if (data == null) {
+          return Text(
+            'GHS --',
+            style: AppTheme.headlineSmall.copyWith(
+              color: AppColors.primary.withAlpha(150),
+              fontWeight: FontWeight.w700,
+            ),
+          );
+        }
+        final currency = data.accounts.isNotEmpty
+            ? data.accounts.first.currencyCode
+            : 'GHS';
+        return Text(
+          formatMoney(data.totalBalance.toStringAsFixed(2), symbol: '$currency '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.headlineSmall.copyWith(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        );
+      },
+    );
+  }
+
+  /// Eye / eye-off button that flips `_balanceHidden`.
+  Widget _visibilityToggle() {
+    return GestureDetector(
+      onTap: () => setState(() => _balanceHidden = !_balanceHidden),
+      child: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withAlpha(24),
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        ),
+        child: Icon(
+          _balanceHidden ? Icons.visibility : Icons.visibility_off,
+          size: 18,
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 
@@ -318,9 +443,44 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                       ),
                       const SizedBox(height: AppTheme.spacingSm),
                       Text(
-                        "No primary bank account set.",
+                        "No bank linked yet.",
+                        textAlign: TextAlign.center,
                         style: AppTheme.bodyMedium.copyWith(
                           color: AppTheme.primaryWhite,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacingSm),
+                      // Empty state is the natural place to start the flow.
+                      GestureDetector(
+                        onTap: () => showLinkBankSheet(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTheme.spacingMd,
+                            vertical: 6.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(40),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusFull,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.add,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Link a bank",
+                                style: AppTheme.whiteBodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -335,11 +495,12 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   }
 
   // ============================================================
-  // ACCOUNT OPTIONS (Digital Savings / Micro-Loans / Budget Tracker)
+  // ACCOUNT OPTIONS (Micro-loan / Financial goals / Conversion / ...)
   // ============================================================
-  // Simple navigation-style rows for now — dedicated per-feature screens
-  // are still to be introduced. Tapping one opens the same quick dialog
-  // the header's quick-action buttons use.
+  // Icon-above-label shortcuts laid out in a Wrap: the row never scrolls
+  // sideways, it simply flows onto a second line when the tiles no longer
+  // fit, so every option stays reachable on the narrowest phone without a
+  // horizontally clipped last tile.
 
   Widget _buildAccountOptionsSection(BuildContext context) {
     List<Map<String, dynamic>> goals = [
@@ -349,101 +510,102 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
         "progress": "80%",
       },
     ];
+    // Icon-above-label shortcuts laid out in a Wrap: the row never scrolls
+    // sideways, it simply flows onto a second line when the tiles no longer
+    // fit — so every option stays reachable on the narrowest phone without a
+    // horizontally clipped last tile.
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _accountOptionTile(
-          context,
-          icon: Icons.payments_outlined,
-          label: "Micro-loan",
-          about: "Get immediate working capital tailored to your needs.",
-          onTap: () => _showLoanApplyDialog(context),
-        ),
+        Text("Quick actions", style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingMd),
-        _accountOptionTile(
-          context,
-          icon: Icons.track_changes_outlined,
-          label: "Your financial goals",
-          about: "Invest your savings into your career goals.",
-          onTap: () => _showCreateSavingsDialog(context, goals),
-        ),
-        const SizedBox(height: AppTheme.spacingMd),
-        _accountOptionTile(
-          context,
-          icon: Icons.currency_exchange_outlined,
-          label: "Smart Conversion",
-          about: "Real-time currency conversion basing on live markets.",
-          onTap: () => Navigator.pushNamed(context, "/converter"),
-        ),
-        const SizedBox(height: AppTheme.spacingMd),
-        _accountOptionTile(
-          context,
-          icon: Icons.account_balance_outlined,
-          label: "Open Banking",
-          about: "Put your money to work instantly without the wait.",
-          onTap: () => showComingSoon(context, "Open Banking"),
-        ),
-        const SizedBox(height: AppTheme.spacingMd),
-        _accountOptionTile(
-          context,
-          icon: Icons.hub_outlined,
-          label: "Global Liquidity",
-          about: "Unlock trapped capital. Power your global operations.",
-          onTap: () => showComingSoon(context, "Global liquidity"),
+        Wrap(
+          spacing: AppTheme.spacingSm,
+          runSpacing: AppTheme.spacingSm,
+          alignment: WrapAlignment.start,
+          children: [
+            // Jumps back to the Home tab — a "back to the dashboard" shortcut
+            // from deep inside ZBank. TabSwitchNotifier is the app-level
+            // signal ResponsiveNavigation listens to, since a screen this deep
+            // can't reach the shell's local _selectedIndex.
+            _quickAction(
+              icon: Icons.home_outlined,
+              label: "Home",
+              onTap: () => TabSwitchNotifier.instance.select(AppTab.home),
+            ),
+            _quickAction(
+              icon: Icons.payments_outlined,
+              label: "Micro-loan",
+              onTap: () => _showLoanApplyDialog(context),
+            ),
+            _quickAction(
+              icon: Icons.track_changes_outlined,
+              label: "Financial goals",
+              onTap: () => _showCreateSavingsDialog(context, goals),
+            ),
+            _quickAction(
+              icon: Icons.currency_exchange_outlined,
+              label: "Conversion",
+              onTap: () => Navigator.pushNamed(context, "/converter"),
+            ),
+            _quickAction(
+              icon: Icons.account_balance_outlined,
+              label: "Open Banking",
+              onTap: () => showComingSoon(context, "Open Banking"),
+            ),
+            _quickAction(
+              icon: Icons.hub_outlined,
+              label: "Liquidity",
+              onTap: () => showComingSoon(context, "Global liquidity"),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _accountOptionTile(
-    BuildContext context, {
+  /// Compact square shortcut: icon on top, label underneath, no description and
+  /// no chevron. Fixed width so every tile is identical and the `Wrap` above
+  /// packs them into even columns.
+  Widget _quickAction({
     required IconData icon,
     required String label,
-    required String about,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
       child: Container(
+        width: 82,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
         decoration: BoxDecoration(
           color: AppTheme.secondaryNavy.withAlpha(10),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withAlpha(20),
-                  shape: BoxShape.circle,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Icon(icon, color: AppColors.secondary, size: 22),
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryNavy.withAlpha(20),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: AppTheme.labelLarge),
-                    Text(
-                      about,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.textBlack.withAlpha(150),
-                      ),
-                    ),
-                  ],
-                ),
+              child: Icon(icon, color: AppTheme.secondaryNavy, size: 22),
+            ),
+            const SizedBox(height: AppTheme.spacingSm),
+            Text(
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.bodySmall.copyWith(
+                color: AppTheme.textBlack,
+                height: 1.2,
               ),
-              const SizedBox(height: AppTheme.spacingSm),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -563,7 +725,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 decoration: const BoxDecoration(
                   color: AppTheme.primaryWhite,
                   borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(AppTheme.radiusXl),
+                    top: Radius.circular(30),
                   ),
                 ),
                 child: Column(
@@ -744,10 +906,17 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                         final target = targetController.text.trim();
                         setState(() => submitting = true);
                         try {
-                          await BankAccountsRepository.instance.create(
-                            savingsName: name,
-                            description: '',
-                            bankId: '',
+                          // No dedicated savings repository exists yet, so call
+                          // the documented endpoint directly
+                          // (POST /api/zbanking/savings/create).
+                          await _dio.post(
+                            '/api/zbanking/savings/create',
+                            data: {
+                              'savingsName': name,
+                              'currencyCode': 'GHS',
+                              'targetAmount': target.isEmpty ? null : target,
+                              'initialDeposit': deposit,
+                            },
                           );
                           if (sheetContext.mounted) Navigator.pop(sheetContext);
                           ZentraNotifier.success(
@@ -793,7 +962,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 decoration: const BoxDecoration(
                   color: AppTheme.primaryWhite,
                   borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(AppTheme.radiusXl),
+                    top: Radius.circular(30),
                   ),
                 ),
                 child: Column(

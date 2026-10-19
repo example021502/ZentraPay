@@ -1,9 +1,14 @@
 
--- FIRST DROPPING THE TABLES IF THEY EXISTS
-    DROP TABLE IF EXISTS challenges;
-    DROP TABLE IF EXISTS challenges_targets;
-    DROP TABLE IF EXISTS user_challenges;
-    DROP TABLE IF EXISTS challenges_progress;
+-- FIRST DROPPING THE TABLES IF THEY EXIST
+-- CASCADE is required: V1 (challenges/challenge_participants) and V6
+-- (user_challenges/declined_challenges) already created these tables with
+-- foreign keys pointing at them, so a plain DROP fails with "other objects
+-- depend on it". Since V17 recreates each table immediately below, dropping
+-- dependents via CASCADE is safe and idempotent on a fresh database.
+DROP TABLE IF EXISTS challenges CASCADE;
+DROP TABLE IF EXISTS challenges_targets CASCADE;
+DROP TABLE IF EXISTS user_challenges CASCADE;
+DROP TABLE IF EXISTS challenges_progress CASCADE;
 
 -- 1. Master Table: Available Challenges
 CREATE TABLE challenges (
@@ -16,7 +21,7 @@ CREATE TABLE challenges (
                             duration_days INT NOT NULL, -- Total length of the challenge (e.g., 30 days)
 
     -- Status & Availability
-                            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                            active BOOLEAN NOT NULL DEFAULT TRUE,
                             start_date TIMESTAMP, -- Optional: For time-bounded event challenges
                             end_date TIMESTAMP,   -- Optional: Expiration date for accepting
 
@@ -78,7 +83,7 @@ CREATE INDEX idx_challenge_targets_challenge ON challenges_targets(challenge_id)
 -- Seed 5 Test Challenges for ZGrow Gamification Testing
 
 -- Challenge 1: 30-Day Emergency Fund Saver
-INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, is_active, created_at, updated_at)
+INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, active, created_at, updated_at)
 VALUES (
            '11111111-1111-1111-1111-111111111111',
            '30-Day Emergency Cushion',
@@ -103,7 +108,7 @@ VALUES (
        );
 
 -- Challenge 2: 7-Day Micro Savings Sprint
-INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, is_active, created_at, updated_at)
+INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, active, created_at, updated_at)
 VALUES (
            '22222222-2222-2222-2222-222222222222',
            '7-Day Quick Saver Sprint',
@@ -128,7 +133,7 @@ VALUES (
        );
 
 -- Challenge 3: 14-Day Consecutive Deposit Streak
-INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, is_active, created_at, updated_at)
+INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, active, created_at, updated_at)
 VALUES (
            '33333333-3333-3333-3333-333333333333',
            '14-Day Consistency Master',
@@ -153,7 +158,7 @@ VALUES (
        );
 
 -- Challenge 4: Multi-Tiered Wealth Builder (Tiered Rewards)
-INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, is_active, created_at, updated_at)
+INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, active, created_at, updated_at)
 VALUES (
            '44444444-4444-4444-4444-444444444444',
            '60-Day Wealth Accumulator',
@@ -191,7 +196,7 @@ VALUES (
        );
 
 -- Challenge 5: First Investment Explorer
-INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, is_active, created_at, updated_at)
+INSERT INTO challenges (id, title, description, category, challenge_type, duration_days, active, created_at, updated_at)
 VALUES (
            '55555555-5555-5555-5555-555555555555',
            'Investment Pioneer',

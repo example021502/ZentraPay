@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_carousel.dart';
+import 'package:zentrapay_application/features/zgrow/widgets/tutorials_all_screen.dart';
 
-/// "Learn & Earn" header + horizontal carousel, collapsed entirely until
-/// TutorialsRepository actually has data.
+/// "Learn & Earn" header + horizontal carousel (first 4 tutorials only),
+/// collapsed entirely until TutorialsRepository actually has data.
 class LearnEarnSection extends StatefulWidget {
   const LearnEarnSection({super.key});
 
@@ -41,18 +41,18 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("Tutorials", style: AppTheme.bodyMedium),
-                GestureDetector(
-                  onTap: () {
-                    showComingSoon(context, "See more tutorials");
-                  },
-                  child: Text(
-                    "See more",
-                    style: AppTheme.bodyMedium.copyWith(
-                      decoration: TextDecoration.underline,
-                      fontWeight: FontWeight.w600,
+                if (tutorialData.tutorials.length > 4)
+                  GestureDetector(
+                    onTap: () => TutorialsAllScreen.show(context),
+                    child: Text(
+                      "See more",
+                      style: AppTheme.bodyMedium.copyWith(
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.secondaryNavy,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 10),

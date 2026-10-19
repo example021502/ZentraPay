@@ -1,5 +1,6 @@
 package com.zentrapay_application.zentrapay_spring_boot_layer.security;
 
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -25,13 +26,16 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(UUID userId, String email, String firstName, String lastName) {
+    public String generateToken(UUID userId, String email, String phoneNumber, String countryCode, Datatypes.UserType userType, String firstName, String lastName) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
+                .claim("phoneNumber", phoneNumber)
+                .claim("countryCode", countryCode)
+                .claim("userType", userType)
                 .claim("firstName", firstName)
                 .claim("lastName", lastName)
                 .issuedAt(now)

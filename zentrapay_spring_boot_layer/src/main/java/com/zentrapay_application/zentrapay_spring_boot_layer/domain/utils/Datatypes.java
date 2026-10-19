@@ -104,4 +104,59 @@ public class Datatypes {
         CREDIT
    }
 
+    // BILL / SERVICE PROVIDER CATEGORIES
+    // Mirrors the provider_categories lookup table (V2 seed + V23 'OTHERS').
+    // `iconKey` is the icon the client renders for the category — the Flutter
+    // side keeps a matching map in provider_display.dart, so adding a
+    // category here means adding it there too (unknown codes fall back to
+    // the receipt icon on the client and 'others' here).
+    public enum ProviderCategory {
+        UTILITY("Electricity & Water", "utility"),
+        AIRTIME("Airtime & Mobile Data", "airtime"),
+        TV_SUBSCRIPTION("TV Subscription", "tv"),
+        INTERNET("Internet & Broadband", "internet"),
+        INSURANCE("Insurance", "insurance"),
+        GOVERNMENT("Government Services", "government"),
+        TRANSPORT("Transport & Toll", "transport"),
+        EDUCATION("Education & School Fees", "education"),
+        HEALTH("Health & Medical", "health"),
+        ENTERTAINMENT("Entertainment & Ticketing", "entertainment"),
+        OTHERS("Other Services", "others");
+
+        private final String displayName;
+        private final String iconKey;
+
+        ProviderCategory(String displayName, String iconKey) {
+            this.displayName = displayName;
+            this.iconKey = iconKey;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public String getIconKey() {
+            return iconKey;
+        }
+
+        /** Null-safe parse of a DB/DTO category code; unknown codes map to OTHERS. */
+        public static ProviderCategory fromCode(String code) {
+            if (code == null) return OTHERS;
+            try {
+                return valueOf(code.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return OTHERS;
+            }
+        }
+    }
+
+    // SAVINGS LEDGER SOURCES — shared vocabulary for the user_savings ledger
+    // (V24).
+    public enum SavingsSource {
+        MILESTONE,
+        CHALLENGE,
+        MANUAL,
+        DEPOSIT
+    }
+
 }

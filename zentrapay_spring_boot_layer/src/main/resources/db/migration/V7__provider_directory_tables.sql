@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS momo_providers (
     provider_id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(180) NOT NULL,
     global_code     VARCHAR(30) NOT NULL,
-    countryCode     VARCHAR(3) NOT NULL,
+    "countryCode"   VARCHAR(3) NOT NULL,
     active          BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

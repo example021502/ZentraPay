@@ -134,7 +134,10 @@ public class PaymentsInitializeService {
                 notification1.setIsRead(Boolean.FALSE);
 //                      RECEIVER NOTIFICATION ================
                 NotificationModel notification2 = new NotificationModel();
-                notification2.setUserId(userId);
+                // Comment: the RECEIVER must own the "Money Received"
+                // notification — this used to stamp the sender's userId, so
+                // the sender got both notifications and the receiver got none.
+                notification2.setUserId(receiver.userId());
                 notification2.setTitle("Money Received");
                 notification2.setMessage("You received " + req.transfer().currencyCode() + " " + req.transfer().amount() + " from " + senderName);
                 notification2.setType(transaction.getTransactionType());
@@ -144,14 +147,14 @@ public class PaymentsInitializeService {
                 ledgerOperations.saveNotification(notification1, notification2);
             log.info("=============== SAVED THE NOTIFICATIONS ================");
 
+            String resolvedAmount = _resolveTransactionAmount(transaction.getAmount(), transaction.getSourceCurrencyCode());
 //              SAVING THE TRANSACTION DETAILS IN THE TRANSFER RESPONSE ============
                     TransferDataDTO transferData = new TransferDataDTO(
                     transaction.getTransactionId(),
                     transaction.getReceiverId(),
                     transaction.getInternalReferenceId(),
                     transaction.getDestinationIdentifier(),
-                    transaction.getAmount(),
-                    transaction.getSourceCurrencyCode(),
+                    resolvedAmount,
                     transaction.getStatus(),
                     transaction.getReceiverName(),
                     transaction.getReceiverPhoneNumber(),
@@ -169,7 +172,7 @@ public class PaymentsInitializeService {
 
                 throw new RuntimeException("This service is not yet supported yet!");
     }
-
+@Transactional
     private _receiverInformation _resolverReceiver(String zentag, String phoneNumber){
         log.info("=============== RESOLVING THE RECEIVER ================");
         if(zentag.isBlank()){
@@ -188,7 +191,7 @@ public class PaymentsInitializeService {
 
         return new _receiverInformation(walletId, userId, user.getEmail(), user.getPhoneNumber());
     }
-
+@Transactional
     private void _resolveDoubleEntry(TransactionModel transaction, UUID senderWalletId, UUID receiverWalletId){
         log.info("=============== RESOLVING THE DOUBLE ENTRY ================");
         log.info("=============== SENDER_WALLET_ID::{} ================", senderWalletId);
@@ -228,6 +231,17 @@ public class PaymentsInitializeService {
         ledgerEntryRepository.saveAll(List.of(debit_entry, credit_entry));
     }
 
+//    RESOLVING THE AMOUNT
+    // Comment: on this endpoint the authenticated caller is always the SENDER,
+    // so the display amount carries a debit "-" sign followed by the currency
+    // code and plain amount — e.g. "-GHS 100.00". The Flutter client keys its
+    // credit/debit colors, call_received/call_made icons and "Send Again"
+    // visibility off that leading sign, and there is no separate currencyCode
+    // field anymore (the code is folded into this same string).
+    private String _resolveTransactionAmount(BigDecimal amount, String currencyCode){
+       log.info("============ RESOLVING THE AMOUNT =============");
+        return "-" + currencyCode + " " + (amount != null ? amount.toPlainString() : "0.00");
+    };
 
 //    generating the transaction internal reference code
     private String _generateReference() {

@@ -3,6 +3,7 @@ import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
+import 'package:zentrapay_application/core/utils/tab_switch_notifier.dart';
 import 'package:zentrapay_application/features/Settings/settings.dart';
 import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/features/home/home_wallet_main.dart';
@@ -55,6 +56,31 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     super.initState();
     _initializePaystack();
     NotificationsRepository.instance.ensureLoaded().catchError((_) => null);
+    // A screen that isn't the navigation shell (e.g. ZBank's "Home" quick
+    // action) calls TabSwitchNotifier.select(); mirror it into _selectedIndex
+    // so the bar highlights the new tab as well as the body swapping.
+    TabSwitchNotifier.instance.addListener(_onExternalTabRequest);
+    _selectedIndex = TabSwitchNotifier.instance.current.tabIndex;
+  }
+
+  @override
+  void dispose() {
+    TabSwitchNotifier.instance.removeListener(_onExternalTabRequest);
+    super.dispose();
+  }
+
+  void _onExternalTabRequest() {
+    final next = TabSwitchNotifier.instance.current.tabIndex;
+    if (!mounted || next == _selectedIndex) return;
+    setState(() => _selectedIndex = next);
+  }
+
+  /// Single funnel for every tab change (bottom bar, drawer, external request)
+  /// so the notifier and `_selectedIndex` can never drift apart.
+  void _selectTab(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    TabSwitchNotifier.instance.select(AppTab.values[index]);
   }
 
   // Handle the async initialization properly
@@ -144,22 +170,23 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildGreeting() {
     final name =
         "${widget.userData["firstName"]} ${widget.userData["lastName"]}";
-    final email = widget.userData["email"] ?? "";
+    final email = widget.userData["email"].toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          name,
+          name.isNotEmpty ? name : "Welcome to Zentrapay",
           style: AppTheme.bodyLarge.copyWith(
             color: AppColors.primary,
             fontWeight: FontWeight.bold,
           ),
         ),
-        Text(
-          email,
-          style: AppTheme.bodySmall.copyWith(color: AppColors.primary),
-        ),
+        if (email.isNotEmpty)
+          Text(
+            email,
+            style: AppTheme.bodySmall.copyWith(color: AppColors.primary),
+          ),
       ],
     );
   }
@@ -191,7 +218,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildBottomNav() {
     return NavigationBarMain(
       selectedIndex: _selectedIndex,
-      onItemSelected: (i) => setState(() => _selectedIndex = i),
+      onItemSelected: _selectTab,
     );
   }
 
@@ -212,7 +239,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Home",
                     isSelected: _selectedIndex == 0,
                     onTap: () {
-                      setState(() => _selectedIndex = 0);
+                      _selectTab(0);
                       Navigator.pop(context);
                     },
                   ),
@@ -221,7 +248,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Remit",
                     isSelected: _selectedIndex == 1,
                     onTap: () {
-                      setState(() => _selectedIndex = 1);
+                      _selectTab(1);
                       Navigator.pop(context);
                     },
                   ),
@@ -230,7 +257,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Grow",
                     isSelected: _selectedIndex == 2,
                     onTap: () {
-                      setState(() => _selectedIndex = 2);
+                      _selectTab(2);
                       Navigator.pop(context);
                     },
                   ),
@@ -239,16 +266,19 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Bank",
                     isSelected: _selectedIndex == 3,
                     onTap: () {
-                      setState(() => _selectedIndex = 3);
+                      _selectTab(3);
                       Navigator.pop(context);
                     },
                   ),
                   _buildDrawerItem(
-                    icon: Icons.storefront,
-                    label: "Merchant",
+                    // Index 4 is Settings in _pages/_tabTitles — the old
+                    // "Merchant" label + storefront icon were left over from
+                    // when Merchant was its own tab.
+                    icon: Icons.settings_outlined,
+                    label: "Settings",
                     isSelected: _selectedIndex == 4,
                     onTap: () {
-                      setState(() => _selectedIndex = 4);
+                      _selectTab(4);
                       Navigator.pop(context);
                     },
                   ),

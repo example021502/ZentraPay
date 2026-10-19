@@ -27,7 +27,11 @@ public class BillProviderModel {
     @Column(name = "provider_id", nullable = false)
     private UUID providerId;
 
-    @Column(name = "biller_code", nullable = false, unique = true)
+    // NOT unique: the same biller can be offered by more than one gateway
+    // provider (one row per gateway) — the list API dedupes to a single
+    // record before sending the directory to the client (V23 dropped the
+    // original UNIQUE constraint for the same reason).
+    @Column(name = "biller_code", nullable = false)
     private String billerCode;
 
     @Column(name = "biller_name", nullable = false)

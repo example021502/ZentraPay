@@ -36,19 +36,19 @@ class ChallengeCardFooter extends StatelessWidget {
         child: ElevatedButton(
           onPressed: joining ? null : onJoin,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.zgrowColor,
+            backgroundColor: AppTheme.secondaryNavy,
             foregroundColor: Colors.white,
           ),
           child: joining
               ? const SizedBox(
-                  height: 16,
-                  width: 16,
+                  height: 15,
+                  width: 15,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: Colors.white,
                   ),
                 )
-              : const Text("Join Challenge"),
+              : const Text("Accept Challenge"),
         ),
       );
     }

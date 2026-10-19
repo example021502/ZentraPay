@@ -227,6 +227,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               textAlign: TextAlign.center,
                             ),
+                            const SizedBox(height: AppTheme.spacingSm),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryPink.withAlpha(10),
+                                border: Border.all(
+                                  color: AppTheme.primaryPink,
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Note:",
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppTheme.textBlack,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Please enter a valid name and surname, this will be used to link other external accounts for security purposes.",
+                                      style: AppTheme.bodySmall.copyWith(
+                                        color: AppTheme.textBlack,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                             Column(
                               children: [
                                 const SizedBox(height: AppTheme.spacingMd),

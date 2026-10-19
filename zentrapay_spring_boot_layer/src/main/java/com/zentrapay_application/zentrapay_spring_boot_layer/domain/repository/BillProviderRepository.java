@@ -13,8 +13,25 @@ public interface BillProviderRepository extends JpaRepository<BillProviderModel,
 
     List<BillProviderModel> getAllBillProvidersByCountryCode(@Param("countryCode") String countryCode);
 
+    /**
+     * Country-filtered directory used by GET /api/bill-providers — active
+     * rows only, ordered alphabetically. Lower-cased compare because
+     * seeded rows and the JWT's country disagree on case ('GH' vs 'gh').
+     */
+    @Query("""
+            SELECT p FROM BillProviderModel p
+            WHERE LOWER(p.countryCode) = :countryCode AND p.active = true
+            ORDER BY p.billerName
+            """)
+    List<BillProviderModel> findActiveByCountryCode(@Param("countryCode") String countryCode);
+
     // Used by the provider sync job to upsert instead of duplicating rows.
-    Optional<BillProviderModel> findByBillerCode(String billerCode);
+    // biller_code is NOT unique (multi-gateway rows) — callers that need a
+    // single row must narrow by gateway or take the first match.
+    List<BillProviderModel> findByBillerCode(String billerCode);
+
+    // Exact row for a (biller, gateway) pair — the multi-gateway upsert key.
+    Optional<BillProviderModel> findByBillerCodeAndGateway(String billerCode, String gateway);
 
     @Query("""
             SELECT p FROM BillProviderModel p

@@ -93,12 +93,13 @@ class _LoginFormState extends State<LoginForm> {
       print("RES:: $res");
       // Check backend response success flag
       if (!res?['success'] || res?['data'] == null) {
+        print("=============== LOG IN FAILED =================");
         return ZentraNotifier.error(
           "Failed",
           res?['message'] ?? "Unknown error occurred",
         );
       }
-      print("PASSED--=");
+      print("=============== LOGGED IN =================");
 
       // Handle successful authentication
       ZentraNotifier.success(

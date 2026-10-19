@@ -221,10 +221,25 @@ class QuickActionButton extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.secondary.withAlpha(20),
-            child: Icon(icon, color: AppColors.secondary, size: 22),
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withAlpha(20),
+              borderRadius: BorderRadius.circular(200),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.textBlack.withAlpha(50),
+                  offset: Offset(0, 0),
+                  spreadRadius: 0.5,
+                  blurRadius: 8,
+                  blurStyle: BlurStyle.outer,
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              backgroundColor: AppTheme.primaryWhite,
+              radius: 26,
+              child: Icon(icon, color: AppColors.secondary, size: 22),
+            ),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
@@ -410,11 +425,17 @@ void showComingSoon(BuildContext context, String feature) {
 /// Notifications and the Settings option sheets look and behave identically
 /// instead of three near-duplicate `showModalBottomSheet` calls drifting
 /// apart over time.
+///
+/// [maxWidth] caps the sheet's width on large screens (tablets/desktop): below
+/// the cap it fills the screen edge-to-edge, above it the sheet is centered and
+/// stops at [maxWidth] instead of stretching into an unreadable full-width
+/// band. `null` (the default) keeps the old full-width behaviour.
 Future<T?> showAppOverlaySheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   double minHeightFraction = 0.50,
   double maxHeightFraction = 0.90,
+  double? maxWidth,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -423,13 +444,24 @@ Future<T?> showAppOverlaySheet<T>({
     barrierColor: Colors.black.withValues(alpha: 0.2),
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
     ),
     builder: (context) {
-      return ConstrainedBox(
+      final media = MediaQuery.of(context);
+      // Keyboard-aware sizing. When the keyboard is open, viewInsets.bottom is
+      // its height. Sizing the sheet against the *available* height (screen
+      // minus keyboard) and padding the bottom by the same inset lifts the
+      // whole sheet above the keyboard, so focused fields and the action
+      // button stay visible instead of hiding behind it. With no keyboard both
+      // the inset and the padding are 0, so behaviour is unchanged for every
+      // existing caller.
+      final keyboardInset = media.viewInsets.bottom;
+      final availableHeight = media.size.height - keyboardInset;
+
+      final sheet = ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * maxHeightFraction,
-          minHeight: MediaQuery.of(context).size.height * minHeightFraction,
+          maxHeight: availableHeight * maxHeightFraction,
+          minHeight: availableHeight * minHeightFraction,
         ),
         child: Column(
           children: [
@@ -446,6 +478,21 @@ Future<T?> showAppOverlaySheet<T>({
             Expanded(child: builder(context)),
           ],
         ),
+      );
+
+      // No cap (or a narrow screen): fill the width as before.
+      final sized = maxWidth == null
+          ? sheet
+          : Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: sheet,
+              ),
+            );
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: sized,
       );
     },
   );
@@ -467,7 +514,11 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width,
+      // infinity, not MediaQuery width: inside a padded sheet the card must
+      // fill the *available* width — sizing it to the full screen width made
+      // its right edge (and the right-aligned detail values sitting there)
+      // spill past the sheet's horizontal padding.
+      width: double.infinity,
       padding: padding,
       decoration: AppTheme.cardDecoration,
       child: child,
@@ -476,22 +527,36 @@ class AppCard extends StatelessWidget {
 }
 
 /// Full-width primary action button using the app's ElevatedButtonTheme.
+///
+/// **Colour convention:** new buttons in this project are
+/// `AppTheme.secondaryNavy` unless a design calls for something else. Pass
+/// `backgroundColor: AppTheme.secondaryNavy` (with
+/// `foregroundColor: AppTheme.primaryWhite`) to opt in — the parameters default
+/// to the theme, so screens written before this convention keep their look.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   const PrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.backgroundColor,
+    this.foregroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: loading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+      ),
       child: loading
           ? const SizedBox(
               height: 20,

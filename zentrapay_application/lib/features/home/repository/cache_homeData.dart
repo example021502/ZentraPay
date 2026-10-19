@@ -25,16 +25,17 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 /// making a transfer that changes the sender's balance) call
 /// [applyDelta]/[upsertFiatWallet] instead of forcing every listener to
 /// refetch.
+
+final Dio _dio = ApiClient().dio;
+
 class WalletsRepository with ChangeNotifier {
   WalletsRepository._();
   static final WalletsRepository instance = WalletsRepository._();
 
-  final Dio _dio = ApiClient().dio;
-
   // Local state fields managing cached resource lifecycle
   WalletsAccountsSnapshot? _data;
-  Object? _error;
   bool _isLoading = false;
+  Object? _error;
 
   /// Public accessors for local state
   WalletsAccountsSnapshot? get data => _data;
@@ -129,6 +130,61 @@ class WalletsRepository with ChangeNotifier {
       (a) => a.isDefault,
       orElse: () => accounts.first,
     );
+  }
+
+  /// Retrieves list of supported platform currencies from backend endpoint
+  Future<List<SupportedCurrencies>> getSupportedCurrencies() async {
+    final response = await _dio.post('/api/wallet/supportedCurrencies');
+
+    final List<dynamic> rawList = (response.data['data']) ?? [];
+    final currencies = rawList
+        .map((e) => SupportedCurrencies.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    return currencies;
+  }
+}
+
+class UserQRRepository with ChangeNotifier {
+  UserQRRepository._();
+  static final UserQRRepository instance = UserQRRepository._();
+
+  // USER INFORMAITON FOR QR CODE
+  UserQRInfo? _userData;
+  Object? _userError;
+  bool _isUserLoading = false;
+
+  /// Public accessors for local state - user information
+  UserQRInfo? get userData => _userData;
+  Object? get userError => _userError;
+  bool get isUserLoading => _isUserLoading;
+  bool get isUserLoaded => _userData != null;
+
+  /// Retrieves cached snapshot or fetches fresh data if cache is empty
+  Future<UserQRInfo?> loadQRUserInfo() async {
+    if (isUserLoaded) return _userData;
+    return loadUserInfo();
+  }
+
+  // UPDATING THE LOCAL VARIBALES FOR THE USER INFORMATION FOR QR CODE GENERATION
+  Future<UserQRInfo?> loadUserInfo() async {
+    _isUserLoading = true;
+    _userError = null;
+    notifyListeners();
+
+    try {
+      final response = await _dio.get('/api/users/qr_me');
+      _userData = UserQRInfo.fromJson(
+        Map<String, dynamic>.from(response.data['data'] as Map),
+      );
+      return _userData;
+    } catch (e) {
+      _userError = e;
+      rethrow;
+    } finally {
+      _isUserLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Retrieves list of supported platform currencies from backend endpoint
@@ -448,13 +504,20 @@ class TransactionsRepository extends ChangeNotifier {
   /// Called after a POST elsewhere (payment, bill pay, savings deposit...)
   /// returns the resulting Transaction — no need to refetch page 0.
   ///
-  /// A contact that already appears in the list must NOT be inserted again
-  /// (the Recent Payments strip derives straight from these items), so the
-  /// incoming transaction is matched against existing entries by normalized
-  /// identifier first, then by display name; empty/null fields never match.
+  /// Dedupe is by TRANSACTION identity, not by contact: paying the same
+  /// person twice creates two distinct ledger rows, and dropping the second
+  /// one left the History page missing fresh transactions until a full
+  /// refetch. (The Recent Payments strip on Pay still collapses repeated
+  /// counterparties itself — see `_recentPayments` in pay.dart.)
   void prepend(AppTransaction transaction) {
-    final exists = _items.any((item) => _sameContact(item, transaction));
-    if (!exists) {
+    final String txnId = transaction.transactionId.trim();
+    final bool hasUsableId = txnId.isNotEmpty && txnId.toLowerCase() != 'undefined';
+    final bool alreadyListed = hasUsableId
+        ? _items.any((item) => item.transactionId.trim() == txnId)
+        // Fallback for responses that carried no id: same-contact dedupe as
+        // before, so a malformed row can't spam the list either.
+        : _items.any((item) => _sameContact(item, transaction));
+    if (!alreadyListed) {
       _items.insert(0, transaction);
       notifyListeners();
     }

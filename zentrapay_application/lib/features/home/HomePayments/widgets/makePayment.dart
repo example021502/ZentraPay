@@ -14,7 +14,10 @@ class PaymentController {
 
   bool get payInFlight => _payInFlight;
 
-  /// Universal payload builder for all payment types
+  /// Universal payload builder for all payment types.
+  /// Mirrors the backend's `InitializePaymentRequestDTO` exactly:
+  /// `{pin, TXN_Ref, transfer{amount,currencyCode,purpose},
+  /// appUser|bank|recipient{…}, channelType}`.
   Map<String, dynamic> _buildPayload({
     required String pin,
     required String txnRef,
@@ -41,6 +44,7 @@ class PaymentController {
     required Map<String, dynamic> recipientMap,
     required void Function(bool) onStateChanged,
     String purpose = "",
+    String? preferredCurrencyCode,
   }) async {
     if (_payInFlight) return;
 
@@ -48,7 +52,10 @@ class PaymentController {
     final amountResult = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => EnterAmount(recipient: recipientNameForUI),
+      builder: (context) => EnterAmount(
+        recipient: recipientNameForUI,
+        preferredCurrency: preferredCurrencyCode,
+      ),
     );
     if (amountResult == null || !context.mounted) return;
 
@@ -76,10 +83,15 @@ class PaymentController {
     final txnRef = generateTxnRef();
     final amount = double.tryParse(amountResult['amount'].toString()) ?? 0;
     final currencyCode = amountResult['currencyCode'].toString();
+    // `TransferDetails.purpose` is declared @NotBlank on the backend — always
+    // send a non-empty description so validation can never reject the payment.
+    final effectivePurpose = purpose.trim().isEmpty
+        ? "Wallet transfer"
+        : purpose.trim();
     final Map<String, dynamic> amountDetails = {
       "amount": amount,
       "currencyCode": currencyCode,
-      "purpose": purpose,
+      "purpose": effectivePurpose,
     };
     // 3. Build the universal payload
     final payload = _buildPayload(
@@ -106,7 +118,7 @@ class PaymentController {
         () => PaymentsService.payment(payload: payload),
         message: "Processing payment…",
       );
-      print("============= THE TRANSACTION RESULT:: $transaction");
+      debugPrint("============= THE TRANSACTION RESULT:: $transaction");
       if (!context.mounted) return;
       // payment() hands back {'data': AppTransaction, 'message': String}; a
       // response that carried no transaction data is a failure, not a success.
@@ -120,19 +132,55 @@ class PaymentController {
         );
         return;
       }
+      // Human-readable ledger status for the detail card — empty backend
+      // statuses fall back to the overlay's own outcome so the row never
+      // renders blank/undefined.
+      final String statusLabel = data.status.trim().isEmpty
+          ? (data.isFailedStatus ? "FAILED" : "SUCCESS")
+          : data.status;
+      // Every detail row falls back to the values the flow already knows
+      // locally (amount entry, generated reference, chosen channel), so the
+      // card is complete even when the backend response omits a field.
+      final String amountLabel = data.absoluteAmount.trim().isNotEmpty
+          ? data.absoluteAmount
+          : "$currencyCode $amount";
+      final String referenceLabel = data.TXN_Ref.trim().isNotEmpty
+          ? data.TXN_Ref
+          : txnRef;
+      final String typeLabel = data.transactionType.trim().isNotEmpty
+          ? data.transactionType
+          : channelType;
+      // The ledger can settle the HTTP call successfully but still report a
+      // terminal status on the row (FAILED/EXPIRED) — honor it instead of
+      // blindly showing the success state.
+      if (data.isFailedStatus) {
+        await showTransactionResultOverlay(
+          context: context,
+          status: TransactionResultStatus.error,
+          title: "Payment Failed",
+          message: (transaction['message'] ?? "Payment failed").toString(),
+          details: [
+            TransactionResultDetail("Recipient", recipientNameForUI),
+            TransactionResultDetail("Amount", amountLabel),
+            TransactionResultDetail("Status", statusLabel),
+            TransactionResultDetail("Reference", referenceLabel),
+          ],
+        );
+        return;
+      }
       await showTransactionResultOverlay(
         context: context,
         status: TransactionResultStatus.success,
         title: (transaction['message'] ?? "Payment Successful").toString(),
-        message:
-            "${data.currencyCode} ${data.amount} sent to $recipientNameForUI.",
+        // amountLabel drops the debit sign so the sentence reads
+        // "GHS 100.00 sent to Ama" rather than "-GHS 100.00 sent to Ama".
+        message: "$amountLabel sent to $recipientNameForUI.",
         details: [
           TransactionResultDetail("Recipient", recipientNameForUI),
-          TransactionResultDetail("Amount", "$currencyCode $amount"),
-          TransactionResultDetail(
-            "Reference",
-            data.TXN_Ref.isNotEmpty ? data.TXN_Ref : txnRef,
-          ),
+          TransactionResultDetail("Amount", amountLabel),
+          TransactionResultDetail("Status", statusLabel),
+          TransactionResultDetail("Type", typeLabel),
+          TransactionResultDetail("Reference", referenceLabel),
         ],
       );
     } catch (e) {

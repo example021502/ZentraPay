@@ -3,6 +3,7 @@ package com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.s
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.PaymentChannel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.PaymentChannelRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.AfriqLinkVerifyResponseDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.PaymentChannelDTO;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.payments.dtos.ResolveAccountResponseDTO;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +23,7 @@ import java.util.List;
 public class PaymentChannelsService {
 
     private final PaymentChannelRepository paymentChannelRepository;
-    private final PaystackServices paystackServices;
-    private final FlutterwaveClient flutterwaveClient;
+    private final AfriqLinkClient afriqLinkClient;
 
     public List<PaymentChannelDTO> listChannels(String countryCode, String type) {
         List<PaymentChannel> channels = (type == null || type.isBlank())
@@ -37,26 +37,24 @@ public class PaymentChannelsService {
     }
 
     /**
-     * Resolves an account number against whichever gateway owns the chosen
-     * channel — Paystack's {@code bank_code} or Flutterwave's
-     * {@code account_bank} is the channel's own {@code channelCode}.
+     * Resolves an account number against <b>AfriqLink</b> — the project's
+     * single open-banking provider. Account lookup is a bank-data service, so
+     * the settlement gateways (Paystack / Flutterwave) are deliberately NOT
+     * called here even though the channel catalog still records which gateway
+     * owns each payout channel. The channel's own {@code channelCode} doubles
+     * as the provider's bank code.
      */
     public ResolveAccountResponseDTO resolveAccount(String channelCode, String accountNumber) {
-        PaymentChannel channel = paymentChannelRepository.findById(channelCode)
+        paymentChannelRepository.findById(channelCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Unknown payment channel: " + channelCode));
 
-        if ("FLUTTERWAVE".equalsIgnoreCase(channel.getGateway())) {
-            var response = flutterwaveClient.resolveAccount(accountNumber, channelCode);
-            if (response == null || response.data() == null || !"success".equalsIgnoreCase(response.status())) {
-                throw new PaymentGatewayException("Could not verify that account number, please check and try again");
-            }
-            return new ResolveAccountResponseDTO(response.data().account_name(), response.data().account_number());
-        }
-
-        var response = paystackServices.resolveAccount(accountNumber, channelCode);
-        if (response == null || response.data() == null || !response.status()) {
+        AfriqLinkVerifyResponseDTO response = afriqLinkClient.verifyAccount(accountNumber, channelCode);
+        if (response.data() == null
+                || response.data().accountName() == null
+                || response.data().accountName().isBlank()) {
             throw new PaymentGatewayException("Could not verify that account number, please check and try again");
         }
-        return new ResolveAccountResponseDTO(response.data().accountName(), response.data().accountNumber());
+        return new ResolveAccountResponseDTO(
+                response.data().accountName(), response.data().accountNumber());
     }
 }

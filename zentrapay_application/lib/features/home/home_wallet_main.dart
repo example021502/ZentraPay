@@ -7,11 +7,6 @@ import 'home_quick_actions.dart';
 import 'home_services_grid.dart';
 import 'home_transactions.dart';
 
-// Comment: matches the transactions API's sign convention — a type_code
-// ending in _CREDIT (wallet-to-wallet transfers — see PaymentsService) is
-// also a credit, on top of the older fixed list below.
-bool _isCreditType(String amount) => amount.startsWith('+');
-
 class HomeWalletMain extends StatefulWidget {
   const HomeWalletMain({super.key});
 
@@ -55,16 +50,15 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
       width: width,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(15.0),
         child: Column(
           children: [
-            const SizedBox(height: AppTheme.spacingMd),
             // QUICK ACTIONS HERE
             const HomeQuickActions(),
-            SizedBox(height: AppTheme.spacingXl),
+            SizedBox(height: AppTheme.spacingMd),
             // ALL USER CARDS HERE
             // ListenableBuilder(
             //   listenable: UserCardsRepository.instance,
@@ -84,6 +78,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                         'providerName': p.providerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
+                        'countryCode': p.countryCode,
                       },
                     )
                     .toList(),
@@ -93,6 +88,8 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                         'billerName': p.billerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
+                        // Drives the flag fallback when the biller has no logo.
+                        'countryCode': p.countryCode ?? '',
                       },
                     )
                     .toList(),
@@ -108,11 +105,17 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                       (t) => {
                         'title': t.receiverName,
                         'time': t.completedAt,
+                        // Signed amount straight from the backend — the "+"/"-"
+                        // sign drives the icon and amount color downstream
+                        // (TransactionListItem, AmountText).
                         'amount': t.amount,
-                        'icon': _isCreditType(t.amount)
+                        'icon': t.isCredit
                             ? Icons.call_received_rounded
                             : Icons.call_made_rounded,
                         'type': t.transactionType,
+                        // Full record so the details sheet can offer
+                        // "Send Again" and show the real status/reference.
+                        'transaction': t,
                       },
                     )
                     .toList(),

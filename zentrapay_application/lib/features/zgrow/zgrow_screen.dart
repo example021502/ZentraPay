@@ -24,18 +24,51 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
   @override
   void initState() {
     super.initState();
-    ChallengesRepository.instance.ensureLoaded();
-    UserChallengesRepository.instance.ensureLoaded();
-    TutorialsRepository.instance.ensureLoaded();
-    RewardsRepository.instance.ensureLoaded();
-    BankAccountsRepository.instance.ensureLoaded();
-    BankingInsightsRepository.instance.ensureLoaded();
+    _loadRepositories();
+  }
+
+  /// Kicks off the first load of every repository this tab renders. Each
+  /// `ensureLoaded()` rethrows on failure, so the futures are aggregated here
+  /// and logged — an unreachable backend must not surface as unhandled
+  /// asynchronous exceptions the moment the tab opens. The per-section
+  /// ListenableBuilders already own the loading/error UI.
+  Future<void> _loadRepositories() async {
+    try {
+      await Future.wait([
+        ChallengesRepository.instance.ensureLoaded(),
+        UserChallengesRepository.instance.ensureLoaded(),
+        TutorialsRepository.instance.ensureLoaded(),
+        RewardsRepository.instance.ensureLoaded(),
+        BankAccountsRepository.instance.ensureLoaded(),
+        BankingInsightsRepository.instance.ensureLoaded(),
+      ]);
+    } catch (e) {
+      debugPrint('ZGrow initial load failed: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isTablet = MediaQuery.of(context).size.width > 470;
     final double maxWidth = isTablet ? 400 : MediaQuery.of(context).size.width;
+    final challenges = ChallengesRepository.instance.data;
+    final userChallenges = UserChallengesRepository.instance.data;
+    final tutorials = TutorialsRepository.instance.data;
+    final rewards = RewardsRepository.instance.data;
+    final bankAccounts = BankAccountsRepository.instance.data;
+    final bankingInsights = BankingInsightsRepository.instance.data;
+
+    print(
+      "=========== DISPLAYING THE DATA IN THE ZGROW REPOSITORY ============",
+    );
+    print("=========== CHALLENGES: $challenges ============");
+    print("=========== USER CHALLENGES: $userChallenges ============");
+    print("=========== TUTORIALS: $tutorials ============");
+    print("=========== REWARDS: $rewards ============");
+    print("=========== BANK ACCOUNTS: $bankAccounts ============");
+    print("=========== BANKING INSIGHTS: $bankingInsights ============");
+    print("=========== ENDING ============");
+
     return SizedBox(
       width: maxWidth,
       child: SingleChildScrollView(
@@ -55,21 +88,19 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppTheme.spacingSm),
                     QuickActionsRow(),
-                    SizedBox(height: AppTheme.spacingXl),
-                    ChallengesSection(),
-                    SizedBox(height: AppTheme.spacingMd),
-                    Text("Financial Tools", style: AppTheme.bodyMedium),
-                    SizedBox(height: AppTheme.spacingMd),
-                    FinancialToolsSection(),
-                    SizedBox(height: AppTheme.spacingMd),
-                    if (!RewardsRepository.instance.isLoading ||
-                        !TutorialsRepository.instance.isLoading)
-                      RewardsSection(),
-                    SizedBox(height: AppTheme.spacingMd),
-                    LearnEarnSection(),
-                    SizedBox(height: 100),
+                    const SizedBox(height: AppTheme.spacingXl),
+                    const ChallengesSection(),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    const Text("Financial Tools", style: AppTheme.bodyMedium),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    const FinancialToolsSection(),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    const RewardsSection(),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    const LearnEarnSection(),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),

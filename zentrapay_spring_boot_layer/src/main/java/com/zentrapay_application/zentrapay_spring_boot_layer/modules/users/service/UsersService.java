@@ -123,7 +123,7 @@ public class UsersService {
         }
 
         // Generate the authentication token and return the response DTO
-        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
         return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
     }
 
@@ -145,6 +145,7 @@ public class UsersService {
     // ========================================================================
     @Transactional
     public usersAuthResponse login(@Valid LoginRequestDTO req, HttpServletRequest httpRequest) {
+      log.info("==================== ATTEMPTING TO LOG IN ==================");
         UserModel user = null;
         try {
             user = userRepository.findByEmailOrPhoneNumber(req.email(), req.phoneNumber())
@@ -152,14 +153,18 @@ public class UsersService {
 
             if (!passwordEncoder.matches(req.password() + passwordPepper, user.getPasswordHash())) {
                 recordLogin(user.getUserId(), httpRequest, false);
+                log.info("==================== LOG IN FAILED - INVALID CREDENTIALS ==================");
                 throw new RuntimeException("Invalid credentials");
             }
-
+            log.info("==================== SAVING THE LOGIN INFORMATION TO DATABASE ==================");
             recordLogin(user.getUserId(), httpRequest, true);
 
-            String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+            log.info("==================== GENERATING THE TOKEN ==================");
+            String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
+            log.info("==================== SENDING TOKEN AND RESPONSE ==================");
             return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
         } catch (RuntimeException e) {
+            log.info("==================== LOGIN ABORTED ==================");
             if (user == null) {
                 log.warn("[USERS] Login attempt failed for unknown identifier email={}, phone={}", req.email(), req.phoneNumber());
             }
@@ -185,6 +190,48 @@ public class UsersService {
             return forwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+//    ========================================================================
+//    GET /api/users/qr_me — identity bundle rendered into receive QR codes
+//    ========================================================================
+
+    /**
+     * Everything the receive-QR payload needs: the caller's profile identity
+     * plus the zentag of their default fiat account. The zentag cannot come
+     * from the JWT ({@code JwtService#generateToken} never packs a zentag
+     * claim, so {@code AuthenticatedUser#getZentag()} is always {@code null}).
+     *
+     * @param userId the JWT-authenticated caller
+     * @return the QR bundle; {@code zentag} degrades to an empty string only
+     * when the user has no wallet/default account yet (e.g. mid-registration)
+     */
+    @Transactional(readOnly = true)
+    public UserQRInfo getQRInfo(UUID userId) {
+        UserModel user = userRepository.getUserByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return new UserQRInfo(
+                user.getUserId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getPhoneNumber(),
+                user.getCountryCode(),
+                resolveDefaultZentag(userId),
+                user.getUserType());
+    }
+
+    /**
+     * Resolves the zentag minted on the wallet's default currency account
+     * (same shape as registration/account creation:
+     * {@code phoneNumber + "_" + currencyCode + "@zentrapay"}).
+     */
+    private String resolveDefaultZentag(UUID userId) {
+        return fiatWalletRepository.getWalletIdByUserId(userId)
+                .flatMap(walletId -> fiatAccountRepository.getDefaultAccountByWalletId(walletId))
+                .map(FiatAccountModel::getZentag)
+                .orElse("");
     }
 
 //    GETTING USER INFROMATION

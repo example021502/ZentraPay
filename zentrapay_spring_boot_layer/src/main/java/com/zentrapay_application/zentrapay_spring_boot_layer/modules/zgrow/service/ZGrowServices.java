@@ -5,6 +5,8 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.Challe
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.ChallengesTargetModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.DeclinedChallengesModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserChallengesModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserGamificationSettingsModel;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.model.UserSavingsModel;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.ChallengesProgressRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.ChallengesRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.ChallengesTargetRepository;
@@ -12,10 +14,15 @@ import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.D
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.RewardsRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.TutorialsRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserChallengesRepository;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserGamificationSettingsRepository;
+import com.zentrapay_application.zentrapay_spring_boot_layer.domain.repository.UserSavingsRepository;
 import com.zentrapay_application.zentrapay_spring_boot_layer.domain.utils.Datatypes;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.common.ResourceNotFoundException;
+import com.zentrapay_application.zentrapay_spring_boot_layer.modules.users.service.UsersService;
 import com.zentrapay_application.zentrapay_spring_boot_layer.modules.zgrow.dto.*;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,6 +42,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class ZGrowServices {
+    private static final Logger log = LoggerFactory.getLogger(ZGrowServices.class);
 
     private final RewardsRepository rewardsRepository;
     private final TutorialsRepository tutorialsRepository;
@@ -42,10 +51,17 @@ public class ZGrowServices {
     private final ChallengesTargetRepository challengesTargetRepository;
     private final ChallengesProgressRepository challengesProgressRepository;
     private final DeclinedChallengesRepository declinedChallengesRepository;
+    private final UserGamificationSettingsRepository gamificationSettingsRepository;
+    private final UserSavingsRepository userSavingsRepository;
 
     @Transactional(readOnly = true)
     public List<RewardsDTO> listRewards() {
-        return rewardsRepository.findAll().stream().map(
+        log.info("======== RESOLVING THE REWARDS =========");
+        // Inactive rewards are supplier-side records only — the client
+        // catalog keeps active rows so it can never render a stale offer.
+        return rewardsRepository.findAll().stream()
+                .filter(r -> Boolean.TRUE.equals(r.getIsActive()))
+                .map(
                 r-> new RewardsDTO(
                         r.getRewardId(),
                         r.getRewardType(),
@@ -61,6 +77,8 @@ public class ZGrowServices {
     }
     @Transactional(readOnly = true)
     public List<TutorialsDTO> listTutorials() {
+        log.info("======== RESOLVING THE TUTORIALS =========");
+
         return tutorialsRepository.findAll().stream().map(
                 r-> new TutorialsDTO(
                         r.getId(),
@@ -89,6 +107,8 @@ public class ZGrowServices {
      */
     @Transactional(readOnly = true)
     public List<ChallengesResponseDTO> listActiveChallenges() {
+        log.info("======== RESOLVING THE ACTIVE CHALLENGES =========");
+
         return challengesRepository.findByIsActiveTrue().stream()
                 .map(this::toChallengeWithTargets)
                 .toList();
@@ -104,6 +124,8 @@ public class ZGrowServices {
 
     @Transactional(readOnly = true)
     public ChallengesResponseDTO getChallenge(UUID challengeId) {
+        log.info("======== RESOLVING THE CHALLENGES =========");
+
         ChallengesModel challenge = challengesRepository.findById(challengeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Challenge not found"));
         return toChallengeWithTargets(challenge);
@@ -112,6 +134,8 @@ public class ZGrowServices {
     /** Challenge ids this user has declined — used to filter the catalog. */
     @Transactional(readOnly = true)
     public List<UUID> listDeclinedChallengeIds(UUID userId) {
+        log.info("======== RESOLVING THE DECLINED CHALLENGES =========");
+
         return declinedChallengesRepository.findByUserId(userId).stream()
                 .map(DeclinedChallengesModel::getChallengeId)
                 .toList();
@@ -129,6 +153,8 @@ public class ZGrowServices {
      */
     @Transactional
     public UserChallengesResponseDTO enroll(UUID userId, UUID challengeId) {
+        log.info("======== ENROLLING USER TO THE CHALLENGE =========");
+
         ChallengesModel challenge = challengesRepository.findById(challengeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Challenge not found"));
 
@@ -187,13 +213,64 @@ public class ZGrowServices {
     }
 
     /**
+     * Persisted ZGrow toggle for one user. No row yet means the customer has
+     * never opened the toggle — the client treats that as switched off.
+     */
+    @Transactional(readOnly = true)
+    public GamificationSettingsDTO getGamificationSettings(UUID userId) {
+        boolean enabled = gamificationSettingsRepository.findById(userId)
+                .map(s -> Boolean.TRUE.equals(s.getChallengesEnabled()))
+                .orElse(false);
+        return new GamificationSettingsDTO(enabled);
+    }
+
+    /**
+     * Records a toggle change (the gamified switch on ZGrow). Creates the
+     * settings row on first use and echoes the stored state — the client
+     * renders exactly what comes back.
+     */
+    @Transactional
+    public GamificationSettingsDTO updateGamificationSettings(UUID userId, Boolean challengesEnabled) {
+        UserGamificationSettingsModel settings = gamificationSettingsRepository
+                .findById(userId)
+                .orElseGet(() -> UserGamificationSettingsModel.builder()
+                        .userId(userId)
+                        .challengesEnabled(false)
+                        .build());
+        settings.setChallengesEnabled(Boolean.TRUE.equals(challengesEnabled));
+        UserGamificationSettingsModel saved = gamificationSettingsRepository.save(settings);
+        return new GamificationSettingsDTO(Boolean.TRUE.equals(saved.getChallengesEnabled()));
+    }
+
+    /**
+     * Per-currency savings buckets. The ZGrow hero card's overall-savings
+     * figure is the {@code totalAmount} of the bucket in the user's wallet
+     * currency — computed here so the client never sums money itself.
+     */
+    @Transactional(readOnly = true)
+    public List<SavingsSummaryDTO> getSavingsSummary(UUID userId) {
+        return userSavingsRepository.sumTotalsByCurrency(userId).stream()
+                .map(p -> new SavingsSummaryDTO(
+                        p.getCurrencyCode(),
+                        p.getTotal() == null ? java.math.BigDecimal.ZERO : p.getTotal(),
+                        p.getEntryCount() == null ? 0L : p.getEntryCount(),
+                        p.getLastSavedAt()))
+                .toList();
+    }
+
+    /**
      * Record a contribution against an enrollment. The running total is
      * recomputed as currentAmount + contribution, written to the progress
      * ledger, and the enrollment flips to COMPLETED once the target is reached.
+     * <p>
+     * Every contribution is also mirrored into the user's savings ledger
+     * (source CHALLENGE) so the "Overall Savings" hero reflects real
+     * challenge progress. {@code countryCode} is the caller's JWT country —
+     * used to stamp the contribution with the right corridor currency.
      */
     @Transactional
-    public UserChallengesResponseDTO logProgress(UUID userId, UUID userChallengeId, BigDecimal amount,
-                                                 UUID transactionReference, String notes) {
+    public UserChallengesResponseDTO logProgress(UUID userId, String countryCode, UUID userChallengeId,
+                                                 BigDecimal amount, UUID transactionReference, String notes) {
         UserChallengesModel enrollment = requireOwnedEnrollment(userId, userChallengeId);
 
         if (enrollment.getStatus() != Datatypes.ChallengeStatus.IN_PROGRESS) {
@@ -216,6 +293,18 @@ public class ZGrowServices {
                 .build();
         challengesProgressRepository.save(entry);
 
+        // Mirror into savings: money the user has demonstrably put aside.
+        String title = enrollment.getChallenge() != null
+                ? enrollment.getChallenge().getTitle() : "challenge";
+        userSavingsRepository.save(UserSavingsModel.builder()
+                .userId(userId)
+                .currencyCode(currencyForCountry(countryCode))
+                .amount(amount)
+                .source(Datatypes.SavingsSource.CHALLENGE)
+                .referenceId(enrollment.getId())
+                .note("Challenge progress: " + title)
+                .build());
+
         enrollment.setCurrentAmount(newTotal);
         if (newTotal.compareTo(enrollment.getTargetAmount()) >= 0) {
             enrollment.setStatus(Datatypes.ChallengeStatus.COMPLETED);
@@ -224,6 +313,24 @@ public class ZGrowServices {
 
         return toUserChallengeWithLogs(userChallengesRepository.save(enrollment));
     }
+
+    /**
+     * Corridor currency for a JWT country code. The seeded corridors are
+     * covered explicitly; anything unknown lands on GHS rather than dropping
+     * the savings row.
+     */
+    private static String currencyForCountry(String countryCode) {
+        if (countryCode == null || countryCode.isBlank()) return "GHS";
+        return COUNTRY_CURRENCIES.getOrDefault(countryCode.trim().toUpperCase(), "GHS");
+    }
+
+    private static final Map<String, String> COUNTRY_CURRENCIES = Map.of(
+            "GH", "GHS",
+            "NG", "NGN",
+            "KE", "KES",
+            "ZA", "ZAR",
+            "US", "USD",
+            "GB", "GBP");
 
     /**
      * Decline a challenge: drop any enrollment and record the opt-out, so the

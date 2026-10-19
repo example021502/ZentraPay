@@ -24,9 +24,13 @@ public class BillProvidersController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<BillProviderDTO>>> listProviders(
+            @CurrentUser AuthenticatedUser user,
             @RequestParam(required = false) String countryCode) {
+        // The JWT's country (via @CurrentUser) scopes the directory — the
+        // client never has to send its country for the provider list to be
+        // corridor-correct. See BillProvidersService#listProviders.
         return ResponseEntity.ok(ApiResponse.success(
-                billProvidersService.listProviders(countryCode), "Bill providers retrieved"));
+                billProvidersService.listProviders(user, countryCode), "Bill providers retrieved"));
     }
 //
 //    @PostMapping("/validate")

@@ -1,0 +1,72 @@
+Analyzing zentrapay_application...                              
+
+   info - The variable name 'TXN_Ref' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\core\models\transaction.dart:4:16 - non_constant_identifier_names
+   info - The variable name 'KYCStatus' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\core\models\user.dart:76:10 - non_constant_identifier_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\core\models\zgrow.dart:278:5 - avoid_print
+warning - The value of the local variable 'isTablet' isn't used. Try removing the variable or using it - lib\core\theme\common_widgets.dart:101:11 - unused_local_variable
+   info - The file name 'AppConfirmSheet.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\AppConfirmSheet.dart:1:1 - file_names
+   info - The file name 'AppSetPinSheet.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\AppSetPinSheet.dart:1:1 - file_names
+   info - The file name 'EnterAmount.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\EnterAmount.dart:1:1 - file_names
+   info - The variable name 'currency_code' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\core\utils\Common\EnterAmount.dart:37:15 - non_constant_identifier_names
+   info - The variable name 'country_flag' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\core\utils\Common\EnterAmount.dart:38:15 - non_constant_identifier_names
+   info - The file name 'FormatDateTimeString.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\FormatDateTimeString.dart:1:1 - file_names
+   info - The file name 'GenerateTransactionId.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\GenerateTransactionId.dart:1:1 - file_names
+   info - The file name 'ProviderDisplay.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\ProviderDisplay.dart:1:1 - file_names
+   info - The file name 'TransactionResultOverlay.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Common\TransactionResultOverlay.dart:1:1 - file_names
+   info - The variable name 'Authentication' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\core\utils\Common\api_authentication.dart:8:27 - non_constant_identifier_names
+   info - The file name 'LoadingOverlay.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\LoadingOverlay.dart:1:1 - file_names
+   info - The file name 'Notifier.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\core\utils\Notifier.dart:1:1 - file_names
+   info - The file name 'cache_settingsData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\Settings\repository\cache_settingsData.dart:1:1 - file_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\login_form.dart:93:7 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\login_form.dart:96:9 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\login_form.dart:102:7 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\register_screen.dart:101:7 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\register_screen.dart:114:7 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\auth\register_screen.dart:302:37 - avoid_print
+   info - The file name 'makePayment.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\HomePayments\widgets\makePayment.dart:1:1 - file_names
+   info - The file name 'NewWallet.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\NewWallet.dart:1:1 - file_names
+   info - The file name 'closeConfirmation.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\closeConfirmation.dart:1:1 - file_names
+warning - The value of the local variable 'form' isn't used. Try removing the variable or using it - lib\features\home\external_payment_screen.dart:151:11 - unused_local_variable
+   info - The file name 'generateQRCode.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\generateQRCode.dart:1:1 - file_names
+   info - The file name 'getCurrencyISOCodeHelper.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\getCurrencyISOCodeHelper.dart:1:1 - file_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\home\home_header.dart:92:7 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\home\home_header.dart:224:25 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\home\home_header.dart:236:25 - avoid_print
+   info - The variable name 'currency_code' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\features\home\home_header.dart:371:21 - non_constant_identifier_names
+   info - The variable name 'country_iso_code' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\features\home\home_header.dart:372:21 - non_constant_identifier_names
+   info - The file name 'cache_homeData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\repository\cache_homeData.dart:1:1 - file_names
+   info - The file name 'LinkedCards.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\widgets\LinkedCards.dart:1:1 - file_names
+warning - The value of the local variable 'currency' isn't used. Try removing the variable or using it - lib\features\home\widgets\LinkedCards.dart:85:11 - unused_local_variable
+   info - The file name 'NewCardOverlay.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\home\widgets\NewCardOverlay.dart:1:1 - file_names
+warning - The value of the field '_isLoading' isn't used. Try removing the field, or using it - lib\features\home\zentrapay_splash_screen_main.dart:32:8 - unused_field
+   info - The file name 'Op_Button.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\payments\Op_Button.dart:1:1 - file_names
+   info - The type name 'Op_Button' isn't an UpperCamelCase identifier. Try changing the name to follow the UpperCamelCase style - lib\features\payments\Op_Button.dart:5:7 - camel_case_types
+   info - The file name 'SendingForm.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\payments\SendingForm.dart:1:1 - file_names
+   info - The variable name '_wallet_form' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\features\payments\SendingForm.dart:350:10 - non_constant_identifier_names
+   info - The variable name '_bank_form' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style - lib\features\payments\SendingForm.dart:382:10 - non_constant_identifier_names
+   info - The file name 'ZRemitForm.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\payments\ZRemitForm.dart:1:1 - file_names
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\payments\converter_screen.dart:483:15 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\payments\converter_screen.dart:484:15 - deprecated_member_use
+warning - The value of the local variable 'pin' isn't used. Try removing the variable or using it - lib\features\payments\instant_transfer_screen.dart:274:11 - unused_local_variable
+   info - The file name 'cache_paymentsData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\payments\repository\cache_paymentsData.dart:1:1 - file_names
+   info - The file name 'cache_profileData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\profile\repository\cache_profileData.dart:1:1 - file_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\profile\repository\cache_profileData.dart:77:7 - avoid_print
+   info - The file name 'cache_zbankingData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zbanking\repository\cache_zbankingData.dart:1:1 - file_names
+   info - The file name 'LinkedBankAccounts.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zbanking\widgets\LinkedBankAccounts.dart:1:1 - file_names
+warning - The value of the local variable 'target' isn't used. Try removing the variable or using it - lib\features\zbanking\zbanking_screen.dart:744:31 - unused_local_variable
+warning - The declaration '_showBudgetLimitDialog' isn't referenced. Try removing the declaration of '_showBudgetLimitDialog' - lib\features\zbanking\zbanking_screen.dart:875:16 - unused_element
+   info - The file name 'cache_zgrowData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zgrow\repository\cache_zgrowData.dart:1:1 - file_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:61:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:64:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:65:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:66:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:67:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:68:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:69:5 - avoid_print
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\features\zgrow\zgrow_screen.dart:70:5 - avoid_print
+   info - The file name 'cache_zinvestData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zinvest\repository\cache_zinvestData.dart:1:1 - file_names
+   info - The file name 'cache_zremitData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zremit\repository\cache_zremitData.dart:1:1 - file_names
+   info - The file name 'cache_zvoiceData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zvoice\repository\cache_zvoiceData.dart:1:1 - file_names
+   info - Don't invoke 'print' in production code. Try using a logging framework - lib\main.dart:72:5 - avoid_print
+
+68 issues found. (ran in 31.0s)

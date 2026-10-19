@@ -3,11 +3,20 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
 /// Pink hero card: headline, total savings (real, listens to
-/// SavingsRepository), and the "Save Now" entry into MilestonesScreen.
-class ZGrowHeroCard extends StatelessWidget {
+/// SavingsRepository), and a visibility toggle that swaps the amount for a
+/// `___.__` placeholder.
+class ZGrowHeroCard extends StatefulWidget {
   const ZGrowHeroCard({super.key});
 
+  @override
+  State<ZGrowHeroCard> createState() => _ZGrowHeroCardState();
+}
+
+class _ZGrowHeroCardState extends State<ZGrowHeroCard> {
   final savings = 0.00;
+
+  /// When false the amount row shows the placeholder instead of the figure.
+  bool _amountVisible = true;
 
   @override
   Widget build(BuildContext context) {
@@ -32,12 +41,21 @@ class ZGrowHeroCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "GHS $savings",
+                _amountVisible ? "GHS $savings" : "___.__",
                 style: AppTheme.headlineLarge.copyWith(
                   color: AppColors.primary,
                 ),
               ),
-              Icon(Icons.visibility_off, size: 22, color: AppColors.primary),
+              IconButton(
+                onPressed: () =>
+                    setState(() => _amountVisible = !_amountVisible),
+                icon: Icon(
+                  _amountVisible ? Icons.visibility_off : Icons.visibility,
+                  size: 22,
+                  color: AppColors.primary,
+                ),
+                tooltip: _amountVisible ? "Hide amount" : "Show amount",
+              ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingMd),
