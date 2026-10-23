@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
+import 'package:zentrapay_application/features/home/generateQRCode.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Notifier.dart';
-
-import '../../main.dart';
 
 /// The Home "Receive" quick action: renders pretty QR codes for fiat currency accounts.
 /// Integrates user details (Name, Email, Phone) from [UserQRRepository] and wallet info
@@ -39,9 +37,11 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
   @override
   void initState() {
     super.initState();
-    // Comment: Trigger data loading for both repositories on init
-    WalletsRepository.instance.ensureLoaded();
-    UserQRRepository.instance.loadQRUserInfo();
+    // Comment: Trigger data loading for both repositories on init.
+    // Fire-and-forget futures surface unhandled-async crashes when offline,
+    // so swallow errors here — _buildBody already renders error + retry UI.
+    WalletsRepository.instance.ensureLoaded().catchError((_) => null);
+    UserQRRepository.instance.loadQRUserInfo().catchError((_) => null);
   }
 
   /// Builds a comprehensive URI payload including account & user identity info.
@@ -50,14 +50,19 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
   /// `userType` fill the backend's `AppUserDetails`, `userId` identifies the
   /// receiver for re-searches/records, and `currency`/`accountId` tell the
   /// sender which account (and therefore currency) the receiver expects.
+  ///
+  /// Null-safe: userData can be null while the profile is still loading (or
+  /// when the request failed). The QR view guards empty data, so never force
+  /// unwrap here — a crash in _qrPayload used to take down the whole sheet.
   String _qrPayload(FiatAccount account, UserQRRepository userRepo) {
-    final userName =
-        "${userRepo.userData!.firstName} ${userRepo.userData!.lastName}";
-    final email = userRepo.userData!.email;
-    final phoneNumber = userRepo.userData!.phoneNumber;
-    final userType = userRepo.userData!.userType;
-    final countryCode = userRepo.userData!.countryCode;
-    final userId = userRepo.userData!.userId;
+    final info = userRepo.userData;
+    if (info == null) return '';
+    final userName = "${info.firstName} ${info.lastName}".trim();
+    final email = info.email;
+    final phoneNumber = info.phoneNumber;
+    final userType = info.userType;
+    final countryCode = info.countryCode;
+    final userId = info.userId;
 
     return 'zentrapay://pay?'
         'zentag=${Uri.encodeComponent(account.zentag)}'
@@ -72,13 +77,23 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
   }
 
   void _copy(String value, String label) {
+    if (value.trim().isEmpty) {
+      ZentraNotifier.warning(
+        "Nothing to copy",
+        "Receiver details are still loading — please try again.",
+      );
+      return;
+    }
     Clipboard.setData(ClipboardData(text: value));
     ZentraNotifier.success("Copied", "$label copied to clipboard.");
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isTablet = MediaQuery.of(context).size.width < 600;
+    // AppTheme.isTablet is width >= 600; keep the name honest so the maxWidth
+    // branch below reads correctly (the old inverted check applied the 600px
+    // cap to phones and full-bleed width to tablets).
+    final bool isTablet = AppTheme.isTablet(context);
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -124,7 +139,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
         if ((repo.isLoading && !repo.isLoaded) ||
             (userRepo.isUserLoading && !userRepo.isUserLoaded)) {
           return const Center(
-            child: CircularProgressIndicator(color: AppColors.main),
+            child: CircularProgressIndicator(color: AppTheme.primaryPink),
           );
         }
 
@@ -136,8 +151,8 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
             message: "Could not load your accounts.",
             actionLabel: "Retry",
             onAction: () {
-              repo.ensureLoaded();
-              userRepo.loadQRUserInfo();
+              repo.ensureLoaded().catchError((_) => null);
+              userRepo.loadQRUserInfo().catchError((_) => null);
             },
           );
         }
@@ -180,9 +195,15 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
 
   /// Displays user profile details fetched from UserQRRepository
   Widget _buildUserSummaryHeader(UserQRRepository userRepo) {
-    final String userName =
-        "${userRepo.userData!.firstName} ${userRepo.userData!.lastName}";
-    final String email = userRepo.userData!.email;
+    // userData is null on first build (loadQRUserInfo is async) — never force
+    // unwrap; a single `!` here used to crash the whole sheet before the
+    // loading branch above could resolve.
+    final info = userRepo.userData;
+    final String userName = info == null
+        ? "…"
+        : "${info.firstName} ${info.lastName}".trim();
+    final String displayName = userName.isEmpty ? "Your account" : userName;
+    final String email = info?.email ?? '';
 
     return SizedBox(
       child: Row(
@@ -199,14 +220,15 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
           ),
           const SizedBox(width: AppTheme.spacingMd),
           Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                userName,
+                displayName,
                 style: AppTheme.titleLarge.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              if (email.isNotEmpty == true)
+              if (email.isNotEmpty)
                 Text(
                   email,
                   style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
@@ -248,9 +270,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.textBlack.withValues(
-                                alpha: 0.12,
-                              ),
+                              color: AppTheme.textBlack.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(
                                 AppTheme.radiusFull,
                               ),
@@ -260,7 +280,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.green,
+                                color: AppTheme.successGreen,
                               ),
                             ),
                           ),
@@ -303,10 +323,10 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
           if (showQr) ...[
             const SizedBox(height: AppTheme.spacingLg),
 
-            // Comment: Pretty QR code container using smooth modules
+            // Comment: Pretty QR code container reuses the shared PrettyQrWidget
+            // so the logo asset, H error correction and empty-data guard live
+            // in exactly one place (generateQRCode.dart).
             Container(
-              width: 200,
-              height: 200,
               padding: const EdgeInsets.all(AppTheme.spacingMd),
               decoration: BoxDecoration(
                 color: AppTheme.primaryWhite,
@@ -316,17 +336,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                 ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
-              child: PrettyQrView.data(
-                data: _qrPayload(account, userRepo),
-                errorCorrectLevel: QrErrorCorrectLevel.H,
-                decoration: const PrettyQrDecoration(
-                  background: Colors.white,
-                  shape: PrettyQrSmoothSymbol(
-                    color: AppColors.textBlack,
-                    roundFactor: 1.0,
-                  ),
-                ),
-              ),
+              child: PrettyQrWidget(qrData: _qrPayload(account, userRepo)),
             ),
             const SizedBox(height: AppTheme.spacingSm),
             Row(

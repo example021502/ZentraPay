@@ -1,0 +1,59 @@
+package com.zentrapay.backend.repository;
+
+import com.zentrapay.backend.entity.FiatAccountModel;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface FiatAccountRepository extends JpaRepository<FiatAccountModel, UUID> {
+    List<FiatAccountModel> findByWalletId(@Param("walletId") UUID walletId);
+
+    @Query("SELECT a.walletId FROM FiatAccountModel a WHERE a.zentag = :zentag")
+    Optional<UUID> getWalletIdByZentag(@Param("zentag") String zentag);
+
+    //  Finds the wallet's account in one currency (balance checks, crediting, refunds)
+    Optional<FiatAccountModel> findByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
+
+    //  Finds an account by its zentag (the public payment address)
+    Optional<FiatAccountModel> findByZentag(@Param("zentag") String zentag);
+
+    //  CHECKING IF THE WALLET EXIST FOR WALLET CURRENCY ACCOUNT CREATION
+    boolean existsByWalletIdAndCurrencyCode(@Param("walletId") UUID walletId, @Param("currencyCode") String currencyCode);
+
+    //  GETTING THE WALLET'S DEFAULT ACCOUNT — source of the zentag returned by
+//  GET /api/users/qr_me for QR-code generation (every currency account mints
+//  its own zentag; the default account's tag is the user's canonical one).
+    @Query("SELECT a FROM FiatAccountModel a WHERE a.walletId = :walletId AND a.isDefault = true")
+    Optional<FiatAccountModel> getDefaultAccountByWalletId(@Param("walletId") UUID walletId);
+
+
+    //  GETTING USER FIAT ACCOUNT CURRENCIES FOR GETTING SUPPORTED CURRENCIES EXCLUDING THEM
+    @Query("SELECT a.currencyCode FROM FiatAccountModel a WHERE a.walletId = :walletId")
+    List<String> getAccountsCurrenciesByWalletId(@Param("walletId") UUID walletId);
+
+    //  GETTING USER FIAT ACCOUNT FOR QR CODE GENERATION
+    Optional<FiatAccountModel> getAccountByWalletId(@Param("walletId") UUID walletId);
+
+    //  GETTING USER FIAT ACCOUNT BALANCE
+    @Query("SELECT a.balance FROM FiatAccountModel a WHERE a.accountId = :accountId")
+    Optional<BigDecimal> getBalanceByAccountId(@Param("accountId") UUID accountId);
+
+    //  not decorative, or this would debit every currency this wallet holds.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE FiatAccountModel a SET a.balance = a.balance - :amount WHERE a.accountId = :accountId AND a.balance >= :amount")
+    int debit(@Param("accountId") UUID accountId, @Param("amount") BigDecimal amount);
+
+    //  CREDIT OPERATION FOR WALLET TO WALLET TRANSFER WITHIN THE SAME COUNTRY
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE FiatAccountModel a SET a.balance = a.balance + :amount WHERE a.accountId = :accountId")
+    int credit(@Param("accountId") UUID accountId, @Param("amount") BigDecimal amount);
+
+    //  GET ACCOUNT BY ID FOR QR CREATION
+    Optional<FiatAccountModel> getAccountByAccountId(@Param("accountId") UUID accountId);
+}

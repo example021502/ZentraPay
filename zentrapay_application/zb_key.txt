@@ -1,8 +1,0 @@
-Analyzing 2 items...                                            
-
-warning - The value of the local variable 'isTablet' isn't used. Try removing the variable or using it - lib\core\theme\common_widgets.dart:101:11 - unused_local_variable
-   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib\features\zbanking\widgets\link_bank_sheet.dart:191:7 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib\features\zbanking\widgets\link_bank_sheet.dart:193:7 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block. Try wrapping the statement in a block - lib\features\zbanking\widgets\link_bank_sheet.dart:195:7 - curly_braces_in_flow_control_structures
-
-4 issues found. (ran in 5.3s)

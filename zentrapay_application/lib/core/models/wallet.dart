@@ -172,16 +172,16 @@ class UserQRInfo {
 
   // CREATING AND LOCALLY SAVING THE USER INFORMATION
   factory UserQRInfo.fromJson(Map<String, dynamic> json) => UserQRInfo(
-    userId: json['userId'],
-    email: json['email'],
-    firstName: json['firstName'],
-    lastName: json['lastName'],
-    phoneNumber: json['phoneNumber'],
-    countryCode: json['countryCode'],
+    userId: json['userId']?.toString() ?? '',
+    email: json['email']?.toString() ?? '',
+    firstName: json['firstName']?.toString() ?? '',
+    lastName: json['lastName']?.toString() ?? '',
+    phoneNumber: json['phoneNumber']?.toString() ?? '',
+    countryCode: json['countryCode']?.toString() ?? '',
     // The backend resolves this from the default fiat account; tolerate its
     // absence so an older cached/error response can't break QR generation.
-    zentag: json['zentag'] ?? "",
-    userType: json['userType'],
+    zentag: json['zentag']?.toString() ?? "",
+    userType: json['userType']?.toString() ?? '',
   );
   // COPYING THE USER QR INFORMATION
   UserQRInfo copyWith({
@@ -194,13 +194,13 @@ class UserQRInfo {
     String? zentag,
     String? userType,
   }) => UserQRInfo(
-    userId: userId ?? "",
-    email: email ?? "",
-    firstName: firstName ?? "",
-    lastName: lastName ?? "",
-    phoneNumber: phoneNumber ?? "",
-    countryCode: countryCode ?? "",
-    zentag: zentag ?? "",
-    userType: userType ?? "",
+    userId: userId ?? this.userId,
+    email: email ?? this.email,
+    firstName: firstName ?? this.firstName,
+    lastName: lastName ?? this.lastName,
+    phoneNumber: phoneNumber ?? this.phoneNumber,
+    countryCode: countryCode ?? this.countryCode,
+    zentag: zentag ?? this.zentag,
+    userType: userType ?? this.userType,
   );
 }

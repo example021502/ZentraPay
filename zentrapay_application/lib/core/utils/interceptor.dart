@@ -44,7 +44,7 @@ class ApiClient {
           // Comment: Inject the JWT token into the headers if the user is authenticated
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
-          }+
+          }
 
           return handler.next(options);
         },

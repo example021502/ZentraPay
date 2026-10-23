@@ -6,6 +6,7 @@ import 'package:zentrapay_application/core/models/gateway_customer_result.dart';
 import 'package:zentrapay_application/core/models/paystack_new_customer_post.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
 
 /// Payments data caches: converter rates/history, the currency-conversion
@@ -325,6 +326,8 @@ class PaymentsService {
   /// Returns a normalised [GatewayCustomerResult] that records which gateway
   /// ultimately succeeded so the caller can surface it "for transparency"
   /// (see Failover Strategy §2 in the deployment guide).
+  ///
+  /// Throws a detailed [GatewayError] if both gateways fail.
   static Future<GatewayCustomerResult> createCustomerWithFailover({
     required String email,
     String? firstName,
@@ -350,15 +353,20 @@ class PaymentsService {
     );
 
     // --- Primary: Paystack ------------------------------------------------
+    GatewayCustomerResult? paystackResult;
     try {
       final response = await createPaystackCustomer(request: paystackRequest);
-      return GatewayCustomerResult(
+      paystackResult = GatewayCustomerResult(
         gateway: 'paystack',
         customerId: response.code,
         email: response.email,
         displayName: _joinName(response.firstName, response.lastName),
         phone: response.phone,
       );
+      // Save Paystack customer to secure storage immediately, even before
+      // returning success — allows recovery on the webhook callback.
+      await _saveCustomerToSecureStorage(paystackResult);
+      return paystackResult;
     } on DioException catch (e) {
       // Paystack failed — log and fall through to Flutterwave.
       debugPrint(
@@ -372,15 +380,45 @@ class PaymentsService {
     }
 
     // --- Failover: Flutterwave --------------------------------------------
-    final response = await createFlutterwaveCustomer(
-      request: flutterwaveRequest,
-    );
-    return GatewayCustomerResult(
-      gateway: 'flutterwave',
-      customerId: response.id ?? '',
-      email: response.email,
-      displayName: _joinName(response.firstName, response.lastName),
-      phone: response.phone,
+    GatewayCustomerResult? flutterwaveResult;
+    try {
+      final response = await createFlutterwaveCustomer(
+        request: flutterwaveRequest,
+      );
+      flutterwaveResult = GatewayCustomerResult(
+        gateway: 'flutterwave',
+        customerId: response.id ?? '',
+        email: response.email,
+        displayName: _joinName(response.firstName, response.lastName),
+        phone: response.phone,
+      );
+      // Save Flutterwave customer to secure storage immediately.
+      await _saveCustomerToSecureStorage(flutterwaveResult);
+      return flutterwaveResult;
+    } on DioException catch (e) {
+      debugPrint(
+        'Flutterwave customer creation failed (status '
+        '${e.response?.statusCode}): ${e.message}',
+      );
+    } catch (e) {
+      debugPrint('Flutterwave customer creation failed unexpectedly: $e');
+    }
+
+    // --- Both gateways failed ------------------------------------------------
+    final errors = [];
+    if (paystackResult == null) {
+      errors.add('Paystack: customer creation failed');
+    }
+    if (flutterwaveResult == null) {
+      errors.add('Flutterwave: customer creation failed');
+    }
+    throw GatewayError(
+      message: 'Both payment gateways failed. Errors: ${errors.join('; ')}',
+      gatewaysUsed: ['paystack', 'flutterwave'],
+      details: {
+        'paystackError': paystackResult == null ? 'failed' : null,
+        'flutterwaveError': flutterwaveResult == null ? 'failed' : null,
+      },
     );
   }
 
@@ -393,6 +431,69 @@ class PaymentsService {
     return '$f $l'.trim();
   }
 
+  /// Saves the gateway customer result to secure storage so the data is
+  /// available across sessions and for webhook callback processing.
+  static Future<void> _saveCustomerToSecureStorage(
+    GatewayCustomerResult result,
+  ) async {
+    try {
+      await SecureStorageService.saveCustomer(
+        gateway: result.gateway,
+        customerId: result.customerId,
+        email: result.email,
+        displayName: result.displayName ?? '',
+        phone: result.phone ?? '',
+        metadata: {
+          'userId': SecureStorageService.getUserId() ?? '',
+          'createdAt': DateTime.now().toIso8601String(),
+          // The customer payload is stored as plain JSON primitives — the
+          // storage layer encodes it, and model instances are not
+          // JSON-encodable.
+          'customerGateway': result.gateway,
+          'customerId': result.customerId,
+          'email': result.email,
+          'displayName': result.displayName ?? '',
+          'phone': result.phone ?? '',
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to save customer data to secure storage: $e');
+      // Don't throw - secure storage failure shouldn't block the main flow.
+    }
+  }
+
+  /// Retrieves the gateway customer result from secure storage.
+  static Future<GatewayCustomerResult?> getCustomerFromSecureStorage() async {
+    try {
+      final Map<String, String>? data = await SecureStorageService.getCustomer();
+      if (data == null) return null;
+
+      final String displayName = data['displayName'] ?? '';
+      final String phone = data['phone'] ?? '';
+      return GatewayCustomerResult(
+        gateway: data['gateway'] ?? '',
+        customerId: data['customerId'] ?? '',
+        email: data['email'] ?? '',
+        displayName: displayName.isEmpty ? null : displayName,
+        phone: phone.isEmpty ? null : phone,
+      );
+    } catch (e) {
+      debugPrint('Failed to read customer data from secure storage: $e');
+      return null;
+    }
+  }
+
+  /// Clears the saved customer data from secure storage.
+  static Future<void> clearCustomerFromSecureStorage() async {
+    try {
+      await SecureStorageService.clearCustomer();
+    } catch (e) {
+      debugPrint('Failed to clear customer data from secure storage: $e');
+    }
+  }
+
+  /// Parses a transaction payload, prepends it to the cached transaction
+  /// history and refreshes the wallet snapshot.
   static AppTransaction _applyTransactionResult(Map<String, dynamic> json) {
     final transaction = AppTransaction.fromJson(json);
     TransactionsRepository.instance.prepend(transaction);
@@ -402,4 +503,227 @@ class PaymentsService {
     WalletsRepository.instance.ensureLoaded();
     return transaction;
   }
+
+  // ============================================================================
+  // Webhook Callback Handlers — Payment Confirmation Flow
+  // ============================================================================
+
+  /// Handles webhook callbacks from payment gateways when a payment
+  /// transaction reaches a terminal state (success, failed, expired).
+  static Future<void> handlePaymentWebhook({
+    required String gateway,
+    required String transactionId,
+    required String status,
+    String? reference,
+    String? receiverId,
+    String? receiverName,
+    Map<String, dynamic>? metadata,
+  }) async {
+    // Validate required fields
+    if (transactionId.isEmpty) {
+      debugPrint('Webhook error: missing transactionId');
+      return;
+    }
+
+    // Normalize status
+    final normalizedStatus = status.trim().toUpperCase();
+
+    // Handle status-specific logic
+    switch (normalizedStatus) {
+      case 'SUCCESS':
+        debugPrint('Webhook: Transaction $transactionId marked as SUCCESS');
+        final refToUse = reference ?? transactionId;
+        final Map<String, dynamic> transactionData = {
+          'transactionId': transactionId,
+          'TXN_Ref': refToUse,
+          'receiverId': receiverId ?? '',
+          'destinationId': receiverId ?? '',
+          'amount': metadata?['amount']?.toString() ?? '',
+          'status': normalizedStatus,
+          'receiverName': receiverName ?? '',
+          'completedAt': metadata?['completedAt']?.toString() ?? DateTime.now().toIso8601String(),
+          'transactionType': metadata?['transactionType']?.toString() ?? 'EXTERNAL',
+        };
+        _applyTransactionResult(transactionData);
+        debugPrint('Webhook: Transaction $transactionId confirmed');
+        break;
+
+      case 'FAILED':
+      case 'EXPIRED':
+        debugPrint('Webhook: Transaction $transactionId marked as $normalizedStatus');
+        break;
+
+      case 'PENDING':
+        debugPrint('Webhook: Transaction $transactionId still PENDING');
+        break;
+
+      default:
+        debugPrint('Webhook: Unrecognized status "$status" for transaction $transactionId');
+    }
+  }
+
+  /// Processes a Paystack webhook callback.
+  static Future<void> handlePaystackWebhook(
+    Map<String, dynamic> payload,
+  ) async {
+    final String? eventType = payload['event_type']?.toString();
+    final Map<String, dynamic>? data = payload['data'];
+
+    debugPrint('Paystack webhook received: $eventType');
+
+    switch (eventType) {
+      case 'customer.created':
+        debugPrint('Paystack customer created: ${data?['id']}');
+        break;
+
+      case 'payment.created':
+      case 'payment.updated':
+        final String? transactionId = data?['id']?.toString();
+        final String? status = data?['status']?.toString();
+        if (transactionId != null && status != null) {
+          await handlePaymentWebhook(
+            gateway: 'paystack',
+            transactionId: transactionId,
+            status: status,
+            receiverId: data?['customer']?.toString(),
+            metadata: {
+              'amount': data?['amount']?.toString(),
+              'currency': data?['currency']?.toString(),
+              'reference': data?['reference']?.toString(),
+            },
+          );
+        }
+        break;
+
+      case 'transaction.created':
+      case 'transaction.updated':
+        final String? transactionId = data?['id']?.toString();
+        final String? status = data?['status']?.toString();
+        if (transactionId != null && status != null) {
+          await handlePaymentWebhook(
+            gateway: 'paystack',
+            transactionId: transactionId,
+            status: status,
+            reference: data?['reference']?.toString(),
+            receiverId: data?['customer']?.toString(),
+            metadata: {
+              'amount': data?['amount']?.toString(),
+              'currency': data?['currency']?.toString(),
+            },
+          );
+        }
+        break;
+
+      case 'charge.success':
+        debugPrint('Paystack charge success webhook received');
+        break;
+
+      case 'charge.failed':
+        final String? transactionId = data?['id']?.toString();
+        if (transactionId != null) {
+          await handlePaymentWebhook(
+            gateway: 'paystack',
+            transactionId: transactionId,
+            status: data?['status']?.toString() ?? 'FAILED',
+          );
+        }
+        break;
+
+      default:
+        debugPrint('Paystack webhook event not handled: $eventType');
+    }
+  }
+
+  /// Processes a Flutterwave webhook callback.
+  static Future<void> handleFlutterwaveWebhook(
+    Map<String, dynamic> payload,
+  ) async {
+    final String? eventType = payload['event_type']?.toString();
+    final Map<String, dynamic>? data = payload['data'];
+
+    debugPrint('Flutterwave webhook received: $eventType');
+
+    switch (eventType) {
+      case 'charge.success':
+        final String? transactionId = data?['id']?.toString();
+        final String? status = data?['status']?.toString();
+        if (transactionId != null && status != null) {
+          await handlePaymentWebhook(
+            gateway: 'flutterwave',
+            transactionId: transactionId,
+            status: status,
+            reference: data?['reference']?.toString(),
+            receiverId: data?['customer']?['account_number']?.toString(),
+            metadata: {
+              'amount': data?['amount']?.toString(),
+              'currency': data?['currency']?.toString(),
+              'connection_id': data?['connection_id']?.toString(),
+            },
+          );
+        }
+        break;
+
+      case 'charge.failed':
+        final String? transactionId = data?['id']?.toString();
+        if (transactionId != null) {
+          await handlePaymentWebhook(
+            gateway: 'flutterwave',
+            transactionId: transactionId,
+            status: data?['status']?.toString() ?? 'FAILED',
+          );
+        }
+        break;
+
+      case 'charge.expired':
+        final String? transactionId = data?['id']?.toString();
+        if (transactionId != null) {
+          await handlePaymentWebhook(
+            gateway: 'flutterwave',
+            transactionId: transactionId,
+            status: 'EXPIRED',
+          );
+        }
+        break;
+
+      case 'charge.pending':
+        debugPrint('Flutterwave charge pending: ${data?['id']}');
+        break;
+
+      case 'refund.success':
+        debugPrint('Flutterwave refund success: ${data?['id']}');
+        break;
+
+      case 'refund.failed':
+        debugPrint('Flutterwave refund failed');
+        break;
+
+      default:
+        debugPrint('Flutterwave webhook event not handled: $eventType');
+    }
+  }
+}
+
+/// Exception thrown when both primary and secondary payment gateways fail.
+///
+/// Extends [Error] so it isn't accidentally swallowed by a generic
+/// `catch (e)` in the calling flow — callers that want to surface a
+/// friendly message must catch it explicitly.
+class GatewayError extends Error {
+  /// Human-readable summary of the failure.
+  final String message;
+
+  /// The gateways that were attempted, in order.
+  final List<String> gatewaysUsed;
+
+  /// Per-gateway diagnostic detail.
+  final Map<String, dynamic> details;
+
+  GatewayError({
+    required this.message,
+    required this.gatewaysUsed,
+    this.details = const {},
+  });
+
+  @override
+  String toString() => 'GatewayError: $message';
 }

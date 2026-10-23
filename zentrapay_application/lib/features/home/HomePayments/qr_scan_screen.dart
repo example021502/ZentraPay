@@ -225,7 +225,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    super.dispose;
+    super.dispose();
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {

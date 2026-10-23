@@ -1,7 +1,0 @@
-Analyzing 2 items...                                            
-
-warning - The value of the local variable 'isTablet' isn't used. Try removing the variable or using it - lib\core\theme\common_widgets.dart:101:11 - unused_local_variable
-   info - The file name 'cache_zbankingData.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style - lib\features\zbanking\repository\cache_zbankingData.dart:1:1 - file_names
-warning - The declaration '_showBudgetLimitDialog' isn't referenced. Try removing the declaration of '_showBudgetLimitDialog' - lib\features\zbanking\zbanking_screen.dart:1044:16 - unused_element
-
-3 issues found. (ran in 11.5s)
