@@ -119,6 +119,9 @@ public class Datatypes {
         // Comment: Internal ledger movements between user wallets
         P2P_TRANSFER,
 
+        // funding user wallet account
+        WALLET_FUNDING,
+
         // Comment: Platform operational adjustments, fees, and refunds
         PLATFORM_FEE,
         REFUND

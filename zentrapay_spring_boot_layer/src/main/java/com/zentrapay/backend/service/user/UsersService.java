@@ -8,6 +8,7 @@ import com.zentrapay.backend.dto.user.*;
 import com.zentrapay.backend.entity.LoginHistoryModel;
 import com.zentrapay.backend.repository.LoginHistoryRepository;
 import com.zentrapay.backend.security.JwtService;
+import com.zentrapay.backend.service.region.SupportedRegionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class UsersService {
     private final CryptoAccountRepository cryptoAccountRepository;
     private final UserProfileRepository userProfileRepository;
     private final PinService pinService;
+    private final SupportedRegionService supportedRegionService;
 
     @Value("${app.password.pepper}")
     private String passwordPepper;
@@ -71,8 +73,8 @@ public class UsersService {
         }
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
-        GatewayCountryModel country = gatewayCountriesRepository.findFirstByCountryCode(req.countryCode())
-                .orElseThrow(() -> new IllegalArgumentException("Unsupported or invalid Country"));
+        // The country must be one the payment providers support AND that is switched on right now
+        GatewayCountryModel country = supportedRegionService.requireCountry(req.countryCode());
 
         System.out.println("Found country: " + country.getCountryCode());
 
@@ -82,7 +84,7 @@ public class UsersService {
         user.setLastName(req.lastName());
         user.setEmail(req.email());
         user.setPhoneNumber(req.phoneNumber());
-        user.setCountryCode(req.countryCode());
+        user.setCountryCode(country.getCountryCode());
         user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
         user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
         user.setUserType(Datatypes.UserType.APP_USER);
@@ -96,7 +98,7 @@ public class UsersService {
         if (!fiatWalletRepository.existsByUserId(user.getUserId()) && !cryptoWalletRepository.existsByUserId(user.getUserId())) {
             FiatWalletModel fiatWallet = new FiatWalletModel();
             fiatWallet.setUserId(user.getUserId());
-            fiatWallet.setCountryCode(req.countryCode());
+            fiatWallet.setCountryCode(country.getCountryCode());
             fiatWallet.setWalletName("Zentrapay_Wallet");
            fiatWallet = fiatWalletRepository.save(fiatWallet);
 //            CRYPTO WALLET CREATION

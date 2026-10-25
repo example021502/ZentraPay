@@ -10,8 +10,6 @@ import com.zentrapay.backend.dto.schedules.PaystackBankResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -117,13 +115,11 @@ public class GatewayDirectorySyncService {
     /**
      * Entry point used by the scheduler: probes every configured country
      * against all three gateways and rebuilds both directory tables.
-     * Populated on every boot (cold-start seed) and again daily as part of
-     * {@link com.zentrapay.backend.modules.schedules.schedulers#syncProvidersDaily()}'s
-     * unified run — no separate cron here, so this directory refreshes on
+     * Populated on every boot (cold-start seed, see Schedulers#onStartup) and again daily as part of
+     * Schedulers#syncProvidersDaily's unified run — no separate cron here, so this directory refreshes on
      * the same trigger and country list as banks/bill-providers/momo instead
      * of drifting on its own independent schedule.
      */
-    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void refreshGatewayDirectory() {
         final LocalDateTime now = LocalDateTime.now();

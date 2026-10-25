@@ -49,7 +49,9 @@ public class GatewayServices {
     private final FlutterwaveServices flutterwaveServices;
     private final OnafriqServices onafriqServices;
 
-    /** Where the money is going: a bank account or mobile-money wallet, in one country and currency. */
+    /**
+     * Where the money is going: a bank account or mobile-money wallet, in one country and currency.
+     */
     public record Destination(String checkoutType, String countryCode, String currencyCode,
                               String channelCode, String accountNumber, String accountName) {
     }
@@ -59,7 +61,7 @@ public class GatewayServices {
     // ------------------------------------------------------------------
 
     /**
-     * The gateways to try for a payment, best first. Gateways that are not seeded
+     * The gateways to try for a payment, the best first. Gateways that are not seeded
      * or are switched off are skipped.
      *
      * @param crossBorder true when sender and receiver are in different countries
@@ -81,19 +83,25 @@ public class GatewayServices {
         return gateways;
     }
 
-    /** The gateway enum for a gateway row. */
+    /**
+     * The gateway enum for a gateway row.
+     */
     public Datatypes.PaymentGateway nameOf(GatewayModel gateway) {
         return Datatypes.PaymentGateway.valueOf(gateway.getProviderName().toUpperCase());
     }
 
-    /** The gateway row for a gateway name. */
+    /**
+     * The gateway row for a gateway name.
+     */
     public GatewayModel gatewayByName(Datatypes.PaymentGateway name) {
         return gatewayRepository.findByProviderNameIgnoreCase(name.name())
                 .filter(GatewayModel::getActive)
                 .orElseThrow(() -> new PaymentGatewayException(name + " is not available right now"));
     }
 
-    /** The gateway row for a gateway id. */
+    /**
+     * The gateway row for a gateway id.
+     */
     public GatewayModel gatewayById(UUID gatewayId) {
         return gatewayRepository.findById(gatewayId)
                 .orElseThrow(() -> new ResourceNotFoundException("Gateway not found"));
@@ -116,9 +124,12 @@ public class GatewayServices {
         log.info("Creating {} customer for user {}", gateway.getProviderName(), user.getUserId());
 
         String customerCode = switch (nameOf(gateway)) {
-            case PAYSTACK -> paystackServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
-            case FLUTTERWAVE -> flutterwaveServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
-            case ONAFRIQ -> onafriqServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
+            case PAYSTACK ->
+                    paystackServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
+            case FLUTTERWAVE ->
+                    flutterwaveServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
+            case ONAFRIQ ->
+                    onafriqServices.createCustomer(user.getEmail(), user.getFirstName(), user.getLastName(), user.getPhoneNumber());
         };
 
         GatewayCustomerModel customer = new GatewayCustomerModel();
@@ -157,9 +168,12 @@ public class GatewayServices {
         log.info("Creating {} recipient {} / {} for user {}", gateway.getProviderName(), d.channelCode(), d.accountNumber(), customer.getUserId());
 
         String recipientCode = switch (nameOf(gateway)) {
-            case PAYSTACK -> paystackServices.createRecipient(d.checkoutType(), d.countryCode(), d.accountName(), d.accountNumber(), d.channelCode(), d.currencyCode());
-            case FLUTTERWAVE -> flutterwaveServices.createBeneficiary(d.accountName(), d.accountNumber(), d.channelCode());
-            case ONAFRIQ -> onafriqServices.createRecipient(d.checkoutType(), d.countryCode(), d.accountName(), d.accountNumber(), d.channelCode(), d.currencyCode());
+            case PAYSTACK ->
+                    paystackServices.createRecipient(d.checkoutType(), d.countryCode(), d.accountName(), d.accountNumber(), d.channelCode(), d.currencyCode());
+            case FLUTTERWAVE ->
+                    flutterwaveServices.createBeneficiary(d.accountName(), d.accountNumber(), d.channelCode());
+            case ONAFRIQ ->
+                    onafriqServices.createRecipient(d.checkoutType(), d.countryCode(), d.accountName(), d.accountNumber(), d.channelCode(), d.currencyCode());
         };
 
         GatewayRecipientsModel recipient = new GatewayRecipientsModel();

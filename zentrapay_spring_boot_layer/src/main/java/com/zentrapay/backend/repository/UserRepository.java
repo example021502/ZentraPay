@@ -50,6 +50,7 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
                    OR u.phoneNumber LIKE CONCAT('%', :query, '%'))
                   AND LOWER(u.countryCode) = LOWER(:countryCode)
                   AND u.userId != :userId
+                  AND u.status = com.zentrapay.backend.service.common.Datatypes.UserStatus.ACTIVE
             """)
     List<UserSearchDTO> searchByQueryAndCountryCode(
             @Param("query") String query,
@@ -80,4 +81,34 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
 
     @Query("SELECT u FROM UserModel u WHERE u.phoneNumber = :phoneNumber")
     Optional<UserModel> findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
+
+    // ZRemit: users in OTHER countries that we support (cross-border recipients)
+    @Query("""
+                SELECT new com.zentrapay.backend.dto.search.UserSearchDTO(
+                    u.userId,
+                    u.countryCode,
+                    u.firstName,
+                    u.lastName,
+                    u.phoneNumber,
+                    fa.zentag,
+                    u.userType
+                )
+                FROM FiatAccountModel fa
+                JOIN FiatWalletModel w ON fa.walletId = w.walletId
+                JOIN UserModel u ON w.userId = u.userId
+                WHERE (LOWER(u.firstName) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(fa.zentag) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR u.phoneNumber LIKE CONCAT('%', :query, '%'))
+                  AND LOWER(u.countryCode) <> LOWER(:countryCode)
+                  AND UPPER(u.countryCode) IN (:supportedCountries)
+                  AND u.userId != :userId
+                  AND u.status = com.zentrapay.backend.service.common.Datatypes.UserStatus.ACTIVE
+            """)
+    List<UserSearchDTO> searchByQueryOutsideCountry(
+            @Param("query") String query,
+            @Param("countryCode") String countryCode,
+            @Param("supportedCountries") List<String> supportedCountries,
+            @Param("userId") UUID userId
+    );
 }

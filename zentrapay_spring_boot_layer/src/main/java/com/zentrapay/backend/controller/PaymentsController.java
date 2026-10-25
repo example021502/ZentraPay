@@ -5,6 +5,8 @@ import com.zentrapay.backend.dto.payment.BankTransferRequestDTO;
 import com.zentrapay.backend.dto.payment.CheckoutResponseDTO;
 import com.zentrapay.backend.dto.payment.GatewayCustomerDTO;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
+import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
+import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
 import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
@@ -28,6 +30,7 @@ import java.util.UUID;
  * <pre>
  * POST /api/payments/initialize             send money (P2P wallet-to-wallet or to a bank account)
  * POST /api/payments/bank-transfer          simple bank transfer (same engine as initialize)
+ * POST /api/payments/verify-account         ask the providers who owns a bank account / mobile-money wallet
  * GET  /api/payments/paystack/access-code   start a wallet top-up checkout
  * POST /api/payments/paystack/customer      get/create my customer on Paystack
  * POST /api/payments/flutterwave/customer   get/create my customer on Flutterwave
@@ -44,7 +47,9 @@ public class PaymentsController {
     private final WalletFundingService walletFundingService;
     private final QRCodeService qrCodeService;
 
-    /** Sends money. The signed-in user is the sender. */
+    /**
+     * Sends money. The signed-in user is the sender.
+     */
     @PostMapping({"/initialize", "/pay"})
     public ResponseEntity<ApiResponse<TransactionTransactionDTO>> initialize(
             @CurrentUser AuthenticatedUser user,
@@ -70,13 +75,27 @@ public class PaymentsController {
                 null,
                 new TransactionRequest.BankDetails(null, null, request.channelCode(), request.accountNumber(),
                         request.accountName(), user.getCountryCode()),
+                null,
                 Datatypes.TransactionType.CASH_OUT_BANK,
                 null);
         TransactionTransactionDTO transaction = paymentServices.initialize(user.getUserId(), payment);
         return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
     }
 
-    /** Starts a wallet top-up and returns what the app needs to open the checkout. */
+    /**
+     * Asks the payment providers who own a bank account / mobile-money wallet (nothing is debited).
+     */
+    @PostMapping("/verify-account")
+    public ResponseEntity<ApiResponse<VerifiedAccountDTO>> verifyAccount(
+            @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody VerifyAccountRequestDTO request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                paymentServices.verifyAccount(user.getUserId(), request), "Account checked"));
+    }
+
+    /**
+     * Starts a wallet top-up and returns what the app needs to open the checkout.
+     */
     @GetMapping("/paystack/access-code")
     public ResponseEntity<ApiResponse<CheckoutResponseDTO>> accessCode(
             @CurrentUser AuthenticatedUser user,
@@ -98,7 +117,9 @@ public class PaymentsController {
                 walletFundingService.customerOn(user.getUserId(), Datatypes.PaymentGateway.FLUTTERWAVE), "Flutterwave customer ready"));
     }
 
-    /** QR code (PNG) for an account. */
+    /**
+     * QR code (PNG) for an account.
+     */
     @GetMapping(value = "/{accountId}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getAccountQRCode(@PathVariable UUID accountId) {
         try {

@@ -56,4 +56,7 @@ public interface BillProviderRepository extends JpaRepository<BillProviderModel,
             @Param("receiverId") UUID receiverId,
             @Param("countryCode") String countryCode
     );
+
+    // Provider sync: every biller a gateway holds for a country
+    List<BillProviderModel> findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(String gateway, String countryCode);
 }

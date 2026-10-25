@@ -8,6 +8,7 @@ import com.zentrapay.backend.service.gateway.FlutterwaveServices;
 import com.zentrapay.backend.service.gateway.GatewayServices;
 import com.zentrapay.backend.service.gateway.OnafriqServices;
 import com.zentrapay.backend.service.gateway.PaystackServices;
+import com.zentrapay.backend.service.mobilemoney.MobileMoneyCatalogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,17 +42,27 @@ public class BankTransferServices {
     private final GatewayServices gatewayServices;
     private final LedgerOperations ledgerOperations;
     private final BankCatalogService bankCatalogService;
+    private final MobileMoneyCatalogService mobileMoneyCatalogService;
     private final PaystackServices paystackServices;
     private final FlutterwaveServices flutterwaveServices;
     private final OnafriqServices onafriqServices;
 
-    /** Everything a gateway needs to know about the payout. */
-    public record Payout(UserModel sender, boolean crossBorder, UUID bankId, String bankCode, String countryCode,
-                         String currencyCode, String accountNumber, String accountName,
+    /**
+     * Everything a gateway needs to know about the payout. {@code destinationType} is BANK or
+     * MOBILE_MONEY; {@code bankId}/{@code bankCode} then hold the bank or the mobile-money network
+     * (id and code) and {@code accountNumber} the account number or the wallet phone number.
+     */
+    public record Payout(String destinationType, UserModel sender, boolean crossBorder, UUID bankId, String bankCode,
+                         String countryCode, String currencyCode, String accountNumber, String accountName,
                          BigDecimal amount, String narration) {
+        public boolean isMobileMoney() {
+            return "MOBILE_MONEY".equalsIgnoreCase(destinationType);
+        }
     }
 
-    /** The gateway chosen for the payout and the recipient registered on it. */
+    /**
+     * The gateway chosen for the payout and the recipient registered on it.
+     */
     public record Prepared(GatewayModel gateway, GatewayRecipientsModel recipient) {
     }
 
@@ -66,7 +77,7 @@ public class BankTransferServices {
      */
     public Prepared prepare(Payout payout) {
         log.info("Bank payout: preparing gateways for {} / {}", payout.bankCode(), payout.accountNumber());
-        Optional<BanksModel> bank = findBank(payout);
+        Optional<BanksModel> bank = payout.isMobileMoney() ? Optional.empty() : findBank(payout);
         PaymentGatewayException lastError = null;
 
         for (GatewayModel gateway : gatewayServices.gatewaysFor(payout.crossBorder())) {
@@ -81,7 +92,8 @@ public class BankTransferServices {
             }
         }
         throw new PaymentGatewayException(lastError == null
-                ? "This bank is not supported for transfers right now"
+                ? (payout.isMobileMoney() ? "This mobile money network is not supported for transfers right now"
+                : "This bank is not supported for transfers right now")
                 : "Bank transfers are unavailable right now: " + lastError.getMessage());
     }
 
@@ -94,7 +106,7 @@ public class BankTransferServices {
         }
         GatewayCustomerModel customer = gatewayServices.getOrCreateCustomer(payout.sender(), gateway);
         GatewayRecipientsModel recipient = gatewayServices.getOrCreateRecipient(customer,
-                new GatewayServices.Destination("BANK", payout.countryCode(), payout.currencyCode(),
+                new GatewayServices.Destination(payout.isMobileMoney() ? "MOBILE_MONEY" : "BANK", payout.countryCode(), payout.currencyCode(),
                         channelCode, payout.accountNumber(), payout.accountName()));
         return new Prepared(gateway, recipient);
     }
@@ -104,12 +116,12 @@ public class BankTransferServices {
     // ------------------------------------------------------------------
 
     /**
-     * Sends the transfer. Returns the transaction as it stands afterwards (PENDING or SUCCESS).
+     * Sends the transfer. Returns the transaction as it stands afterward (PENDING or SUCCESS).
      * Throws a PaymentGatewayException after refunding the sender when no gateway could take it.
      */
     public TransactionModel send(TransactionModel txn, Payout payout, Prepared first) {
         log.info("Bank payout: sending {} {} for {}", payout.amount(), payout.currencyCode(), txn.getInternalReferenceId());
-        Optional<BanksModel> bank = findBank(payout);
+        Optional<BanksModel> bank = payout.isMobileMoney() ? Optional.empty() : findBank(payout);
         PaymentGatewayException lastError = null;
 
         // First the gateway we already prepared, then the others in routing order
@@ -137,7 +149,9 @@ public class BankTransferServices {
             // The transfer itself
             try {
                 ledgerOperations.assignGateway(txn.getTransactionId(), gateway.getProviderId());
+                log.info("=================== MAKING THE TRANSFER ON GATEWAY :: {} ===============", gateway.getProviderName());
                 GatewayTransferResult result = transferVia(gateway, prepared.recipient(), payout, LedgerOperations.gatewayReference(txn));
+                log.info("THE GATEWAY RESULTS ARE:: {}", result);
                 log.info("Bank payout: {} accepted {} (code {}, settled {})", gateway.getProviderName(),
                         txn.getInternalReferenceId(), result.gatewayCode(), result.settled());
                 return ledgerOperations.markSubmitted(txn.getTransactionId(), gateway.getProviderId(), result.settled());
@@ -185,11 +199,21 @@ public class BankTransferServices {
      * bank. Returns null when that gateway has no matching bank (the gateway is then skipped).
      */
     private String channelCodeFor(GatewayModel gateway, Payout payout, Optional<BanksModel> bank) {
+        if (payout.isMobileMoney()) {
+            return mobileMoneyCode(gateway, payout);
+        }
         if (bank.isEmpty()) {
             // Not in our catalogue: trust the code the app sent, but only on the primary gateway
             boolean isPrimary = gatewayServices.gatewaysFor(payout.crossBorder()).get(0).getProviderId().equals(gateway.getProviderId());
             return isPrimary ? payout.bankCode() : null;
         }
         return bankCatalogService.codeOnGateway(bank.get(), gateway.getProviderName(), payout.countryCode());
+    }
+
+    // The mobile-money network's code on this gateway (null when the gateway does not list it)
+    private String mobileMoneyCode(GatewayModel gateway, Payout payout) {
+        return mobileMoneyCatalogService.findProvider(payout.bankId(), payout.bankCode(), payout.countryCode())
+                .map(network -> mobileMoneyCatalogService.codeOnGateway(network, gateway.getProviderName()))
+                .orElse(null);
     }
 }

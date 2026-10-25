@@ -73,8 +73,9 @@ public class BankAccountLinkService {
         } catch (PaymentGatewayException e) {
             log.error("AfriqLink linking request failed (bank {} account {}): {}",
                     bankCode, lastDigits, e.getMessage());
+            // Customer-facing: never name the provider or the failure.
             throw new PaymentGatewayException(
-                    "AfriqLink could not link this account right now. Please try again later.");
+                    "We couldn't link this account. Check the details you entered and try again.");
         }
 
         final String reference = linked.reference() != null

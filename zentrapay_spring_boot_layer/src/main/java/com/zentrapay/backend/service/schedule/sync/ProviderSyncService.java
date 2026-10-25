@@ -7,6 +7,7 @@ import com.zentrapay.backend.entity.MobileMoneyGatewayMappingsModel;
 import com.zentrapay.backend.entity.MobileMoneyProvidersModel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.BillProviderRepository;
+import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.MobileMoneyGatewayMappingsRepository;
 import com.zentrapay.backend.repository.MobileMoneyRepository;
 import com.zentrapay.backend.dto.schedules.FlutterwaveBankResponseDTO;
@@ -25,10 +26,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 // Comment: Marks this class as a service layer component for business logic execution
 @Slf4j
@@ -36,11 +42,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ProviderSyncService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Timeouts: a hung gateway must not freeze the whole scheduled run
+    private final RestTemplate restTemplate = buildRestTemplate();
     private final BanksRepository banksRepository;
     private final BillProviderRepository billProviderRepository;
     private final MobileMoneyRepository mobileMoneyRepository;
     private final MobileMoneyGatewayMappingsRepository mobileMoneyGatewayMappingsRepository;
+    private final GatewayCountriesRepository gatewayCountriesRepository;
 
     // Comment: Injecting our unified gateway mappers
     private final PaystackBankMapper paystackBankMapper;
@@ -67,6 +75,13 @@ public class ProviderSyncService {
 
     @Value("${onafriq.secret-key}")
     String onafriqSk;
+
+    private static RestTemplate buildRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(8000);
+        factory.setReadTimeout(20000);
+        return new RestTemplate(factory);
+    }
 
     // Comment: Orchestrates fetching data from each specific provider per country in the list
     public void syncAllProvidersData(List<String> countryCodes) {
@@ -95,6 +110,7 @@ public class ProviderSyncService {
             if (response.getBody() != null && Boolean.TRUE.equals(response.getBody().status())) {
                 List<BanksModel> banks = paystackBankMapper.mapToEntities(response.getBody(), countryCode);
                 persistBanks(banks);
+                deactivateMissingBanks("paystack", countryCode, banks);
                 log.info("Paystack Banks Response [" + countryCode + "]: Success. Upserted " + banks.size() + " banks.");
             }
         } catch (Exception e) {
@@ -114,6 +130,7 @@ public class ProviderSyncService {
             if (response.getBody() != null && "success".equalsIgnoreCase(response.getBody().status())) {
                 List<BanksModel> banks = flutterwaveBankMapper.mapToEntities(response.getBody(), countryCode);
                 persistBanks(banks);
+                deactivateMissingBanks("flutterwave", countryCode, banks);
                 log.info("Flutterwave Banks Response [" + countryCode + "]: Success. Upserted " + banks.size() + " banks.");
             }
         } catch (Exception e) {
@@ -134,6 +151,7 @@ public class ProviderSyncService {
             if (response.getBody() != null) {
                 List<BanksModel> banks = onafriqBankMapper.mapToEntities(response.getBody(), countryCode);
                 persistBanks(banks);
+                deactivateMissingBanks("onafriq", countryCode, banks);
                 log.info("Onafriq Institutions Response [" + countryCode + "]: Success. Upserted " + banks.size() + " institutions.");
             }
         } catch (Exception e) {
@@ -159,6 +177,7 @@ public class ProviderSyncService {
                 List<BillProviderModel> providers =
                         flutterwaveBillProviderMapper.mapToEntities(response.getBody(), countryCode);
                 persistBillProviders(providers);
+                deactivateMissingBillProviders("flutterwave", countryCode, providers);
                 log.info("Flutterwave Bill Categories Response [" + countryCode + "]: Success. Upserted "
                         + providers.size() + " bill providers.");
             } else {
@@ -169,8 +188,13 @@ public class ProviderSyncService {
         }
     }
 
-    // Comment: Fetches mobile money networks from supported gateways
+    // Comment: Fetches mobile money networks from every gateway that lists them
     private void fetchAndSaveMobileMoneyNetworks(String countryCode) {
+        fetchFlutterwaveMobileMoney(countryCode);
+        fetchPaystackMobileMoney(countryCode);
+    }
+
+    private void fetchFlutterwaveMobileMoney(String countryCode) {
         log.info("Fetching mobile money operators from Flutterwave for [" + countryCode + "]...");
 
         String url = flutterwaveBaseUrl + "/bill-categories?category=momo&country=" + countryCode;
@@ -186,14 +210,56 @@ public class ProviderSyncService {
                     && response.getBody().data() != null) {
                 List<MobileMoneyProvidersModel> providers =
                         flutterwaveMobileMoneyMapper.mapToEntities(response.getBody(), countryCode);
-                persistMobileMoneyNetworks(providers, countryCode);
-                log.info("Mobile Money Networks Response [" + countryCode + "]: Success. Upserted "
+                persistMobileMoneyNetworks(providers, countryCode, "flutterwave");
+                log.info("Flutterwave Mobile Money Response [" + countryCode + "]: Success. Upserted "
                         + providers.size() + " networks.");
             } else {
-                log.error("Mobile Money Networks Response [" + countryCode + "]: returned no data.");
+                log.error("Flutterwave Mobile Money Response [" + countryCode + "]: returned no data.");
             }
         } catch (Exception e) {
-            log.error("Failed to fetch mobile money networks for [" + countryCode + "]: " + e.getMessage());
+            log.error("Failed to fetch mobile money networks from Flutterwave for [" + countryCode + "]: " + e.getMessage());
+        }
+    }
+
+    // Paystack lists its mobile-money operators as "banks" of type mobile_money, per currency
+    private void fetchPaystackMobileMoney(String countryCode) {
+        String currency = gatewayCountriesRepository.findFirstByCountryCode(countryCode.toUpperCase())
+                .map(c -> c.getCurrencyCode())
+                .orElse(null);
+        if (currency == null || currency.isBlank()) {
+            return;
+        }
+        log.info("Fetching mobile money operators from Paystack for [" + countryCode + "/" + currency + "]...");
+
+        String url = paystackBaseUrl + "/bank?currency=" + currency + "&type=mobile_money";
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Bearer " + paystackSk);
+
+        try {
+            ResponseEntity<PaystackBankResponseDTO> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), PaystackBankResponseDTO.class
+            );
+            if (response.getBody() == null || !Boolean.TRUE.equals(response.getBody().status())
+                    || response.getBody().data() == null) {
+                return;
+            }
+            List<MobileMoneyProvidersModel> providers = response.getBody().data().stream()
+                    .filter(item -> item.code() != null && !item.code().isBlank() && item.name() != null)
+                    .filter(item -> !Boolean.FALSE.equals(item.active()))
+                    .map(item -> {
+                        MobileMoneyProvidersModel provider = new MobileMoneyProvidersModel();
+                        provider.setName(item.name().trim());
+                        provider.setGlobalCode(item.code().trim());
+                        provider.setCountryCode(countryCode.toUpperCase());
+                        provider.setActive(Boolean.TRUE);
+                        return provider;
+                    })
+                    .toList();
+            persistMobileMoneyNetworks(providers, countryCode, "paystack");
+            log.info("Paystack Mobile Money Response [" + countryCode + "]: Success. Upserted "
+                    + providers.size() + " networks.");
+        } catch (Exception e) {
+            log.error("Failed to fetch mobile money networks from Paystack for [" + countryCode + "]: " + e.getMessage());
         }
     }
 
@@ -256,33 +322,101 @@ public class ProviderSyncService {
         }
     }
 
-    private void persistMobileMoneyNetworks(List<MobileMoneyProvidersModel> providers, String countryCode) {
+    // A network is identified by (code, country): "MTN" exists in several countries. Each gateway adds
+    // its own code for the network in momo_gateway_mappings.
+    private void persistMobileMoneyNetworks(List<MobileMoneyProvidersModel> providers, String countryCode, String gateway) {
+        Set<UUID> seen = new HashSet<>();
         for (MobileMoneyProvidersModel provider : providers) {
-            MobileMoneyProvidersModel saved = mobileMoneyRepository.findByGlobalCode(provider.getGlobalCode())
+            MobileMoneyProvidersModel saved = mobileMoneyRepository
+                    .findByGlobalCodeAndCountryCode(provider.getGlobalCode(), provider.getCountryCode())
                     .map(existing -> {
                         existing.setName(provider.getName());
-                        existing.setCountryCode(provider.getCountryCode());
                         existing.setActive(provider.getActive());
                         return mobileMoneyRepository.save(existing);
                     })
                     .orElseGet(() -> mobileMoneyRepository.save(provider));
 
-            saveGatewayMapping(saved, countryCode);
+            saveGatewayMapping(saved, countryCode, gateway, provider.getGlobalCode());
+            seen.add(saved.getProviderId());
         }
+        deactivateMissingMobileMoney(gateway, countryCode, seen, !providers.isEmpty());
     }
 
-    private void saveGatewayMapping(MobileMoneyProvidersModel provider, String countryCode) {
+    private void saveGatewayMapping(MobileMoneyProvidersModel provider, String countryCode, String gateway, String gatewayCode) {
         Optional<MobileMoneyGatewayMappingsModel> existing = mobileMoneyGatewayMappingsRepository
-                .findByProviderIdAndGateway(provider.getProviderId(), "flutterwave");
+                .findByProviderIdAndGateway(provider.getProviderId(), gateway);
         if (existing.isPresent()) {
+            MobileMoneyGatewayMappingsModel mapping = existing.get();
+            if (!gatewayCode.equals(mapping.getGatewayCode())) {
+                mapping.setGatewayCode(gatewayCode);
+                mobileMoneyGatewayMappingsRepository.save(mapping);
+            }
             return;
         }
 
         MobileMoneyGatewayMappingsModel mapping = new MobileMoneyGatewayMappingsModel();
         mapping.setProviderId(provider.getProviderId());
-        mapping.setGateway("flutterwave");
-        mapping.setGatewayCode(provider.getGlobalCode());
-        mapping.setCountryCode(countryCode);
+        mapping.setGateway(gateway);
+        mapping.setGatewayCode(gatewayCode);
+        mapping.setCountryCode(countryCode.toUpperCase());
         mobileMoneyGatewayMappingsRepository.save(mapping);
+    }
+
+    // ============================================================
+    // DEACTIVATION - a gateway that answered successfully but no longer lists a bank / biller / network
+    // switches it off, so users can no longer pick something the gateway cannot pay. Rows are never
+    // deleted (past transactions point at them). An empty answer deactivates nothing: it more likely
+    // means the gateway had a problem than that it dropped every bank.
+    // ============================================================
+
+    private void deactivateMissingBanks(String gateway, String countryCode, List<BanksModel> fetched) {
+        if (fetched.isEmpty()) {
+            return;
+        }
+        Set<String> codes = new HashSet<>();
+        fetched.forEach(b -> codes.add(b.getCode()));
+        for (BanksModel existing : banksRepository.findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(gateway, countryCode)) {
+            if (Boolean.TRUE.equals(existing.getActive()) && !codes.contains(existing.getCode())) {
+                existing.setActive(false);
+                banksRepository.save(existing);
+            }
+        }
+    }
+
+    private void deactivateMissingBillProviders(String gateway, String countryCode, List<BillProviderModel> fetched) {
+        if (fetched.isEmpty()) {
+            return;
+        }
+        Set<String> codes = new HashSet<>();
+        fetched.forEach(p -> codes.add(p.getBillerCode()));
+        for (BillProviderModel existing : billProviderRepository.findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(gateway, countryCode)) {
+            if (Boolean.TRUE.equals(existing.getActive()) && !codes.contains(existing.getBillerCode())) {
+                existing.setActive(false);
+                billProviderRepository.save(existing);
+            }
+        }
+    }
+
+    // A network stays active while at least one other gateway still lists it
+    private void deactivateMissingMobileMoney(String gateway, String countryCode, Set<UUID> seen, boolean gatewayListedAny) {
+        if (!gatewayListedAny) {
+            return;
+        }
+        for (MobileMoneyGatewayMappingsModel mapping : mobileMoneyGatewayMappingsRepository
+                .findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(gateway, countryCode)) {
+            if (seen.contains(mapping.getProviderId())) {
+                continue;
+            }
+            boolean listedElsewhere = mobileMoneyGatewayMappingsRepository.findByProviderId(mapping.getProviderId()).stream()
+                    .anyMatch(m -> !m.getGateway().equalsIgnoreCase(gateway));
+            if (!listedElsewhere) {
+                mobileMoneyRepository.findById(mapping.getProviderId()).ifPresent(provider -> {
+                    if (Boolean.TRUE.equals(provider.getActive())) {
+                        provider.setActive(false);
+                        mobileMoneyRepository.save(provider);
+                    }
+                });
+            }
+        }
     }
 }

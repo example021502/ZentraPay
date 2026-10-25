@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -25,6 +27,34 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** What a customer sees when the real reason is an internal / third-party detail. */
+    private static final String GENERIC_MESSAGE = "Something went wrong. Please try again in a moment.";
+
+    // Words that mean a message was written for developers: exception types,
+    // transport / database details, and the names of the providers we run on.
+    private static final List<String> TECHNICAL_MARKERS = List.of(
+            "exception", "stacktrace", "afriqlink", "paystack", "flutterwave", "onafriq", "privy",
+            "gateway", "http", "status code", "sql", "jdbc", "hibernate", "spring", "timeout",
+            "timed out", "connection", "jwt", "endpoint", "api key", "secret", "refused", "socket");
+    private static final Pattern NULL_WORD = Pattern.compile("\\bnull\\b", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Passes a business message ("Insufficient balance", "You have already linked
+     * this bank") through untouched, but replaces anything that exposes how the
+     * system is built so internals never reach the customer.
+     */
+    static String userSafe(String message) {
+        if (message == null || message.isBlank()) {
+            return GENERIC_MESSAGE;
+        }
+        String lower = message.toLowerCase();
+        if (message.length() > 200 || NULL_WORD.matcher(message).find()
+                || TECHNICAL_MARKERS.stream().anyMatch(lower::contains)) {
+            return GENERIC_MESSAGE;
+        }
+        return message;
+    }
 
     // 404 - also used for ownership failures so we never leak that a row exists
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -52,7 +82,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Object>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
-        return build(HttpStatus.METHOD_NOT_ALLOWED, ex.getMessage());
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "This action isn't available");
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
@@ -64,7 +94,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PaymentGatewayException.class)
     public ResponseEntity<ApiResponse<Object>> handleGateway(PaymentGatewayException ex) {
         log.error("Gateway error: {}", ex.getMessage());
-        return build(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, userSafe(ex.getMessage()));
     }
 
     // 409 - unique / foreign-key violations (duplicate rows)
@@ -79,13 +109,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ApiResponse<Object>> handleBusiness(RuntimeException ex) {
         log.warn("Request rejected: {}", ex.getMessage());
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, userSafe(ex.getMessage()));
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex) {
         log.warn("Request failed: {}", ex.getMessage(), ex);
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage() == null ? "Request failed" : ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, userSafe(ex.getMessage()));
     }
 
     // Safety net - log the real cause, never leak it to the client

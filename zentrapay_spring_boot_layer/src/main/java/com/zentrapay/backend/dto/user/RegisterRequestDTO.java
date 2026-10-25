@@ -1,9 +1,6 @@
 package com.zentrapay.backend.dto.user;
 
-import jakarta.validation.constraints.AssertFalse;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.*;
 
 import java.util.UUID;
 
@@ -16,7 +13,9 @@ public record RegisterRequestDTO(
         @Email(message = "Invalid email format") String email,
         @NotBlank(message = "Phone number is required") String phoneNumber,
         @NotBlank(message = "Country code is required") String countryCode,
-        @NotBlank(message = "Password is required") String password,
+        @NotBlank(message = "Password is required")
+        @Size(min = 8, message = "password has to be at least 6 characters long.")
+        String password,
         @NotBlank(message = "PIN is required") String pin
 ) {
 }

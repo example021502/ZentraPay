@@ -16,7 +16,7 @@ import java.util.List;
  * Currency converter.
  * <pre>
  * GET  /api/converter/rates?base=GHS   live rates from one currency to all others
- * POST /api/converter/convert          convert an amount (saved in history)
+ * POST /api/converter/convert an amount (saved in history)
  * GET  /api/converter/history          my recent conversions
  * </pre>
  */

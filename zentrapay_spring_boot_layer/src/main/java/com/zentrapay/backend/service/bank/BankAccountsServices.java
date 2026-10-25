@@ -153,7 +153,7 @@ public class BankAccountsServices {
         // nothing — no row exists yet), so a link AfriqLink did not confirm
         // can never reach the database.
         final BankAccountLinkService.BankLinkOutcome outcome =
-                bankAccountLinkService.link(bank, digits, user.getFirstName(), user.getLastName());
+                bankAccountLinkService.link(bank, digits, request.firstName().trim(), request.lastName().trim());
 
         // A user's first linked bank is automatically primary.
         final boolean makePrimary = Boolean.TRUE.equals(request.primary())

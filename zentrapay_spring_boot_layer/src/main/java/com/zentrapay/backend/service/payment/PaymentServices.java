@@ -1,15 +1,15 @@
 package com.zentrapay.backend.service.payment;
 
 import com.zentrapay.backend.dto.payment.TransactionRequest;
+import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
+import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
 import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
-import com.zentrapay.backend.entity.FiatWalletModel;
-import com.zentrapay.backend.entity.TransactionModel;
-import com.zentrapay.backend.entity.UserModel;
+import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.fx.ExchangeRateService;
+import com.zentrapay.backend.service.region.SupportedRegionService;
 import com.zentrapay.backend.service.transaction.TransactionsQueryService;
 import com.zentrapay.backend.service.user.PinService;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,12 @@ import java.util.UUID;
  *   <li><b>CASH_OUT_BANK</b> - to a bank account through a payment gateway (same currency or
  *       cross currency). Money is debited first, then the gateway is called; if the gateway
  *       refuses, the money is refunded. See BankTransferServices.</li>
+ *   <li><b>CASH_OUT_MOMO</b> - to a mobile-money wallet, same engine as the bank payout.</li>
  * </ul>
+ *
+ * <p>Every payment here is DOMESTIC: the sender, the bank / network and the receiver are in the
+ * same, supported country. Cross-border sends belong to ZRemit. Before a bank or mobile-money
+ * payment is debited, the providers are asked who owns the account (AccountVerificationService).
  *
  * <p>This class is deliberately NOT one big database transaction: the slow gateway calls must
  * not hold a database connection open, and the debit has to be committed before the gateway
@@ -50,6 +55,8 @@ public class PaymentServices {
     private final ExchangeRateService exchangeRateService;
     private final TransactionsQueryService transactionsQueryService;
     private final PinService pinService;
+    private final SupportedRegionService supportedRegionService;
+    private final AccountVerificationService accountVerificationService;
 
     @Value("${zentrapay.limits.send.tier1}")
     private BigDecimal tier1SendLimit;
@@ -84,6 +91,8 @@ public class PaymentServices {
             throw new IllegalArgumentException("Your account is " + sender.getStatus() + " at the moment");
         }
         pinService.requireValid(sender, req.pin());
+        supportedRegionService.requireUserCountry(sender);
+        supportedRegionService.requireCurrency(req.transfer().currencyCode());
         if (req.transfer().currencyType() != null && "crypto".equalsIgnoreCase(req.transfer().currencyType())) {
             throw new IllegalArgumentException("Crypto currencies are not supported at the moment!");
         }
@@ -91,6 +100,8 @@ public class PaymentServices {
         return switch (type) {
             case P2P_TRANSFER -> sendToWallet(sender, req);
             case CASH_OUT_BANK -> sendToBank(sender, req);
+            case CASH_OUT_MOMO -> sendToMobileMoney(sender, req);
+            case WALLET_FUNDING -> fundWallet(sender, req);
             default -> throw new IllegalArgumentException("This payment type is not supported yet");
         };
     }
@@ -194,7 +205,9 @@ public class PaymentServices {
         BigDecimal amount = money(transfer.amount());
         String sourceCurrency = transfer.currencyCode().toUpperCase();
         String bankCountry = (bank.countryCode() == null || bank.countryCode().isBlank() ? sender.getCountryCode() : bank.countryCode()).toUpperCase();
+        requireDomestic(sender, bankCountry, "bank");
         String destinationCurrency = destinationCurrencyForBank(transfer.destinationCurrencyCode(), bankCountry, sourceCurrency);
+        supportedRegionService.requireCurrency(destinationCurrency);
         BigDecimal destinationAmount = convertIfNeeded(amount, sourceCurrency, destinationCurrency, transfer.rateId());
         String purpose = purposeOf(transfer);
 
@@ -202,15 +215,20 @@ public class PaymentServices {
         FiatAccountModel senderAccount = requireSenderAccount(sender, sourceCurrency, amount);
         checkSendLimit(sender, amount);
 
-        log.info("STAGE 3: finding a gateway for this bank (nothing is debited yet)");
-        BankTransferServices.Payout payout = new BankTransferServices.Payout(sender,
-                isCrossBorder(sender.getCountryCode(), bankCountry), bank.bankId(), bank.bankCode(), bankCountry,
-                destinationCurrency, bank.accountNumber().trim(), bank.accountName().trim(), destinationAmount, purpose);
+        log.info("STAGE 3: asking the payment providers who owns the bank account (nothing is debited yet)");
+        AccountVerificationService.Verified verified = accountVerificationService.verifyBank(
+                bank.bankId(), bank.bankCode(), bank.accountNumber().trim(), bankCountry);
+        String accountName = verified.accountName();
+
+        log.info("STAGE 3b: finding a provider for this bank (nothing is debited yet)");
+        BankTransferServices.Payout payout = new BankTransferServices.Payout("BANK", sender,
+                false, bank.bankId(), bank.bankCode(), bankCountry,
+                destinationCurrency, bank.accountNumber().trim(), accountName, destinationAmount, purpose);
         BankTransferServices.Prepared prepared = bankTransferServices.prepare(payout);
 
         log.info("STAGE 4: debiting the sender");
         TransactionModel draft = newDraft(sender, req, Datatypes.TransactionType.CASH_OUT_BANK, amount, sourceCurrency, destinationCurrency, destinationAmount);
-        draft.setReceiverName(bank.accountName().trim());
+        draft.setReceiverName(accountName);
         draft.setDestinationIdentifier(bank.accountNumber().trim());
         draft.setGatewayId(prepared.gateway().getProviderId());
         TransactionModel debited = ledgerOperations.debitForPayout(draft, senderAccount);
@@ -221,13 +239,107 @@ public class PaymentServices {
         return transactionsQueryService.toDto(result, sender.getUserId());
     }
 
+    // ==================================================================
+    // CASH_IN - user funding the wallet account - from bank or other sources
+    // ==================================================================
+
+    private TransactionTransactionDTO fundWallet(UserModel sender, TransactionRequest req) {
+//       ALL THE WALLET TOP UP LOGIC HERE
+    }
+
+    // ==================================================================
+    // CASH_OUT_MOMO: ZentraPay wallet -> mobile-money wallet (through a gateway)
+    // ==================================================================
+
+    private TransactionTransactionDTO sendToMobileMoney(UserModel sender, TransactionRequest req) {
+        log.info("STAGE 1: reading the mobile money details");
+        TransactionRequest.MobileMoneyDetails momo = req.mobileMoney();
+        if (momo == null) {
+            throw new IllegalArgumentException("Mobile money information missing");
+        }
+        TransactionRequest.TransferDetails transfer = req.transfer();
+        BigDecimal amount = money(transfer.amount());
+        String sourceCurrency = transfer.currencyCode().toUpperCase();
+        String country = (momo.countryCode() == null || momo.countryCode().isBlank() ? sender.getCountryCode() : momo.countryCode()).toUpperCase();
+        requireDomestic(sender, country, "mobile money network");
+        String destinationCurrency = destinationCurrencyForBank(transfer.destinationCurrencyCode(), country, sourceCurrency);
+        supportedRegionService.requireCurrency(destinationCurrency);
+        BigDecimal destinationAmount = convertIfNeeded(amount, sourceCurrency, destinationCurrency, transfer.rateId());
+        String phone = momo.phoneNumber().trim();
+
+        log.info("STAGE 2: checking the sender account, balance and limits");
+        FiatAccountModel senderAccount = requireSenderAccount(sender, sourceCurrency, amount);
+        checkSendLimit(sender, amount);
+
+        log.info("STAGE 3: asking the payment providers about the wallet (nothing is debited yet)");
+        String accountName = accountVerificationService
+                .verifyMobileMoney(momo.providerId(), momo.providerCode(), phone, country)
+                .map(AccountVerificationService.Verified::accountName)
+                .orElseGet(() -> momo.accountName() == null || momo.accountName().isBlank() ? phone : momo.accountName().trim());
+
+        log.info("STAGE 3b: finding a provider for this network (nothing is debited yet)");
+        BankTransferServices.Payout payout = new BankTransferServices.Payout("MOBILE_MONEY", sender,
+                false, momo.providerId(), momo.providerCode(), country,
+                destinationCurrency, phone, accountName, destinationAmount, purposeOf(transfer));
+        BankTransferServices.Prepared prepared = bankTransferServices.prepare(payout);
+
+        log.info("STAGE 4: debiting the sender");
+        TransactionModel draft = newDraft(sender, req, Datatypes.TransactionType.CASH_OUT_MOMO, amount, sourceCurrency, destinationCurrency, destinationAmount);
+        draft.setReceiverName(accountName);
+        draft.setReceiverPhoneNumber(phone);
+        draft.setDestinationIdentifier(phone);
+        draft.setGatewayId(prepared.gateway().getProviderId());
+        TransactionModel debited = ledgerOperations.debitForPayout(draft, senderAccount);
+
+        log.info("STAGE 5: calling the provider");
+        TransactionModel result = bankTransferServices.send(debited, payout, prepared);
+        log.info("========== PAYMENT DONE: {} {} ==========", result.getInternalReferenceId(), result.getStatus());
+        return transactionsQueryService.toDto(result, sender.getUserId());
+    }
+
+    // ==================================================================
+    // Account check (no money moves)
+    // ==================================================================
+
+    /**
+     * Asks the providers who owns a bank account / mobile-money wallet in the same country as the sender.
+     */
+    public VerifiedAccountDTO verifyAccount(UUID userId, VerifyAccountRequestDTO req) {
+        UserModel sender = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        supportedRegionService.requireUserCountry(sender);
+        String country = (req.countryCode() == null || req.countryCode().isBlank() ? sender.getCountryCode() : req.countryCode()).toUpperCase();
+        supportedRegionService.requireCountry(country);
+        String number = req.accountNumber().trim();
+
+        if ("MOBILE_MONEY".equalsIgnoreCase(req.destinationType())) {
+            return accountVerificationService.verifyMobileMoney(req.destinationId(), req.destinationCode(), number, country)
+                    .map(v -> new VerifiedAccountDTO(true, v.accountName(), number, v.destinationName(), country))
+                    .orElseGet(() -> new VerifiedAccountDTO(false, null, number, null, country));
+        }
+        if ("BANK".equalsIgnoreCase(req.destinationType())) {
+            AccountVerificationService.Verified v = accountVerificationService.verifyBank(
+                    req.destinationId(), req.destinationCode(), number, country);
+            return new VerifiedAccountDTO(true, v.accountName(), number, v.destinationName(), country);
+        }
+        throw new IllegalArgumentException("Destination type must be BANK or MOBILE_MONEY");
+    }
+
+    // Payments are domestic: the bank / network must be in the same, supported country as the sender
+    private void requireDomestic(UserModel sender, String destinationCountry, String what) {
+        if (isCrossBorder(sender.getCountryCode(), destinationCountry)) {
+            throw new IllegalArgumentException("That " + what + " is in another country. Please use ZRemit for cross-border transfers.");
+        }
+        supportedRegionService.requireCountry(destinationCountry);
+    }
+
     // The currency the bank is paid in: what the app asked for, else the bank country's currency, else the sender's currency
     private String destinationCurrencyForBank(String requested, String bankCountry, String sourceCurrency) {
         if (requested != null && !requested.isBlank()) {
             return requested.toUpperCase();
         }
         return gatewayCountriesRepository.findFirstByCountryCode(bankCountry)
-                .map(country -> country.getCurrencyCode())
+                .map(GatewayCountryModel::getCurrencyCode)
                 .orElse(sourceCurrency);
     }
 
@@ -255,7 +367,7 @@ public class PaymentServices {
         short tier = sender.getKycTier();
         BigDecimal limit = tier <= 1 ? tier1SendLimit : tier == 2 ? tier2SendLimit : null;
         if (limit != null && amount.compareTo(limit) > 0) {
-            throw new IllegalArgumentException("Limit exceeded. Update your KYC level in profile settings to continue. Your current KYC level is "
+            throw new IllegalArgumentException("Limit exceeded. Update your KYC level from tier level " + tier + " in profile settings to continue. Your current KYC level is "
                     + tier + " (" + kycGrade(tier) + ")");
         }
     }

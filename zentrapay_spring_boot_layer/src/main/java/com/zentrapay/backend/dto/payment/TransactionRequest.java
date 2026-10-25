@@ -15,10 +15,11 @@ import java.util.UUID;
  * <pre>
  * {
  *   "pin": "1234", "TXN_Ref": "...",
- *   "transactionType": "P2P_TRANSFER" | "CASH_OUT_BANK",
+ *   "transactionType": "P2P_TRANSFER" | "CASH_OUT_BANK" | "CASH_OUT_MOMO",
  *   "transfer": { "amount": 10, "currencyCode": "GHS", "purpose": "...", "destinationCurrencyCode"?: "GHS" },
  *   "appUser": { "userId": "...", "zentag": "..." }            // for P2P_TRANSFER
  *   "bank":    { "bankCode": "...", "accountNumber": "...", "accountName": "..." }   // for CASH_OUT_BANK
+ *   "mobileMoney": { "providerId": "...", "providerCode": "MTN", "phoneNumber": "...", "accountName"?: "..." }   // for CASH_OUT_MOMO
  * }
  * </pre>
  *
@@ -39,11 +40,15 @@ public record TransactionRequest(
         AppUserDetails appUser,
         @Valid
         BankDetails bank,
+        @Valid
+        MobileMoneyDetails mobileMoney,
         Datatypes.TransactionType transactionType,
         String channelType
 ) {
 
-    /** Sending to another ZentraPay user. */
+    /**
+     * Sending to another ZentraPay user.
+     */
     public record AppUserDetails(
             @NotNull(message = "Recipient missing!")
             UUID userId,
@@ -52,7 +57,9 @@ public record TransactionRequest(
     ) {
     }
 
-    /** Sending to a bank account. */
+    /**
+     * Sending to a bank account.
+     */
     public record BankDetails(
             UUID bankId,
             String bankName,
@@ -67,7 +74,26 @@ public record TransactionRequest(
     ) {
     }
 
-    /** The amount part of the payment. */
+    /**
+     * Sending to a mobile-money wallet.
+     */
+    public record MobileMoneyDetails(
+            UUID providerId,
+            String providerName,
+            // The network code from search (e.g. MTN); used when providerId is not sent
+            String providerCode,
+            @NotBlank(message = "Wallet phone number missing!")
+            String phoneNumber,
+            // Optional: the name shown to the sender; the confirmed name from the provider wins when there is one
+            String accountName,
+            // Country of the network; defaults to the sender's country
+            String countryCode
+    ) {
+    }
+
+    /**
+     * The amount part of the payment.
+     */
     public record TransferDetails(
             @NotNull(message = "Amount is required")
             @DecimalMin(value = "0.50", message = "Amount must be at least 0.50")
@@ -84,7 +110,9 @@ public record TransactionRequest(
     ) {
     }
 
-    /** The payment type, from {@code transactionType} or (older apps) {@code channelType}. */
+    /**
+     * The payment type, from {@code transactionType} or (older apps) {@code channelType}.
+     */
     public Datatypes.TransactionType resolvedType() {
         if (transactionType != null) {
             return transactionType;
@@ -94,6 +122,9 @@ public record TransactionRequest(
         }
         if ("BANK".equalsIgnoreCase(channelType)) {
             return Datatypes.TransactionType.CASH_OUT_BANK;
+        }
+        if ("MOMO".equalsIgnoreCase(channelType) || "MOBILE_MONEY".equalsIgnoreCase(channelType)) {
+            return Datatypes.TransactionType.CASH_OUT_MOMO;
         }
         throw new IllegalArgumentException("Transaction type missing");
     }

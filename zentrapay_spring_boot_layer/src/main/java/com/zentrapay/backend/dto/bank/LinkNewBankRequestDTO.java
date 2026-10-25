@@ -11,6 +11,10 @@ import java.util.UUID;
 public record LinkNewBankRequestDTO(
         @NotBlank(message = "Target bank is required") String bankId,
         @NotBlank(message = "Target account number is required") String accountNumber,
+        /** Account holder's first name, as it appears on the bank account. */
+        @NotBlank(message = "First name is required") String firstName,
+        /** Account holder's last name, as it appears on the bank account. */
+        @NotBlank(message = "Last name is required") String lastName,
         /** Optional display label; when absent the catalog bank name is used. */
         String linkLabel,
         /** When true the newly linked bank becomes the primary account. */

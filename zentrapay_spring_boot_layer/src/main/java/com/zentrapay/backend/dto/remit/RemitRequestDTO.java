@@ -8,11 +8,18 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * POST /api/remittance/send body — matches the ZRemit form's flat payload
- * exactly ({@code RemittanceRepository.send} on the frontend). The recipient
- * country MUST differ from the sender's registered country: same-country
- * recipients are rejected up-front by {@code RemittancesService} because
- * domestic transfers belong to {@code POST /api/payments}.
+ * POST /api/remittance/send body. The recipient country MUST differ from the sender's registered
+ * country: same-country recipients are rejected up-front by {@code RemittancesService} because
+ * domestic transfers belong to {@code POST /api/payments/initialize}.
+ *
+ * <p>Three kinds of recipient ({@code recipientType}):
+ * <ul>
+ *   <li>USER         - a ZentraPay user ({@code recipientUserId}); wallet to wallet.</li>
+ *   <li>BANK         - a bank account abroad ({@code bankId}/{@code bankCode}, {@code accountNumber}).</li>
+ *   <li>MOBILE_MONEY - a mobile-money wallet abroad ({@code mobileMoneyProviderId}/{@code mobileMoneyProviderCode},
+ *       {@code recipientPhoneNumber}).</li>
+ * </ul>
+ * Bank and mobile-money sends are checked with the payment providers before any money is debited.
  */
 public record RemitRequestDTO(
         @NotBlank(message = "PIN is required")
@@ -25,10 +32,10 @@ public record RemitRequestDTO(
         @NotBlank(message = "Source currency code is required")
         String sourceCurrencyCode,
 
-        /** Optional — defaults to the destination country's gateway currency. */
+        /** Optional - defaults to the destination country's gateway currency. */
         String destinationCurrencyCode,
 
-        /** Payout channel, e.g. "Mobile Money" / "Bank". Defaults to "mobile_money". */
+        /** Payout channel, e.g. "Mobile Money" / "Bank". Defaults from the recipient type. */
         String channel,
 
         @NotBlank(message = "Recipient name is required")
@@ -42,6 +49,16 @@ public record RemitRequestDTO(
         @NotBlank(message = "Recipient country code is required")
         String recipientCountryCode,
 
-        String purpose
+        String purpose,
+
+        /** USER (default when recipientUserId is set), BANK or MOBILE_MONEY. */
+        String recipientType,
+
+        UUID bankId,
+        String bankCode,
+        String accountNumber,
+
+        UUID mobileMoneyProviderId,
+        String mobileMoneyProviderCode
 ) {
 }

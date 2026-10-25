@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -31,6 +32,8 @@ public class SearchContactsController {
     @GetMapping("/search-contacts/{query}")
     public ResponseEntity<ApiResponse<SearchResponseDTO>> searchContacts(
             @PathVariable("query") String query,
+            // DOMESTIC (default): the searcher own country. INTERNATIONAL: every other supported country (ZRemit)
+            @RequestParam(value = "scope", defaultValue = "DOMESTIC") String scope,
             @AuthenticationPrincipal AuthenticatedUser user // Captures the authenticated principal set by your JWT filter
     ) {
         // Extract the user UUID from the principal name (assuming your JWT subject stores the user UUID string)
@@ -42,7 +45,7 @@ public class SearchContactsController {
         SearchRequestDTO request = new SearchRequestDTO(query, 20);
 
         // Perform the search operation
-        SearchResponseDTO contacts = searchContactsService.searchContacts(request, userId);
+        SearchResponseDTO contacts = searchContactsService.searchContacts(request, userId, SearchContactsService.Scope.parse(scope));
 
         // Return the success response
         return ResponseEntity.ok(ApiResponse.success(contacts, "Search Successful"));

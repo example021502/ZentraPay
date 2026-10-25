@@ -53,4 +53,25 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
             @Param("receiverId") UUID receiverId,
             @Param("countryCode") String countryCode
     );
+
+    // Provider sync: every bank a gateway holds for a country
+    List<BanksModel> findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(String gateway, String countryCode);
+
+    // ZRemit: banks in OTHER countries that we support (cross-border recipients)
+    @Query("""
+            SELECT b FROM BanksModel b
+            WHERE (
+                LOWER(b.bankName) LIKE LOWER(CONCAT('%', :query, '%'))
+                OR LOWER(b.countryCode) LIKE CONCAT('%', :query, '%')
+                OR LOWER(b.code) LIKE CONCAT('%', :query, '%')
+            )
+            AND LOWER(b.countryCode) <> :countryCode
+            AND UPPER(b.countryCode) IN (:supportedCountries)
+            AND b.active = true
+            """)
+    List<BanksModel> getMatchedBanksOutsideCountry(
+            @Param("query") String query,
+            @Param("countryCode") String countryCode,
+            @Param("supportedCountries") List<String> supportedCountries
+    );
 }
