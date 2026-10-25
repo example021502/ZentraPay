@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/payments/ZRemitForm.dart';
-import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/features/payments/z_remit_form.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
 
 import 'zremit_header.dart';
 
@@ -27,118 +28,42 @@ class _ZRemitScreenState extends State<ZRemitScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: Column(
-        children: [
-          const ZRemitHeader(),
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.gray50,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeroCard(),
-                  const SizedBox(height: AppTheme.spacingXl),
-                  // Wrapped form widget ensuring it doesn't contain unconstrained inner widgets
-                  const ZRemitForm(),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ),
-        ],
+    return SectionScrollView(
+      header: SectionHeader(
+        title: "ZRemit",
+        subtitle: "Send money abroad to people, banks and mobile money",
+        icon: Icons.public_rounded,
+        sheetColor: AppTheme.gray50,
+        child: const ZRemitHeader(),
+      ),
+      sheet: SectionSheet(
+        color: AppTheme.gray50,
+        topPadding: 12,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroCard(),
+            const SizedBox(height: AppTheme.spacingXl),
+            const ZRemitForm(),
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
 
-  // Builds the hero feature cards horizontally
+  // The currency conversion shortcut, styled like the Home quick actions.
   Widget _buildHeroCard() {
-    return GestureDetector(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, "/converter");
-            },
-            child: Container(
-              decoration: AppTheme.cardDecoration,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(15.0, 10, 20, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.currency_exchange,
-                          size: 22,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Text(
-                      "Currency\nConversion",
-                      style: AppTheme.labelSmall.copyWith(
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingLg),
-          GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, "/instant_transfer");
-            },
-            child: Container(
-              decoration: AppTheme.cardDecoration,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10.0, 10, 15, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(20),
-                        borderRadius: BorderRadius.circular(200),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Icon(
-                          Icons.bolt,
-                          size: 22,
-                          color: AppColors.secondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingSm),
-                    Text(
-                      "Instant transfer",
-                      style: AppTheme.labelSmall.copyWith(
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        QuickActionButton(
+          icon: Icons.currency_exchange,
+          label: "Convert",
+          onTap: () => Navigator.pushNamed(context, "/converter"),
+        ),
+      ],
     );
   }
 }

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/security.dart';
-import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
-import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/main.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
+import 'package:zentrapay_application/features/Settings/repository/cache_settings_data.dart';
 
+/// Security Alerts (fraud detection). Laid out like the main sections: the
+/// shared [SectionHeader] on top, then one white sheet with the same 15px side
+/// padding the other sections use - the rows sit directly on the sheet instead
+/// of inside nested padded cards.
 class FraudDetectionScreen extends StatefulWidget {
   const FraudDetectionScreen({super.key});
 
@@ -13,244 +17,43 @@ class FraudDetectionScreen extends StatefulWidget {
 }
 
 class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
-  bool fraudDetectionEnabled = true;
-
-  // Feature-category rows shown regardless of alert history — there is no
-  // backend concept for "monitored categories" yet, only raised alerts.
-  final List<Map<String, dynamic>> fraudItems = [
-    {
-      'icon': Icons.shield,
-      'title': 'Unusual transactions',
-      'subtitle': 'Monitoring large transfers',
-    },
-    {
-      'icon': Icons.person_off,
-      'title': 'Suspicious login activity',
-      'subtitle': 'New Device was detected',
-    },
-    {
-      'icon': Icons.mic,
-      'title': 'Voice impersonation',
-      'subtitle': 'Analyzing voice patterns',
-    },
-    {
-      'icon': Icons.location_on,
-      'title': 'Unusual location',
-      'subtitle': 'Tracking location changes',
-    },
+  // What the monitor looks at. There is no backend concept for "monitored
+  // categories" yet, only raised alerts, so these are descriptive.
+  static const List<(IconData, String, String)> _watched = [
+    (
+      Icons.swap_horiz_rounded,
+      'Unusual transactions',
+      'Large or rapid transfers',
+    ),
+    (
+      Icons.devices_other_rounded,
+      'Suspicious sign-ins',
+      'New devices and places',
+    ),
+    (
+      Icons.mic_none_rounded,
+      'Voice impersonation',
+      'Requests for your PIN or password',
+    ),
+    (
+      Icons.location_on_outlined,
+      'Unusual location',
+      'Activity far from your usual area',
+    ),
   ];
 
   @override
   void initState() {
     super.initState();
-    FraudAlertsRepository.instance.ensureLoaded();
+    FraudAlertsRepository.instance.ensureLoaded().catchError((_) => null);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppColors.main,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Fraud Detection",
-          style: TextStyle(color: AppColors.primary, fontSize: 18),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            _buildFraudList(),
-            const SizedBox(height: 20),
-            _buildRecentAlerts(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            "Fraud Detection",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
-            ),
-          ),
-          Row(
-            children: [
-              const Text(
-                "On",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.green,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 40,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: AppColors.green,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.check,
-                  color: AppColors.primary,
-                  size: 16,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFraudList() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: fraudItems.map((item) => _buildFraudItem(item)).toList(),
-      ),
-    );
-  }
-
-  Widget _buildFraudItem(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.main.withAlpha(25),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(item['icon'], color: AppColors.textBlack, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['title'],
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item['subtitle'],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppColors.textBlack,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentAlerts() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Recent Alerts",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textBlack,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ListenableBuilder(
-            listenable: FraudAlertsRepository.instance,
-            builder: (context, _) {
-              final repo = FraudAlertsRepository.instance;
-              if (repo.isLoading && repo.data == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (repo.error != null && repo.data == null) {
-                return const Text(
-                  "Couldn't load fraud alerts. Pull to refresh later.",
-                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
-                );
-              }
-              final alerts = repo.data ?? [];
-              if (alerts.isEmpty) {
-                return const Text(
-                  "No fraud alerts — you're all clear.",
-                  style: TextStyle(fontSize: 13, color: AppColors.textBlack),
-                );
-              }
-              return Column(
-                children: alerts
-                    .map((alert) => _buildAlertItem(alert))
-                    .toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
+  Future<void> _refresh() async {
+    try {
+      await FraudAlertsRepository.instance.ensureLoaded(forceRefresh: true);
+    } catch (_) {
+      // The repository keeps the error for the list below.
+    }
   }
 
   Color _severityColor(String severity) {
@@ -277,27 +80,128 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
         .join(' ');
   }
 
-  Widget _buildAlertItem(FraudAlert alert) {
-    final color = _severityColor(alert.severity);
+  Widget _statChip(IconData icon, String text) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
+        color: AppTheme.glassSurface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+        border: Border.all(color: AppTheme.glassBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppTheme.textBlack),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: AppTheme.whiteBodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _header() {
+    return ListenableBuilder(
+      listenable: FraudAlertsRepository.instance,
+      builder: (context, _) {
+        final alerts =
+            FraudAlertsRepository.instance.data ?? const <FraudAlert>[];
+        final open = alerts.where((a) => !a.isResolved).length;
+        return SectionHeader(
+          title: 'Security Alerts',
+          subtitle: 'Fraud detection is watching your account',
+          icon: Icons.shield_rounded,
+          showBack: true,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statChip(Icons.check_circle_outline, 'Monitoring on'),
+              _statChip(
+                open == 0
+                    ? Icons.verified_outlined
+                    : Icons.warning_amber_rounded,
+                open == 0
+                    ? 'All clear'
+                    : '$open open alert${open == 1 ? '' : 's'}',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _title(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+    child: Text(text, style: AppTheme.headlineSmall),
+  );
+
+  Widget _watchedRow((IconData, String, String) item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.gray50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.dividerColor),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(8),
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppTheme.brand.withValues(alpha: 0.1),
+            child: Icon(item.$1, size: 18, color: AppTheme.textBlack),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.$2, style: AppTheme.labelLarge),
+                Text(
+                  item.$3,
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                ),
+              ],
             ),
-            child: const Icon(
-              Icons.warning,
-              color: AppColors.primary,
-              size: 20,
+          ),
+          const Icon(
+            Icons.check_circle,
+            size: 18,
+            color: AppTheme.successGreen,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertRow(FraudAlert alert) {
+    final color = alert.isResolved
+        ? AppTheme.successGreen
+        : _severityColor(alert.severity);
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.gray50,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: color,
+            child: Icon(
+              alert.isResolved ? Icons.check_rounded : Icons.warning_rounded,
+              color: AppTheme.textBlack,
+              size: 18,
             ),
           ),
           const SizedBox(width: 12),
@@ -306,48 +210,95 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
                         _humanizeAlertType(alert.alertType),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textBlack,
-                        ),
+                        style: AppTheme.labelLarge,
                       ),
                     ),
                     Text(
-                      alert.isResolved ? "Resolved" : alert.severity,
-                      style: TextStyle(
-                        fontSize: 12,
+                      alert.isResolved ? 'Resolved' : alert.severity,
+                      style: AppTheme.labelSmall.copyWith(
+                        color: color,
                         fontWeight: FontWeight.bold,
-                        color: alert.isResolved ? AppTheme.successGreen : color,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  alert.message,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                const SizedBox(height: 4),
+                if (alert.message.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(alert.message, style: AppTheme.bodyMedium),
+                ],
+                const SizedBox(height: 2),
                 Text(
                   formatDateTimeString(alert.createdAt),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textBlack,
-                  ),
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _alerts() {
+    return ListenableBuilder(
+      listenable: FraudAlertsRepository.instance,
+      builder: (context, _) {
+        final repo = FraudAlertsRepository.instance;
+        if (repo.isLoading && repo.data == null) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppTheme.spacingLg),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (repo.error != null && repo.data == null) {
+          return Text(
+            "Couldn't load your alerts. Pull down to try again.",
+            style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+          );
+        }
+        final alerts = repo.data ?? const <FraudAlert>[];
+        if (alerts.isEmpty) {
+          return Text(
+            "No fraud alerts. You're all clear.",
+            style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+          );
+        }
+        return Column(children: alerts.map(_alertRow).toList());
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.surface,
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        edgeOffset: 120,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            _header(),
+            SectionSheet(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _title('What we watch'),
+                  ..._watched.map(_watchedRow),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  _title('Recent alerts'),
+                  _alerts(),
+                  const SizedBox(height: AppTheme.spacingXl),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

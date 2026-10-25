@@ -95,7 +95,7 @@ class PayAnywhereScreen extends StatelessWidget {
         QuickActionButton(
           icon: Icons.send,
           label: "Send",
-          onTap: () => Navigator.pushNamed(context, '/instant_transfer'),
+          onTap: () => Navigator.pushNamed(context, '/pay'),
           color: AppTheme.payAnywhereColor,
         ),
         QuickActionButton(
@@ -138,7 +138,7 @@ class PayAnywhereScreen extends StatelessWidget {
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.payAnywhereColor, size: 24),
+        Icon(icon, color: AppTheme.textBlack, size: 24),
         const SizedBox(height: AppTheme.spacingXs),
         Text(
           value,

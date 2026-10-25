@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
-import 'package:zentrapay_application/features/home/HomePayments/widgets/makePayment.dart';
+import 'package:zentrapay_application/features/home/HomePayments/widgets/make_payment.dart';
 
 /// Stands in for the real payment pipeline so the flow can be exercised
 /// end-to-end without dialogs, PIN sheets or network calls.
@@ -45,7 +45,7 @@ AppTransaction _transaction({
 }) => AppTransaction(
   transactionId: 'txn-1',
   receiverId: receiverId,
-  TXN_Ref: 'REF-1',
+  txnRef: 'REF-1',
   destinationId: '+233209999999',
   amount: amount,
   status: 'SUCCESS',

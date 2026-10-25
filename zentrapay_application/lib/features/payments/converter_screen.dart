@@ -1,9 +1,21 @@
+import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/payments/repository/cache_paymentsData.dart';
+import 'package:zentrapay_application/core/models/converter.dart';
+import 'package:zentrapay_application/core/models/reference_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/main.dart';
 
-/// Modernized screen for performing smart currency conversions with live exchange rates.
+/// Smart currency converter.
+///
+/// Currencies and rates come from the backend. While the user types, the
+/// result is a *preview* worked out from the live rate (nothing is recorded);
+/// "Convert & save" sends the conversion to the backend, which records it in
+/// the user's conversion history (the clock button opens that history).
 class ConverterScreen extends StatefulWidget {
   const ConverterScreen({super.key});
 
@@ -12,206 +24,302 @@ class ConverterScreen extends StatefulWidget {
 }
 
 class _ConverterScreenState extends State<ConverterScreen> {
-  // Local state variables for managing source/destination currencies, amounts, and statuses
-  String fromCurrency = 'GHS';
-  String toCurrency = 'USD';
-  double fromAmount = 1000.00;
-  double toAmount = 0;
-  double exchangeRate = 0;
-  bool isSmartConversion = true;
-  bool isLoading = false;
-  String? errorMessage;
+  String _from = 'GHS';
+  String _to = 'USD';
+  final _amountController = TextEditingController(text: '100.00');
 
-  // Controller to handle text editing dynamically for the input amount
-  late final TextEditingController _amountController;
-
-  // Supported currency configurations with symbols, names, and flags
-  final List<Map<String, dynamic>> currencies = [
-    {'code': 'GHS', 'symbol': '₵', 'name': 'Ghanaian Cedi', 'flag': '🇬🇭'},
-    {'code': 'USD', 'symbol': '\$', 'name': 'US Dollar', 'flag': '🇺🇸'},
-    {'code': 'KES', 'symbol': 'KSh', 'name': 'Kenyan Shilling', 'flag': '🇰🇪'},
-    {'code': 'NGN', 'symbol': '₦', 'name': 'Nigerian Naira', 'flag': '🇳🇬'},
-  ];
+  List<AppCurrency> _currencies = const [];
+  RatesSnapshot? _rates;
+  DateTime? _ratesAt;
+  bool _loadingRates = true;
+  bool _converting = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Initialize text controller with formatted amount string
-    _amountController = TextEditingController(
-      text: fromAmount.toStringAsFixed(2),
-    );
-    _performConversion();
+    _loadRates();
   }
 
   @override
   void dispose() {
-    // Clean up controller to prevent memory leaks
     _amountController.dispose();
     super.dispose();
   }
 
-  /// Asynchronously fetches live conversion rates and updates local state values.
-  Future<void> _performConversion() async {
+  // ---------------------------------------------------------------- data
+
+  Future<void> _loadRates({bool refresh = false}) async {
     setState(() {
-      isLoading = true;
-      errorMessage = null;
+      _loadingRates = true;
+      _error = null;
     });
     try {
-      final result = await ConverterService.convert(
-        from: fromCurrency,
-        to: toCurrency,
-        amount: fromAmount.toStringAsFixed(2),
-      );
-      final converted = double.tryParse(result.convertedAmount);
-      final rate = double.tryParse(result.rate);
-      if (converted != null) {
-        setState(() {
-          toAmount = converted;
-          exchangeRate = rate ?? (fromAmount == 0 ? 0 : converted / fromAmount);
-        });
+      try {
+        final list = await CurrenciesRepository.instance.ensureLoaded();
+        if (list != null && mounted) {
+          _currencies = list.where((c) => !c.isCrypto).toList();
+        }
+      } catch (_) {
+        // The rates alone are enough to convert; names/symbols are cosmetic.
       }
+      final repo = RatesRepository.instance;
+      await repo.loadForBase(_from);
+      if (refresh) await repo.ensureLoaded(forceRefresh: true);
+      if (!mounted) return;
+      setState(() {
+        _rates = repo.data;
+        _ratesAt = DateTime.now();
+        _keepSelectionValid();
+      });
     } catch (e) {
-      setState(() => errorMessage = 'Could not fetch live rates');
+      if (!mounted) return;
+      setState(
+        () => _error = errorMessage(
+          e,
+          fallback: "We couldn't load live rates right now.",
+        ),
+      );
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) setState(() => _loadingRates = false);
     }
   }
+
+  /// Codes the user can pick: the backend's currency list, falling back to the
+  /// codes it returned rates for.
+  List<String> get _codes {
+    final fromList = _currencies.map((c) => c.currencyCode).toList();
+    if (fromList.isNotEmpty) return fromList;
+    return {_from, ...?_rates?.rates.keys}.toList()..sort();
+  }
+
+  void _keepSelectionValid() {
+    final codes = _codes;
+    if (codes.isEmpty) return;
+    if (!codes.contains(_from)) _from = codes.first;
+    if (!codes.contains(_to)) {
+      _to = codes.firstWhere((c) => c != _from, orElse: () => codes.first);
+    }
+  }
+
+  AppCurrency? _currency(String code) {
+    for (final c in _currencies) {
+      if (c.currencyCode == code) return c;
+    }
+    return null;
+  }
+
+  double? get _amount => double.tryParse(_amountController.text.trim());
+
+  /// Units of [_to] for one unit of [_from], from the backend's snapshot.
+  double? get _rate {
+    if (_from == _to) return 1;
+    if (_rates == null || _rates!.base != _from) return null;
+    return double.tryParse(_rates!.rates[_to] ?? '');
+  }
+
+  double? get _preview {
+    final amount = _amount;
+    final rate = _rate;
+    if (amount == null || rate == null) return null;
+    return amount * rate;
+  }
+
+  // ------------------------------------------------------------- actions
+
+  void _setFrom(String code) {
+    if (code == _from) return;
+    setState(() => _from = code);
+    _loadRates();
+  }
+
+  void _setTo(String code) => setState(() => _to = code);
+
+  void _swap() {
+    final received = _preview;
+    setState(() {
+      final tmp = _from;
+      _from = _to;
+      _to = tmp;
+      if (received != null && received > 0) {
+        _amountController.text = received.toStringAsFixed(2);
+      }
+    });
+    _loadRates();
+  }
+
+  Future<void> _convertAndSave() async {
+    final amount = _amount;
+    if (amount == null || amount <= 0) {
+      ZentraNotifier.notice('Enter an amount to convert.');
+      return;
+    }
+    if (_from == _to) {
+      ZentraNotifier.notice('Choose two different currencies.');
+      return;
+    }
+    setState(() => _converting = true);
+    try {
+      final result = await ConverterService.convert(
+        from: _from,
+        to: _to,
+        amount: amount.toStringAsFixed(2),
+      );
+      if (!mounted) return;
+      final converted = double.tryParse(result.convertedAmount);
+      ZentraNotifier.success(
+        'Conversion saved',
+        '${amount.toStringAsFixed(2)} $_from = '
+            '${converted?.toStringAsFixed(2) ?? result.convertedAmount} $_to',
+      );
+    } catch (e) {
+      ZentraNotifier.error(
+        'Conversion failed',
+        errorMessage(
+          e,
+          fallback: "We couldn't complete that conversion. Please try again.",
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _converting = false);
+    }
+  }
+
+  void _showHistory() {
+    showAppOverlaySheet<void>(
+      context: context,
+      minHeightFraction: 0.6,
+      maxWidth: 600,
+      builder: (_) => const _ConversionHistory(),
+    );
+  }
+
+  // --------------------------------------------------------------- build
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppColors.main,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Smart Converter",
-          style: TextStyle(color: AppColors.primary, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history, color: AppColors.primary),
-            onPressed: () {},
+      body: Column(
+        children: [
+          SectionHeader(
+            title: "Smart Converter",
+            subtitle: "Live rates between your currencies",
+            icon: Icons.currency_exchange_rounded,
+            showBack: true,
+            sheetColor: AppTheme.gray50,
+            actions: [
+              SectionHeaderButton(
+                icon: Icons.history,
+                tooltip: 'Conversion history',
+                onTap: _showHistory,
+              ),
+            ],
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 8, bottom: 16),
+              child: Column(
+                children: [
+                  _buildConverterCard(),
+                  const SizedBox(height: 20),
+                  _buildRateInfo(),
+                  const SizedBox(height: 20),
+                  _buildSummary(),
+                  const SizedBox(height: 20),
+                  _buildConvertButton(),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            _buildConverterCard(),
-            const SizedBox(height: 20),
-            _buildBestRateInfo(),
-            const SizedBox(height: 20),
-            _buildConversionOptions(),
-            const SizedBox(height: 20),
-            _buildConversionSummary(),
-            const SizedBox(height: 20),
-            _buildConvertButton(),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 
-  /// Builds the modern interactive converter card with an overlapping floating swap button.
+  Widget _card({required Widget child}) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.symmetric(horizontal: 16),
+    padding: const EdgeInsets.all(16),
+    decoration: AppTheme.cardDecoration,
+    child: child,
+  );
+
   Widget _buildConverterCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: AppTheme.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Column(
-              children: [
-                _buildCurrencyInputField(
-                  label: 'Convert from',
-                  currency: fromCurrency,
-                  amount: fromAmount,
-                  isReadOnly: false,
+    final preview = _preview;
+    return _card(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Column(
+            children: [
+              _field(
+                label: 'Convert from',
+                code: _from,
+                onCode: _setFrom,
+                input: TextField(
                   controller: _amountController,
-                  onCurrencyChanged: (value) {
-                    setState(() => fromCurrency = value);
-                    _performConversion();
-                  },
-                  onAmountChanged: (value) {
-                    setState(() => fromAmount = value);
-                    _performConversion();
-                  },
-                ),
-                const SizedBox(height: 48),
-                // Spacer to prevent text overlap with the floating button
-                _buildCurrencyInputField(
-                  label: 'Converted to',
-                  currency: toCurrency,
-                  amount: toAmount,
-                  isReadOnly: true,
-                  onCurrencyChanged: (value) {
-                    setState(() => toCurrency = value);
-                    _performConversion();
-                  },
-                ),
-              ],
-            ),
-            // Floating center swap button
-            Positioned(
-              child: GestureDetector(
-                onTap: _swapCurrencies,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(20),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  child: const Icon(
-                    Icons.swap_vert,
-                    color: AppColors.primary,
-                    size: 22,
+                  onChanged: (_) => setState(() {}),
+                  style: AppTheme.headlineSmall,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    filled: false,
                   ),
                 ),
               ),
+              const SizedBox(height: 44),
+              _field(
+                label: 'Converted to',
+                code: _to,
+                onCode: _setTo,
+                input: Text(
+                  _loadingRates && preview == null
+                      ? '…'
+                      : preview == null
+                      ? '--'
+                      : preview.toStringAsFixed(2),
+                  style: AppTheme.headlineSmall,
+                ),
+              ),
+            ],
+          ),
+          GestureDetector(
+            onTap: _swap,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.brand,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.surface, width: 3),
+              ),
+              child: Icon(Icons.swap_vert, color: AppTheme.textBlack, size: 22),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Builds a uniform, standardized input or output field block for currencies.
-  Widget _buildCurrencyInputField({
+  Widget _field({
     required String label,
-    required String currency,
-    required double amount,
-    bool isReadOnly = false,
-    TextEditingController? controller,
-    required Function(String) onCurrencyChanged,
-    Function(double)? onAmountChanged,
+    required String code,
+    required ValueChanged<String> onCode,
+    required Widget input,
   }) {
-    final currencyData = currencies.firstWhere(
-      (c) => c['code'] == currency,
-      orElse: () => currencies[0],
-    );
-
+    final info = _currency(code);
+    final codes = _codes;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.gray50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightGrey, width: 1),
+        border: Border.all(color: AppTheme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,104 +329,59 @@ class _ConverterScreenState extends State<ConverterScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: AppColors.textBlack,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600),
               ),
-              Text(
-                currencyData['name'],
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              Flexible(
+                child: Text(
+                  info?.currencyName ?? '',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: isReadOnly
-                    ? Text(
-                        '${currencyData['symbol']} ${amount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textBlack,
-                        ),
-                      )
-                    : TextField(
-                        controller: controller,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textBlack,
-                        ),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: AppColors.secondary,
-                              width: 2,
-                              strokeAlign: 1.2,
-                            ),
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(10),
-                            ),
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 5,
-                            horizontal: 10,
-                          ),
-                        ),
-
-                        onChanged: (val) {
-                          final parsed = double.tryParse(val) ?? 0.0;
-                          if (onAmountChanged != null) {
-                            onAmountChanged(parsed);
-                          }
-                        },
-                      ),
-              ),
+              if (info != null && info.symbol.isNotEmpty) ...[
+                Text(
+                  info.symbol,
+                  style: AppTheme.headlineSmall.copyWith(
+                    color: AppTheme.gray500,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(child: input),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.lightGrey),
+                  border: Border.all(color: AppTheme.dividerColor),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: currency,
+                    value: codes.contains(code) ? code : null,
                     isDense: true,
-                    icon: const Icon(
+                    dropdownColor: AppTheme.surface,
+                    icon: Icon(
                       Icons.arrow_drop_down,
-                      color: AppColors.textBlack,
+                      color: AppTheme.textBlack,
                     ),
-                    items: currencies.map((c) {
-                      return DropdownMenuItem<String>(
-                        value: c['code'],
-                        child: Text(
-                          '${c['flag']} ${c['code']}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textBlack,
+                    items: [
+                      for (final c in codes)
+                        DropdownMenuItem(
+                          value: c,
+                          child: Text(
+                            '${_flag(c)} $c',
+                            style: AppTheme.labelLarge,
                           ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        onCurrencyChanged(value);
-                      }
+                    ],
+                    onChanged: (v) {
+                      if (v != null) onCode(v);
                     },
                   ),
                 ),
@@ -330,336 +393,317 @@ class _ConverterScreenState extends State<ConverterScreen> {
     );
   }
 
-  /// Builds the modern best-rate container styled with cardDecoration.
-  Widget _buildBestRateInfo() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: AppTheme.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Best Rate Guaranteed",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Text(
-                      "Live",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.green,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.green,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$fromCurrency 1 = $toCurrency ${exchangeRate.toStringAsFixed(3)}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                const Text(
-                  "Updated just now",
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Flag emoji from the first two letters of the code (GHS -> GH). Codes that
+  /// are not country-based just get a generic marker.
+  String _flag(String code) {
+    if (code.length < 2) return '💱';
+    final a = code.codeUnitAt(0), b = code.codeUnitAt(1);
+    bool isLetter(int u) => u >= 65 && u <= 90;
+    if (!isLetter(a) || !isLetter(b)) return '💱';
+    return String.fromCharCodes([0x1F1E6 + a - 65, 0x1F1E6 + b - 65]);
   }
 
-  /// Builds the conversion options list within a bounded scroll view to prevent overflow.
-  Widget _buildConversionOptions() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: AppTheme.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Select Conversion Option",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textBlack,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 250),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildOptionTile(
-                      title: "Smart Conversion",
-                      subtitle: "(Recommended)",
-                      description: "Best available live rate liquidity route",
-                      amount: '$toCurrency ${toAmount.toStringAsFixed(2)}',
-                      fee:
-                          '$fromCurrency ${(fromAmount * 0.005).toStringAsFixed(2)}',
-                      isSelected: isSmartConversion,
-                      onTap: () => setState(() => isSmartConversion = true),
+  Widget _buildRateInfo() {
+    final rate = _rate;
+    final updated = _ratesAt == null
+        ? null
+        : '${_ratesAt!.hour.toString().padLeft(2, '0')}:'
+              '${_ratesAt!.minute.toString().padLeft(2, '0')}';
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Exchange rate", style: AppTheme.labelLarge),
+              _loadingRates
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppTheme.brand,
+                      ),
+                    )
+                  : InkWell(
+                      onTap: () => _loadRates(refresh: true),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Icon(
+                          Icons.refresh,
+                          size: 20,
+                          color: AppTheme.textBlack,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    _buildOptionTile(
-                      title: "Low Fee Tier",
-                      subtitle: "Economy spread",
-                      description: "Reduced percentage charges",
-                      amount:
-                          '$toCurrency ${(toAmount * 0.98).toStringAsFixed(2)}',
-                      fee:
-                          '$fromCurrency ${(fromAmount * 0.002).toStringAsFixed(2)}',
-                      isSelected: !isSmartConversion,
-                      onTap: () => setState(() => isSmartConversion = false),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Builds an individual selectable option tile.
-  Widget _buildOptionTile({
-    required String title,
-    required String subtitle,
-    String? description,
-    required String amount,
-    required String fee,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.gray50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.secondary : AppColors.lightGrey,
-            width: isSelected ? 2 : 1,
+            ],
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Radio<bool>(
-              value: isSelected,
-              groupValue: true,
-              onChanged: (_) => onTap(),
-              activeColor: AppColors.secondary,
+          const SizedBox(height: 12),
+          if (_error != null)
+            Text(
+              _error!,
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.errorRed),
+            )
+          else if (rate == null)
+            Text(
+              _loadingRates
+                  ? 'Loading live rates…'
+                  : 'No rate available for this pair.',
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+            )
+          else ...[
+            Text(
+              '1 $_from = ${_formatRate(rate)} $_to',
+              style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(width: 5),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textBlack,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (description != null)
-                    Text(
-                      description,
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                ],
-              ),
+            const SizedBox(height: 4),
+            Text(
+              '1 $_to = ${_formatRate(1 / rate)} $_from',
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
             ),
-            const SizedBox(width: 5),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  amount,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.green,
-                  ),
-                ),
-                Text(
-                  'Fee: $fee',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Builds the summary container with cardDecoration.
-  Widget _buildConversionSummary() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: AppTheme.cardDecoration,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Conversion Summary",
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textBlack,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildSummaryRow(
-              "Exchange rate:",
-              "1 $fromCurrency = ${exchangeRate.toStringAsFixed(4)} $toCurrency",
-            ),
-            const SizedBox(height: 8),
-            _buildSummaryRow(
-              "You receive:",
-              "$toCurrency ${toAmount.toStringAsFixed(2)}",
-              isHighlighted: true,
-            ),
-            if (errorMessage != null) ...[
-              const SizedBox(height: 8),
+            if (updated != null) ...[
+              const SizedBox(height: 4),
               Text(
-                errorMessage!,
-                style: const TextStyle(color: Colors.red, fontSize: 12),
+                'Rates loaded at $updated',
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
               ),
             ],
           ],
-        ),
+        ],
       ),
     );
   }
 
-  /// Helper row builder for summary details.
-  Widget _buildSummaryRow(
-    String label,
-    String value, {
-    bool isHighlighted = false,
-  }) {
+  String _formatRate(double value) {
+    if (value >= 100) return value.toStringAsFixed(2);
+    if (value >= 1) return value.toStringAsFixed(4);
+    return value.toStringAsFixed(6);
+  }
+
+  Widget _buildSummary() {
+    final amount = _amount;
+    final preview = _preview;
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Conversion summary", style: AppTheme.labelLarge),
+          const SizedBox(height: 12),
+          _summaryRow(
+            "You convert",
+            amount == null ? '--' : '${amount.toStringAsFixed(2)} $_from',
+          ),
+          const SizedBox(height: 8),
+          _summaryRow(
+            "You receive",
+            preview == null ? '--' : '${preview.toStringAsFixed(2)} $_to',
+            highlighted: true,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Saved to your history when you tap Convert & save.",
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, String value, {bool highlighted = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Text(
+          label,
+          style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+        ),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-            color: isHighlighted ? AppColors.green : AppColors.textBlack,
+          style: AppTheme.bodyMedium.copyWith(
+            fontWeight: highlighted ? FontWeight.bold : FontWeight.normal,
+            color: highlighted ? AppColors.green : AppTheme.textBlack,
           ),
         ),
       ],
     );
   }
 
-  /// Builds the primary button using secondary color and 15 vertical padding.
   Widget _buildConvertButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SizedBox(
         width: double.infinity,
-        child: ElevatedButton(
-          onPressed: isLoading ? null : _performConversion,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.secondary,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primary,
-                  ),
-                )
-              : const Text(
-                  "Convert Now",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
+        child: PrimaryButton(
+          label: 'Convert & save',
+          loading: _converting,
+          onPressed: _loadingRates || _rate == null ? null : _convertAndSave,
         ),
       ),
     );
   }
+}
 
-  /// Handles swapping currencies and syncing inputs.
-  void _swapCurrencies() {
-    setState(() {
-      final tempCurrency = fromCurrency;
-      fromCurrency = toCurrency;
-      toCurrency = tempCurrency;
+/// Overlay listing every conversion the user has saved (newest first).
+class _ConversionHistory extends StatefulWidget {
+  const _ConversionHistory();
 
-      final tempAmount = fromAmount;
-      fromAmount = toAmount;
-      toAmount = tempAmount;
+  @override
+  State<_ConversionHistory> createState() => _ConversionHistoryState();
+}
 
-      _amountController.text = fromAmount.toStringAsFixed(2);
-    });
+class _ConversionHistoryState extends State<_ConversionHistory> {
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _error = null);
+    try {
+      await ConverterHistoryRepository.instance.ensureLoaded();
+    } catch (e) {
+      if (!mounted) return;
+      setState(
+        () => _error = errorMessage(
+          e,
+          fallback: "We couldn't load your conversion history.",
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+      child: ListenableBuilder(
+        listenable: ConverterHistoryRepository.instance,
+        builder: (context, _) {
+          final repo = ConverterHistoryRepository.instance;
+          final items = [...?repo.data]
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Conversion history', style: AppTheme.headlineSmall),
+              const SizedBox(height: AppTheme.spacingXs),
+              Text(
+                'Everything you have converted with Smart Converter.',
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+              Expanded(child: _body(repo, items)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _body(
+    ConverterHistoryRepository repo,
+    List<ConversionHistoryEntry> items,
+  ) {
+    if (repo.isLoading && repo.data == null) {
+      return Center(child: CircularProgressIndicator(color: AppTheme.brand));
+    }
+    if (_error != null && repo.data == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center),
+            TextButton(onPressed: _load, child: const Text('Try again')),
+          ],
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No conversions yet. Tap Convert & save to keep a record.',
+          textAlign: TextAlign.center,
+          style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacingLg),
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppTheme.spacingSm),
+      itemBuilder: (context, i) => _HistoryTile(entry: items[i]),
+    );
+  }
+}
+
+class _HistoryTile extends StatelessWidget {
+  final ConversionHistoryEntry entry;
+
+  const _HistoryTile({required this.entry});
+
+  String _fixed(String raw) {
+    final v = double.tryParse(raw);
+    return v == null ? raw : v.toStringAsFixed(2);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingSm + 4),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.brand.withAlpha(AppTheme.isDark ? 60 : 22),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.currency_exchange_outlined,
+              color: AppTheme.textBlack,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${entry.fromCurrency} → ${entry.toCurrency}',
+                  style: AppTheme.labelLarge,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatDateTimeString(entry.createdAt),
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${_fixed(entry.amount)} ${entry.fromCurrency}',
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_fixed(entry.convertedAmount)} ${entry.toCurrency}',
+                style: AppTheme.labelLarge.copyWith(color: AppColors.green),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

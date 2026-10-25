@@ -1,13 +1,13 @@
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/main.dart';
 
-import 'NewWallet.dart';
-import 'getCurrencyISOCodeHelper.dart';
+import 'new_wallet.dart';
+import 'get_currency_iso_code_helper.dart';
 
 class HomeHeader extends StatefulWidget {
   final String title;
@@ -89,7 +89,7 @@ class _HomeHeaderState extends State<HomeHeader> {
         ),
       );
     } catch (e) {
-      print("ERROR:: $e");
+      debugPrint("ERROR:: $e");
       ZentraNotifier.warning("Warning", "Something went wrong, try again!");
     }
   }
@@ -99,19 +99,19 @@ class _HomeHeaderState extends State<HomeHeader> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: AppColors.primary,
+      color: AppTheme.surface,
       borderRadius: BorderRadius.circular(200),
       child: InkWell(
         borderRadius: BorderRadius.circular(200),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(200),
           ),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Icon(icon, color: AppColors.main, size: 22),
+            child: Icon(icon, color: AppTheme.secondaryNavy, size: 22),
           ),
         ),
       ),
@@ -181,7 +181,7 @@ class TabsContainerState extends State<TabsContainer>
           return Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              child: CircularProgressIndicator(color: AppColors.secondary),
+              child: CircularProgressIndicator(color: AppTheme.brand),
             ),
           );
         }
@@ -201,7 +201,11 @@ class TabsContainerState extends State<TabsContainer>
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.wallet_outlined, size: 40, color: AppColors.primary),
+                Icon(
+                  Icons.wallet_outlined,
+                  size: 40,
+                  color: AppTheme.primaryWhite,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   "No wallets found",
@@ -221,7 +225,6 @@ class TabsContainerState extends State<TabsContainer>
                         final List<SupportedCurrencies> currencies =
                             await WalletsRepository.instance
                                 .getSupportedCurrencies();
-                        print("The currencies received are:: $currencies");
                         if (!context.mounted) return;
 
                         showDialog<void>(
@@ -233,7 +236,7 @@ class TabsContainerState extends State<TabsContainer>
                           ),
                         );
                       } catch (e) {
-                        print("ERROR:: $e");
+                        debugPrint("ERROR:: $e");
                         ZentraNotifier.warning(
                           "Warning",
                           "Something went wrong, try again!",
@@ -242,7 +245,7 @@ class TabsContainerState extends State<TabsContainer>
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: AppTheme.surface,
                         borderRadius: BorderRadius.circular(200),
                       ),
                       child: Padding(
@@ -330,7 +333,7 @@ class TabsContainerState extends State<TabsContainer>
                     show
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: AppColors.primary,
+                    color: AppTheme.textBlack,
                     size: 24,
                   ),
                 ),
@@ -349,10 +352,10 @@ class TabsContainerState extends State<TabsContainer>
                         right: i == walletData.length - 1 ? 0 : 16.0,
                       ),
                       child: _tab(
-                        country_iso_code: extractCountryIsoCode(
+                        countryIsoCode: extractCountryIsoCode(
                           walletData[i].currencyCode,
                         ),
-                        currency_code: walletData[i].currencyCode,
+                        currencyCode: walletData[i].currencyCode,
                         balance: walletData[i].balance,
                         active: index == i,
                         index: i,
@@ -368,8 +371,8 @@ class TabsContainerState extends State<TabsContainer>
   }
 
   Widget _tab({
-    required String currency_code,
-    required String country_iso_code,
+    required String currencyCode,
+    required String countryIsoCode,
     required String balance,
     required bool active,
     required int index,
@@ -399,13 +402,13 @@ class TabsContainerState extends State<TabsContainer>
               clipBehavior: Clip.antiAlias,
               decoration: const BoxDecoration(shape: BoxShape.circle),
               child: CountryFlag.fromCountryCode(
-                country_iso_code,
+                countryIsoCode,
                 shape: const Circle(),
               ),
             ),
             const SizedBox(width: 10),
             Text(
-              currency_code,
+              currencyCode,
               style: TextStyle(
                 color: active ? AppColors.primary : AppTheme.primaryWhite,
                 fontWeight: active ? FontWeight.bold : FontWeight.w500,

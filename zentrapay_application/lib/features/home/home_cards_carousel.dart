@@ -35,7 +35,7 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(200),
-                    color: AppTheme.secondaryNavy.withAlpha(20),
+                    color: AppTheme.brand.withAlpha(20),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(10.0),

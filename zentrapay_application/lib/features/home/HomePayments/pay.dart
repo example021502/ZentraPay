@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/home/HomePayments/widgets/makePayment.dart';
+import 'package:zentrapay_application/features/home/HomePayments/widgets/make_payment.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
+import 'package:zentrapay_application/features/home/HomePayments/widgets/verify_payee_sheet.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
 import 'package:zentrapay_application/features/home/HomePayments/qr_scan_screen.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
@@ -109,6 +110,34 @@ class _PaySectionMainState extends State<PaySectionMain> {
     );
   }
 
+  /// A bank or mobile-money network was picked: collect the account number,
+  /// have the payment providers confirm who owns it, and only then go on to
+  /// Enter Amount -> PIN -> POST /api/payments/initialize.
+  Future<void> _onSelectExternal({
+    Banks? bank,
+    MobileMoneyProvider? mobileMoney,
+  }) async {
+    if (_payInFlight) return;
+    final payee = await showVerifyPayeeSheet(
+      context: context,
+      bank: bank,
+      mobileMoney: mobileMoney,
+    );
+    if (payee == null || !mounted) return;
+
+    await makePayment.processPayment(
+      context: context,
+      recipientNameForUI: payee.displayName,
+      recipientMap: payee.recipient,
+      channelType: payee.kind == PayeeKind.bank ? "BANK" : "MOMO",
+      onStateChanged: (bool newInFlight) {
+        setState(() {
+          _payInFlight = newInFlight;
+        });
+      },
+    );
+  }
+
   /// Scan the receiver's QR code, extract their details from the payload and
   /// jump straight into the shared payment flow (Enter Amount -> PIN ->
   /// POST /api/payments/initialize), exactly like selecting a searched
@@ -138,14 +167,14 @@ class _PaySectionMainState extends State<PaySectionMain> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryWhite,
+      backgroundColor: AppTheme.surface,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: SizedBox(
         height: 100,
         child: FloatingActionButton(
           onPressed: _onScanQr,
           elevation: 0,
-          backgroundColor: AppTheme.primaryWhite,
+          backgroundColor: Colors.transparent,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -156,9 +185,9 @@ class _PaySectionMainState extends State<PaySectionMain> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                   boxShadow: AppTheme.cardShadow,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.qr_code_2_outlined,
-                  color: AppTheme.primaryPink,
+                  color: AppTheme.textBlack,
                   size: 35,
                 ),
               ),
@@ -262,8 +291,9 @@ class _PaySectionMainState extends State<PaySectionMain> {
                             context,
                             "Sending to a bill provider",
                           ),
-                          onSelectBank: (_) =>
-                              showComingSoon(context, "Sending to bank"),
+                          onSelectBank: (bank) => _onSelectExternal(bank: bank),
+                          onSelectMobileMoney: (momo) =>
+                              _onSelectExternal(mobileMoney: momo),
                         ),
                       ],
                     ),

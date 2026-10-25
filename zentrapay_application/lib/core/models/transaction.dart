@@ -1,8 +1,9 @@
 class AppTransaction {
   final String transactionId;
   final String receiverId;
-  final String TXN_Ref;
+  final String txnRef;
   final String destinationId;
+
   /// Signed display amount straight from the backend — e.g. "-GHS 100.00"
   /// (debit) or "+GHS 100.00" (credit). The leading sign is the single
   /// source of truth for credit vs debit: it drives the green/red amount
@@ -19,7 +20,7 @@ class AppTransaction {
   AppTransaction({
     required this.transactionId,
     required this.receiverId,
-    required this.TXN_Ref,
+    required this.txnRef,
     required this.destinationId,
     required this.amount,
     required this.status,
@@ -40,7 +41,7 @@ class AppTransaction {
       // this model still exposes it under its legacy TXN_Ref name. Both
       // producers (GET /api/history and POST /api/payments/initialize) send
       // TXN_Ref; internalReferenceId is kept as a defensive fallback.
-      TXN_Ref:
+      txnRef:
           (json['TXN_Ref'] ?? json['internalReferenceId']?.toString()) ??
           'Undefined',
       destinationId: (json['destinationId']?.toString()) ?? 'Undefined',
@@ -84,7 +85,7 @@ class AppTransaction {
 
   // @override
   // String toString() {
-  //   return 'AppTransaction(id: $transactionId, txn_ref: $TXN_Ref, name: $receiverName, identifier: $receiverPhoneNumber)';
+  //   return 'AppTransaction(id: $transactionId, txn_ref: $txnRef, name: $receiverName, identifier: $receiverPhoneNumber)';
   // }
 }
 

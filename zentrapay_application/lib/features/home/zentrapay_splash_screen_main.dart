@@ -7,7 +7,7 @@ import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/home/bouncing_logo.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../features/home/repository/cache_homeData.dart';
+import '../../features/home/repository/cache_home_data.dart';
 import '../../core/theme/navigation_bar/responsive_navigation.dart';
 
 // Comment: Main splash screen widget handling initial app loading and route dispatching
@@ -27,9 +27,6 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   late Animation<double> _brandOpacity;
   late Animation<Offset> _sloganSlide;
   late Animation<double> _sloganOpacity;
-
-  // Comment: Local state condition tracking variable to display loading context overlay
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -111,11 +108,6 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
     await Future.delayed(const Duration(seconds: 4));
     if (!mounted) return;
 
-    // Comment: Display background loading state during the remaining 2-second hold window
-    setState(() {
-      _isLoading = true;
-    });
-
     // Comment: Wait for the remaining 2 seconds (Total 6-second splash delay)
     await Future.delayed(const Duration(seconds: 2));
     final userData = await tokenCheckFuture;
@@ -152,7 +144,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppTheme.primaryWhite,
       // Comment: Force full screen height safely without infinite layout collisions
       body: SizedBox.expand(
         child: SafeArea(
@@ -172,17 +164,12 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                       // Comment: Z Logo container
                       ScaleTransition(
                         scale: _logoScale,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryWhite,
-                          ),
-                          child: const Text(
-                            'Z',
-                            style: TextStyle(
-                              color: AppColors.main,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 40,
-                            ),
+                        child: const Text(
+                          'Z',
+                          style: TextStyle(
+                            color: AppColors.main,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 40,
                           ),
                         ),
                       ),
@@ -215,7 +202,7 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
                         child: const Text(
                           'One Africa, One Wallet',
                           style: TextStyle(
-                            color: AppColors.secondary,
+                            color: AppTheme.secondaryNavy,
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0.5,

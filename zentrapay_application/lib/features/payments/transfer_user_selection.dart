@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../main.dart';
@@ -156,7 +156,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
       controller: _searchController,
       onChanged: _onSearchChanged,
       decoration: InputDecoration(
-        icon: const Icon(Icons.search, size: 20, color: AppColors.textBlack),
+        icon: Icon(Icons.search, size: 20, color: AppTheme.textBlack),
         contentPadding: EdgeInsets.zero,
         hintText: _getHintText(),
         hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
@@ -247,7 +247,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Recent history",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -290,7 +290,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
       border: Border.all(color: AppColors.lightGrey),
     ),
     child: ListTile(
-      leading: const Icon(Icons.person_outline, color: AppColors.textBlack),
+      leading: Icon(Icons.person_outline, color: AppTheme.textBlack),
       title: Text(
         title,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -310,10 +310,10 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
     onTap: onTap,
     child: Column(
       children: [
-        const CircleAvatar(
+        CircleAvatar(
           radius: 25,
           backgroundColor: AppTheme.gray50,
-          child: Icon(Icons.person_outline, color: AppColors.textBlack),
+          child: Icon(Icons.person_outline, color: AppTheme.textBlack),
         ),
         const SizedBox(height: 5),
         SizedBox(
@@ -323,7 +323,7 @@ class _TransferUserSelectionState extends State<TransferUserSelection> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: AppColors.textBlack),
+            style: TextStyle(fontSize: 12, color: AppColors.textBlack),
           ),
         ),
       ],

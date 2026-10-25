@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/challenge_card.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/challenges_all_screen.dart';
 
@@ -219,7 +219,7 @@ class _ChallengesSectionState extends State {
     }
 
     if (all.isEmpty && accepted.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
           "No challenges available right now. Check back soon.",

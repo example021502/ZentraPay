@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
 import 'package:zentrapay_application/features/Settings/widgets/section_label.dart';
+import 'package:zentrapay_application/features/Settings/widgets/settings_card.dart';
 
 /// The SECURITY block of the Settings screen: the three live security toggles
 /// (biometric, two-factor, real-time fraud protection), the read-only Security
@@ -57,120 +58,56 @@ class SecuritySection extends StatelessWidget {
   }
 
   Widget _buildSecurityOptions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildOptionTile(
-            icon: Icons.fingerprint,
-            title: "Biometric Authentication",
-            trailing: biometricEnabled ? "Enabled" : "Disabled",
-            trailingColor: biometricEnabled ? AppColors.green : AppColors.main,
-            onTap: onToggleBiometric,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.lock_outline,
-            title: "Two-Factor Authentication",
-            trailing: twoFactorEnabled ? "Enabled" : "Disabled",
-            trailingColor: twoFactorEnabled ? AppColors.green : AppColors.main,
-            onTap: onToggleTwoFactor,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.shield_outlined,
-            title: "Real-Time Fraud Protection",
-            trailing: fraudProtection ? "Active" : "Inactive",
-            trailingColor: fraudProtection
-                ? AppColors.green
-                : AppColors.textBlack,
-            onTap: onToggleFraudProtection,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.notifications_active,
-            title: "Security Alerts",
-            trailing: "",
-            showArrow: true,
-            onTap: () => Navigator.pushNamed(context, '/fraud_detection'),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Recent Activity", style: AppTheme.labelLarge),
-          ),
-          const SizedBox(height: AppTheme.spacingSm),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (protectionHistory.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                "No recent login activity",
-                style: AppTheme.bodySmall.copyWith(color: AppColors.lightGrey),
-              ),
-            )
-          else
-            ...protectionHistory.map(_buildHistoryItem),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionTile({
-    required IconData icon,
-    required String title,
-    required String trailing,
-    Color? trailingColor,
-    bool showArrow = false,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.lightGrey.withAlpha(50),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SettingsCard(
           children: [
-            Icon(icon, color: AppColors.textBlack, size: 22),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textBlack,
-                ),
-              ),
+            SettingsSwitchTile(
+              icon: Icons.fingerprint,
+              title: "Biometric Authentication",
+              value: biometricEnabled,
+              onChanged: onToggleBiometric,
             ),
-            if (trailing.isNotEmpty)
-              Text(
-                trailing,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: trailingColor ?? AppColors.textBlack,
-                ),
-              ),
-            if (showArrow)
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: AppColors.textBlack,
-              ),
+            SettingsSwitchTile(
+              icon: Icons.lock_outline,
+              title: "Two-Factor Authentication",
+              value: twoFactorEnabled,
+              onChanged: onToggleTwoFactor,
+            ),
+            SettingsSwitchTile(
+              icon: Icons.shield_outlined,
+              title: "Real-Time Fraud Protection",
+              value: fraudProtection,
+              onChanged: onToggleFraudProtection,
+            ),
+            SettingsNavTile(
+              icon: Icons.notifications_active_outlined,
+              title: "Security Alerts",
+              onTap: () => Navigator.pushNamed(context, '/fraud_detection'),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: AppTheme.spacingLg),
+        Text("Recent Activity", style: AppTheme.labelLarge),
+        const SizedBox(height: AppTheme.spacingSm),
+        if (isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (protectionHistory.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              "No recent login activity",
+              style: AppTheme.bodySmall.copyWith(color: AppColors.lightGrey),
+            ),
+          )
+        else
+          ...protectionHistory.map(_buildHistoryItem),
+      ],
     );
   }
 
@@ -178,10 +115,7 @@ class SecuritySection extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: AppTheme.cardDecoration,
       child: Row(
         children: [
           Container(
@@ -190,7 +124,7 @@ class SecuritySection extends StatelessWidget {
               color: item['color'] as Color,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.shield, color: AppColors.primary, size: 18),
+            child: Icon(Icons.shield, color: AppTheme.textBlack, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -200,7 +134,7 @@ class SecuritySection extends StatelessWidget {
               children: [
                 Text(
                   item['title'],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textBlack,
@@ -209,17 +143,11 @@ class SecuritySection extends StatelessWidget {
                 if ((item['device'] as String).isNotEmpty)
                   Text(
                     item['device'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textBlack,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.textBlack),
                   ),
                 Text(
                   formatDateTimeString(item['time']?.toString()),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textBlack,
-                  ),
+                  style: TextStyle(fontSize: 11, color: AppColors.textBlack),
                 ),
               ],
             ),

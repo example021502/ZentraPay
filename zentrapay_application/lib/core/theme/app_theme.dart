@@ -10,45 +10,86 @@ class AppTheme {
   static const Color primaryWhite = Color(0xFFFFFFFF);
   static const Color secondaryNavy = Color(0xFF210163);
 
+  // ------------------------------------------------------------
+  // Light / dark mode
+  //
+  // `isDark` is flipped only by ThemeController. Every token below that is a
+  // getter resolves to its light or dark value at the moment a widget builds,
+  // so a toggle followed by a full rebuild (ThemeController.apply) re-colours
+  // the whole app without any screen having to know which mode it is in.
+  // Brand colours that are the same in both modes stay `const`.
+  // ------------------------------------------------------------
+  static bool isDark = false;
+
+  static Color _pick(Color light, Color dark) => isDark ? dark : light;
+
+  // Dark palette: darkened pinks, white text, pink actions.
+  static const Color darkBackground = Color(0xFF1C0B14);
+  static const Color darkSurface = Color(0xFF2A1220);
+  static const Color darkSurfaceHigh = Color(0xFF3A1A2D);
+  static const Color darkHeaderPink = Color(0xFF5C1038);
+  static const Color darkBorder = Color(0xFF54304A);
+
   // Near-black rather than pure black — softer, more modern text color.
   // Kept under the existing name so every AppTheme.textBlack /
   // AppColors.textBlack reference across the app benefits automatically.
-  static const Color textBlack = Color(0xFF111827);
+  // In dark mode it becomes white.
+  static Color get textBlack => _pick(const Color(0xFF111827), Colors.white);
   static const Color accentPurple = Color(0xFF661E98);
   static const Color accentBlue = Color(0xFF396FD4);
   static const Color successGreen = Color(0xFF06881C);
   static const Color warningOrange = Color(0xFFF79E1B);
   static const Color lightGrey = Color(0x80808080);
-  static const Color cardBackground = Color(0xFFF8F9FA);
-  static const Color dividerColor = Color(0xFFE0E0E0);
+  static Color get cardBackground =>
+      _pick(const Color(0xFFF8F9FA), darkSurface);
+  static Color get dividerColor => _pick(const Color(0xFFE0E0E0), darkBorder);
 
   // Semantic colors
   static const Color errorRed = Color(0xFFD92D20);
   static const Color infoBlue = accentBlue;
 
   // Neutral gray scale — text hierarchy, borders, surfaces
-  static const Color gray900 = Color(0xFF111827);
-  static const Color gray700 = Color(0xFF374151);
-  static const Color gray500 = Color(0xFF6B7280);
-  static const Color gray300 = Color(0xFFD1D5DB);
-  static const Color gray100 = Color(0xFFF3F4F6);
-  static const Color gray50 = Color(0xFFF9FAFB);
+  static Color get gray900 => _pick(const Color(0xFF111827), Colors.white);
+  static Color get gray700 =>
+      _pick(const Color(0xFF374151), const Color(0xFFE3CFD9));
+  static Color get gray500 =>
+      _pick(const Color(0xFF6B7280), const Color(0xFFC4A5B5));
+  static Color get gray300 => _pick(const Color(0xFFD1D5DB), darkBorder);
+  static Color get gray100 => _pick(const Color(0xFFF3F4F6), darkSurfaceHigh);
+  static Color get gray50 => _pick(const Color(0xFFF9FAFB), darkBackground);
 
-  // Feature-specific accent colors
-  static const Color zpayColor = Color(0xFFF21773);
-  static const Color zbankColor = Color(0xFF210163);
-  static const Color zremitColor = Color(0xFF396FD4);
-  static const Color zvoiceColor = Color(0xFF661E98);
+  // Role tokens. These exist because the same literal colour (white, pink,
+  // navy) plays different roles in the light design and needs different dark
+  // equivalents:
+  //  - surface:    card / sheet / field fill (white -> dark rose)
+  //  - headerPink: the coloured screen header (pink -> darkened pink)
+  //  - brand:      buttons and accent icons/text. Primary pink in BOTH modes, so
+  //                every card, button, icon and link reads as one family.
+  static Color get surface => _pick(primaryWhite, darkSurface);
+  static Color get headerPink => _pick(primaryPink, darkHeaderPink);
+  static const Color brand = primaryPink;
+
+  /// Fill of every button: secondary navy in light mode, primary pink in dark
+  /// mode (white label on both).
+  static Color get buttonColor => _pick(secondaryNavy, primaryPink);
+
+  // Feature-specific accent colors. Every section now shares the brand pink;
+  // blue only ever appears as a hint emerging from pink inside a gradient
+  // (see [brandGradient]).
+  static const Color zpayColor = primaryPink;
+  static const Color zbankColor = primaryPink;
+  static const Color zremitColor = primaryPink;
+  static const Color zvoiceColor = primaryPink;
   static const Color zinvestColor = Color(0xFFF79E1B);
   static const Color zgrowColor = Color(0xFF06881C);
   static const Color payAnywhereColor = Color(0xFFF21773);
-  static const Color secureColor = Color(0xFF210163);
+  static const Color secureColor = primaryPink;
   static const Color merchantColor = Color(0xFF0D9488);
 
   // ============================================================
   // TYPOGRAPHY
   // ============================================================
-  static const TextStyle displayLarge = TextStyle(
+  static TextStyle get displayLarge => TextStyle(
     fontFamily: 'Inter',
     fontSize: 32,
     fontWeight: FontWeight.w900,
@@ -56,49 +97,49 @@ class AppTheme {
     letterSpacing: -0.5,
   );
 
-  static const TextStyle displayMedium = TextStyle(
+  static TextStyle get displayMedium => TextStyle(
     fontFamily: 'Inter',
     fontSize: 26,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
-  static const TextStyle displaySmall = TextStyle(
+  static TextStyle get displaySmall => TextStyle(
     fontFamily: 'Inter',
     fontSize: 22,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
-  static const TextStyle headlineLarge = TextStyle(
+  static TextStyle get headlineLarge => TextStyle(
     fontFamily: 'Inter',
     fontSize: 20,
     fontWeight: FontWeight.bold,
     color: textBlack,
   );
 
-  static const TextStyle headlineMedium = TextStyle(
+  static TextStyle get headlineMedium => TextStyle(
     fontFamily: 'Inter',
     fontSize: 18,
     fontWeight: FontWeight.w600,
     color: textBlack,
   );
 
-  static const TextStyle headlineSmall = TextStyle(
+  static TextStyle get headlineSmall => TextStyle(
     fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.w600,
     color: textBlack,
   );
 
-  static const TextStyle titleLarge = TextStyle(
+  static TextStyle get titleLarge => TextStyle(
     fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: textBlack,
   );
 
-  static const TextStyle bodyLarge = TextStyle(
+  static TextStyle get bodyLarge => TextStyle(
     fontFamily: 'Inter',
     fontSize: 16,
     fontWeight: FontWeight.normal,
@@ -106,7 +147,7 @@ class AppTheme {
     height: 1.5,
   );
 
-  static const TextStyle bodyMedium = TextStyle(
+  static TextStyle get bodyMedium => TextStyle(
     fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: FontWeight.normal,
@@ -114,21 +155,21 @@ class AppTheme {
     height: 1.5,
   );
 
-  static const TextStyle bodySmall = TextStyle(
+  static TextStyle get bodySmall => TextStyle(
     fontFamily: 'Inter',
     fontSize: 12,
     fontWeight: FontWeight.normal,
     color: textBlack,
   );
 
-  static const TextStyle labelLarge = TextStyle(
+  static TextStyle get labelLarge => TextStyle(
     fontFamily: 'Inter',
     fontSize: 14,
     fontWeight: FontWeight.w500,
     color: textBlack,
   );
 
-  static const TextStyle labelSmall = TextStyle(
+  static TextStyle get labelSmall => TextStyle(
     fontFamily: 'Inter',
     fontSize: 11,
     fontWeight: FontWeight.w500,
@@ -214,7 +255,7 @@ class AppTheme {
   // DECORATIONS
   // ============================================================
   static BoxDecoration get cardDecoration => BoxDecoration(
-    color: primaryWhite,
+    color: surface,
     borderRadius: BorderRadius.circular(radiusXl),
     boxShadow: cardShadow,
   );
@@ -266,17 +307,16 @@ class AppTheme {
   // ============================================================
   // GRADIENTS
   // ============================================================
+  // The brand uses flat primary pink - no gradients. These stay as
+  // (single-colour) LinearGradients only so the many `gradient:` call sites keep
+  // working and render as solid pink.
   static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [primaryPink, accentPurple],
+    colors: [primaryPink, primaryPink],
   );
 
-  static const LinearGradient secondaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [secondaryNavy, accentBlue],
-  );
+  static const LinearGradient brandGradient = primaryGradient;
+
+  static const LinearGradient secondaryGradient = primaryGradient;
 
   static const LinearGradient successGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -284,15 +324,10 @@ class AppTheme {
     colors: [successGreen, Color(0xFF0AD42E)],
   );
 
-  // Deep electric blue (left) -> vivid hot pink (right), per the ZPay wireframe
-  // brief's core screen background spec. Distinct from primaryGradient (which
-  // runs pink -> purple) — this is the full-bleed hero/screen background.
+  // Full-bleed hero/screen background. Pink-led like every other surface: the
+  // blue only emerges from the pink towards the far corner.
   static const Color electricBlue = Color(0xFF1230D8);
-  static const LinearGradient heroGradient = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [electricBlue, primaryPink],
-  );
+  static const LinearGradient heroGradient = primaryGradient;
 
   // ============================================================
   // GLASSMORPHISM

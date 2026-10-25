@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/main.dart';
 
 import 'app_theme.dart';
 
@@ -13,7 +12,9 @@ class HeroSheetScaffold extends StatelessWidget {
   final Widget header;
   final Widget body;
   final EdgeInsetsGeometry bodyPadding;
-  final Color backgroundColor;
+
+  /// Header fill; defaults to the mode-aware [AppTheme.headerPink].
+  final Color? backgroundColor;
   final double headerGap;
 
   const HeroSheetScaffold({
@@ -21,14 +22,14 @@ class HeroSheetScaffold extends StatelessWidget {
     required this.header,
     required this.body,
     this.bodyPadding = const EdgeInsets.all(15.0),
-    this.backgroundColor = AppColors.main,
+    this.backgroundColor,
     this.headerGap = AppTheme.spacingSm,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: backgroundColor,
+      color: backgroundColor ?? AppTheme.headerPink,
       child: Column(
         children: [
           header,
@@ -38,11 +39,13 @@ class HeroSheetScaffold extends StatelessWidget {
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: Container(
                       width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryWhite,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
                         borderRadius: BorderRadius.vertical(
                           top: Radius.circular(20),
                         ),

@@ -44,15 +44,15 @@ class LearnAndEarn extends StatelessWidget {
       width: 200,
 
       decoration: BoxDecoration(
-        color: AppTheme.secondaryNavy,
+        color: AppTheme.brand,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Expanded(
+          Expanded(
             flex: 3,
-            child: Icon(Icons.movie, color: Colors.white, size: 60),
+            child: Icon(Icons.movie, color: AppTheme.textBlack, size: 60),
           ),
           const SizedBox(height: 5),
           Text(
@@ -64,9 +64,9 @@ class LearnAndEarn extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.surface,
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-              border: Border.all(color: AppTheme.secondaryNavy, width: 1.5),
+              border: Border.all(color: AppTheme.brand, width: 1.5),
             ),
             child: Text(
               title,

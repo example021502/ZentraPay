@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
 
 /// Category + difficulty + joined/duration badges row at the top of a card.
 class ChallengeCardBadges extends StatelessWidget {

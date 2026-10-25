@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/features/zinvest/repository/cache_zinvestData.dart';
+import 'package:zentrapay_application/features/zinvest/repository/cache_zinvest_data.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/payments/widgets/investment_list.dart';
 import 'package:zentrapay_application/main.dart';
@@ -106,16 +106,11 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
   Widget _buildTopBar(BuildContext context) {
     return Row(
       children: [
-        Material(
-          color: AppColors.primary,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () => Navigator.pop(context),
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(Icons.arrow_back, size: 22),
-            ),
+        InkResponse(
+          onTap: () => Navigator.pop(context),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(Icons.arrow_back, size: 24, color: AppTheme.textBlack),
           ),
         ),
         const SizedBox(width: AppTheme.spacingSm),
@@ -128,7 +123,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
   Widget _buildHeroCard() {
     return Container(
       decoration: AppTheme.coloredCardDecoration(
-        AppColors.secondary,
+        AppTheme.brand,
       ).copyWith(gradient: AppTheme.secondaryGradient),
       child: Padding(
         padding: const EdgeInsets.all(15.0),
@@ -141,12 +136,12 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
                 Icon(
                   Icons.currency_bitcoin_outlined,
                   size: 90,
-                  color: Colors.white.withAlpha(60),
+                  color: AppTheme.textBlack,
                 ),
                 Icon(
                   Icons.diamond_outlined,
                   size: 90,
-                  color: Colors.white.withAlpha(60),
+                  color: AppTheme.textBlack,
                 ),
               ],
             ),
@@ -204,9 +199,9 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
                       ),
                     )
                   else
-                    const Icon(
+                    Icon(
                       Icons.visibility_outlined,
-                      color: Colors.white70,
+                      color: AppTheme.textBlack,
                       size: 20,
                     ),
                 ],
@@ -359,7 +354,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
               color: AppColors.main.withAlpha(15),
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             ),
-            child: Icon(icon, color: AppColors.main, size: 24),
+            child: Icon(icon, color: AppTheme.textBlack, size: 24),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
@@ -488,7 +483,7 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
                       ),
                       child: Icon(
                         feature['icon'] as IconData,
-                        color: AppColors.purple,
+                        color: AppTheme.textBlack,
                         size: 24,
                       ),
                     ),
@@ -516,10 +511,10 @@ class _ZInvestScreenState extends State<ZInvestScreen> {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 16,
-                      color: Colors.grey,
+                      color: AppTheme.textBlack,
                     ),
                   ],
                 ),
@@ -609,8 +604,8 @@ class _InvestFormState extends State<_InvestForm> {
       ),
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingLg),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
         ),
         child: SingleChildScrollView(

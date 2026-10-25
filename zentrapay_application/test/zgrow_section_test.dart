@@ -10,8 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/challenges_all_screen.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/rewards_all_screen.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/tutorials_all_screen.dart';
@@ -81,7 +81,7 @@ Future<void> _pump(WidgetTester t) async {
 /// Scrolls the whole tab down and back up so every section — including the
 /// ones below the fold — goes through layout and paint.
 Future<void> _scroll(WidgetTester t) async {
-  final Finder root = find.byType(SingleChildScrollView).first;
+  final Finder root = find.byType(CustomScrollView).first;
   for (var i = 0; i < 8; i++) {
     await t.drag(root, const Offset(0, -300));
     await t.pumpAndSettle();
@@ -101,7 +101,8 @@ void main() {
 
   setUp(() {
     ChallengesRepository.instance.setData([
-      for (var i = 0; i < 5; i++) _challenge('c$i', title: 'Challenge ${i + 1}'),
+      for (var i = 0; i < 5; i++)
+        _challenge('c$i', title: 'Challenge ${i + 1}'),
     ]);
     UserChallengesRepository.instance.setData([
       _enrollment('e1', _challenge('accepted-1', title: 'Accepted one')),
@@ -132,10 +133,15 @@ void main() {
 
     expect(find.text('Your Overall Savings'), findsOneWidget);
     expect(find.text('Gamified Savings'), findsOneWidget);
-    expect(find.text('Financial Tools'), findsOneWidget);
+    // Quick actions: the financial tools section is gone, Save Goal lives here.
+    expect(find.text('Emergency'), findsOneWidget);
+    expect(find.text('Pay Loans'), findsOneWidget);
+    expect(find.text('Save Goal'), findsOneWidget);
+    expect(find.text('Financial Tools'), findsNothing);
     expect(find.text('Rewards'), findsOneWidget);
     expect(find.text('Tutorials'), findsOneWidget);
-    expect(find.text('Budget Planner'), findsOneWidget);
+    expect(find.text('Budget Planner'), findsNothing);
+    expect(find.text('Debt Tracker'), findsNothing);
     // The two groups stay hidden while the toggle is off.
     expect(find.text('All Challenges'), findsNothing);
     expect(find.text('Accepted Challenges'), findsNothing);
@@ -200,7 +206,6 @@ void main() {
     );
   });
 
-
   testWidgets('renders "See more" for rewards and tutorials over the cap', (
     tester,
   ) async {
@@ -209,10 +214,9 @@ void main() {
     // 5 rewards > 4 inline cap, so the Rewards link appears and opens the
     // full list with every reward.
     final Finder rewardsSeeMore = find.descendant(
-      of: find.ancestor(
-        of: find.text('Rewards'),
-        matching: find.byType(Row),
-      ).first,
+      of: find
+          .ancestor(of: find.text('Rewards'), matching: find.byType(Row))
+          .first,
       matching: find.text('See more'),
     );
     expect(rewardsSeeMore, findsOneWidget);
@@ -220,15 +224,14 @@ void main() {
     await tester.tap(rewardsSeeMore);
     await tester.pumpAndSettle();
     expect(find.byType(RewardsAllScreen), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();
 
     // Same contract for tutorials (5 seeded, 4 inline).
     final Finder tutorialsSeeMore = find.descendant(
-      of: find.ancestor(
-        of: find.text('Tutorials'),
-        matching: find.byType(Row),
-      ).first,
+      of: find
+          .ancestor(of: find.text('Tutorials'), matching: find.byType(Row))
+          .first,
       matching: find.text('See more'),
     );
     expect(tutorialsSeeMore, findsOneWidget);
@@ -250,10 +253,9 @@ void main() {
       find.descendant(of: hero, matching: find.textContaining('GHS')),
       findsOneWidget,
     );
-    await tester.tap(find.descendant(
-      of: hero,
-      matching: find.byIcon(Icons.visibility_off),
-    ));
+    await tester.tap(
+      find.descendant(of: hero, matching: find.byIcon(Icons.visibility_off)),
+    );
     await tester.pumpAndSettle();
     expect(
       find.descendant(of: hero, matching: find.text('___.__')),
@@ -264,10 +266,9 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.descendant(
-      of: hero,
-      matching: find.byIcon(Icons.visibility),
-    ));
+    await tester.tap(
+      find.descendant(of: hero, matching: find.byIcon(Icons.visibility)),
+    );
     await tester.pumpAndSettle();
     expect(
       find.descendant(of: hero, matching: find.textContaining('GHS')),
@@ -304,7 +305,6 @@ void main() {
     // The hero and static sections still render while data loads or fails;
     // a failed fetch must not surface as an unhandled exception.
     expect(find.text('Your Overall Savings'), findsOneWidget);
-    expect(find.text('Financial Tools'), findsOneWidget);
+    expect(find.text('Pay Loans'), findsOneWidget);
   });
 }
-

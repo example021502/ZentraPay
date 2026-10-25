@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 
 /// Thrown when a scanned code parses as ZentraPay but still can't start a
 /// payment (the receiver identity is too incomplete for the backend).
@@ -145,9 +145,12 @@ class QrPaymentPayload {
         if (match != null) {
           userId = userId.isNotEmpty ? userId : match.userId;
           name = name.isNotEmpty ? name : match.fullName;
-          phoneNumber =
-              phoneNumber.isNotEmpty ? phoneNumber : match.phoneNumber;
-          countryCode = countryCode.isNotEmpty ? countryCode : match.countryCode;
+          phoneNumber = phoneNumber.isNotEmpty
+              ? phoneNumber
+              : match.phoneNumber;
+          countryCode = countryCode.isNotEmpty
+              ? countryCode
+              : match.countryCode;
           zentag = zentag.isNotEmpty ? zentag : match.zentag;
           userType = userType.isNotEmpty ? userType : match.userType;
         }
@@ -285,7 +288,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 child: Text(
                   error.errorCode == MobileScannerErrorCode.permissionDenied
                       ? "Camera permission is required to scan QR codes. "
-                          "Enable it in your device settings."
+                            "Enable it in your device settings."
                       : "Could not start the camera. Please try again.",
                   textAlign: TextAlign.center,
                   style: AppTheme.bodyMedium.copyWith(
@@ -375,14 +378,14 @@ class _CircleAction extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.spacingSm),
-          child: Icon(icon, color: AppTheme.primaryWhite, size: 24),
+          child: Icon(icon, color: AppTheme.textBlack, size: 24),
         ),
       ),
     );
   }
 }
 
-/// Dimmed corners drawn around a clear scanning window.
+/// The screen dimmed around a clear, rounded scanning window.
 class _ScanFrameOverlay extends StatelessWidget {
   const _ScanFrameOverlay();
 
@@ -394,70 +397,30 @@ class _ScanFrameOverlay extends StatelessWidget {
 
 class _ScanFramePainter extends CustomPainter {
   static const double _window = 260;
-  static const double _corner = 28;
-  static const double _stroke = 4;
+  static const double _radius = 24;
 
   @override
   void paint(Canvas canvas, Size size) {
     final double left = (size.width - _window) / 2;
     final double top = (size.height - _window) / 2;
-    final Rect window = Rect.fromLTWH(left, top, _window, _window);
-
-    final Paint dim = Paint()..color = Colors.black.withValues(alpha: 0.5);
-    // Four rects around the window keep the camera preview visible inside it.
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, window.top), dim);
-    canvas.drawRect(
-      Rect.fromLTWH(0, window.bottom, size.width, size.height - window.bottom),
-      dim,
-    );
-    canvas.drawRect(Rect.fromLTWH(0, window.top, window.left, _window), dim);
-    canvas.drawRect(
-      Rect.fromLTWH(
-        window.right,
-        window.top,
-        size.width - window.right,
-        _window,
-      ),
-      dim,
+    final RRect window = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, _window, _window),
+      const Radius.circular(_radius),
     );
 
-    final Paint border = Paint()
-      ..color = AppTheme.primaryPink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _stroke;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(window, const Radius.circular(20)),
-      border,
+    // The screen is dimmed everywhere except a clear, rounded scanning window
+    // (no border line around it), so the camera preview stays visible inside.
+    final Path dimmed = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(Offset.zero & size),
+      Path()..addRRect(window),
     );
-
-    // Pink corner accents.
-    final Paint corner = Paint()
-      ..color = AppTheme.primaryPink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _stroke + 2
-      ..strokeCap = StrokeCap.round;
-
-    final Path path = Path()
-      ..moveTo(window.left, window.top + _corner)
-      ..lineTo(window.left, window.top)
-      ..lineTo(window.left + _corner, window.top)
-      ..moveTo(window.right - _corner, window.top)
-      ..lineTo(window.right, window.top)
-      ..lineTo(window.right, window.top + _corner)
-      ..moveTo(window.left, window.bottom - _corner)
-      ..lineTo(window.left, window.bottom)
-      ..lineTo(window.left + _corner, window.bottom)
-      ..moveTo(window.right - _corner, window.bottom)
-      ..lineTo(window.right, window.bottom)
-      ..lineTo(window.right, window.bottom - _corner);
-    canvas.drawPath(path, corner);
+    canvas.drawPath(
+      dimmed,
+      Paint()..color = Colors.black.withValues(alpha: 0.5),
+    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-
-
-
-

@@ -47,9 +47,8 @@ class BankAccounts {
       (linkLabel?.trim().isNotEmpty ?? false) ? linkLabel!.trim() : bankName;
 
   /// Masked account number for the card face, e.g. `•••• •••• •••• 4821`.
-  String get maskedNumber => lastDigits.isEmpty
-      ? '•••• •••• •••• ••••'
-      : '•••• •••• •••• $lastDigits';
+  String get maskedNumber =>
+      lastDigits.isEmpty ? '•••• •••• •••• ••••' : '•••• •••• •••• $lastDigits';
 
   /// `GHS 1,240.00` — currency-qualified balance for the card face.
   String get formattedBalance {
@@ -228,6 +227,10 @@ class Loan {
   final String outstandingBalance;
   final String status;
   final String? dueDate;
+  final String currencyCode;
+  final String monthlyInstallment;
+  final String? purpose;
+  final String? decisionNote;
 
   Loan({
     required this.loanId,
@@ -237,6 +240,10 @@ class Loan {
     required this.outstandingBalance,
     required this.status,
     this.dueDate,
+    this.currencyCode = 'GHS',
+    this.monthlyInstallment = '0',
+    this.purpose,
+    this.decisionNote,
   });
 
   factory Loan.fromJson(Map<String, dynamic> json) => Loan(
@@ -247,7 +254,104 @@ class Loan {
     outstandingBalance: (json['outstandingBalance'] ?? '0').toString(),
     status: json['status'] ?? 'PENDING',
     dueDate: json['dueDate'],
+    currencyCode: json['currencyCode'] ?? 'GHS',
+    monthlyInstallment: (json['monthlyInstallment'] ?? '0').toString(),
+    purpose: json['purpose'],
+    decisionNote: json['decisionNote'],
   );
+}
+
+/// What the lender will offer this user (`GET /api/zbanking/loans/eligibility`):
+/// KYC level, risk grade, limits, and — when they can't borrow — why not.
+class LoanEligibility {
+  final bool eligible;
+  final int kycTier;
+  final String? grade;
+  final String currencyCode;
+  final double minAmount;
+  final double maxAmount;
+  final int maxTermMonths;
+  final double interestRate;
+  final List<String> requirements;
+
+  LoanEligibility({
+    required this.eligible,
+    required this.kycTier,
+    this.grade,
+    required this.currencyCode,
+    required this.minAmount,
+    required this.maxAmount,
+    required this.maxTermMonths,
+    required this.interestRate,
+    required this.requirements,
+  });
+
+  factory LoanEligibility.fromJson(Map<String, dynamic> json) =>
+      LoanEligibility(
+        eligible: json['eligible'] ?? false,
+        kycTier: (json['kycTier'] ?? 0) as int,
+        grade: json['grade'],
+        currencyCode: json['currencyCode'] ?? 'GHS',
+        minAmount: double.tryParse('${json['minAmount'] ?? 0}') ?? 0,
+        maxAmount: double.tryParse('${json['maxAmount'] ?? 0}') ?? 0,
+        maxTermMonths: (json['maxTermMonths'] ?? 0) as int,
+        interestRate: double.tryParse('${json['interestRate'] ?? 0}') ?? 0,
+        requirements: ((json['requirements'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+      );
+}
+
+/// Everything the application form collects, as sent to `POST .../apply`.
+class LoanApplication {
+  final String amount;
+  final String currencyCode;
+  final int termMonths;
+  final String purpose;
+  final String employmentStatus;
+  final String employerName;
+  final String jobTitle;
+  final String monthlyIncome;
+  final String monthlyObligations;
+  final String nextOfKinName;
+  final String nextOfKinRelationship;
+  final String nextOfKinPhone;
+  final bool creditCheckConsent;
+  final bool termsAccepted;
+
+  LoanApplication({
+    required this.amount,
+    this.currencyCode = 'GHS',
+    required this.termMonths,
+    required this.purpose,
+    required this.employmentStatus,
+    this.employerName = '',
+    this.jobTitle = '',
+    required this.monthlyIncome,
+    required this.monthlyObligations,
+    required this.nextOfKinName,
+    required this.nextOfKinRelationship,
+    required this.nextOfKinPhone,
+    required this.creditCheckConsent,
+    required this.termsAccepted,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'amount': amount,
+    'currencyCode': currencyCode,
+    'termMonths': termMonths,
+    'purpose': purpose,
+    'employmentStatus': employmentStatus,
+    'employerName': employerName,
+    'jobTitle': jobTitle,
+    'monthlyIncome': monthlyIncome,
+    'monthlyObligations': monthlyObligations,
+    'nextOfKinName': nextOfKinName,
+    'nextOfKinRelationship': nextOfKinRelationship,
+    'nextOfKinPhone': nextOfKinPhone,
+    'creditCheckConsent': creditCheckConsent,
+    'termsAccepted': termsAccepted,
+  };
 }
 
 class BudgetSummary {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/ProviderDisplay.dart';
+import 'package:zentrapay_application/core/utils/Common/provider_display.dart';
 
 class HomeServicesGrid extends StatefulWidget {
   const HomeServicesGrid({
@@ -36,95 +36,95 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-          if (widget.bills.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.spacingXl),
-            Text("Bills", style: AppTheme.bodyMedium),
-            const SizedBox(height: AppTheme.spacingMd),
-            SizedBox(
-              width: double.infinity,
-              height: 80,
-              child: Row(
-                children: [
-                  // Providers scroll on the LEFT; Expanded pins the row's
-                  // width so the New tile can never be squeezed out. (A bare
-                  // ListView here would greedily eat the whole width and
-                  // collapse the tile — one scroll container only.)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final item in widget.bills)
-                            _buildItem(
-                              item['logoUrl'] ?? "",
+        if (widget.bills.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.spacingXl),
+          Text("Bills", style: AppTheme.bodyMedium),
+          const SizedBox(height: AppTheme.spacingMd),
+          SizedBox(
+            width: double.infinity,
+            height: 80,
+            child: Row(
+              children: [
+                // Providers scroll on the LEFT; Expanded pins the row's
+                // width so the New tile can never be squeezed out. (A bare
+                // ListView here would greedily eat the whole width and
+                // collapse the tile — one scroll container only.)
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final item in widget.bills)
+                          _buildItem(
+                            item['logoUrl'] ?? "",
+                            item['billerName'] ?? "N/A",
+                            () => showComingSoon(
+                              context,
                               item['billerName'] ?? "N/A",
-                              () => showComingSoon(
-                                context,
-                                item['billerName'] ?? "N/A",
-                              ),
-                              iconSize: iconSize,
-                              categoryCode: item['category']?.toString(),
-                              countryCode: item['countryCode']?.toString(),
                             ),
-                        ],
-                      ),
+                            iconSize: iconSize,
+                            categoryCode: item['category']?.toString(),
+                            countryCode: item['countryCode']?.toString(),
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  // Pinned to the RIGHT edge of the section, outside the
-                  // scroll area — always visible no matter how far the list
-                  // has scrolled.
-                  _buildNewTile(
-                    onTap: () {
-                      showComingSoon(context, "Linked new bill provider");
-                    },
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: AppTheme.spacingSm),
+                // Pinned to the RIGHT edge of the section, outside the
+                // scroll area — always visible no matter how far the list
+                // has scrolled.
+                _buildNewTile(
+                  onTap: () {
+                    showComingSoon(context, "Linked new bill provider");
+                  },
+                ),
+              ],
             ),
-          ],
-          if (widget.services.isNotEmpty) ...[
-            const SizedBox(height: AppTheme.spacingXl),
-            Text("Services", style: AppTheme.bodyMedium),
-            const SizedBox(height: AppTheme.spacingMd),
-            SizedBox(
-              width: double.infinity,
-              height: 80,
-              child: Row(
-                children: [
-                  // Same shape as Bills: scrollable providers left, New right.
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final item in widget.services)
-                            _buildItem(
-                              item['logoUrl'] ?? "",
-                              item['providerName'] ?? "N/A",
-                              () => showComingSoon(
-                                context,
-                                item['providerName'] ?? "N/A",
-                              ),
-                              iconSize: iconSize,
-                              categoryCode: item['category']?.toString(),
-                              countryCode: item['countryCode']?.toString(),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacingSm),
-                  _buildNewTile(
-                    onTap: () {
-                      showComingSoon(context, "Linked new service provider");
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ],
+        if (widget.services.isNotEmpty) ...[
+          const SizedBox(height: AppTheme.spacingXl),
+          Text("Services", style: AppTheme.bodyMedium),
+          const SizedBox(height: AppTheme.spacingMd),
+          SizedBox(
+            width: double.infinity,
+            height: 80,
+            child: Row(
+              children: [
+                // Same shape as Bills: scrollable providers left, New right.
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final item in widget.services)
+                          _buildItem(
+                            item['logoUrl'] ?? "",
+                            item['providerName'] ?? "N/A",
+                            () => showComingSoon(
+                              context,
+                              item['providerName'] ?? "N/A",
+                            ),
+                            iconSize: iconSize,
+                            categoryCode: item['category']?.toString(),
+                            countryCode: item['countryCode']?.toString(),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingSm),
+                _buildNewTile(
+                  onTap: () {
+                    showComingSoon(context, "Linked new service provider");
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -144,10 +144,10 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                 color: AppTheme.primaryPink.withAlpha(25),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.add_outlined,
                 size: 22,
-                color: AppTheme.primaryPink,
+                color: AppTheme.textBlack,
               ),
             ),
             const SizedBox(height: AppTheme.spacingSm),
@@ -245,7 +245,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
     }
     return Icon(
       providerCategoryIcon(categoryCode),
-      color: AppTheme.secondaryNavy,
+      color: AppTheme.textBlack,
       size: iconSize,
     );
   }

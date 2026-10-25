@@ -14,7 +14,7 @@ import 'app_theme.dart';
 class FeatureScreenHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final IconData? icon;
   final bool showBackButton;
   final Widget? trailing;
@@ -23,7 +23,7 @@ class FeatureScreenHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle = '',
-    this.backgroundColor = AppColors.main,
+    this.backgroundColor,
     this.icon,
     this.showBackButton = false,
     this.trailing,
@@ -37,7 +37,7 @@ class FeatureScreenHeader extends StatelessWidget {
     final subtitleFontSize = isTablet ? 16.0 : 14.0;
 
     return Container(
-      decoration: BoxDecoration(color: backgroundColor),
+      decoration: BoxDecoration(color: backgroundColor ?? AppTheme.headerPink),
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: AppTheme.spacingLg,
@@ -50,10 +50,10 @@ class FeatureScreenHeader extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    color: Colors.white,
-                    size: 20,
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: AppTheme.textBlack,
+                    size: 24,
                   ),
                 ),
                 const Spacer(),
@@ -98,7 +98,6 @@ class FeatureScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = AppTheme.isTablet(context);
     final maxWidth = AppTheme.responsiveMaxWidth(context);
     final horizontalPadding = AppTheme.responsivePadding(context);
     final bottomPadding = AppTheme.responsiveBottomPadding(context);
@@ -106,8 +105,8 @@ class FeatureScreenBody extends StatelessWidget {
     return Center(
       child: Container(
         width: maxWidth,
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -192,7 +191,7 @@ class ActionItemCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+            Icon(Icons.chevron_right, size: 20, color: AppTheme.textBlack),
           ],
         ),
       ),
@@ -223,7 +222,7 @@ class QuickActionButton extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: AppColors.secondary.withAlpha(20),
+              color: AppTheme.brand.withAlpha(20),
               borderRadius: BorderRadius.circular(200),
               boxShadow: [
                 BoxShadow(
@@ -236,9 +235,9 @@ class QuickActionButton extends StatelessWidget {
               ],
             ),
             child: CircleAvatar(
-              backgroundColor: AppTheme.primaryWhite,
+              backgroundColor: AppTheme.buttonColor,
               radius: 26,
-              child: Icon(icon, color: AppColors.secondary, size: 22),
+              child: Icon(icon, color: AppTheme.primaryWhite, size: 22),
             ),
           ),
           const SizedBox(height: AppTheme.spacingSm),
@@ -276,7 +275,7 @@ class InfoCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(color: AppTheme.dividerColor),
           boxShadow: AppTheme.cardShadow,
@@ -301,7 +300,7 @@ class InfoCard extends StatelessWidget {
               ),
             ),
             if (onTap != null)
-              const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+              Icon(Icons.chevron_right, size: 20, color: AppTheme.textBlack),
           ],
         ),
       ),
@@ -395,9 +394,9 @@ class SearchBarWidget extends StatelessWidget {
         hintText: hintText,
         border: InputBorder.none,
         filled: true,
-        fillColor: AppColors.primary,
+        fillColor: AppTheme.surface,
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.secondary, width: 2),
+          borderSide: BorderSide(color: AppTheme.brand, width: 2),
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
         ),
         enabledBorder: OutlineInputBorder(
@@ -414,7 +413,7 @@ void showComingSoon(BuildContext context, String feature) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('$feature - Coming Soon!'),
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.headerPink,
     ),
   );
 }
@@ -442,7 +441,7 @@ Future<T?> showAppOverlaySheet<T>({
     isScrollControlled: true,
     useSafeArea: true,
     barrierColor: Colors.black.withValues(alpha: 0.2),
-    backgroundColor: Colors.white,
+    backgroundColor: AppTheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
     ),
@@ -529,8 +528,8 @@ class AppCard extends StatelessWidget {
 /// Full-width primary action button using the app's ElevatedButtonTheme.
 ///
 /// **Colour convention:** new buttons in this project are
-/// `AppTheme.secondaryNavy` unless a design calls for something else. Pass
-/// `backgroundColor: AppTheme.secondaryNavy` (with
+/// `AppTheme.brand` unless a design calls for something else. Pass
+/// `backgroundColor: AppTheme.brand` (with
 /// `foregroundColor: AppTheme.primaryWhite`) to opt in — the parameters default
 /// to the theme, so screens written before this convention keep their look.
 class PrimaryButton extends StatelessWidget {
@@ -652,7 +651,7 @@ class TransactionListItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           boxShadow: AppTheme.cardShadow,
         ),
@@ -730,7 +729,7 @@ class EmptyStateWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 40, color: AppTheme.gray300),
+          Icon(icon, size: 40, color: AppTheme.textBlack),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
             message,
@@ -743,7 +742,7 @@ class EmptyStateWidget extends StatelessWidget {
               onTap: onAction,
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: AppTheme.brand,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Padding(

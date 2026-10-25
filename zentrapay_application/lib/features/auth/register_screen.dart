@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Common/AppSetPinSheet.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/Common/app_set_pin_sheet.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/core/utils/session_reset.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/api_auth_services.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../features/home/repository/cache_homeData.dart';
+import '../../features/home/repository/cache_home_data.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +23,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
+  String emailError = '';
+  String passwordError = '';
+  String firstNameError = '';
+  String lastNameError = '';
+  String phoneNumberError = '';
+  String consentError = '';
+
   bool _isPhoneValid = false;
   String pin = "";
   bool termsConsent = false;
@@ -39,6 +47,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "Missing Value(s)",
         "All fields are required",
       );
+    }
+    if (_firstNameController.text.trim() == "") {
+      setState(() {
+        firstNameError = "Firstname required!";
+      });
+    }
+    if (_lastNameController.text.trim() == "") {
+      setState(() {
+        lastNameError = "Lastname required!";
+      });
+    }
+    if (_emailController.text.trim() == "") {
+      setState(() {
+        emailError = "Email required!";
+      });
+    }
+    if (!_emailController.text.trim().contains("@")) {
+      setState(() {
+        emailError = "Invalid Email!";
+      });
+    }
+    if (_passwordController.text.trim() == "") {
+      setState(() {
+        passwordError = "Password required!";
+      });
+    }
+    if (_passwordController.text.trim().length < 8) {
+      setState(() {
+        passwordError = "password too short!";
+      });
+    }
+    if (contactForm['phone_number'].trim() == "") {
+      setState(() {
+        firstNameError = "phone number required!";
+      });
+    }
+    if (contactForm['phone_number'].trim().length < 10) {
+      setState(() {
+        firstNameError = "Invalid phone number!";
+      });
     }
 
     // Comment: Validate phone number format
@@ -98,7 +146,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final res = await registerUser(registrationForm);
-      print("THE RES:: $res");
       if (!res?["success"]) {
         return ZentraNotifier.error(
           "Failed",
@@ -107,14 +154,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       ZentraNotifier.success("Success", res?["message"]);
 
-      final userData = res?['data'];
-      final token = userData?['token'];
-      final email = userData?['email'];
-      final fullName = userData?['fullName'];
-      print("TOKEN IS:: $token");
+      // The backend returns {token, userId, email, firstName, lastName} - the
+      // same shape as login. Keep the token AND the identity, and clear what
+      // the previous user left in the caches first.
+      final userData = Map<String, dynamic>.from(res?['data']);
+      final token = userData['token'];
 
-      // Comment: Persist Auth token and preload app repositories
+      clearUserCaches();
       await SecureStorageService.saveToken(token);
+      await SecureStorageService.saveSession(userData);
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
@@ -122,10 +170,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       TransactionsRepository.instance.ensureLoaded().catchError((_) {});
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
-        Navigator.pushNamed(
+        Navigator.pushNamedAndRemoveUntil(
           context,
           '/home',
-          arguments: {'token': token, 'email': email, 'fullName': fullName},
+          (route) => false,
+          arguments: userData,
         );
       });
     } catch (e) {
@@ -270,6 +319,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   isPassword: false,
                                   controller: _firstNameController,
                                   isLoading: isLoading,
+                                  errorText: firstNameError,
                                 ),
                                 const SizedBox(height: 16),
                                 AuthTextField(
@@ -277,6 +327,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   isPassword: false,
                                   controller: _lastNameController,
                                   isLoading: isLoading,
+                                  errorText: lastNameError,
                                 ),
                                 const SizedBox(height: 16),
                                 AuthTextField(
@@ -284,6 +335,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   isPassword: false,
                                   controller: _emailController,
                                   isLoading: isLoading,
+                                  errorText: emailError,
                                 ),
                                 const SizedBox(height: 16),
                                 IntlPhoneField(
@@ -294,6 +346,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   decoration: InputDecoration(
+                                    errorText: phoneNumberError,
                                     counterText: '',
                                     labelText: "Contact Number",
                                     filled: true,
@@ -312,6 +365,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         color: AppColors.secondary.withAlpha(
                                           77,
                                         ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppColors.main.withAlpha(77),
                                         width: 1.5,
                                       ),
                                     ),
@@ -334,9 +394,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   initialCountryCode: 'GH',
                                   onChanged: (phone) {
-                                    print(
-                                      "PHONE NUMBER:: ${phone.completeNumber}",
-                                    );
                                     setState(() {
                                       contactForm['phone_number'] =
                                           phone.completeNumber;
@@ -352,6 +409,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   isPassword: true,
                                   controller: _passwordController,
                                   isLoading: isLoading,
+                                  errorText: passwordError,
                                 ),
                               ],
                             ),

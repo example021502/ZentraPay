@@ -5,7 +5,7 @@ import 'package:zentrapay_application/main.dart';
 
 /// Bottom navigation: icons only when inactive. The active tab's icon
 /// sits inside a small navy chip nested in the bar's curved notch, and
-/// its label sits below, centered on the navy bar surface (not inside
+/// its label sits below, centered on the pink bar surface (not inside
 /// the curve itself). The notch is kept shallow — just enough to
 /// separate the icon from its label. Home sits in the middle and is
 /// active on launch.
@@ -54,15 +54,15 @@ class NavigationBarMain extends StatelessWidget {
           child: CurvedNavigationBarPro(
             currentIndex: currentVisualIndex,
             onTap: (visualIndex) => onItemSelected(_visualOrder[visualIndex]),
-            backgroundColor: AppTheme.primaryPink.withAlpha(230),
+            backgroundColor: AppTheme.headerPink.withAlpha(230),
             activeColor: AppTheme.primaryWhite,
             inactiveColor: AppTheme.primaryWhite,
             fabColor: AppTheme.primaryWhite,
             barHeight: 65,
             fabRadius: 20,
-            fabGap: 6,
-            fabSink: 14,
-            notchShoulderRadius: 20,
+            fabGap: 5,
+            fabSink: 15,
+            notchShoulderRadius: 22,
             cornerRadius: _cornerRadius,
             showLabel: true,
             inactiveIconSize: 22,
@@ -90,8 +90,8 @@ class NavigationBarMain extends StatelessWidget {
 }
 
 /// Icon shown inside the bubble sitting in the bar's small curve — a
-/// compact navy chip nested in the white bubble. No label is ever drawn
-/// here; labels are rendered by the bar itself on the flat navy surface.
+/// compact navy chip (white icon) nested in the white bubble. No label is ever drawn
+/// here; labels are rendered by the bar itself on the flat pink surface.
 class _ActiveTabContent extends StatelessWidget {
   final IconData icon;
 
@@ -107,7 +107,7 @@ class _ActiveTabContent extends StatelessWidget {
 
       child: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: Icon(icon, color: AppTheme.primaryWhite, size: 22),
+        child: Icon(icon, color: AppTheme.primaryWhite, size: 20),
       ),
     );
   }

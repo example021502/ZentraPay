@@ -36,7 +36,7 @@ class ChallengeCardFooter extends StatelessWidget {
         child: ElevatedButton(
           onPressed: joining ? null : onJoin,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.secondaryNavy,
+            backgroundColor: AppTheme.buttonColor,
             foregroundColor: Colors.white,
           ),
           child: joining

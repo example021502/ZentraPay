@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/reward_tile.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/rewards_all_screen.dart';
 
@@ -28,7 +28,7 @@ class RewardsSection extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Rewards", style: AppTheme.bodyMedium),
+                Text("Rewards", style: AppTheme.bodyMedium),
                 if ((rewards?.rewards.length ?? 0) > 4)
                   GestureDetector(
                     onTap: () => RewardsAllScreen.show(context),
@@ -37,7 +37,7 @@ class RewardsSection extends StatelessWidget {
                       style: AppTheme.bodyMedium.copyWith(
                         decoration: TextDecoration.underline,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.secondaryNavy,
+                        color: AppTheme.brand,
                       ),
                     ),
                   ),
@@ -77,7 +77,7 @@ class RewardsSection extends StatelessWidget {
 
     // Check if the list of items is empty
     if (rewardItems.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text("No rewards yet.", style: AppTheme.labelSmall),
       );

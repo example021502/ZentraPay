@@ -33,10 +33,7 @@ class ZentraHeroCard extends StatelessWidget {
                   top: Radius.circular(14),
                 ),
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.white.withAlpha(150),
-                    width: 3,
-                  ),
+                  top: BorderSide(color: Colors.white.withAlpha(150), width: 3),
                 ),
               ),
             ),

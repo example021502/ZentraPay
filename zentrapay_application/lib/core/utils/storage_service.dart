@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class SecureStorageService {
@@ -43,10 +43,118 @@ class SecureStorageService {
     }
   }
 
-  // Wipe the token clear during a logout routine
+  // Wipe the token clear during a logout routine. The signed-in user's
+  // identity goes with it so the next account never sees a stale name.
   static Future<void> deleteToken() async {
     _memoryToken = null;
+    _memorySession = null;
     await _secureStorage.delete(key: 'auth_token');
+    await _secureStorage.delete(key: _sessionKey);
+  }
+
+  // ============================================================================
+  // Signed-in user identity (returned by login / register alongside the token)
+  // ============================================================================
+
+  static const String _sessionKey = 'auth_session';
+  static Map<String, String>? _memorySession;
+
+  /// Saves the identity the backend returns next to the token — userId, email,
+  /// firstName, lastName — so it survives restarts and any screen can read it
+  /// without being handed route arguments.
+  static Future<void> saveSession(Map<String, dynamic> userData) async {
+    String field(String key) => (userData[key] ?? '').toString();
+    final session = {
+      'userId': field('userId'),
+      'email': field('email'),
+      'firstName': field('firstName'),
+      'lastName': field('lastName'),
+    };
+    _memorySession = session;
+    await _secureStorage.write(key: _sessionKey, value: json.encode(session));
+  }
+
+  /// The claims inside the cached JWT (userId is the `sub` claim), or an empty
+  /// map when there is no readable token.
+  static Map<String, dynamic> _tokenClaims() {
+    final token = getToken();
+    if (token == null) return const {};
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return const {};
+      final normalized = base64Url.normalize(parts[1]);
+      final payload = json.decode(utf8.decode(base64Url.decode(normalized)));
+      return payload is Map ? Map<String, dynamic>.from(payload) : const {};
+    } catch (e) {
+      debugPrint("ERROR decoding token payload:: $e");
+      return const {};
+    }
+  }
+
+  /// The signed-in user's identity: userId, email, firstName, lastName.
+  ///
+  /// Taken from the saved login / register response, and from the token's own
+  /// claims for anything missing. A saved identity that belongs to a different
+  /// user than the current token is ignored, so one account's name can never
+  /// show up under another's token.
+  static Map<String, String> getSession() {
+    final claims = _tokenClaims();
+    final tokenUserId = (claims['sub'] ?? '').toString();
+    var saved = _memorySession ?? const <String, String>{};
+    final savedUserId = saved['userId'] ?? '';
+    if (tokenUserId.isNotEmpty &&
+        savedUserId.isNotEmpty &&
+        savedUserId != tokenUserId) {
+      saved = const {};
+    }
+    String pick(String key, String claim) {
+      final value = saved[key];
+      if (value != null && value.isNotEmpty) return value;
+      return (claims[claim] ?? '').toString();
+    }
+
+    final session = {
+      'userId': pick('userId', 'sub'),
+      'email': pick('email', 'email'),
+      'firstName': pick('firstName', 'firstName'),
+      'lastName': pick('lastName', 'lastName'),
+    };
+    if (session.values.every((v) => v.isEmpty)) return const {};
+    return session;
+  }
+
+  /// Loads the saved identity into memory. Call once at start-up.
+  static Future<void> loadSession() async {
+    try {
+      final raw = await _secureStorage.read(key: _sessionKey);
+      if (raw == null) return;
+      final decoded = json.decode(raw) as Map<String, dynamic>;
+      _memorySession = decoded.map((k, v) => MapEntry(k, v.toString()));
+    } catch (e) {
+      debugPrint('Failed to read saved session: $e');
+    }
+  }
+
+  // ============================================================================
+  // Appearance (device-local copy of the user's light / dark preference)
+  // ============================================================================
+
+  static const String _darkModeKey = 'dark_mode';
+
+  static Future<bool> readDarkMode() async {
+    try {
+      return await _secureStorage.read(key: _darkModeKey) == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> saveDarkMode(bool dark) async {
+    try {
+      await _secureStorage.write(key: _darkModeKey, value: dark.toString());
+    } catch (e) {
+      debugPrint('Failed to save appearance: $e');
+    }
   }
 
   // ============================================================================
@@ -82,7 +190,10 @@ class SecureStorageService {
         value: customerId,
       );
       await _secureStorage.write(key: _customerEmailKey, value: email);
-      await _secureStorage.write(key: _customerDisplayNameKey, value: displayName);
+      await _secureStorage.write(
+        key: _customerDisplayNameKey,
+        value: displayName,
+      );
       await _secureStorage.write(key: _customerPhoneKey, value: phone);
       await _secureStorage.write(
         key: _customerMetadataKey,
@@ -169,9 +280,7 @@ class SecureStorageService {
       try {
         final result = await dio.post(
           '/api/users/refresh',
-          options: Options(
-            headers: {"Authorization": "Bearer ${getToken()}"},
-          ),
+          options: Options(headers: {"Authorization": "Bearer ${getToken()}"}),
         );
 
         debugPrint("REFRESH TOKEN:: $result");

@@ -275,7 +275,6 @@ class RewardsList {
 
   factory RewardsList.fromJson(dynamic json) {
     final List<dynamic> raw;
-    print("THE REWARDS IN THE REPOSITORY :: $json");
     if (json is List) {
       raw = json;
     } else if (json is Map) {
@@ -383,17 +382,15 @@ class SavingsSummary {
     this.lastSavedAt,
   });
 
-  factory SavingsSummary.fromJson(Map<String, dynamic> json) =>
-      SavingsSummary(
-        currencyCode: json['currencyCode']?.toString() ?? '',
-        totalAmount: _toDouble(json['totalAmount']),
-        entryCount: (json['entryCount'] as num?)?.toInt() ?? 0,
-        lastSavedAt: json['lastSavedAt']?.toString(),
-      );
+  factory SavingsSummary.fromJson(Map<String, dynamic> json) => SavingsSummary(
+    currencyCode: json['currencyCode']?.toString() ?? '',
+    totalAmount: _toDouble(json['totalAmount']),
+    entryCount: (json['entryCount'] as num?)?.toInt() ?? 0,
+    lastSavedAt: json['lastSavedAt']?.toString(),
+  );
 
   @override
   String toString() =>
       'SavingsSummary($currencyCode ${totalAmount.toStringAsFixed(2)}, '
       '$entryCount entr${entryCount == 1 ? 'y' : 'ies'})';
 }
-

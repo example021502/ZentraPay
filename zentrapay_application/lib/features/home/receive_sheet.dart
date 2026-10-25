@@ -1,11 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
-import 'package:zentrapay_application/features/home/generateQRCode.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/generate_qr_code.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+
+/// The `zentrapay://pay` payload encoded in an account's receive QR. Shared by
+/// the Receive sheet and the Profile screen so both show the same code. Empty
+/// while the receiver's details ([info]) are still loading.
+String buildAccountQrPayload(FiatAccount account, UserQRInfo? info) {
+  if (info == null) return '';
+  final userName = "${info.firstName} ${info.lastName}".trim();
+  return 'zentrapay://pay?'
+      'zentag=${Uri.encodeComponent(account.zentag)}'
+      '&currency=${Uri.encodeComponent(account.currencyCode)}'
+      '&accountId=${Uri.encodeComponent(account.accountId)}'
+      '&userId=${Uri.encodeComponent(info.userId)}'
+      '&name=${Uri.encodeComponent(userName)}'
+      '&email=${Uri.encodeComponent(info.email)}'
+      '&phoneNumber=${Uri.encodeComponent(info.phoneNumber)}'
+      '&countryCode=${Uri.encodeComponent(info.countryCode)}'
+      '&userType=${Uri.encodeComponent(info.userType)}';
+}
 
 /// The Home "Receive" quick action: renders pretty QR codes for fiat currency accounts.
 /// Integrates user details (Name, Email, Phone) from [UserQRRepository] and wallet info
@@ -18,7 +36,7 @@ class ReceiveSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: AppTheme.primaryWhite,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
@@ -54,27 +72,8 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
   /// Null-safe: userData can be null while the profile is still loading (or
   /// when the request failed). The QR view guards empty data, so never force
   /// unwrap here — a crash in _qrPayload used to take down the whole sheet.
-  String _qrPayload(FiatAccount account, UserQRRepository userRepo) {
-    final info = userRepo.userData;
-    if (info == null) return '';
-    final userName = "${info.firstName} ${info.lastName}".trim();
-    final email = info.email;
-    final phoneNumber = info.phoneNumber;
-    final userType = info.userType;
-    final countryCode = info.countryCode;
-    final userId = info.userId;
-
-    return 'zentrapay://pay?'
-        'zentag=${Uri.encodeComponent(account.zentag)}'
-        '&currency=${Uri.encodeComponent(account.currencyCode)}'
-        '&accountId=${Uri.encodeComponent(account.accountId)}'
-        '&userId=${Uri.encodeComponent(userId)}'
-        '&name=${Uri.encodeComponent(userName)}'
-        '&email=${Uri.encodeComponent(email)}'
-        '&phoneNumber=${Uri.encodeComponent(phoneNumber)}'
-        '&countryCode=${Uri.encodeComponent(countryCode)}'
-        '&userType=${Uri.encodeComponent(userType)}';
-  }
+  String _qrPayload(FiatAccount account, UserQRRepository userRepo) =>
+      buildAccountQrPayload(account, userRepo.userData);
 
   void _copy(String value, String label) {
     if (value.trim().isEmpty) {
@@ -114,7 +113,7 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Text("Receive Money", style: AppTheme.headlineSmall),
             ),
@@ -211,10 +210,10 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           CircleAvatar(
-            backgroundColor: AppTheme.secondaryNavy.withAlpha(20),
+            backgroundColor: AppTheme.brand.withAlpha(20),
             child: Icon(
               Icons.person_2_rounded,
-              color: AppTheme.secondaryNavy,
+              color: AppTheme.textBlack,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -309,13 +308,11 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
                   icon: Icon(
                     showQr ? Icons.visibility_off : Icons.qr_code_2,
                     size: 18,
-                    color: AppTheme.secondaryNavy,
+                    color: AppTheme.textBlack,
                   ),
                   label: Text(
                     showQr ? "Hide QR" : "Show QR",
-                    style: AppTheme.labelLarge.copyWith(
-                      color: AppTheme.secondaryNavy,
-                    ),
+                    style: AppTheme.labelLarge.copyWith(color: AppTheme.brand),
                   ),
                 ),
             ],
@@ -329,9 +326,9 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingMd),
               decoration: BoxDecoration(
-                color: AppTheme.primaryWhite,
+                color: AppTheme.surface,
                 border: Border.all(
-                  color: AppTheme.secondaryNavy.withAlpha(20),
+                  color: AppTheme.brand.withAlpha(20),
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -344,23 +341,15 @@ class _ReceiveSheetState extends State<ReceiveSheet> {
               children: [
                 TextButton.icon(
                   onPressed: () => _copy(account.zentag, "Zentag"),
-                  icon: Icon(
-                    Icons.copy,
-                    size: 18,
-                    color: AppTheme.secondaryNavy,
-                  ),
+                  icon: Icon(Icons.copy, size: 18, color: AppTheme.textBlack),
                   label: Text("Copy Zentag", style: AppTheme.labelSmall),
                 ),
                 const SizedBox(width: AppTheme.spacingMd),
                 TextButton.icon(
                   onPressed: () =>
                       _copy(_qrPayload(account, userRepo), "QR Payload"),
-                  icon: const Icon(
-                    Icons.copy,
-                    size: 18,
-                    color: AppTheme.secondaryNavy,
-                  ),
-                  label: const Text("Copy Payload", style: AppTheme.labelSmall),
+                  icon: Icon(Icons.copy, size: 18, color: AppTheme.textBlack),
+                  label: Text("Copy Payload", style: AppTheme.labelSmall),
                 ),
               ],
             ),

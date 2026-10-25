@@ -13,7 +13,7 @@ class _BouncingLogoState extends State<BouncingLogo>
   late Animation<double> _translateAnimation;
 
   // Maximum height the container moves up (in pixels)
-  final double _translateHeight = 50.0;
+  final double _translateHeight = 40.0;
 
   @override
   void initState() {
@@ -60,11 +60,11 @@ class _BouncingLogoState extends State<BouncingLogo>
                 offset: Offset(0, currentTranslateY),
                 child: Container(
                   constraints: const BoxConstraints(
-                    maxWidth: 70,
-                    maxHeight: 70,
+                    maxWidth: 80,
+                    maxHeight: 80,
                   ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Image.asset(

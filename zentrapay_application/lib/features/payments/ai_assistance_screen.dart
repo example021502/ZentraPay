@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
-import 'package:zentrapay_application/features/zvoice/repository/cache_zvoiceData.dart';
+import 'package:zentrapay_application/features/zvoice/repository/cache_zvoice_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
@@ -68,7 +68,8 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
       setState(() {
         _messages.add(
           ChatMessage(
-            text: "Something went wrong reaching the assistant. Please try again.",
+            text:
+                "Something went wrong reaching the assistant. Please try again.",
             isUser: false,
             time: DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now()),
           ),
@@ -118,18 +119,10 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
           children: [
             GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: AppColors.main,
-                  size: 16,
-                ),
+              child: Icon(
+                Icons.arrow_back,
+                color: AppTheme.textBlack,
+                size: 24,
               ),
             ),
             const Expanded(
@@ -171,7 +164,7 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
           children: [
             Text(
               message.isUser ? "You" : "Assistant",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textBlack,
@@ -180,12 +173,12 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
             const SizedBox(height: 4),
             Text(
               message.text,
-              style: const TextStyle(fontSize: 14, color: AppColors.textBlack),
+              style: TextStyle(fontSize: 14, color: AppColors.textBlack),
             ),
             const SizedBox(height: 4),
             Text(
               message.time,
-              style: const TextStyle(fontSize: 10, color: AppColors.textBlack),
+              style: TextStyle(fontSize: 10, color: AppColors.textBlack),
             ),
           ],
         ),
@@ -196,8 +189,8 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
   Widget _buildInputArea() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
       child: SafeArea(
@@ -242,9 +235,9 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
                           color: AppColors.primary,
                         ),
                       )
-                    : const Icon(
+                    : Icon(
                         Icons.send_rounded,
-                        color: AppColors.primary,
+                        color: AppTheme.textBlack,
                         size: 22,
                       ),
               ),

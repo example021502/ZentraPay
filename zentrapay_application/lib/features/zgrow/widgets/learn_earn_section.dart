@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_carousel.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/tutorials_all_screen.dart';
 
@@ -40,7 +40,7 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Tutorials", style: AppTheme.bodyMedium),
+                Text("Tutorials", style: AppTheme.bodyMedium),
                 if (tutorialData.tutorials.length > 4)
                   GestureDetector(
                     onTap: () => TutorialsAllScreen.show(context),
@@ -49,7 +49,7 @@ class _LearnEarnSectionState extends State<LearnEarnSection> {
                       style: AppTheme.bodyMedium.copyWith(
                         decoration: TextDecoration.underline,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.secondaryNavy,
+                        color: AppTheme.brand,
                       ),
                     ),
                   ),

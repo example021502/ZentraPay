@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
 
 /// Bottom section of the ZBank screen: the horizontally scrollable strip of
@@ -27,11 +27,10 @@ class OtherBankAccountsStrip extends StatelessWidget {
           height: 196,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingMd,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
             itemCount: accounts.length + 1,
-            separatorBuilder: (_, _) => const SizedBox(width: AppTheme.spacingMd),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: AppTheme.spacingMd),
             itemBuilder: (context, index) {
               if (index == accounts.length) {
                 return _AddBankCard(onTap: () => showLinkBankSheet(context));
@@ -49,9 +48,7 @@ class OtherBankAccountsStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
       child: Row(
         children: [
-          Expanded(
-            child: Text('Other accounts', style: AppTheme.bodyMedium),
-          ),
+          Expanded(child: Text('Other accounts', style: AppTheme.bodyMedium)),
           Text(
             '${accounts.length}',
             style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
@@ -80,7 +77,7 @@ class _AddBankCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.gray50,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-            border: Border.all(color: AppTheme.secondaryNavy, width: 1.5),
+            border: Border.all(color: AppTheme.brand, width: 1.5),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -88,12 +85,12 @@ class _AddBankCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacingMd),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryNavy.withAlpha(20),
+                  color: AppTheme.brand.withAlpha(20),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.add_outlined,
-                  color: AppTheme.secondaryNavy,
+                  color: AppTheme.textBlack,
                   size: 24,
                 ),
               ),
@@ -112,6 +109,7 @@ class _AddBankCard extends StatelessWidget {
     );
   }
 }
+
 /// One bank in the horizontal strip. Tapping the card promotes it to primary;
 /// the overflow menu unlinks it.
 class _BankAccountCard extends StatelessWidget {
@@ -162,7 +160,8 @@ class _BankAccountCard extends StatelessWidget {
   void _makePrimary(BuildContext context) => _confirmAndRun(
     context,
     title: 'Make primary?',
-    body: '${account.displayName} will be shown at the top of your ZBank screen.',
+    body:
+        '${account.displayName} will be shown at the top of your ZBank screen.',
     confirmLabel: 'Make primary',
     action: () =>
         BankAccountsRepository.instance.setPrimary(account.userBankId),
@@ -174,7 +173,8 @@ class _BankAccountCard extends StatelessWidget {
     body: '${account.displayName} will be removed from your ZBank screen.',
     confirmLabel: 'Unlink',
     destructive: true,
-    action: () => BankAccountsRepository.instance.unlinkBank(account.userBankId),
+    action: () =>
+        BankAccountsRepository.instance.unlinkBank(account.userBankId),
   );
   @override
   Widget build(BuildContext context) {
@@ -200,9 +200,9 @@ class _BankAccountCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
+                Icon(
                   Icons.account_balance_outlined,
-                  color: Colors.white70,
+                  color: AppTheme.textBlack,
                   size: 20,
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
@@ -219,9 +219,9 @@ class _BankAccountCard extends StatelessWidget {
                   constraints: const BoxConstraints(),
                   tooltip: 'Account options',
                   color: AppTheme.primaryWhite,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_vert,
-                    color: Colors.white70,
+                    color: AppTheme.textBlack,
                     size: 18,
                   ),
                   onSelected: (value) {
@@ -274,7 +274,7 @@ class _BankAccountCard extends StatelessWidget {
                     style: AppTheme.whiteBodySmall.copyWith(fontSize: 10),
                   ),
                 ),
-                const Icon(Icons.nfc_outlined, color: Colors.white70, size: 18),
+                Icon(Icons.nfc_outlined, color: AppTheme.textBlack, size: 18),
               ],
             ),
           ],
@@ -286,12 +286,21 @@ class _BankAccountCard extends StatelessWidget {
   /// Second line under the balance: country · currency · linked date.
   String _subtitle() {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final linked = account.linkedAt;
-    final linkedOn =
-        '${linked.day} ${months[linked.month - 1]} ${linked.year}';
+    final linkedOn = '${linked.day} ${months[linked.month - 1]} ${linked.year}';
     return [
       if (account.countryCode.isNotEmpty) account.countryCode,
       if (account.currencyCode.isNotEmpty) account.currencyCode,

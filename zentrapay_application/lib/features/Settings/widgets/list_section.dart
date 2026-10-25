@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/Settings/widgets/section_label.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
+import 'package:zentrapay_application/features/Settings/widgets/settings_card.dart';
+import 'package:zentrapay_application/features/home/close_confirmation.dart';
 
 /// A titled, compact list of settings rows — the GENERAL, FEEDBACK and
 /// DANGER ZONE blocks.
@@ -28,7 +28,7 @@ class ListSection extends StatelessWidget {
   Future<void> _logout(BuildContext context) async {
     final confirmed = await showCloseConfirmationDialog(context);
     if (!context.mounted || !confirmed) return;
-    Navigator.pushReplacementNamed(context, "/login");
+    Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
   }
 
   @override
@@ -39,46 +39,22 @@ class ListSection extends StatelessWidget {
       children: [
         SectionLabel(title),
         const SizedBox(height: 4),
-        // Card decoration removed completely and layout wrapped in a compact Column
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(buttons.length, (index) {
-            final buttonData = buttons[index];
-            final bool isLogout = buttonData['name'] == "Logout";
-            final bool isRedColored =
-                isLogout || buttonData['name'] == "Delete Account";
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(
-                      buttonData["icon"],
-                      color: isRedColored ? AppColors.main : AppTheme.textBlack,
-                    ),
-                    title: Text(
-                      buttonData["name"],
-                      style: TextStyle(
-                        color: isRedColored
-                            ? AppColors.main
-                            : AppTheme.textBlack,
-                      ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right, size: 20),
-                    onTap: isLogout
-                        ? () => _logout(context)
-                        : () => onTapOption(context, buttonData["name"]),
-                  ),
-                ),
-                if (index < buttons.length - 1)
-                  AppTheme.divider(context, AppTheme.lightGrey),
-              ],
-            );
-          }),
+        SettingsCard(
+          children: [
+            for (final buttonData in buttons)
+              SettingsNavTile(
+                icon: buttonData["icon"] as IconData,
+                title: buttonData["name"] as String,
+                color:
+                    (buttonData['name'] == "Logout" ||
+                        buttonData['name'] == "Delete Account")
+                    ? AppColors.main
+                    : null,
+                onTap: buttonData['name'] == "Logout"
+                    ? () => _logout(context)
+                    : () => onTapOption(context, buttonData["name"]),
+              ),
+          ],
         ),
       ],
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/utils/app_refresh.dart';
+import 'package:zentrapay_application/features/zvoice/zvoice_floating_button.dart';
 
 import 'home_header.dart';
 import 'home_quick_actions.dart';
@@ -20,24 +22,44 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
     final isTablet = MediaQuery.of(context).size.width >= 600;
     final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: Center(
-        child: Column(
-          children: [
-            SizedBox(
-              width: maxWidth,
-              child: const HomeHeader(
-                key: ValueKey("fiat_balances"),
-                title: "You wallet balances",
-                id: "fiat",
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Stack(
+      children: [
+        // Pulling down on Home reloads every section of the app, not just
+        // what is on this screen.
+        RefreshIndicator(
+          color: AppTheme.primaryPink,
+          backgroundColor: AppTheme.surface,
+          onRefresh: refreshWholeApp,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: maxWidth,
+                    child: const HomeHeader(
+                      key: ValueKey("fiat_balances"),
+                      title: "You wallet balances",
+                      id: "fiat",
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingXl),
+                  _buildContent(isTablet),
+                ],
               ),
             ),
-            SizedBox(height: AppTheme.spacingXl),
-            _buildContent(isTablet),
-          ],
+          ),
         ),
-      ),
+        // Floating AI launcher, just above the bottom navigation bar.
+        Positioned(
+          right: AppTheme.spacingMd,
+          bottom: bottomInset + 96,
+          child: const ZVoiceFloatingButton(),
+        ),
+      ],
     );
   }
 
@@ -53,7 +75,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(15.0),
+        padding: const EdgeInsets.fromLTRB(15, 25, 15, 15),
         child: Column(
           children: [
             // QUICK ACTIONS HERE

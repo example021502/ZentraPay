@@ -4,6 +4,7 @@ class BillProvider {
   final String categoryCode;
   final String? logoUrl;
   final String? fetchRequirement;
+
   /// ISO country code of the corridor this biller serves — used by the home
   /// grid to render the country flag when the biller has no logo.
   final String? countryCode;
@@ -34,6 +35,7 @@ class ServiceProvider {
   final String? logoUrl;
   final String? minAmount;
   final String? maxAmount;
+
   /// ISO country code of the corridor this provider serves — used by the
   /// home grid to render the country flag when the provider has no logo.
   final String? countryCode;

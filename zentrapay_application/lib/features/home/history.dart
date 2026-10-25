@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
-import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -48,7 +48,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     return items.where((t) {
       final name = (t.receiverName).toLowerCase();
       final identifier = (t.receiverId).toLowerCase();
-      final reference = (t.TXN_Ref).toLowerCase();
+      final reference = (t.txnRef).toLowerCase();
       final amount = (t.amount).toLowerCase();
 
       return name.contains(_query) ||
@@ -82,7 +82,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppTheme.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 15.0),
@@ -96,7 +96,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
                 hintStyle: WidgetStateProperty.all(
                   TextStyle(color: AppColors.lightGrey, fontSize: 14),
                 ),
-                leading: const Icon(Icons.search, color: Colors.grey),
+                leading: Icon(Icons.search, color: AppTheme.textBlack),
                 elevation: WidgetStateProperty.all(0),
                 backgroundColor: WidgetStateProperty.all(
                   AppColors.lightGrey.withValues(alpha: 0.15),
@@ -202,7 +202,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
       child: ListTile(
         leading: CircleAvatar(
           radius: 22,
-          backgroundColor: AppColors.secondary.withAlpha(20),
+          backgroundColor: AppTheme.brand.withAlpha(20),
           child: Icon(
             _getIcon(transaction),
             size: 22,
@@ -213,7 +213,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
           displayName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textBlack,
@@ -271,7 +271,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
             ),
             const SizedBox(height: 12),
             _detailRow("Status", transaction.status),
-            _detailRow("Reference", transaction.TXN_Ref),
+            _detailRow("Reference", transaction.txnRef),
             _detailRow("Date", formatDateTimeString(transaction.completedAt)),
             const SizedBox(height: 16),
             if (showSendAgain) ...[
@@ -312,7 +312,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(color: AppColors.lightGrey)),
-        Text(value, style: const TextStyle(color: AppColors.textBlack)),
+        Text(value, style: TextStyle(color: AppColors.textBlack)),
       ],
     ),
   );

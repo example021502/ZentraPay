@@ -58,6 +58,7 @@ dependencies:
   image_picker: ^1.1.2
   pretty_qr_code: ^3.6.0
   mobile_scanner: ^7.4.2
+  speech_to_text: ^7.5.0
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +75,15 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+# Local copies of the two plugins that still applied the Kotlin Gradle Plugin
+# themselves, patched for Flutter's Built-in Kotlin migration (see the header
+# comment of each packages/*/android/build.gradle).
+dependency_overrides:
+  paystack_flutter_sdk:
+    path: packages/paystack_flutter_sdk
+  privy_flutter:
+    path: packages/privy_flutter
+
 flutter:
 
   # The following line ensures that the Material Icons font is

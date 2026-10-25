@@ -28,28 +28,18 @@ class RewardTile extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 5,
-          horizontal: 15,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        tileColor: AppTheme.secondaryNavy.withAlpha(20),
+        contentPadding: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        tileColor: AppTheme.brand.withAlpha(20),
         dense: true,
         leading: Container(
           decoration: BoxDecoration(
-            color: AppTheme.secondaryNavy.withAlpha(20),
+            color: AppTheme.brand.withAlpha(20),
             borderRadius: BorderRadius.circular(200),
           ),
           child: Padding(
             padding: const EdgeInsets.all(10.0),
-            child: Icon(
-              icon,
-              size: 20,
-              color: AppTheme.textBlack,
-              weight: 1.5,
-            ),
+            child: Icon(icon, size: 20, color: AppTheme.textBlack, weight: 1.5),
           ),
         ),
         title: Text(

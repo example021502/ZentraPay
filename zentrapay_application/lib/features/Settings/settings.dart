@@ -1,10 +1,17 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
+import 'package:zentrapay_application/features/Settings/credential_sheets.dart';
+import 'package:zentrapay_application/features/Settings/repository/cache_settings_data.dart';
+import 'package:zentrapay_application/features/Settings/repository/credential_service.dart';
+import 'package:zentrapay_application/core/models/security.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/Settings/widgets/appearance_section.dart';
 import 'package:zentrapay_application/features/Settings/widgets/list_section.dart';
 import 'package:zentrapay_application/features/Settings/widgets/security_section.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/notifications_overlay.dart';
@@ -48,38 +55,36 @@ class _SettingsState extends State<Settings> {
   bool biometricEnabled = false;
   bool twoFactorEnabled = false;
   bool fraudProtection = true;
+  bool pushNotifications = true;
+  bool transactionAlerts = true;
+  bool darkMode = AppTheme.isDark;
   bool isLoadingSecurity = true;
   List<Map<String, dynamic>> protectionHistory = [];
-
-  // Derived from the three toggles below rather than cached separately —
-  // a stored percent would go stale the moment any one toggle changes
-  // (each _toggleX only updates its own flag), so compute it fresh on
-  // every build instead.
-  double get securityScorePercent {
-    final activeChecks = [
-      biometricEnabled,
-      twoFactorEnabled,
-      fraudProtection,
-    ].where((c) => c).length;
-    return activeChecks / 3;
-  }
 
   @override
   void initState() {
     super.initState();
-    // Load security settings and history on init
+    // Load settings and history on init
     _loadSecuritySettings();
+  }
+
+  /// Copies the server's row onto the screen. The saved dark-mode choice
+  /// follows the user across devices, so it wins over this device's value.
+  void _applySettings(SecuritySettings settings) {
+    biometricEnabled = settings.biometricEnabled;
+    twoFactorEnabled = settings.twoFactorEnabled;
+    fraudProtection = settings.fraudProtectionEnabled;
+    pushNotifications = settings.pushNotificationsEnabled;
+    transactionAlerts = settings.transactionAlertsEnabled;
+    darkMode = settings.darkMode;
   }
 
   Future<void> _loadSecuritySettings() async {
     try {
       final settings = await SecuritySettingsRepository.instance.ensureLoaded();
       if (settings != null && mounted) {
-        setState(() {
-          biometricEnabled = settings.biometricEnabled;
-          twoFactorEnabled = settings.twoFactorEnabled;
-          fraudProtection = settings.fraudProtectionEnabled;
-        });
+        setState(() => _applySettings(settings));
+        ThemeController.instance.setDark(settings.darkMode);
       }
     } catch (_) {
       // Keep defaults on failure.
@@ -106,90 +111,159 @@ class _SettingsState extends State<Settings> {
     }
   }
 
-  Future<void> _toggleBiometric() async {
-    final newValue = !biometricEnabled;
-    setState(() => biometricEnabled = newValue);
+  /// Optimistic update shared by every setting: [assign] puts [newValue] on
+  /// screen at once, [save] writes it to the backend in the background, and if
+  /// that fails the old value is put back and a light notice says so.
+  Future<void> _change(
+    bool newValue,
+    void Function(bool value) assign,
+    Future<void> Function(bool value) save,
+    String label,
+  ) async {
+    void show(bool value) {
+      if (mounted) {
+        setState(() => assign(value));
+      } else {
+        assign(value);
+      }
+    }
+
+    show(newValue);
     try {
-      await SecuritySettingsRepository.instance.setBiometric(newValue);
+      await save(newValue);
     } catch (_) {
-      if (mounted) setState(() => biometricEnabled = !newValue);
+      show(!newValue);
+      ZentraNotifier.notice(
+        "Couldn't save $label. Please try again.",
+        icon: Icons.sync_problem_rounded,
+      );
     }
   }
 
-  Future<void> _toggleTwoFactor() async {
-    final newValue = !twoFactorEnabled;
-    setState(() => twoFactorEnabled = newValue);
-    try {
-      await SecuritySettingsRepository.instance.setTwoFactor(newValue);
-    } catch (_) {
-      if (mounted) setState(() => twoFactorEnabled = !newValue);
-    }
-  }
+  Future<void> _toggleBiometric() => _change(
+    !biometricEnabled,
+    (v) => biometricEnabled = v,
+    (v) => SecuritySettingsRepository.instance.setBiometric(v),
+    "biometric sign-in",
+  );
 
-  Future<void> _toggleFraudProtection() async {
-    final newValue = !fraudProtection;
-    setState(() => fraudProtection = newValue);
-    try {
-      await SecuritySettingsRepository.instance.setFraudProtection(newValue);
-    } catch (_) {
-      if (mounted) setState(() => fraudProtection = !newValue);
-    }
-  }
+  Future<void> _toggleTwoFactor() => _change(
+    !twoFactorEnabled,
+    (v) => twoFactorEnabled = v,
+    (v) => SecuritySettingsRepository.instance.setTwoFactor(v),
+    "two-factor authentication",
+  );
+
+  Future<void> _toggleFraudProtection() => _change(
+    !fraudProtection,
+    (v) => fraudProtection = v,
+    (v) => SecuritySettingsRepository.instance.setFraudProtection(v),
+    "fraud protection",
+  );
+
+  Future<void> _togglePush() => _change(
+    !pushNotifications,
+    (v) => pushNotifications = v,
+    (v) => SecuritySettingsRepository.instance.updatePreferences(
+      pushNotifications: v,
+    ),
+    "notification preference",
+  );
+
+  Future<void> _toggleTransactionAlerts() => _change(
+    !transactionAlerts,
+    (v) => transactionAlerts = v,
+    (v) => SecuritySettingsRepository.instance.updatePreferences(
+      transactionAlerts: v,
+    ),
+    "transaction alerts",
+  );
+
+  Future<void> _toggleDarkMode() => _change(
+    !darkMode,
+    (v) {
+      darkMode = v;
+      ThemeController.instance.setDark(v);
+    },
+    (v) => SecuritySettingsRepository.instance.updatePreferences(darkMode: v),
+    "appearance",
+  );
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
-      child: Container(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height,
-        ),
-        decoration: BoxDecoration(
-          color: AppTheme.gray50,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppTheme.spacingMd),
-              // General Settings Section
-              ListSection(
-                title: "GENERAL",
-                buttons: _generalButtons,
-                onTapOption: _showOptionSheet,
-              ),
-              const SizedBox(height: 40),
-              // Security Controls Section
-              SecuritySection(
-                biometricEnabled: biometricEnabled,
-                twoFactorEnabled: twoFactorEnabled,
-                fraudProtection: fraudProtection,
-                isLoading: isLoadingSecurity,
-                protectionHistory: protectionHistory,
-                onToggleBiometric: _toggleBiometric,
-                onToggleTwoFactor: _toggleTwoFactor,
-                onToggleFraudProtection: _toggleFraudProtection,
-              ),
-              const SizedBox(height: 40),
-              // Feedback and Reporting Section
-              ListSection(
-                title: "FEEDBACK",
-                buttons: _feedbackButtons,
-                onTapOption: _showOptionSheet,
-              ),
-              const SizedBox(height: 40),
-              // Danger zone Section
-              ListSection(
-                title: "DANGER ZONE",
-                buttons: _dangerZoneButtons,
-                onTapOption: _showOptionSheet,
-              ),
-              const SizedBox(height: 100),
-            ],
+      child: Column(
+        children: [
+          ListenableBuilder(
+            listenable: UserProfileRepository.instance,
+            builder: (context, _) {
+              final user = UserProfileRepository.instance.user;
+              return SectionHeader(
+                title: (user?.fullName.trim().isNotEmpty ?? false)
+                    ? user!.fullName
+                    : "Your account",
+                subtitle: (user?.email.isNotEmpty ?? false)
+                    ? user!.email
+                    : "Profile, security and appearance",
+                icon: Icons.manage_accounts_rounded,
+                sheetColor: AppTheme.gray50,
+              );
+            },
           ),
-        ),
+          Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            color: AppTheme.gray50,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(15, 25, 15, 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppearanceSection(
+                    darkMode: darkMode,
+                    pushNotifications: pushNotifications,
+                    transactionAlerts: transactionAlerts,
+                    onToggleDarkMode: _toggleDarkMode,
+                    onTogglePush: _togglePush,
+                    onToggleTransactionAlerts: _toggleTransactionAlerts,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "GENERAL",
+                    buttons: _generalButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  SecuritySection(
+                    biometricEnabled: biometricEnabled,
+                    twoFactorEnabled: twoFactorEnabled,
+                    fraudProtection: fraudProtection,
+                    isLoading: isLoadingSecurity,
+                    protectionHistory: protectionHistory,
+                    onToggleBiometric: _toggleBiometric,
+                    onToggleTwoFactor: _toggleTwoFactor,
+                    onToggleFraudProtection: _toggleFraudProtection,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "FEEDBACK",
+                    buttons: _feedbackButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "DANGER ZONE",
+                    buttons: _dangerZoneButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -318,14 +392,18 @@ class _SettingsState extends State<Settings> {
                   leading: const Icon(Icons.lock_reset_outlined),
                   title: const Text("Change PIN"),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showComingSoon(context, "Change PIN"),
+                  onTap: () =>
+                      showChangeCredentialSheet(context, CredentialKind.pin),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.password_outlined),
                   title: const Text("Change Password"),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showComingSoon(context, "Change Password"),
+                  onTap: () => showChangeCredentialSheet(
+                    context,
+                    CredentialKind.password,
+                  ),
                 ),
               ],
             ),
@@ -351,7 +429,7 @@ class _SettingsState extends State<Settings> {
           children: [
             Row(
               children: [
-                Icon(icon, color: AppTheme.secondaryNavy),
+                Icon(icon, color: AppTheme.textBlack),
                 const SizedBox(width: AppTheme.spacingSm),
                 Text(title, style: AppTheme.headlineMedium),
               ],
@@ -383,7 +461,7 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppTheme.gray500),
+          Icon(icon, size: 20, color: AppTheme.textBlack),
           const SizedBox(width: AppTheme.spacingSm),
           Expanded(
             child: Column(

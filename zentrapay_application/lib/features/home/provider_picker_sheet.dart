@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
-import 'package:zentrapay_application/core/utils/Common/ProviderDisplay.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/Common/app_confirm_sheet.dart';
+import 'package:zentrapay_application/core/utils/Common/provider_display.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -40,7 +40,7 @@ class ProviderPickerSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
@@ -135,7 +135,7 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
@@ -369,7 +369,7 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
         return Container(
           margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
           decoration: BoxDecoration(
-            color: AppTheme.primaryWhite,
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             boxShadow: AppTheme.cardShadow,
           ),
@@ -382,12 +382,12 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
                         ? Text(flag, style: const TextStyle(fontSize: 20))
                         : Icon(
                             providerCategoryIcon(category),
-                            color: AppColors.main,
+                            color: AppTheme.textBlack,
                           ),
                   ),
             title: Text(name, style: AppTheme.titleLarge),
             subtitle: category.isNotEmpty ? Text(category) : null,
-            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+            trailing: Icon(Icons.chevron_right, color: AppTheme.textBlack),
             onTap: () => _showProviderDetails(provider),
           ),
         );

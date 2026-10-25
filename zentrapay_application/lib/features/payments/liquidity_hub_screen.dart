@@ -1,8 +1,9 @@
+import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/features/zinvest/repository/cache_zinvestData.dart';
+import 'package:zentrapay_application/features/zinvest/repository/cache_zinvest_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class LiquidityHubScreen extends StatefulWidget {
@@ -58,44 +59,41 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppColors.main,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Global Liquidity Hub",
-          style: TextStyle(color: AppColors.primary, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: AppColors.primary),
-            onPressed: () {},
+      body: Column(
+        children: [
+          SectionHeader(
+            title: "Global Liquidity Hub",
+            subtitle: "Your money across every currency",
+            icon: Icons.water_drop_rounded,
+            showBack: true,
+            sheetColor: AppTheme.gray50,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                children: [
+                  _buildHeaderSection(),
+                  const SizedBox(height: 20),
+                  _buildCurrencyTabs(),
+                  const SizedBox(height: 20),
+                  _buildQuickActions(),
+                  const SizedBox(height: 20),
+                  _buildLiquidityProfile(),
+                  const SizedBox(height: 20),
+                  _buildFinancialTrend(),
+                  const SizedBox(height: 20),
+                  _buildLiquidityCore(),
+                  const SizedBox(height: 20),
+                  _buildTopRisks(),
+                  const SizedBox(height: 20),
+                  _buildRecentAlerts(),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeaderSection(),
-            const SizedBox(height: 20),
-            _buildCurrencyTabs(),
-            const SizedBox(height: 20),
-            _buildQuickActions(),
-            const SizedBox(height: 20),
-            _buildLiquidityProfile(),
-            const SizedBox(height: 20),
-            _buildFinancialTrend(),
-            const SizedBox(height: 20),
-            _buildLiquidityCore(),
-            const SizedBox(height: 20),
-            _buildTopRisks(),
-            const SizedBox(height: 20),
-            _buildRecentAlerts(),
-            const SizedBox(height: 20),
-          ],
-        ),
       ),
     );
   }
@@ -109,11 +107,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.main, AppColors.purple],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.main,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
@@ -158,8 +152,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(20),
           bottom: Radius.circular(20),
@@ -217,8 +211,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(20),
           bottom: Radius.circular(20),
@@ -244,13 +238,13 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
             color: AppColors.main,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 24),
+          child: Icon(icon, color: AppTheme.textBlack, size: 24),
         ),
         const SizedBox(height: 8),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
             color: AppColors.textBlack,
@@ -270,8 +264,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
               bottom: Radius.circular(20),
@@ -280,7 +274,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Global Liquidity Profile",
                 style: TextStyle(
                   fontSize: 16,
@@ -331,7 +325,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
             ),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textBlack,
@@ -343,7 +337,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: AppColors.textBlack),
+          style: TextStyle(fontSize: 11, color: AppColors.textBlack),
         ),
       ],
     );
@@ -357,8 +351,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
               bottom: Radius.circular(20),
@@ -367,7 +361,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Financial Exposure Trend",
                 style: TextStyle(
                   fontSize: 16,
@@ -379,11 +373,11 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               SizedBox(
                 height: 150,
                 child: points.length < 2
-                    ? const Center(
+                    ? Center(
                         child: Icon(
                           Icons.show_chart,
                           size: 100,
-                          color: AppColors.main,
+                          color: AppTheme.textBlack,
                         ),
                       )
                     : LineChart(
@@ -424,8 +418,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(20),
           bottom: Radius.circular(20),
@@ -434,7 +428,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Global Liquidity Core",
             style: TextStyle(
               fontSize: 16,
@@ -488,7 +482,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               color: AppColors.main.withAlpha(25),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: AppColors.main, size: 24),
+            child: Icon(icon, color: AppTheme.textBlack, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -497,7 +491,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textBlack,
@@ -506,10 +500,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textBlack,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.textBlack),
                 ),
                 if (notification != null) ...[
                   const SizedBox(height: 4),
@@ -534,11 +525,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               ],
             ),
           ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppColors.textBlack,
-          ),
+          Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textBlack),
         ],
       ),
     );
@@ -552,8 +539,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
               bottom: Radius.circular(20),
@@ -562,7 +549,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Top Risks",
                 style: TextStyle(
                   fontSize: 16,
@@ -574,7 +561,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               if (isLoading)
                 const Center(child: CircularProgressIndicator())
               else if (topRisks.isEmpty)
-                const Text(
+                Text(
                   "No concentration risks detected.",
                   style: TextStyle(fontSize: 13, color: AppColors.textBlack),
                 )
@@ -607,7 +594,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
   ) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.textBlack, size: 24),
+        Icon(icon, color: AppTheme.textBlack, size: 24),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -615,7 +602,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textBlack,
@@ -623,10 +610,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               ),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textBlack,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textBlack),
               ),
             ],
           ),
@@ -651,8 +635,8 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(20),
               bottom: Radius.circular(20),
@@ -661,7 +645,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Recent Alerts",
                 style: TextStyle(
                   fontSize: 16,
@@ -673,7 +657,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               if (isLoading)
                 const Center(child: CircularProgressIndicator())
               else if (recentAlerts.isEmpty)
-                const Text(
+                Text(
                   "No recent alerts.",
                   style: TextStyle(fontSize: 13, color: AppColors.textBlack),
                 )
@@ -710,7 +694,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primary, size: 24),
+          Icon(icon, color: AppTheme.textBlack, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -718,7 +702,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textBlack,
@@ -726,10 +710,7 @@ class _LiquidityHubScreenState extends State<LiquidityHubScreen> {
                 ),
                 Text(
                   time,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textBlack,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.textBlack),
                 ),
               ],
             ),

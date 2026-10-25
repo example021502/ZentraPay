@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/converter.dart';
 import 'package:zentrapay_application/core/models/money.dart';
-import 'package:zentrapay_application/features/payments/repository/cache_paymentsData.dart';
+import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -10,7 +10,7 @@ import 'package:zentrapay_application/main.dart';
 /// transfer-fee figure is shown since the backend doesn't expose one for
 /// plain conversion; asserting a fee policy here would be unverified.
 class ZRemitHeader extends StatefulWidget {
-  // Optional heading, kept for callers (e.g. InstantTransferScreen) that
+  // Optional heading, kept for callers that
   // still want a title bar above the rate card. The redesigned ZRemitScreen
   // carries its own heading in a separate hero card, so it omits these.
   final String? title;
@@ -112,7 +112,7 @@ class _ZRemitHeaderState extends State<ZRemitHeader> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
-                  child: Icon(Icons.bolt, color: AppColors.primary, size: 20),
+                  child: Icon(Icons.bolt, color: AppTheme.textBlack, size: 20),
                 ),
               ),
             ],

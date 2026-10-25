@@ -30,7 +30,11 @@ Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
     }
 
     // Fallback only if it's a true network/connection failure
-    return {"success": false, "message": "Could not connect to database"};
+    return {
+      "success": false,
+      "message":
+          "Registration failed. Check your internet connection and try again.",
+    };
   }
 }
 
@@ -60,6 +64,10 @@ Future<Map<String, dynamic>?> registerUser(Map<String, dynamic> form) async {
     }
 
     // Fallback for actual connection drops or offline state
-    return {"success": false, "message": "Could not connect to database"};
+    return {
+      "success": false,
+      "message":
+          "We couldn't reach Zentrapay. Check your internet connection and try again.",
+    };
   }
 }

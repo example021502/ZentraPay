@@ -1,11 +1,11 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
-import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
 
 /// Opens the bank picker overlay and returns the linked account, or null if
 /// the user dismissed the flow.
@@ -104,7 +104,7 @@ class _LinkBankSheetBodyState extends State<_LinkBankSheetBody> {
       if (!mounted) return;
       setState(() {
         _loadingBanks = false;
-        print('Could not load banks. Try searching again.');
+        debugPrint('Could not load banks. Try searching again.');
       });
     }
   }
@@ -136,7 +136,7 @@ class _LinkBankSheetBodyState extends State<_LinkBankSheetBody> {
     final linked = await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.primaryWhite,
+      backgroundColor: AppTheme.surface,
       barrierColor: AppTheme.textBlack.withAlpha(20),
       // Compact: only as tall as the form needs, still capped so the keyboard
       // (which shrinks the sheet via the helper) can never cover the button.
@@ -235,9 +235,7 @@ class _LinkBankSheetBodyState extends State<_LinkBankSheetBody> {
 
   Widget _buildBankList() {
     if (_loadingBanks) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.secondaryNavy),
-      );
+      return Center(child: CircularProgressIndicator(color: AppTheme.brand));
     }
     if (_banks.isEmpty) {
       return Center(
@@ -270,28 +268,22 @@ class _LinkBankSheetBodyState extends State<_LinkBankSheetBody> {
           child: Container(
             padding: const EdgeInsets.all(AppTheme.spacingSm),
             decoration: BoxDecoration(
-              color: selected
-                  ? AppTheme.secondaryNavy.withAlpha(15)
-                  : AppTheme.gray50,
+              color: selected ? AppTheme.brand.withAlpha(15) : AppTheme.gray50,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(
-                color: selected
-                    ? AppTheme.secondaryNavy
-                    : AppTheme.dividerColor,
+                color: selected ? AppTheme.brand : AppTheme.dividerColor,
               ),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: AppTheme.secondaryNavy.withAlpha(25),
+                  backgroundColor: AppTheme.brand.withAlpha(25),
                   child: Text(
                     bank.bankName.isEmpty
                         ? '?'
                         : bank.bankName.characters.first.toUpperCase(),
-                    style: AppTheme.labelLarge.copyWith(
-                      color: AppTheme.secondaryNavy,
-                    ),
+                    style: AppTheme.labelLarge.copyWith(color: AppTheme.brand),
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
@@ -321,7 +313,7 @@ class _LinkBankSheetBodyState extends State<_LinkBankSheetBody> {
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
-                  color: selected ? AppTheme.secondaryNavy : AppTheme.gray300,
+                  color: selected ? AppTheme.brand : AppTheme.gray300,
                 ),
               ],
             ),
@@ -350,6 +342,8 @@ class _LinkBankForm extends StatefulWidget {
 }
 
 class _LinkBankFormState extends State<_LinkBankForm> {
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _accountController = TextEditingController();
   final _labelController = TextEditingController();
 
@@ -357,6 +351,8 @@ class _LinkBankFormState extends State<_LinkBankForm> {
   // follow the keyboard: without it, tapping a field on a short screen leaves
   // it under the keyboard with no way to see what you type.
   final _scrollController = ScrollController();
+  final _firstNameFocus = FocusNode();
+  final _lastNameFocus = FocusNode();
   final _accountFocus = FocusNode();
   final _labelFocus = FocusNode();
 
@@ -369,6 +365,8 @@ class _LinkBankFormState extends State<_LinkBankForm> {
     super.initState();
     // Scroll the focused field into view once the keyboard has finished
     // animating, otherwise the scroll races the inset animation.
+    _firstNameFocus.addListener(() => _revealFocusedField(_firstNameFocus));
+    _lastNameFocus.addListener(() => _revealFocusedField(_lastNameFocus));
     _accountFocus.addListener(() => _revealFocusedField(_accountFocus));
     _labelFocus.addListener(() => _revealFocusedField(_labelFocus));
   }
@@ -392,17 +390,33 @@ class _LinkBankFormState extends State<_LinkBankForm> {
 
   @override
   void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _accountController.dispose();
     _labelController.dispose();
     _scrollController.dispose();
+    _firstNameFocus.dispose();
+    _lastNameFocus.dispose();
     _accountFocus.dispose();
     _labelFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
     final accountNumber = _accountController.text.trim();
     final linkLabel = _labelController.text.trim();
+    if (firstName.isEmpty) {
+      setState(() => _error = 'Enter the first name on the bank account.');
+      _firstNameFocus.requestFocus();
+      return;
+    }
+    if (lastName.isEmpty) {
+      setState(() => _error = 'Enter the last name on the bank account.');
+      _lastNameFocus.requestFocus();
+      return;
+    }
     if (accountNumber.replaceAll(RegExp(r'[^0-9]'), '').length < 4) {
       setState(
         () => _error = 'Enter at least the last 4 digits of the account.',
@@ -419,6 +433,8 @@ class _LinkBankFormState extends State<_LinkBankForm> {
       final linked = await BankAccountsRepository.instance.linkBank(
         bankId: widget.bank.bankId,
         accountNumber: accountNumber,
+        firstName: firstName,
+        lastName: lastName,
         linkLabel: linkLabel,
         primary: _makePrimary,
       );
@@ -434,35 +450,57 @@ class _LinkBankFormState extends State<_LinkBankForm> {
     }
   }
 
-  /// Turns the Dio/validation error body into something worth showing.
+  /// Turns the Dio/validation error into something worth showing. Only the
+  /// API's user-facing message is ever shown — nothing about providers,
+  /// transport or how the system is built.
   String _friendlyError(Object e) {
-    // DioException.toString() only carries "Http status error [400]" — the
-    // API's actual message ("already linked", "too short", …) lives in the
-    // response body, so read it from there or every failure falls through to
-    // the generic message.
-    String raw = e.toString();
-    final body = e is DioException ? e.response?.data : null;
-    if (body is Map<String, dynamic>) {
-      raw = '$raw ${body['message'] ?? ''}';
-    }
-    if (raw.contains('already linked')) {
+    final message = errorMessage(
+      e,
+      fallback: "We couldn't link that bank. Please try again.",
+    );
+    final lower = message.toLowerCase();
+    if (lower.contains('already linked')) {
       return 'You have already linked this bank.';
     }
-    if (raw.contains('too short')) {
+    if (lower.contains('too short')) {
       return 'That account number looks too short.';
     }
-    if (raw.contains('not found')) {
+    if (lower.contains('not found')) {
       return 'That bank is unavailable. Try another.';
     }
-    // New messages from the updated link DTO and the AfriqLink open-banking
-    // linking request arrive in mixed case, so match on a lower-cased copy.
-    final lower = raw.toLowerCase();
+    return message;
+  }
 
-    if (lower.contains('afriqlink')) {
-      return 'AfriqLink (our open banking provider) could not link this '
-          'account right now. Please try again later.';
-    }
-    return 'Could not link that bank. Please try again.';
+  Widget _nameField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String label,
+    required ValueChanged<String> onSubmitted,
+    bool autofocus = false,
+  }) {
+    final radius = BorderRadius.circular(AppTheme.radiusMd);
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.next,
+      onSubmitted: onSubmitted,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AppTheme.bodySmall,
+        filled: true,
+        fillColor: AppTheme.gray100,
+        border: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: radius,
+          borderSide: BorderSide(color: AppTheme.brand, width: 1.5),
+        ),
+      ),
+    );
   }
 
   @override
@@ -489,11 +527,7 @@ class _LinkBankFormState extends State<_LinkBankForm> {
               ),
               IconButton(
                 tooltip: 'Close',
-                icon: const Icon(
-                  Icons.close,
-                  size: 20,
-                  color: AppTheme.primaryPink,
-                ),
+                icon: Icon(Icons.close, size: 20, color: AppTheme.textBlack),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -535,20 +569,38 @@ class _LinkBankFormState extends State<_LinkBankForm> {
           Column(
             spacing: AppTheme.spacingMd,
             children: [
+              Row(
+                spacing: AppTheme.spacingSm,
+                children: [
+                  Expanded(
+                    child: _nameField(
+                      controller: _firstNameController,
+                      focusNode: _firstNameFocus,
+                      label: 'First name',
+                      autofocus: true,
+                      onSubmitted: (_) => _lastNameFocus.requestFocus(),
+                    ),
+                  ),
+                  Expanded(
+                    child: _nameField(
+                      controller: _lastNameController,
+                      focusNode: _lastNameFocus,
+                      label: 'Last name',
+                      onSubmitted: (_) => _accountFocus.requestFocus(),
+                    ),
+                  ),
+                ],
+              ),
               TextField(
                 controller: _accountController,
                 focusNode: _accountFocus,
-                autofocus: true,
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.next,
                 onSubmitted: (_) => _labelFocus.requestFocus(),
                 decoration: InputDecoration(
                   focusedBorder: OutlineInputBorder(
                     borderRadius: radius,
-                    borderSide: BorderSide(
-                      color: AppTheme.secondaryNavy,
-                      width: 1.5,
-                    ),
+                    borderSide: BorderSide(color: AppTheme.brand, width: 1.5),
                   ),
                   labelText: 'Account number',
                   labelStyle: AppTheme.bodySmall,
@@ -578,10 +630,7 @@ class _LinkBankFormState extends State<_LinkBankForm> {
                 decoration: InputDecoration(
                   focusedBorder: OutlineInputBorder(
                     borderRadius: radius,
-                    borderSide: BorderSide(
-                      color: AppTheme.secondaryNavy,
-                      width: 1.5,
-                    ),
+                    borderSide: BorderSide(color: AppTheme.brand, width: 1.5),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: radius,
@@ -608,19 +657,18 @@ class _LinkBankFormState extends State<_LinkBankForm> {
             value: _makePrimary,
             onChanged: (value) => setState(() => _makePrimary = value ?? false),
             contentPadding: EdgeInsets.zero,
-            activeColor: AppTheme.secondaryNavy,
+            activeColor: AppTheme.brand,
             title: Text(
               'Make this my primary account',
               style: AppTheme.bodySmall,
             ),
           ),
-          // secondaryNavy is the project-wide button colour (unless a caller
-          // specifies otherwise).
+          // AppTheme.brand (primary pink) is the project-wide button colour.
           PrimaryButton(
             label: _submitting ? 'Linking...' : 'Link bank',
             loading: _submitting,
             onPressed: _submitting ? null : _submit,
-            backgroundColor: AppTheme.secondaryNavy,
+            backgroundColor: AppTheme.brand,
             foregroundColor: AppTheme.primaryWhite,
           ),
           if (_error != null) ...[

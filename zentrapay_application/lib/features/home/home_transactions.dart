@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/FormatDateTimeString.dart';
+import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 
 class HomeTransactions extends StatelessWidget {
@@ -87,8 +87,8 @@ class HomeTransactions extends StatelessWidget {
         ? transaction.status
         : "Completed";
     final String reference =
-        transaction != null && transaction.TXN_Ref.isNotEmpty
-        ? transaction.TXN_Ref
+        transaction != null && transaction.txnRef.isNotEmpty
+        ? transaction.txnRef
         : "TXN123456";
 
     showModalBottomSheet(

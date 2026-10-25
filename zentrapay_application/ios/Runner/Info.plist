@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>ZentraPay uses the camera to scan ZentraPay receive QR codes so you can pay someone instantly.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ZentraPay uses the microphone so you can give ZVoice spoken instructions.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>ZentraPay turns your spoken ZVoice instructions into text so it can answer them.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
