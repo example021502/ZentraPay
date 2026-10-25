@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/notification.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 
@@ -77,8 +77,9 @@ class _NotificationsOverlayContentState
                         itemCount: notifications.length,
                         separatorBuilder: (_, _) =>
                             const SizedBox(height: AppTheme.spacingSm),
-                        itemBuilder: (context, index) =>
-                            _NotificationTile(notification: notifications[index]),
+                        itemBuilder: (context, index) => _NotificationTile(
+                          notification: notifications[index],
+                        ),
                       ),
               ),
             ],
@@ -165,7 +166,9 @@ class _NotificationTile extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (!notification.isRead) {
-          NotificationsRepository.instance.markRead(notification.notificationId);
+          NotificationsRepository.instance.markRead(
+            notification.notificationId,
+          );
         }
       },
       child: Container(
@@ -179,7 +182,7 @@ class _NotificationTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(_icon, color: AppTheme.secondaryNavy),
+            Icon(_icon, color: AppTheme.textBlack),
             const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: Column(

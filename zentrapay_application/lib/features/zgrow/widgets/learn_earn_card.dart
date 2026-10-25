@@ -1,17 +1,22 @@
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
 
 class LearnEarnCard extends StatelessWidget {
-  const LearnEarnCard({super.key, required this.content});
+  const LearnEarnCard({super.key, required this.content, this.width = 190});
 
   final Tutorial content;
+
+  /// Inline cards are a fixed 190px wide; the full-list screen stretches
+  /// each card across the row instead.
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 190,
+      width: width,
       decoration: BoxDecoration(
-        color: const Color(0xFF1A0059),
+        gradient: AppTheme.brandGradient,
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(16),
@@ -22,9 +27,9 @@ class LearnEarnCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(
+              Icon(
                 Icons.video_library_outlined,
-                color: Colors.white,
+                color: AppTheme.textBlack,
                 size: 28,
               ),
               Text(

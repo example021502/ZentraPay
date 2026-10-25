@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
+import 'package:zentrapay_application/core/utils/double_back_to_exit.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
+import 'package:zentrapay_application/core/utils/tab_switch_notifier.dart';
 import 'package:zentrapay_application/features/Settings/settings.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
+import 'package:zentrapay_application/features/home/close_confirmation.dart';
 import 'package:zentrapay_application/features/home/home_wallet_main.dart';
 import 'package:zentrapay_application/features/home/notifications_overlay.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
@@ -36,16 +40,6 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     const Settings(),
   ];
 
-  // Section titles for every tab but Home (index 0), which gets the
-  // profile/greeting AppBar instead — see _buildAppBar().
-  static const List<String> _tabTitles = [
-    "Home",
-    "ZRemit",
-    "ZGrow",
-    "ZBank",
-    "Settings",
-  ];
-
   // Create a local class property for Paystack
   final Paystack _paystack = Paystack();
 
@@ -54,6 +48,31 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     super.initState();
     _initializePaystack();
     NotificationsRepository.instance.ensureLoaded().catchError((_) => null);
+    // A screen that isn't the navigation shell (e.g. ZBank's "Home" quick
+    // action) calls TabSwitchNotifier.select(); mirror it into _selectedIndex
+    // so the bar highlights the new tab as well as the body swapping.
+    TabSwitchNotifier.instance.addListener(_onExternalTabRequest);
+    _selectedIndex = TabSwitchNotifier.instance.current.tabIndex;
+  }
+
+  @override
+  void dispose() {
+    TabSwitchNotifier.instance.removeListener(_onExternalTabRequest);
+    super.dispose();
+  }
+
+  void _onExternalTabRequest() {
+    final next = TabSwitchNotifier.instance.current.tabIndex;
+    if (!mounted || next == _selectedIndex) return;
+    setState(() => _selectedIndex = next);
+  }
+
+  /// Single funnel for every tab change (bottom bar, drawer, external request)
+  /// so the notifier and `_selectedIndex` can never drift apart.
+  void _selectTab(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    TabSwitchNotifier.instance.select(AppTab.values[index]);
   }
 
   // Handle the async initialization properly
@@ -74,17 +93,42 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
 
   bool get _isTablet => MediaQuery.of(context).size.width >= 600;
 
+  /// A field of the signed-in user's identity. The saved session (written on
+  /// login / register) wins; the JWT claims handed over by the splash screen
+  /// are the fallback for a user who is already signed in from a previous run.
+  String _identity(String key) {
+    final saved = SecureStorageService.getSession()[key];
+    if (saved != null && saved.isNotEmpty) return saved;
+    return (widget.userData[key] ?? '').toString();
+  }
+
+  /// First back press from any tab but Home returns to Home instead of
+  /// counting towards leaving the app.
+  bool _backToHomeTab() {
+    if (_selectedIndex == 0) return false;
+    _selectTab(0);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
+    return DoubleBackToExit(
+      onBack: _backToHomeTab,
+      child: _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.headerPink,
       // Extend body behind bottom navigation bar
       extendBody: true,
       // Show drawer only on tablet screens
       drawer: _isTablet ? _buildDrawer() : null,
-      // Show app bar only on mobile
-      appBar: _isTablet ? null : _buildAppBar(),
+      // The user-information app bar belongs to Home alone. Every other
+      // section draws its own titled SectionHeader, so no app bar here.
+      appBar: (_isTablet || _selectedIndex != 0) ? null : _buildAppBar(),
       // Show bottom nav only on mobile
       bottomNavigationBar: _isTablet ? null : _buildBottomNav(),
       // IndexedStack keeps all four tabs mounted and alive at once, only
@@ -95,30 +139,15 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     );
   }
 
-  // Only the Home tab gets the profile icon + fullname/email greeting +
-  // notifications AppBar. Every other tab just shows its section name — no
-  // leading icon (there's nothing to "go back" to from a bottom-nav tab)
-  // and no actions.
+  // Home is the only tab with an app bar: profile icon + fullname/email
+  // greeting + notifications. Every other tab opens with its own titled
+  // SectionHeader instead.
   PreferredSizeWidget _buildAppBar() {
-    if (_selectedIndex == 0) {
-      return AppBar(
-        backgroundColor: AppColors.main,
-        leading: _buildProfileIcon(),
-        title: _buildGreeting(),
-        actions: _buildActions(),
-      );
-    }
     return AppBar(
-      backgroundColor: AppColors.main,
-      centerTitle: false,
-      title: Text(
-        _tabTitles[_selectedIndex],
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      backgroundColor: AppTheme.headerPink,
+      leading: _buildProfileIcon(),
+      title: _buildGreeting(),
+      actions: _buildActions(),
     );
   }
 
@@ -133,36 +162,44 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       }
     },
     icon: Container(
-      width: 40,
-      height: 40,
-      padding: const EdgeInsets.all(6),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      width: 50,
+      height: 50,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         shape: BoxShape.circle,
       ),
-      child: const Center(child: Icon(Icons.person, color: AppColors.main)),
+      child: Center(
+        child: Icon(
+          Icons.person,
+          color: AppTheme.isDark
+              ? AppTheme.primaryWhite
+              : AppTheme.secondaryNavy,
+          size: 25,
+        ),
+      ),
     ),
   );
 
   Widget _buildGreeting() {
-    final name = widget.userData["full_name"] ?? "Welcome to ZentraPay";
-    final email = widget.userData["email"] ?? "";
+    final name = "${_identity("firstName")} ${_identity("lastName")}".trim();
+    final email = _identity("email");
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          name.isNotEmpty ? name : "Welcome to Zentrapay",
+          style: AppTheme.bodyLarge.copyWith(
             color: AppColors.primary,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        Text(
-          email,
-          style: const TextStyle(fontSize: 14, color: AppColors.primary),
-        ),
+        if (email.isNotEmpty)
+          Text(
+            email,
+            style: AppTheme.bodySmall.copyWith(color: AppColors.primary),
+          ),
       ],
     );
   }
@@ -184,7 +221,11 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
           icon: Badge(
             isLabelVisible: unread > 0,
             label: Text('$unread'),
-            child: const Icon(Icons.notifications, color: AppColors.primary),
+            child: Icon(
+              Icons.notifications,
+              color: AppTheme.primaryWhite,
+              size: 25,
+            ),
           ),
         );
       },
@@ -194,7 +235,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   Widget _buildBottomNav() {
     return NavigationBarMain(
       selectedIndex: _selectedIndex,
-      onItemSelected: (i) => setState(() => _selectedIndex = i),
+      onItemSelected: _selectTab,
     );
   }
 
@@ -202,7 +243,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.75,
       child: Container(
-        color: AppColors.primary,
+        color: AppTheme.surface,
         child: Column(
           children: [
             _buildDrawerHeader(),
@@ -215,7 +256,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Home",
                     isSelected: _selectedIndex == 0,
                     onTap: () {
-                      setState(() => _selectedIndex = 0);
+                      _selectTab(0);
                       Navigator.pop(context);
                     },
                   ),
@@ -224,7 +265,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Remit",
                     isSelected: _selectedIndex == 1,
                     onTap: () {
-                      setState(() => _selectedIndex = 1);
+                      _selectTab(1);
                       Navigator.pop(context);
                     },
                   ),
@@ -233,7 +274,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Grow",
                     isSelected: _selectedIndex == 2,
                     onTap: () {
-                      setState(() => _selectedIndex = 2);
+                      _selectTab(2);
                       Navigator.pop(context);
                     },
                   ),
@@ -242,16 +283,19 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Bank",
                     isSelected: _selectedIndex == 3,
                     onTap: () {
-                      setState(() => _selectedIndex = 3);
+                      _selectTab(3);
                       Navigator.pop(context);
                     },
                   ),
                   _buildDrawerItem(
-                    icon: Icons.storefront,
-                    label: "Merchant",
+                    // Index 4 is Settings in _pages/_tabTitles — the old
+                    // "Merchant" label + storefront icon were left over from
+                    // when Merchant was its own tab.
+                    icon: Icons.settings_outlined,
+                    label: "Settings",
                     isSelected: _selectedIndex == 4,
                     onTap: () {
-                      setState(() => _selectedIndex = 4);
+                      _selectTab(4);
                       Navigator.pop(context);
                     },
                   ),
@@ -319,14 +363,6 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     },
                   ),
                   _buildDrawerItem(
-                    icon: Icons.mic,
-                    label: "Voice Recording",
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/voice_recording');
-                    },
-                  ),
-                  _buildDrawerItem(
                     icon: Icons.security,
                     label: "Fraud Detection",
                     onTap: () {
@@ -345,14 +381,16 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
   }
 
   Widget _buildDrawerHeader() {
-    final name = widget.userData["full_name"] ?? "Welcome to ZentraPay";
-    final email = widget.userData["email"] ?? "";
+    final fullName = "${_identity("firstName")} ${_identity("lastName")}"
+        .trim();
+    final name = fullName.isNotEmpty ? fullName : "Welcome to ZentraPay";
+    final email = _identity("email");
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-      decoration: const BoxDecoration(
-        color: AppColors.main,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: AppTheme.headerPink,
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
@@ -363,11 +401,11 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
           Container(
             width: 70,
             height: 70,
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.person, size: 40, color: AppColors.main),
+            child: Icon(Icons.person, size: 40, color: AppTheme.textBlack),
           ),
           const SizedBox(height: 15),
           Text(
@@ -442,12 +480,16 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
           bool isConfirm = await showCloseConfirmationDialog(context);
           if (!mounted) return;
           if (isConfirm) {
-            Navigator.pushReplacementNamed(context, "/login");
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              "/login",
+              (route) => false,
+            );
           }
         },
         child: Row(
           children: [
-            Icon(Icons.logout, color: AppColors.main, size: 24),
+            Icon(Icons.logout, color: AppTheme.textBlack, size: 24),
             const SizedBox(width: 20),
             Text(
               "Logout",

@@ -73,7 +73,7 @@ class UserProfile {
   String antiMoneyLaunderingStatus;
   bool isPoliticallyExposedPerson;
   String riskScoreLevel;
-  String KYCStatus;
+  String kycStatus;
   // Tier-2 document upload status — presence only, never the storage path
   // (the backend keeps that server-side; see DocumentsRepository).
   bool hasIdDocumentFront;
@@ -98,7 +98,7 @@ class UserProfile {
     required this.antiMoneyLaunderingStatus,
     required this.isPoliticallyExposedPerson,
     required this.riskScoreLevel,
-    required this.KYCStatus,
+    required this.kycStatus,
     this.hasIdDocumentFront = false,
     this.hasIdDocumentBack = false,
     this.hasSelfie = false,
@@ -139,7 +139,7 @@ class UserProfile {
     antiMoneyLaunderingStatus: json['antiMoneyLaunderingStatus'] ?? 'unknown',
     isPoliticallyExposedPerson: json['isPoliticallyExposedPerson'] ?? false,
     riskScoreLevel: json['riskScoreLevel'] ?? '',
-    KYCStatus: json['KYCStatus'] ?? '',
+    kycStatus: json['KYCStatus'] ?? '',
     hasIdDocumentFront: json['hasIdDocumentFront'] ?? false,
     hasIdDocumentBack: json['hasIdDocumentBack'] ?? false,
     hasSelfie: json['hasSelfie'] ?? false,

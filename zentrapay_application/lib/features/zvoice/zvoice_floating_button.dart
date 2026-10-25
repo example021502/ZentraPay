@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 
-/// Floating, glowing launcher for ZVoice AI — sits bottom-right on the Home
+/// Floating, glowing AI launcher for ZVoice AI — sits bottom-right on the Home
 /// tab, just above the curved bottom navigation bar, and pulses continuously
 /// to invite a tap. Positioned by the caller (see [HomeWalletMain]); this
 /// widget only owns the glow animation and the tap-to-navigate behavior.
@@ -39,30 +39,36 @@ class _ZVoiceFloatingButtonState extends State<ZVoiceFloatingButton>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _open,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final t = _controller.value;
-          return Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: AppTheme.primaryGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryPink.withValues(alpha: 0.45 + 0.3 * t),
-                  blurRadius: 10 * t,
-                  spreadRadius: 1 * t,
-                ),
-              ],
-            ),
-            child: child,
-          );
-        },
-        child: const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
+    return Semantics(
+      button: true,
+      label: 'Open Voice AI',
+      child: GestureDetector(
+        onTap: _open,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final t = _controller.value;
+            return Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppTheme.primaryGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPink.withValues(
+                      alpha: 0.45 + 0.3 * t,
+                    ),
+                    blurRadius: 10 * t,
+                    spreadRadius: 1 * t,
+                  ),
+                ],
+              ),
+              child: child,
+            );
+          },
+          child: Icon(Icons.mic, color: AppTheme.primaryWhite, size: 24),
+        ),
       ),
     );
   }

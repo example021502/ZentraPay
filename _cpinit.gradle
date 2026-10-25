@@ -1,0 +1,12 @@
+// Temporary helper: prints the backend runtime classpath so Flyway's own
+// repair() can be invoked against the dev database without editing the repo.
+allprojects {
+    tasks.register('printRuntimeCp') {
+        doLast {
+            if (project.plugins.hasPlugin('java')) {
+                new File('C:/Users/Desire/Desktop/Zentrapay_Workspace/_cp.txt')
+                    .text = project.sourceSets.main.runtimeClasspath.asPath
+            }
+        }
+    }
+}

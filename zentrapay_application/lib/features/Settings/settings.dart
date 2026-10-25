@@ -1,11 +1,19 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/Settings/repository/cache_settingsData.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
+import 'package:zentrapay_application/features/Settings/credential_sheets.dart';
+import 'package:zentrapay_application/features/Settings/repository/cache_settings_data.dart';
+import 'package:zentrapay_application/features/Settings/repository/credential_service.dart';
+import 'package:zentrapay_application/core/models/security.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/Settings/widgets/appearance_section.dart';
+import 'package:zentrapay_application/features/Settings/widgets/list_section.dart';
+import 'package:zentrapay_application/features/Settings/widgets/security_section.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/features/home/closeConfirmation.dart';
 import 'package:zentrapay_application/features/home/notifications_overlay.dart';
 import 'package:zentrapay_application/features/profile/edit_profile_sheet.dart';
 import 'package:zentrapay_application/main.dart';
@@ -47,38 +55,36 @@ class _SettingsState extends State<Settings> {
   bool biometricEnabled = false;
   bool twoFactorEnabled = false;
   bool fraudProtection = true;
+  bool pushNotifications = true;
+  bool transactionAlerts = true;
+  bool darkMode = AppTheme.isDark;
   bool isLoadingSecurity = true;
   List<Map<String, dynamic>> protectionHistory = [];
-
-  // Derived from the three toggles below rather than cached separately —
-  // a stored percent would go stale the moment any one toggle changes
-  // (each _toggleX only updates its own flag), so compute it fresh on
-  // every build instead.
-  double get securityScorePercent {
-    final activeChecks = [
-      biometricEnabled,
-      twoFactorEnabled,
-      fraudProtection,
-    ].where((c) => c).length;
-    return activeChecks / 3;
-  }
 
   @override
   void initState() {
     super.initState();
-    // Load security settings and history on init
+    // Load settings and history on init
     _loadSecuritySettings();
+  }
+
+  /// Copies the server's row onto the screen. The saved dark-mode choice
+  /// follows the user across devices, so it wins over this device's value.
+  void _applySettings(SecuritySettings settings) {
+    biometricEnabled = settings.biometricEnabled;
+    twoFactorEnabled = settings.twoFactorEnabled;
+    fraudProtection = settings.fraudProtectionEnabled;
+    pushNotifications = settings.pushNotificationsEnabled;
+    transactionAlerts = settings.transactionAlertsEnabled;
+    darkMode = settings.darkMode;
   }
 
   Future<void> _loadSecuritySettings() async {
     try {
       final settings = await SecuritySettingsRepository.instance.ensureLoaded();
       if (settings != null && mounted) {
-        setState(() {
-          biometricEnabled = settings.biometricEnabled;
-          twoFactorEnabled = settings.twoFactorEnabled;
-          fraudProtection = settings.fraudProtectionEnabled;
-        });
+        setState(() => _applySettings(settings));
+        ThemeController.instance.setDark(settings.darkMode);
       }
     } catch (_) {
       // Keep defaults on failure.
@@ -105,359 +111,159 @@ class _SettingsState extends State<Settings> {
     }
   }
 
-  Future<void> _toggleBiometric() async {
-    final newValue = !biometricEnabled;
-    setState(() => biometricEnabled = newValue);
+  /// Optimistic update shared by every setting: [assign] puts [newValue] on
+  /// screen at once, [save] writes it to the backend in the background, and if
+  /// that fails the old value is put back and a light notice says so.
+  Future<void> _change(
+    bool newValue,
+    void Function(bool value) assign,
+    Future<void> Function(bool value) save,
+    String label,
+  ) async {
+    void show(bool value) {
+      if (mounted) {
+        setState(() => assign(value));
+      } else {
+        assign(value);
+      }
+    }
+
+    show(newValue);
     try {
-      await SecuritySettingsRepository.instance.setBiometric(newValue);
+      await save(newValue);
     } catch (_) {
-      if (mounted) setState(() => biometricEnabled = !newValue);
+      show(!newValue);
+      ZentraNotifier.notice(
+        "Couldn't save $label. Please try again.",
+        icon: Icons.sync_problem_rounded,
+      );
     }
   }
 
-  Future<void> _toggleTwoFactor() async {
-    final newValue = !twoFactorEnabled;
-    setState(() => twoFactorEnabled = newValue);
-    try {
-      await SecuritySettingsRepository.instance.setTwoFactor(newValue);
-    } catch (_) {
-      if (mounted) setState(() => twoFactorEnabled = !newValue);
-    }
-  }
+  Future<void> _toggleBiometric() => _change(
+    !biometricEnabled,
+    (v) => biometricEnabled = v,
+    (v) => SecuritySettingsRepository.instance.setBiometric(v),
+    "biometric sign-in",
+  );
 
-  Future<void> _toggleFraudProtection() async {
-    final newValue = !fraudProtection;
-    setState(() => fraudProtection = newValue);
-    try {
-      await SecuritySettingsRepository.instance.setFraudProtection(newValue);
-    } catch (_) {
-      if (mounted) setState(() => fraudProtection = !newValue);
-    }
-  }
+  Future<void> _toggleTwoFactor() => _change(
+    !twoFactorEnabled,
+    (v) => twoFactorEnabled = v,
+    (v) => SecuritySettingsRepository.instance.setTwoFactor(v),
+    "two-factor authentication",
+  );
+
+  Future<void> _toggleFraudProtection() => _change(
+    !fraudProtection,
+    (v) => fraudProtection = v,
+    (v) => SecuritySettingsRepository.instance.setFraudProtection(v),
+    "fraud protection",
+  );
+
+  Future<void> _togglePush() => _change(
+    !pushNotifications,
+    (v) => pushNotifications = v,
+    (v) => SecuritySettingsRepository.instance.updatePreferences(
+      pushNotifications: v,
+    ),
+    "notification preference",
+  );
+
+  Future<void> _toggleTransactionAlerts() => _change(
+    !transactionAlerts,
+    (v) => transactionAlerts = v,
+    (v) => SecuritySettingsRepository.instance.updatePreferences(
+      transactionAlerts: v,
+    ),
+    "transaction alerts",
+  );
+
+  Future<void> _toggleDarkMode() => _change(
+    !darkMode,
+    (v) {
+      darkMode = v;
+      ThemeController.instance.setDark(v);
+    },
+    (v) => SecuritySettingsRepository.instance.updatePreferences(darkMode: v),
+    "appearance",
+  );
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
       child: Column(
         children: [
-          // Security Score half-ring gauge meter at the top
-          _buildSecurityScore(),
-          const SizedBox(height: AppTheme.spacingXl),
+          ListenableBuilder(
+            listenable: UserProfileRepository.instance,
+            builder: (context, _) {
+              final user = UserProfileRepository.instance.user;
+              return SectionHeader(
+                title: (user?.fullName.trim().isNotEmpty ?? false)
+                    ? user!.fullName
+                    : "Your account",
+                subtitle: (user?.email.isNotEmpty ?? false)
+                    ? user!.email
+                    : "Profile, security and appearance",
+                icon: Icons.manage_accounts_rounded,
+                sheetColor: AppTheme.gray50,
+              );
+            },
+          ),
           Container(
-            decoration: BoxDecoration(
-              color: AppTheme.gray50,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
             ),
+            color: AppTheme.gray50,
             child: Padding(
-              padding: const EdgeInsets.all(15.0),
+              padding: const EdgeInsets.fromLTRB(15, 25, 15, 15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: AppTheme.spacingMd),
-                  // General Settings Section
-                  _buildListSection(context, "GENERAL", _generalButtons),
-                  const SizedBox(height: 40),
-                  // Security Controls Section
-                  _buildSecuritySection(context),
-                  const SizedBox(height: 40),
-                  // Feedback and Reporting Section
-                  _buildListSection(context, "FEEDBACK", _feedbackButtons),
-                  const SizedBox(height: 40),
-                  // Danger zone Section
-                  _buildListSection(context, "DANGER ZONE", _dangerZoneButtons),
+                  AppearanceSection(
+                    darkMode: darkMode,
+                    pushNotifications: pushNotifications,
+                    transactionAlerts: transactionAlerts,
+                    onToggleDarkMode: _toggleDarkMode,
+                    onTogglePush: _togglePush,
+                    onToggleTransactionAlerts: _toggleTransactionAlerts,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "GENERAL",
+                    buttons: _generalButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  SecuritySection(
+                    biometricEnabled: biometricEnabled,
+                    twoFactorEnabled: twoFactorEnabled,
+                    fraudProtection: fraudProtection,
+                    isLoading: isLoadingSecurity,
+                    protectionHistory: protectionHistory,
+                    onToggleBiometric: _toggleBiometric,
+                    onToggleTwoFactor: _toggleTwoFactor,
+                    onToggleFraudProtection: _toggleFraudProtection,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "FEEDBACK",
+                    buttons: _feedbackButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
+                  const SizedBox(height: AppTheme.spacingLg),
+                  ListSection(
+                    title: "DANGER ZONE",
+                    buttons: _dangerZoneButtons,
+                    onTapOption: _showOptionSheet,
+                  ),
                   const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String title) {
-    return Padding(
-      // Tightened vertical padding to eliminate bloated gaps
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text(
-        title,
-        style: AppTheme.bodyMedium.copyWith(
-          color: AppTheme.textBlack.withAlpha(80),
-          fontWeight: FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildListSection(
-    BuildContext context,
-    String title,
-    List<Map<String, dynamic>> buttons,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _sectionLabel(title),
-        const SizedBox(height: 4),
-        // Card decoration removed completely and layout wrapped in a compact Column
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(buttons.length, (index) {
-            final buttonData = buttons[index];
-            final bool isLogout = buttonData['name'] == "Logout";
-            final bool isRedColored =
-                isLogout || buttonData['name'] == "Delete Account";
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(
-                      buttonData["icon"],
-                      color: isRedColored ? AppColors.main : AppTheme.textBlack,
-                    ),
-                    title: Text(
-                      buttonData["name"],
-                      style: TextStyle(
-                        color: isRedColored
-                            ? AppColors.main
-                            : AppTheme.textBlack,
-                      ),
-                    ),
-                    trailing: const Icon(Icons.chevron_right, size: 20),
-                    onTap: isLogout
-                        ? () async {
-                            final confirmed = await showCloseConfirmationDialog(
-                              context,
-                            );
-                            if (!mounted || !confirmed) return;
-                            Navigator.pushReplacementNamed(context, "/login");
-                          }
-                        : () => _showOptionSheet(context, buttonData["name"]),
-                  ),
-                ),
-                if (index < buttons.length - 1)
-                  AppTheme.divider(context, AppTheme.lightGrey),
-              ],
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  // Refactored security section to remove unnecessary outer spacing
-  Widget _buildSecuritySection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _sectionLabel("SECURITY"),
-        const SizedBox(height: 4),
-        _buildSecurityOptions(context),
-      ],
-    );
-  }
-
-  // Horizontal expanding half-circular gauge meter for security score
-  Widget _buildSecurityScore() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 10),
-      child: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final double height = MediaQuery.of(context).size.height * 0.16;
-            final double width = MediaQuery.of(context).size.width * 0.65;
-            final int score = (securityScorePercent * 100).toInt();
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: width,
-                  height: height,
-                  child: CustomPaint(
-                    painter: HalfCircleGaugePainter(
-                      progress: securityScorePercent,
-                      backgroundColor: AppColors.primary.withAlpha(80),
-                      valueColor: score < 20
-                          ? AppColors.main
-                          : score < 50
-                          ? AppColors.orange
-                          : AppColors.green,
-                      strokeWidth: 25,
-                    ),
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: height * 0.2),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: score < 20
-                                    ? AppColors.main
-                                    : score < 50
-                                    ? AppColors.orange
-                                    : AppColors.green,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.lock,
-                                size: 22,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "$score%",
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryWhite,
-                              ),
-                            ),
-                            const Text(
-                              "Protected",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSecurityOptions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildOptionTile(
-            icon: Icons.fingerprint,
-            title: "Biometric Authentication",
-            trailing: biometricEnabled ? "Enabled" : "Disabled",
-            trailingColor: biometricEnabled ? AppColors.green : AppColors.main,
-            onTap: _toggleBiometric,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.lock_outline,
-            title: "Two-Factor Authentication",
-            trailing: twoFactorEnabled ? "Enabled" : "Disabled",
-            trailingColor: twoFactorEnabled ? AppColors.green : AppColors.main,
-            onTap: _toggleTwoFactor,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.shield_outlined,
-            title: "Real-Time Fraud Protection",
-            trailing: fraudProtection ? "Active" : "Inactive",
-            trailingColor: fraudProtection
-                ? AppColors.green
-                : AppColors.textBlack,
-            onTap: _toggleFraudProtection,
-          ),
-          const SizedBox(height: 15),
-          _buildOptionTile(
-            icon: Icons.notifications_active,
-            title: "Security Alerts",
-            trailing: "",
-            showArrow: true,
-            onTap: () => Navigator.pushNamed(context, '/fraud_detection'),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Recent Activity", style: AppTheme.labelLarge),
-          ),
-          const SizedBox(height: AppTheme.spacingSm),
-          if (isLoadingSecurity)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (protectionHistory.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                "No recent login activity",
-                style: AppTheme.bodySmall.copyWith(color: AppColors.lightGrey),
-              ),
-            )
-          else
-            ...protectionHistory.map(_buildHistoryItem),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOptionTile({
-    required IconData icon,
-    required String title,
-    required String trailing,
-    Color? trailingColor,
-    bool showArrow = false,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.lightGrey.withAlpha(50),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.textBlack, size: 22),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textBlack,
-                ),
-              ),
-            ),
-            if (trailing.isNotEmpty)
-              Text(
-                trailing,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: trailingColor ?? AppColors.textBlack,
-                ),
-              ),
-            if (showArrow)
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: AppColors.textBlack,
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -489,7 +295,11 @@ class _SettingsState extends State<Settings> {
           icon: Icons.support_agent_outlined,
           rows: const [
             _InfoRow(Icons.email_outlined, "Email", "support@zentrapay.com"),
-            _InfoRow(Icons.chat_outlined, "Live chat", "In-app chat — coming soon"),
+            _InfoRow(
+              Icons.chat_outlined,
+              "Live chat",
+              "In-app chat — coming soon",
+            ),
             _InfoRow(Icons.help_outline, "Help center", "help.zentrapay.com"),
           ],
         );
@@ -555,7 +365,11 @@ class _SettingsState extends State<Settings> {
                 const SizedBox(height: AppTheme.spacingLg),
                 _InfoRow(Icons.person_outline, "Name", user?.fullName ?? ''),
                 _InfoRow(Icons.email_outlined, "Email", user?.email ?? ''),
-                _InfoRow(Icons.phone_outlined, "Phone", user?.phoneNumber ?? ''),
+                _InfoRow(
+                  Icons.phone_outlined,
+                  "Phone",
+                  user?.phoneNumber ?? '',
+                ),
                 _InfoRow(
                   Icons.verified_user_outlined,
                   "Verification",
@@ -578,14 +392,18 @@ class _SettingsState extends State<Settings> {
                   leading: const Icon(Icons.lock_reset_outlined),
                   title: const Text("Change PIN"),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showComingSoon(context, "Change PIN"),
+                  onTap: () =>
+                      showChangeCredentialSheet(context, CredentialKind.pin),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.password_outlined),
                   title: const Text("Change Password"),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => showComingSoon(context, "Change Password"),
+                  onTap: () => showChangeCredentialSheet(
+                    context,
+                    CredentialKind.password,
+                  ),
                 ),
               ],
             ),
@@ -611,7 +429,7 @@ class _SettingsState extends State<Settings> {
           children: [
             Row(
               children: [
-                Icon(icon, color: AppTheme.secondaryNavy),
+                Icon(icon, color: AppTheme.textBlack),
                 const SizedBox(width: AppTheme.spacingSm),
                 Text(title, style: AppTheme.headlineMedium),
               ],
@@ -620,61 +438,6 @@ class _SettingsState extends State<Settings> {
             ...rows,
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryItem(Map<String, dynamic> item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightGrey.withAlpha(25),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: item['color'] as Color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.shield, color: AppColors.primary, size: 18),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  item['title'],
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-                if ((item['device'] as String).isNotEmpty)
-                  Text(
-                    item['device'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textBlack,
-                    ),
-                  ),
-                Text(
-                  item['time'],
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textBlack,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -698,7 +461,7 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppTheme.gray500),
+          Icon(icon, size: 20, color: AppTheme.textBlack),
           const SizedBox(width: AppTheme.spacingSm),
           Expanded(
             child: Column(

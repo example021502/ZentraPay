@@ -1,3 +1,4 @@
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -6,12 +7,14 @@ class AuthTextField extends StatefulWidget {
   final bool isPassword;
   final TextEditingController controller;
   final bool isLoading;
+  final String errorText;
 
   const AuthTextField({
     super.key,
     required this.isLoading,
     required this.label,
     required this.isPassword,
+    required this.errorText,
     required this.controller,
   });
 
@@ -44,7 +47,8 @@ class _AuthTextFieldState extends State<AuthTextField> {
       decoration: InputDecoration(
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
-        fillColor: AppColors.primary,
+        errorText: widget.errorText,
+        fillColor: AppTheme.surface,
         label: Text(
           _label,
           style: TextStyle(
@@ -55,18 +59,25 @@ class _AuthTextFieldState extends State<AuthTextField> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppColors.secondary.withAlpha(80),
+            color: AppTheme.buttonColor.withAlpha(80),
+            width: 1.5,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.primaryPink.withAlpha(80),
             width: 1.5,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.secondary, width: 2),
+          borderSide: BorderSide(color: AppTheme.buttonColor, width: 2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: AppColors.secondary.withAlpha(77),
+            color: AppTheme.buttonColor.withAlpha(77),
             width: 1.5,
           ),
         ),
@@ -81,7 +92,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   _isObscured
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppColors.secondary.withAlpha(153),
+                  color: AppTheme.buttonColor.withAlpha(153),
                   size: 20,
                 ),
               )

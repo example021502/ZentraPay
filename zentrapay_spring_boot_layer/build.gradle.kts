@@ -24,6 +24,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-security")
+	// Emails: forgot password / forgot PIN codes and security notices
+	implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("io.nayuki:qrcodegen:1.8.0")
 	// Development tools
 	developmentOnly("org.springframework.boot:spring-boot-devtools")

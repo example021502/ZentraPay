@@ -1,53 +1,156 @@
+/// Coerces a decoded JSON value into a double.
+///
+/// The Spring backend serialises `BigDecimal` and `Double` amounts as JSON
+/// numbers, and a whole-number amount such as `100` arrives as an `int` rather
+/// than a `double`. Reading those straight into a `double` field throws, so
+/// every numeric parse goes through here.
+double _toDouble(dynamic raw) {
+  if (raw is num) return raw.toDouble();
+  return double.tryParse('$raw') ?? 0.0;
+}
+
+/// ALL THE OTHER CHALLENGES AVAILABLE FOR USER TO JOIN ARE STORED IN THIS MODEL. IT IS USED TO DISPLAY THE CHALLENGES AND THEIR DETAILS.
 class Challenge {
-  final String challengeId;
+  final String id;
   final String title;
   final String description;
   final String category;
+  final String challengeType;
   final int durationDays;
-  final int pointsReward;
-  final String difficulty;
-  final int participantsCount;
-  final bool joined;
-  final int progressPercent;
+  final bool isActive;
+  final int progressPercentage;
+  final String startDate;
+  final String endDate;
+  final List<Map<String, dynamic>> targets;
 
   Challenge({
-    required this.challengeId,
+    required this.id,
     required this.title,
     required this.description,
     required this.category,
+    required this.challengeType,
     required this.durationDays,
-    required this.pointsReward,
-    required this.difficulty,
-    required this.participantsCount,
-    required this.joined,
-    required this.progressPercent,
+    required this.isActive,
+    required this.progressPercentage,
+    required this.startDate,
+    required this.endDate,
+    required this.targets,
   });
 
   factory Challenge.fromJson(Map<String, dynamic> json) => Challenge(
-    challengeId: json['challengeId'] ?? '',
+    id: json['id'] ?? '',
     title: json['title'] ?? '',
     description: json['description'] ?? '',
     category: json['category'] ?? '',
-    durationDays: json['durationDays'] ?? 0,
-    pointsReward: json['pointsReward'] ?? 0,
-    difficulty: json['difficulty'] ?? 'EASY',
-    participantsCount: json['participantsCount'] ?? 0,
-    joined: json['joined'] ?? false,
-    progressPercent: json['progressPercent'] ?? 0,
+    challengeType: json['challengeType'] ?? '',
+    durationDays: (json['durationDays'] as num?)?.toInt() ?? 0,
+    isActive: json['isActive'] == true,
+    // The catalog endpoint does not return a per-user percentage, so this is
+    // always 0 here; real progress lives on UserChallenge.progressPercentage.
+    progressPercentage: _toDouble(json['progressPercentage']).round(),
+    startDate: json['startDate'] ?? '',
+    endDate: json['endDate'] ?? '',
+    targets: ((json['targets'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(),
   );
 
+  /// The lowest reward tier (tier 1) — the goal the user actually works toward.
+  Map<String, dynamic> get primaryTarget =>
+      targets.isEmpty ? const {} : targets.first;
+
+  /// e.g. "250 POINTS" or "GOLD_BOX_LVL3 GIFT_BOX".
+  String get rewardLabel {
+    if (targets.isEmpty) return '';
+    final type = '${primaryTarget['rewardType'] ?? ''}';
+    final value = '${primaryTarget['rewardValue'] ?? ''}';
+    return '$value $type'.trim();
+  }
+
+  /// The tier-1 saving goal, e.g. 100.0.
+  double get targetAmount => _toDouble(primaryTarget['targetAmount']);
+
   Challenge copyWith({bool? joined, int? participantsCount}) => Challenge(
-    challengeId: challengeId,
+    id: id,
     title: title,
     description: description,
     category: category,
+    challengeType: challengeType,
     durationDays: durationDays,
-    pointsReward: pointsReward,
-    difficulty: difficulty,
-    participantsCount: participantsCount ?? this.participantsCount,
-    joined: joined ?? this.joined,
-    progressPercent: progressPercent,
+    isActive: isActive,
+    progressPercentage: progressPercentage,
+    startDate: startDate,
+    endDate: endDate,
+    targets: targets,
   );
+}
+
+/*
+ALL CHALLENGES ACCEPTED BY USER ARE STORED IN THIS MODEL. IT IS USED TO TRACK THE PROGRESS OF EACH CHALLENGE AND ITS STATUS.
+ */
+class UserChallenge {
+  final String id;
+  final String userId;
+  final Challenge challenge;
+  final String status;
+  final double currentAmount;
+  final double targetAmount;
+  final double progressPercentage;
+  final String startedAt;
+  final String endsAt;
+  final String completedAt;
+  final List<Map<String, dynamic>> challengeProgressLogs;
+
+  UserChallenge({
+    required this.id,
+    required this.userId,
+    required this.challenge,
+    required this.status,
+    required this.currentAmount,
+    required this.targetAmount,
+    required this.progressPercentage,
+    required this.startedAt,
+    required this.endsAt,
+    required this.completedAt,
+    required this.challengeProgressLogs,
+  });
+
+  factory UserChallenge.fromJson(Map<String, dynamic> json) => UserChallenge(
+    id: json['id'] ?? '',
+    userId: json['userId'] ?? '',
+    // The backend nests the enrolled challenge as a full object, so it has to
+    // be parsed through Challenge.fromJson rather than assigned as a raw map.
+    challenge: Challenge.fromJson(
+      Map<String, dynamic>.from(json['challenge'] as Map? ?? const {}),
+    ),
+    status: json['status'] ?? '',
+    currentAmount: _toDouble(json['currentAmount']),
+    targetAmount: _toDouble(json['targetAmount']),
+    progressPercentage: _toDouble(json['progressPercentage']),
+    startedAt: json['startedAt'] ?? '',
+    endsAt: json['endsAt'] ?? '',
+    completedAt: json['completedAt'] ?? '',
+    challengeProgressLogs: ((json['progressLogs'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(),
+  );
+
+  UserChallenge copyWith({bool? joined, int? participantsCount}) =>
+      UserChallenge(
+        id: id,
+        userId: userId,
+        challenge: challenge,
+        status: status,
+        currentAmount: currentAmount,
+        targetAmount: targetAmount,
+        progressPercentage: progressPercentage,
+        startedAt: startedAt,
+        endsAt: endsAt,
+        completedAt: completedAt,
+        challengeProgressLogs: challengeProgressLogs,
+      );
 }
 
 class LiteracyContent {
@@ -118,8 +221,8 @@ class Reward {
   final double worth;
   final String currencyCode;
   final bool isActive;
-  final DateTime createdOn;
-  final DateTime updatedOn;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Reward({
     required this.rewardId,
@@ -129,8 +232,8 @@ class Reward {
     required this.worth,
     required this.currencyCode,
     required this.isActive,
-    required this.createdOn,
-    required this.updatedOn,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Reward.fromJson(Map<String, dynamic> json) => Reward(
@@ -145,8 +248,8 @@ class Reward {
         json['isActive'] == true ||
         json['isActive'] == 'true' ||
         json['isActive'] == 1,
-    createdOn: DateTime.tryParse('${json['createdOn']}') ?? DateTime.now(),
-    updatedOn: DateTime.tryParse('${json['updatedOn']}') ?? DateTime.now(),
+    createdAt: DateTime.tryParse('${json['createdAt']}') ?? DateTime.now(),
+    updatedAt: DateTime.tryParse('${json['updatedAt']}') ?? DateTime.now(),
   );
 
   static int _parseInt(dynamic raw) {
@@ -260,4 +363,34 @@ class TutorialsList {
   String toString() =>
       'TutorialsList(${tutorials.length} tutorials: '
       '${tutorials.map((t) => t.title).join(", ")})';
+}
+
+/// One currency bucket of the user's savings total — mirrors
+/// SavingsSummaryDTO (GET /api/zgrow/savings). The hero card's "Overall
+/// Savings" figure is the [totalAmount] of the bucket in the user's wallet
+/// currency; it is computed server-side so the client never sums money.
+class SavingsSummary {
+  final String currencyCode;
+  final double totalAmount;
+  final int entryCount;
+  final String? lastSavedAt;
+
+  SavingsSummary({
+    required this.currencyCode,
+    required this.totalAmount,
+    required this.entryCount,
+    this.lastSavedAt,
+  });
+
+  factory SavingsSummary.fromJson(Map<String, dynamic> json) => SavingsSummary(
+    currencyCode: json['currencyCode']?.toString() ?? '',
+    totalAmount: _toDouble(json['totalAmount']),
+    entryCount: (json['entryCount'] as num?)?.toInt() ?? 0,
+    lastSavedAt: json['lastSavedAt']?.toString(),
+  );
+
+  @override
+  String toString() =>
+      'SavingsSummary($currencyCode ${totalAmount.toStringAsFixed(2)}, '
+      '$entryCount entr${entryCount == 1 ? 'y' : 'ies'})';
 }

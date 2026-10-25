@@ -49,7 +49,7 @@ class AiCouch extends StatelessWidget {
       color: Colors.grey[100],
       borderRadius: BorderRadius.circular(200),
     ),
-    child: const Row(
+    child: Row(
       children: [
         Expanded(
           child: TextField(
@@ -60,7 +60,7 @@ class AiCouch extends StatelessWidget {
             ),
           ),
         ),
-        Icon(Icons.send, color: AppTheme.secondaryNavy, size: 20),
+        Icon(Icons.send, color: AppTheme.textBlack, size: 20),
       ],
     ),
   );

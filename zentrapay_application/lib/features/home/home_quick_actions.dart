@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/bill_service_provider.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/features/home/HomePayments/pay.dart';
 import 'package:zentrapay_application/features/home/provider_picker_sheet.dart';
 import 'package:zentrapay_application/features/home/receive_sheet.dart';
 import 'package:zentrapay_application/features/zvoice/zvoice_screen.dart';
 import 'package:zentrapay_application/main.dart';
-
 import 'history.dart';
 
 /// Home Quick Actions Widget
@@ -125,9 +124,9 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       isScrollControlled: true,
       useSafeArea: true,
       barrierColor: Colors.black.withValues(alpha: 0.2),
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) {
         return ConstrainedBox(
@@ -170,12 +169,12 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
             onTap: () => _onNFCAction(context),
           ),
           QuickActionButton(
-            icon: Icons.arrow_upward_outlined,
+            icon: Icons.arrow_upward_rounded,
             label: "Send",
             onTap: () => _onPayAction(context),
           ),
           QuickActionButton(
-            icon: Icons.arrow_downward_outlined,
+            icon: Icons.arrow_downward_rounded,
             label: "Receive",
             onTap: () => _onReceiveAction(context),
           ),
@@ -261,9 +260,9 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
   void _onMoreAction(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => SafeArea(
         child: Padding(
@@ -286,12 +285,12 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                   return ListTile(
                     leading: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withAlpha(20),
+                        color: AppTheme.brand.withAlpha(20),
                         borderRadius: BorderRadius.circular(200),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(10.0),
-                        child: Icon(option["icon"], color: AppColors.secondary),
+                        child: Icon(option["icon"], color: AppTheme.textBlack),
                       ),
                     ),
                     title: Text(option["text"]),
@@ -332,13 +331,13 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     final brand = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(AppTheme.spacingMd),
               child: Text("Choose Card Brand", style: AppTheme.headlineSmall),
             ),
@@ -380,9 +379,9 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
       isScrollControlled: true,
       useSafeArea: true,
       barrierColor: Colors.black.withValues(alpha: 0.2),
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) {
         return ConstrainedBox(

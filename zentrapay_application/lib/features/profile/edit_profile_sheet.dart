@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:zentrapay_application/core/models/user.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 
 /// Edit-profile + Tier-2 document-upload overlay — the one place a user can
 /// change their name, submit KYC details, and upload the three documents
@@ -266,7 +266,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
                     child: ElevatedButton(
                       onPressed: _saving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.secondaryNavy,
+                        backgroundColor: AppTheme.buttonColor,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: _saving
@@ -311,7 +311,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
             AppTheme.radiusMd,
           ), // Rounded border corners
           borderSide: BorderSide(
-            color: AppTheme.secondaryNavy,
+            color: AppTheme.brand,
             width: 1,
           ), // Navy blue border when active
         ),

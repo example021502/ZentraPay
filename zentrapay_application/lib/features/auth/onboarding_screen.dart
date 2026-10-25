@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/features/auth/onboarding_page_widget.dart';
 import 'package:zentrapay_application/features/auth/onboarding_data.dart';
 
@@ -17,7 +16,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.headerPink,
       body: Column(
         children: [
           Expanded(
@@ -45,7 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
         boxShadow: AppTheme.cardShadow,
       ),
@@ -54,10 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           TextButton(
             onPressed: () => Navigator.pushNamed(context, '/register'),
-            child: const Text(
-              "Skip",
-              style: TextStyle(color: AppColors.secondary),
-            ),
+            child: Text("Skip", style: TextStyle(color: AppTheme.buttonColor)),
           ),
           Row(children: List.generate(3, (i) => _dot(i))),
           TextButton(
@@ -69,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
             child: Text(
               _currentPage == 2 ? "Continue" : "Next",
-              style: const TextStyle(color: AppColors.secondary),
+              style: TextStyle(color: AppTheme.buttonColor),
             ),
           ),
         ],
@@ -82,7 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     width: _currentPage == i ? 24 : 8,
     margin: const EdgeInsets.only(right: 5),
     decoration: BoxDecoration(
-      color: _currentPage == i ? AppColors.secondary : Colors.grey[300],
+      color: _currentPage == i ? AppTheme.buttonColor : Colors.grey[300],
       borderRadius: BorderRadius.circular(4),
     ),
   );

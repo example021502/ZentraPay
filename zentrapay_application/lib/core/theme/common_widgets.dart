@@ -14,7 +14,7 @@ import 'app_theme.dart';
 class FeatureScreenHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final IconData? icon;
   final bool showBackButton;
   final Widget? trailing;
@@ -23,7 +23,7 @@ class FeatureScreenHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle = '',
-    this.backgroundColor = AppColors.main,
+    this.backgroundColor,
     this.icon,
     this.showBackButton = false,
     this.trailing,
@@ -37,7 +37,7 @@ class FeatureScreenHeader extends StatelessWidget {
     final subtitleFontSize = isTablet ? 16.0 : 14.0;
 
     return Container(
-      decoration: BoxDecoration(color: backgroundColor),
+      decoration: BoxDecoration(color: backgroundColor ?? AppTheme.headerPink),
       padding: EdgeInsets.symmetric(
         horizontal: horizontalPadding,
         vertical: AppTheme.spacingLg,
@@ -50,15 +50,15 @@ class FeatureScreenHeader extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                    color: Colors.white,
-                    size: 20,
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: AppTheme.textBlack,
+                    size: 24,
                   ),
                 ),
                 const Spacer(),
                 if (icon != null) Icon(icon, color: Colors.amber, size: 30),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
           Text(
@@ -98,7 +98,6 @@ class FeatureScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = AppTheme.isTablet(context);
     final maxWidth = AppTheme.responsiveMaxWidth(context);
     final horizontalPadding = AppTheme.responsivePadding(context);
     final bottomPadding = AppTheme.responsiveBottomPadding(context);
@@ -106,8 +105,8 @@ class FeatureScreenBody extends StatelessWidget {
     return Center(
       child: Container(
         width: maxWidth,
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -192,7 +191,7 @@ class ActionItemCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+            Icon(Icons.chevron_right, size: 20, color: AppTheme.textBlack),
           ],
         ),
       ),
@@ -217,15 +216,29 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actionColor = color ?? AppColors.primary;
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.secondary.withAlpha(20),
-            child: Icon(icon, color: AppColors.secondary, size: 22),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.brand.withAlpha(20),
+              borderRadius: BorderRadius.circular(200),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.textBlack.withAlpha(50),
+                  offset: Offset(0, 0),
+                  spreadRadius: 0.5,
+                  blurRadius: 8,
+                  blurStyle: BlurStyle.outer,
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              backgroundColor: AppTheme.buttonColor,
+              radius: 26,
+              child: Icon(icon, color: AppTheme.primaryWhite, size: 22),
+            ),
           ),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
@@ -262,7 +275,7 @@ class InfoCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(color: AppTheme.dividerColor),
           boxShadow: AppTheme.cardShadow,
@@ -287,7 +300,7 @@ class InfoCard extends StatelessWidget {
               ),
             ),
             if (onTap != null)
-              const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+              Icon(Icons.chevron_right, size: 20, color: AppTheme.textBlack),
           ],
         ),
       ),
@@ -348,7 +361,7 @@ class SectionTitle extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(title, style: AppTheme.headlineSmall),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -381,9 +394,9 @@ class SearchBarWidget extends StatelessWidget {
         hintText: hintText,
         border: InputBorder.none,
         filled: true,
-        fillColor: AppColors.primary,
+        fillColor: AppTheme.surface,
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: AppColors.secondary, width: 2),
+          borderSide: BorderSide(color: AppTheme.brand, width: 2),
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
         ),
         enabledBorder: OutlineInputBorder(
@@ -400,7 +413,7 @@ void showComingSoon(BuildContext context, String feature) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('$feature - Coming Soon!'),
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.headerPink,
     ),
   );
 }
@@ -411,26 +424,43 @@ void showComingSoon(BuildContext context, String feature) {
 /// Notifications and the Settings option sheets look and behave identically
 /// instead of three near-duplicate `showModalBottomSheet` calls drifting
 /// apart over time.
+///
+/// [maxWidth] caps the sheet's width on large screens (tablets/desktop): below
+/// the cap it fills the screen edge-to-edge, above it the sheet is centered and
+/// stops at [maxWidth] instead of stretching into an unreadable full-width
+/// band. `null` (the default) keeps the old full-width behaviour.
 Future<T?> showAppOverlaySheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   double minHeightFraction = 0.50,
   double maxHeightFraction = 0.90,
+  double? maxWidth,
 }) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     barrierColor: Colors.black.withValues(alpha: 0.2),
-    backgroundColor: Colors.white,
+    backgroundColor: AppTheme.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
     ),
     builder: (context) {
-      return ConstrainedBox(
+      final media = MediaQuery.of(context);
+      // Keyboard-aware sizing. When the keyboard is open, viewInsets.bottom is
+      // its height. Sizing the sheet against the *available* height (screen
+      // minus keyboard) and padding the bottom by the same inset lifts the
+      // whole sheet above the keyboard, so focused fields and the action
+      // button stay visible instead of hiding behind it. With no keyboard both
+      // the inset and the padding are 0, so behaviour is unchanged for every
+      // existing caller.
+      final keyboardInset = media.viewInsets.bottom;
+      final availableHeight = media.size.height - keyboardInset;
+
+      final sheet = ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * maxHeightFraction,
-          minHeight: MediaQuery.of(context).size.height * minHeightFraction,
+          maxHeight: availableHeight * maxHeightFraction,
+          minHeight: availableHeight * minHeightFraction,
         ),
         child: Column(
           children: [
@@ -447,6 +477,21 @@ Future<T?> showAppOverlaySheet<T>({
             Expanded(child: builder(context)),
           ],
         ),
+      );
+
+      // No cap (or a narrow screen): fill the width as before.
+      final sized = maxWidth == null
+          ? sheet
+          : Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: sheet,
+              ),
+            );
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: sized,
       );
     },
   );
@@ -468,7 +513,11 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width,
+      // infinity, not MediaQuery width: inside a padded sheet the card must
+      // fill the *available* width — sizing it to the full screen width made
+      // its right edge (and the right-aligned detail values sitting there)
+      // spill past the sheet's horizontal padding.
+      width: double.infinity,
       padding: padding,
       decoration: AppTheme.cardDecoration,
       child: child,
@@ -477,22 +526,36 @@ class AppCard extends StatelessWidget {
 }
 
 /// Full-width primary action button using the app's ElevatedButtonTheme.
+///
+/// **Colour convention:** new buttons in this project are
+/// `AppTheme.brand` unless a design calls for something else. Pass
+/// `backgroundColor: AppTheme.brand` (with
+/// `foregroundColor: AppTheme.primaryWhite`) to opt in — the parameters default
+/// to the theme, so screens written before this convention keep their look.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   const PrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.loading = false,
+    this.backgroundColor,
+    this.foregroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: loading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+      ),
       child: loading
           ? const SizedBox(
               height: 20,
@@ -588,7 +651,7 @@ class TransactionListItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           boxShadow: AppTheme.cardShadow,
         ),
@@ -666,7 +729,7 @@ class EmptyStateWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 40, color: AppTheme.gray300),
+          Icon(icon, size: 40, color: AppTheme.textBlack),
           const SizedBox(height: AppTheme.spacingSm),
           Text(
             message,
@@ -679,7 +742,7 @@ class EmptyStateWidget extends StatelessWidget {
               onTap: onAction,
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: AppTheme.brand,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Padding(

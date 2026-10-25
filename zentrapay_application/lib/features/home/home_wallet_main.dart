@@ -1,28 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/models/card.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/home/widgets/LinkedCards.dart';
+import 'package:zentrapay_application/core/utils/app_refresh.dart';
+import 'package:zentrapay_application/features/zvoice/zvoice_floating_button.dart';
 
 import 'home_header.dart';
 import 'home_quick_actions.dart';
 import 'home_services_grid.dart';
 import 'home_transactions.dart';
-
-// Comment: matches the transactions API's sign convention — a type_code
-// ending in _CREDIT (wallet-to-wallet transfers — see PaymentsService) is
-// also a credit, on top of the older fixed list below.
-bool _isCreditType(String typeCode) =>
-    typeCode == 'credit' || _creditTypes.contains(typeCode);
-
-const _creditTypes = {
-  'wallet_funding',
-  'savings_withdrawal',
-  'loan_disbursement',
-  'investment_sell',
-  'reward_credit',
-  'refund',
-};
 
 class HomeWalletMain extends StatefulWidget {
   const HomeWalletMain({super.key});
@@ -37,67 +22,71 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
     final isTablet = MediaQuery.of(context).size.width >= 600;
     final maxWidth = isTablet ? 400.0 : MediaQuery.of(context).size.width;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: Center(
-        child: Column(
-          children: [
-            SizedBox(
-              width: maxWidth,
-              child: const HomeHeader(
-                key: ValueKey("fiat_balances"),
-                title: "You wallet balances",
-                id: "fiat",
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return Stack(
+      children: [
+        // Pulling down on Home reloads every section of the app, not just
+        // what is on this screen.
+        RefreshIndicator(
+          color: AppTheme.primaryPink,
+          backgroundColor: AppTheme.surface,
+          onRefresh: refreshWholeApp,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: maxWidth,
+                    child: const HomeHeader(
+                      key: ValueKey("fiat_balances"),
+                      title: "You wallet balances",
+                      id: "fiat",
+                    ),
+                  ),
+                  SizedBox(height: AppTheme.spacingXl),
+                  _buildContent(isTablet),
+                ],
               ),
             ),
-            SizedBox(height: AppTheme.spacingXl),
-            _buildContent(isTablet),
-          ],
+          ),
         ),
-      ),
+        // Floating AI launcher, just above the bottom navigation bar.
+        Positioned(
+          right: AppTheme.spacingMd,
+          bottom: bottomInset + 96,
+          child: const ZVoiceFloatingButton(),
+        ),
+      ],
     );
   }
 
   Widget _buildContent(bool isTablet) {
     final width = isTablet ? 400.0 : MediaQuery.of(context).size.width;
     return Container(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height * (4 / 5),
+      ),
       width: width,
       decoration: BoxDecoration(
         color: AppTheme.gray50,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(15.0),
+        padding: const EdgeInsets.fromLTRB(15, 25, 15, 15),
         child: Column(
           children: [
-            const SizedBox(height: AppTheme.spacingMd),
             // QUICK ACTIONS HERE
             const HomeQuickActions(),
-            SizedBox(height: AppTheme.spacingXl),
+            SizedBox(height: AppTheme.spacingMd),
             // ALL USER CARDS HERE
-            ListenableBuilder(
-              listenable: WalletsRepository.instance,
-              builder: (context, _) => LinkedCards(
-                cards: ([])
-                    .map(
-                      (a) => AppCard(
-                        cardId: '',
-                        brand: '',
-                        cardType: '',
-                        last4: '',
-                        expiryMonth: 12,
-                        expiryYear: 12,
-                        nfcEnabled: false,
-                        qrEnabled: false,
-                        status: '',
-                        balance: '',
-                        currencyCode: '',
-                        createdAt: '',
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
+            // ListenableBuilder(
+            //   listenable: UserCardsRepository.instance,
+            //   builder: (context, _) =>
+            //       LinkedCards(cards: UserCardsRepository.instance.data ?? []),
+            // ),
             // ALL THE USER'S SERVICE PROVIDERS HERE
             ListenableBuilder(
               listenable: Listenable.merge([
@@ -111,6 +100,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                         'providerName': p.providerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
+                        'countryCode': p.countryCode,
                       },
                     )
                     .toList(),
@@ -120,6 +110,8 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                         'billerName': p.billerName,
                         'logoUrl': p.logoUrl ?? '',
                         'category': p.categoryCode,
+                        // Drives the flag fallback when the biller has no logo.
+                        'countryCode': p.countryCode ?? '',
                       },
                     )
                     .toList(),
@@ -134,12 +126,18 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                     .map(
                       (t) => {
                         'title': t.receiverName,
-                        'time': t.createdAt,
+                        'time': t.completedAt,
+                        // Signed amount straight from the backend — the "+"/"-"
+                        // sign drives the icon and amount color downstream
+                        // (TransactionListItem, AmountText).
                         'amount': t.amount,
-                        'icon': _isCreditType(t.transactionType)
-                            ? Icons.arrow_downward
-                            : Icons.arrow_upward,
+                        'icon': t.isCredit
+                            ? Icons.call_received_rounded
+                            : Icons.call_made_rounded,
                         'type': t.transactionType,
+                        // Full record so the details sheet can offer
+                        // "Send Again" and show the real status/reference.
+                        'transaction': t,
                       },
                     )
                     .toList(),

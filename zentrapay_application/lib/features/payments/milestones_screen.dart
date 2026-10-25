@@ -1,6 +1,7 @@
+import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
-import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -145,163 +146,114 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.gray50,
-      appBar: AppBar(
-        backgroundColor: AppColors.main,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "The Milestones",
-          style: TextStyle(color: AppColors.primary, fontSize: 18),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeaderSection(),
-            const SizedBox(height: 20),
-            _buildGoalsList(),
-            const SizedBox(height: 20),
-          ],
-        ),
+      body: Column(
+        children: [
+          SectionHeader(
+            title: "Save Goal",
+            subtitle: "Track every goal you are saving towards",
+            icon: Icons.flag_rounded,
+            showBack: true,
+            sheetColor: AppTheme.gray50,
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                children: [
+                  _buildHeaderSection(),
+                  const SizedBox(height: 20),
+                  _buildGoalsList(),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHeaderSection() {
+    final topName = goals.isEmpty ? "No goals yet" : goals.first['name'];
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.main, AppColors.purple],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: AppTheme.cardDecoration,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "The Milestones",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const Text(
-                    "Target Your Targets",
-                    style: TextStyle(fontSize: 14, color: AppColors.primary),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "GHS ${_totalSaved.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const Text(
-                    "Saved",
-                    style: TextStyle(fontSize: 12, color: AppColors.primary),
-                  ),
-                ],
+              Expanded(child: Text("Total saved", style: AppTheme.bodyMedium)),
+              Text(
+                "${goals.length} ${goals.length == 1 ? 'goal' : 'goals'}",
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
               ),
             ],
           ),
-          const SizedBox(height: 30),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 180,
-                height: 180,
-                child: CircularProgressIndicator(
-                  value: _topGoalProgress,
-                  strokeWidth: 12,
-                  backgroundColor: AppColors.primary.withAlpha(50),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.green,
-                  ),
-                ),
-              ),
-              Column(
-                children: [
-                  Text(
-                    "${(_topGoalProgress * 100).toStringAsFixed(1)}%",
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    goals.isEmpty ? "No goals yet" : goals.first['name'],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          const SizedBox(height: AppTheme.spacingXs),
+          Text(
+            "GHS ${_totalSaved.toStringAsFixed(2)}",
+            style: AppTheme.displaySmall,
           ),
-          const SizedBox(height: 20),
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
           Row(
             children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _showCreateGoalDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              SizedBox(
+                width: 84,
+                height: 84,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox.expand(
+                      child: CircularProgressIndicator(
+                        value: _topGoalProgress,
+                        strokeWidth: 8,
+                        strokeCap: StrokeCap.round,
+                        backgroundColor: AppTheme.gray100,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.brand,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    "+ New",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                    Text(
+                      "${(_topGoalProgress * 100).toStringAsFixed(0)}%",
+                      style: AppTheme.headlineSmall,
                     ),
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppTheme.spacingLg),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Top goal",
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.gray500,
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    "Save",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
+                    const SizedBox(height: 2),
+                    Text(
+                      topName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTheme.labelLarge,
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showCreateGoalDialog,
+              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+              label: const Text("New goal"),
+            ),
           ),
         ],
       ),
@@ -312,8 +264,8 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(20),
           bottom: Radius.circular(20),
@@ -322,7 +274,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "You set goals",
             style: TextStyle(
               fontSize: 18,
@@ -334,7 +286,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
           if (isLoading)
             const Center(child: CircularProgressIndicator())
           else if (goals.isEmpty)
-            const Text(
+            Text(
               "No savings goals yet — tap + New to start one.",
               style: TextStyle(fontSize: 13, color: AppColors.textBlack),
             )
@@ -366,7 +318,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                   color: AppColors.main.withAlpha(25),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(goal['icon'], color: AppColors.main, size: 24),
+                child: Icon(goal['icon'], color: AppTheme.textBlack, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -375,7 +327,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
                   children: [
                     Text(
                       goal['name'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textBlack,
@@ -391,11 +343,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
               ),
               IconButton(
                 onPressed: () {},
-                icon: const Icon(
-                  Icons.close,
-                  color: AppColors.textBlack,
-                  size: 20,
-                ),
+                icon: Icon(Icons.close, color: AppTheme.textBlack, size: 20),
               ),
             ],
           ),
@@ -405,7 +353,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
             children: [
               Text(
                 "GHS ${goal['target'].toStringAsFixed(2)}",
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textBlack,
@@ -413,10 +361,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
               ),
               Text(
                 "$percentage% of Goal",
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textBlack,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textBlack),
               ),
             ],
           ),

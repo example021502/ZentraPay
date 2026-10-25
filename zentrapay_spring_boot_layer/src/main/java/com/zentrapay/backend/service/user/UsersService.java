@@ -1,0 +1,438 @@
+package com.zentrapay.backend.service.user;
+
+import com.zentrapay.backend.entity.*;
+import com.zentrapay.backend.repository.*;
+import com.zentrapay.backend.service.common.Datatypes;
+import com.zentrapay.backend.exception.ResourceNotFoundException;
+import com.zentrapay.backend.dto.user.*;
+import com.zentrapay.backend.entity.LoginHistoryModel;
+import com.zentrapay.backend.repository.LoginHistoryRepository;
+import com.zentrapay.backend.security.JwtService;
+import com.zentrapay.backend.service.region.SupportedRegionService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+
+@Service
+@RequiredArgsConstructor
+public class UsersService {
+
+    private static final Logger log = LoggerFactory.getLogger(UsersService.class);
+
+    private final UserRepository userRepository;
+    private final CryptoWalletRepository cryptoWalletRepository;
+    private final FiatWalletRepository fiatWalletRepository;
+    private final GatewayCountriesRepository gatewayCountriesRepository;
+    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final LoginHistoryRepository loginHistoryRepository;
+    private final FiatAccountRepository fiatAccountRepository;
+    private final CryptoAccountRepository cryptoAccountRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final PinService pinService;
+    private final SupportedRegionService supportedRegionService;
+
+    @Value("${app.password.pepper}")
+    private String passwordPepper;
+
+    @Value("${app.pin.pepper}")
+    private String pinPepper;
+
+    // ========================================================================
+    // REGISTER
+    // ========================================================================
+    @Transactional
+    public usersAuthResponse register(@Valid RegisterRequestDTO req, String ipAddress) {
+        // Creates the user, their fiat + crypto wallets and default account, then returns a login token
+        log.info("Registering a new user with email {}", req.email());
+        // Log the incoming registration form payload
+        System.out.println("THE REGISTER FORM DATA:: data=" + req);
+
+        // Check for existing uniqueness constraints before performing any database writes
+        if (userRepository.existsByEmail(req.email())) {
+            throw new RuntimeException("Email already taken");
+        }
+        if (userRepository.existsByPhoneNumber(req.phoneNumber())) {
+            throw new RuntimeException("Phone number already taken");
+        }
+
+        if(req.termsConsent() == false){
+            throw new RuntimeException("Please accept the Terms of use to continue");
+        }
+
+        // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
+        // The country must be one the payment providers support AND that is switched on right now
+        GatewayCountryModel country = supportedRegionService.requireCountry(req.countryCode());
+
+        System.out.println("Found country: " + country.getCountryCode());
+
+        // Initialize and populate the new User entity
+        UserModel user = new UserModel();
+        user.setFirstName(req.firstName());
+        user.setLastName(req.lastName());
+        user.setEmail(req.email());
+        user.setPhoneNumber(req.phoneNumber());
+        user.setCountryCode(country.getCountryCode());
+        user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
+        user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
+        user.setUserType(Datatypes.UserType.APP_USER);
+        user.setStatus(Datatypes.UserStatus.ACTIVE);
+
+        // Save the user record to the database
+        user = userRepository.save(user);
+
+
+//        FIAT WALLET CREATION
+        if (!fiatWalletRepository.existsByUserId(user.getUserId()) && !cryptoWalletRepository.existsByUserId(user.getUserId())) {
+            FiatWalletModel fiatWallet = new FiatWalletModel();
+            fiatWallet.setUserId(user.getUserId());
+            fiatWallet.setCountryCode(country.getCountryCode());
+            fiatWallet.setWalletName("Zentrapay_Wallet");
+           fiatWallet = fiatWalletRepository.save(fiatWallet);
+//            CRYPTO WALLET CREATION
+            CryptoWalletModel cryptoWallet = new CryptoWalletModel();
+            cryptoWallet.setUserId(user.getUserId());
+            cryptoWallet.setStatus("ACTIVE");
+            cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
+
+           final String currencyCode = gatewayCurrenciesRepository
+                    .getCurrencyCodesByCountryCode(user.getCountryCode()).stream()
+                    .findFirst()
+                    .orElse("GHS");
+            FiatAccountModel fiatAccount = getFiatAccount(req, currencyCode, fiatWallet);
+            fiatAccountRepository.save(fiatAccount);
+
+            CryptoAccountModel cryptoAccount = new CryptoAccountModel();
+            cryptoAccount.setWalletId(cryptoWallet.getWalletId());
+            cryptoAccount.setNetwork("unknown");
+            cryptoAccount.setCurrencyCode("Unknown");
+            cryptoAccount.setWalletAddress("pending-" + user.getUserId());
+            cryptoAccount.setBalance(BigDecimal.ZERO);
+            cryptoAccount.setIsDefault(true);
+            cryptoAccount.setStatus("ACTIVE");
+            cryptoAccountRepository.save(cryptoAccount);
+        }else{
+            throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");
+        }
+
+        // Generate the authentication token and return the response DTO
+        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
+        return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+    }
+
+    private static @NonNull FiatAccountModel getFiatAccount(RegisterRequestDTO req, String currencyCode, FiatWalletModel fiatWallet) {
+        final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
+        FiatAccountModel fiatAccount = new FiatAccountModel();
+        fiatAccount.setWalletId(fiatWallet.getWalletId());
+        fiatAccount.setAccountName("Default Account");
+        fiatAccount.setCurrencyCode(currencyCode);
+        fiatAccount.setZentag(zentag);
+        fiatAccount.setBalance(BigDecimal.ZERO);
+        fiatAccount.setDefault(true);
+        fiatAccount.setStatus("ACTIVE");
+        return fiatAccount;
+    }
+
+    // ========================================================================
+    // LOGIN - records a LoginHistory row for every attempt, success or failure.
+    // (Not one big @Transactional: the "failed attempt" row must survive the exception we throw.)
+    // ========================================================================
+    public usersAuthResponse login(@Valid LoginRequestDTO req, HttpServletRequest httpRequest) {
+        log.info("==================== ATTEMPTING TO LOG IN ==================");
+        UserModel user = userRepository.findByEmailOrPhoneNumber(req.email(), req.phoneNumber()).orElse(null);
+
+        // Same message for "no such user" and "wrong password" so nobody can probe which accounts exist
+        if (user == null) {
+            log.warn("[USERS] Login attempt for unknown identifier email={}, phone={}", req.email(), req.phoneNumber());
+            throw new IllegalArgumentException("Invalid credentials");
+        }
+        if (!passwordEncoder.matches(req.password() + passwordPepper, user.getPasswordHash())) {
+            recordLogin(user.getUserId(), httpRequest, false);
+            log.info("==================== LOG IN FAILED - INVALID CREDENTIALS ==================");
+            throw new IllegalArgumentException("Invalid credentials");
+        }
+        if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
+            recordLogin(user.getUserId(), httpRequest, false);
+            throw new IllegalArgumentException("Your account is " + user.getStatus() + ". Please contact support.");
+        }
+
+        recordLogin(user.getUserId(), httpRequest, true);
+        return authResponse(user);
+    }
+
+    // ========================================================================
+    // REFRESH - a new token for an expired (but correctly signed) one
+    // ========================================================================
+    public usersAuthResponse refresh(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Missing or malformed Authorization header");
+        }
+        io.jsonwebtoken.Claims claims;
+        try {
+            claims = jwtService.parseAllowExpired(authorizationHeader.substring(7));
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid token");
+        }
+        // An old token may only be refreshed for 30 days after it expired
+        if (claims.getExpiration() != null
+                && claims.getExpiration().toInstant().isBefore(java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS))) {
+            throw new IllegalArgumentException("Session expired, please log in again");
+        }
+        UserModel user = userRepository.findById(UUID.fromString(claims.getSubject()))
+                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+        if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Your account is " + user.getStatus() + ". Please contact support.");
+        }
+        return authResponse(user);
+    }
+
+    // ========================================================================
+    // PIN VERIFY - used before sensitive actions in the app
+    // ========================================================================
+    @Transactional(readOnly = true)
+    public boolean verifyPin(UUID userId, String pin) {
+        UserModel user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return pinService.matches(user, pin);
+    }
+
+    // The token + identity returned by register / login / refresh
+    private usersAuthResponse authResponse(UserModel user) {
+        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(),
+                user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
+        return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+    }
+
+    private void recordLogin(UUID userId, HttpServletRequest httpRequest, boolean success) {
+        LoginHistoryModel entry = new LoginHistoryModel();
+        entry.setUserId(userId);
+        entry.setSuccess(success);
+        if (httpRequest != null) {
+            entry.setIpAddress(resolveClientIp(httpRequest));
+            String userAgent = httpRequest.getHeader("User-Agent");
+            entry.setDeviceInfo(userAgent != null ? userAgent.substring(0, Math.min(userAgent.length(), 200)) : null);
+        }
+        loginHistoryRepository.save(entry);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+//    ========================================================================
+//    GET /api/users/qr_me — identity bundle rendered into receive QR codes
+//    ========================================================================
+
+    /**
+     * Everything the receive-QR payload needs: the caller's profile identity
+     * plus the zentag of their default fiat account. The zentag cannot come
+     * from the JWT ({@code JwtService#generateToken} never packs a zentag
+     * claim, so {@code AuthenticatedUser#getZentag()} is always {@code null}).
+     *
+     * @param userId the JWT-authenticated caller
+     * @return the QR bundle; {@code zentag} degrades to an empty string only
+     * when the user has no wallet/default account yet (e.g. mid-registration)
+     */
+    @Transactional(readOnly = true)
+    public UserQRInfo getQRInfo(UUID userId) {
+        UserModel user = userRepository.getUserByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return new UserQRInfo(
+                user.getUserId(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getPhoneNumber(),
+                user.getCountryCode(),
+                resolveDefaultZentag(userId),
+                user.getUserType());
+    }
+
+    /**
+     * Resolves the zentag minted on the wallet's default currency account
+     * (same shape as registration/account creation:
+     * {@code phoneNumber + "_" + currencyCode + "@zentrapay"}).
+     */
+    private String resolveDefaultZentag(UUID userId) {
+        return fiatWalletRepository.getWalletIdByUserId(userId)
+                .flatMap(walletId -> fiatAccountRepository.getDefaultAccountByWalletId(walletId))
+                .map(FiatAccountModel::getZentag)
+                .orElse("");
+    }
+
+//    GETTING USER INFROMATION
+    @Transactional(readOnly = true)
+public UserInformation getMe(@Valid UUID userId) {
+        UserModel user = userRepository.getUserByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // Retrieve profile if present. The profile is optional — a row is only
+        // created once the user submits their KYC details — so a missing row must
+        // NOT null out the whole response. Always return the user; profile may be null.
+        UserProfileModel up = userProfileRepository.getBtUserId(userId);
+        UserProfileDTO profile = toProfileDTO(up);
+        return new UserInformation(toUserDTO(user), profile);
+    }
+
+    // ========================================================================
+    // PATCH /api/users/me — self-service editable account fields (name only).
+    // ========================================================================
+    @Transactional
+    public UserDTO updateMe(UUID userId, UserMeUpdateDTO req) {
+        UserModel user = userRepository.getUserByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (req.firstName() != null && !req.firstName().isBlank()) {
+            user.setFirstName(req.firstName());
+        }
+        if (req.lastName() != null && !req.lastName().isBlank()) {
+            user.setLastName(req.lastName());
+        }
+        user = userRepository.save(user);
+        return toUserDTO(user);
+    }
+
+    // ========================================================================
+    // GET /api/users/me/profile — KYC profile, null until first submitted.
+    // ========================================================================
+    @Transactional(readOnly = true)
+    public UserProfileDTO getKycProfile(UUID userId) {
+        return toProfileDTO(userProfileRepository.getBtUserId(userId));
+    }
+
+    // ========================================================================
+    // PUT /api/users/me/profile — upsert KYC profile fields, then recompute
+    // the caller's kycTier (see recomputeKycTier). Every field is optional
+    // (null = leave unchanged) so the KYC form can submit incrementally.
+    // ========================================================================
+    @Transactional
+    public UserProfileDTO upsertKycProfile(UUID userId, UserProfileUpdateDTO req) {
+        // Creates or updates the KYC profile of the user
+        log.info("Saving the KYC profile of user {}", userId);
+        UserModel user = userRepository.getUserByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        if (profile == null) {
+            profile = new UserProfileModel();
+            profile.setUserId(userId);
+        }
+
+        if (req.dateOfBirth() != null) profile.setDateOfBirth(req.dateOfBirth());
+        if (req.nationalityCountryCode() != null) profile.setNationalityCountryCode(req.nationalityCountryCode());
+        if (req.identityDocumentType() != null) profile.setIdentityDocumentType(req.identityDocumentType());
+        if (req.identityDocumentNumber() != null) profile.setIdentityDocumentNumber(req.identityDocumentNumber());
+        if (req.identityDocumentIssuingCountryCode() != null) profile.setIdentityDocumentIssuingCountryCode(req.identityDocumentIssuingCountryCode());
+        if (req.identityDocumentExpirationDate() != null) profile.setIdentityDocumentExpirationDate(req.identityDocumentExpirationDate());
+        if (req.addressLine1() != null) profile.setAddressLine1(req.addressLine1());
+        if (req.addressLine2() != null) profile.setAddressLine2(req.addressLine2());
+        if (req.cityName() != null) profile.setCityName(req.cityName());
+        if (req.stateOrRegion() != null) profile.setStateOrRegion(req.stateOrRegion());
+        if (req.postalCode() != null) profile.setPostalCode(req.postalCode());
+        if (req.occupationTitle() != null) profile.setOccupationTitle(req.occupationTitle());
+
+        profile = userProfileRepository.save(profile);
+        recomputeKycTier(user, profile);
+        return toProfileDTO(profile);
+    }
+
+    /**
+     * Tier 2 (unlocks sending/receiving money, see PaymentsService) requires
+     * a complete profile — DOB, address, occupation, ID document type+number
+     * — AND all three Tier-2 documents uploaded (front, back, selfie; see
+     * DocumentsService). This is a deliberately generic bar, the same for
+     * every country, rather than an attempt to encode real per-country KYC
+     * regulation. Anything short of that but with at least one field filled
+     * in is tier 1 ("started"); an untouched profile stays tier 0.
+     */
+    void recomputeKycTier(UserModel user, UserProfileModel profile) {
+        short newTier;
+        if (profile == null) {
+            newTier = 0;
+        } else {
+            boolean complete = profile.getDateOfBirth() != null
+                    && notBlank(profile.getAddressLine1())
+                    && notBlank(profile.getCityName())
+                    && notBlank(profile.getOccupationTitle())
+                    && notBlank(profile.getIdentityDocumentType())
+                    && notBlank(profile.getIdentityDocumentNumber())
+                    && notBlank(profile.getIdDocumentFrontPath())
+                    && notBlank(profile.getIdDocumentBackPath())
+                    && notBlank(profile.getSelfiePath());
+            boolean started = profile.getDateOfBirth() != null
+                    || notBlank(profile.getAddressLine1())
+                    || notBlank(profile.getIdentityDocumentType())
+                    || notBlank(profile.getIdDocumentFrontPath());
+            newTier = complete ? (short) 2 : started ? (short) 1 : (short) 0;
+        }
+        if (user.getKycTier() != newTier) {
+            user.setKycTier(newTier);
+            userRepository.save(user);
+        }
+    }
+
+    private boolean notBlank(String s) {
+        return s != null && !s.isBlank();
+    }
+
+    private UserDTO toUserDTO(UserModel u) {
+        return new UserDTO(
+                u.getUserId(),
+                u.getFirstName(),
+                u.getLastName(),
+                u.getEmail(),
+                u.getPhoneNumber(),
+                u.getCountryCode(),
+                u.getCreatedAt(),
+                u.getStatus(),
+                u.getUserType(),
+                u.getKycTier()
+        );
+    }
+
+    private UserProfileDTO toProfileDTO(UserProfileModel up) {
+        if (up == null) {
+            return null;
+        }
+        return new UserProfileDTO(
+                up.getDateOfBirth(),
+                up.getNationalityCountryCode(),
+                up.getIdentityDocumentType(),
+                up.getIdentityDocumentNumber(),
+                up.getIdentityDocumentIssuingCountryCode(),
+                up.getIdentityDocumentExpirationDate(),
+                up.getAddressLine1(),
+                up.getAddressLine2(),
+                up.getCityName(),
+                up.getStateOrRegion(),
+                up.getPostalCode(),
+                up.getOccupationTitle(),
+                up.getAntiMoneyLaunderingStatus(),
+                up.isPoliticallyExposedPerson(),
+                up.getRiskScoreLevel(),
+                up.getKYCStatus(),
+                notBlank(up.getIdDocumentFrontPath()),
+                notBlank(up.getIdDocumentBackPath()),
+                notBlank(up.getSelfiePath()),
+                up.getCreatedAt(),
+                up.getUpdatedAt()
+        );
+    }
+}

@@ -3,14 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/user.dart';
+import 'package:zentrapay_application/core/models/wallet.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
-import 'package:zentrapay_application/features/profile/repository/cache_profileData.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
-import 'package:zentrapay_application/features/zbanking/repository/cache_zbankingData.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
+import 'package:zentrapay_application/features/home/generate_qr_code.dart';
+import 'package:zentrapay_application/features/home/receive_sheet.dart';
 import 'package:zentrapay_application/features/profile/edit_profile_sheet.dart';
-import 'package:zentrapay_application/main.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,11 +45,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         UserProfileRepository.instance.ensureLoaded(),
         WalletsRepository.instance.ensureLoaded(),
         BankAccountsRepository.instance.ensureLoaded(),
+        UserQRRepository.instance.loadQRUserInfo(),
       ]);
     } catch (e) {
       // Comment: Log error on failure without breaking screen UI render
       debugPrint("Profile screen initial load failed: $e");
     }
+  }
+
+  /// Pull-to-refresh: reloads everything this screen shows.
+  Future<void> _refresh() async {
+    try {
+      await Future.wait([
+        UserProfileRepository.instance.refresh(),
+        WalletsRepository.instance.refresh(),
+        BankAccountsRepository.instance.refresh(),
+        UserQRRepository.instance.loadUserInfo(),
+      ]);
+    } catch (e) {
+      debugPrint("Profile refresh failed: $e");
+    }
+  }
+
+  /// The wallet the QR code and account details are shown for: the default
+  /// fiat account, or the first one when none is flagged.
+  FiatAccount? _primaryAccount(List<FiatAccount> accounts) {
+    if (accounts.isEmpty) return null;
+    return accounts.firstWhere(
+      (a) => a.isDefault,
+      orElse: () => accounts.first,
+    );
   }
 
   /// Formats model dates for the info rows; empty string when null
@@ -65,6 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         UserProfileRepository.instance,
         WalletsRepository.instance,
         BankAccountsRepository.instance,
+        UserQRRepository.instance,
       ]),
       builder: (context, child) {
         final userRepo = UserProfileRepository.instance;
@@ -104,50 +135,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
           accountIndex = 0;
         }
 
+        final session = SecureStorageService.getSession();
+        final fullName = [
+          (user?.firstName.isNotEmpty ?? false)
+              ? user!.firstName
+              : session['firstName'],
+          (user?.lastName.isNotEmpty ?? false)
+              ? user!.lastName
+              : session['lastName'],
+        ].where((p) => p != null && p.isNotEmpty).join(' ');
+
         return Scaffold(
           backgroundColor: AppTheme.gray50,
-          appBar: AppBar(
-            backgroundColor: AppTheme.gray50,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: AppColors.textBlack,
-                size: 22,
+          body: Column(
+            children: [
+              SectionHeader(
+                title: "Profile",
+                subtitle: fullName,
+                icon: Icons.person_rounded,
+                showBack: true,
+                sheetColor: AppTheme.gray50,
               ),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildProfileHeader(user),
-                const SizedBox(height: AppTheme.spacingLg),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingLg,
-                  ),
-                  child: Column(
-                    children: [
-                      _buildPrimaryWallet(accounts),
-                      const SizedBox(height: AppTheme.spacingLg),
-                      _buildQRCodeSection(),
-                      const SizedBox(height: AppTheme.spacingLg),
-                      _buildWalletCarousel(accounts),
-                      const SizedBox(height: AppTheme.spacingLg),
-                      _buildBankAccounts(),
-                      const SizedBox(height: AppTheme.spacingXl),
-                      _buildPersonalInformationSection(user),
-                      const SizedBox(height: AppTheme.spacingLg),
-                      _buildProfileInformationSection(profile),
-                      const SizedBox(height: AppTheme.spacingLg),
-                      _buildComplianceSection(profile),
-                    ],
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppTheme.primaryPink,
+                  backgroundColor: AppTheme.surface,
+                  onRefresh: _refresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        _buildProfileHeader(user),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTheme.spacingLg,
+                          ),
+                          child: Column(
+                            children: [
+                              _buildPrimaryAccountQr(
+                                _primaryAccount(fiatAccounts),
+                              ),
+                              const SizedBox(height: AppTheme.spacingLg),
+                              _buildWalletCarousel(accounts),
+                              const SizedBox(height: AppTheme.spacingLg),
+                              _buildBankAccounts(),
+                              const SizedBox(height: AppTheme.spacingXl),
+                              _buildPersonalInformationSection(user),
+                              const SizedBox(height: AppTheme.spacingLg),
+                              _buildProfileInformationSection(profile),
+                              const SizedBox(height: AppTheme.spacingLg),
+                              _buildComplianceSection(profile),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppTheme.spacingXl),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingXl),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -155,7 +202,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader(AppUser? user) {
-    final String fullName = "${user?.firstName} ${user?.lastName}";
+    // Until /api/users/me has loaded, fall back to the name in the signed-in
+    // token so the header never reads "null null".
+    final session = SecureStorageService.getSession();
+    final String fullName = [
+      (user?.firstName.isNotEmpty ?? false)
+          ? user!.firstName
+          : session['firstName'],
+      (user?.lastName.isNotEmpty ?? false)
+          ? user!.lastName
+          : session['lastName'],
+    ].where((p) => p != null && p.isNotEmpty).join(' ');
     final bool canTransact = user?.canTransact ?? false;
     final int tier = user?.kycTier ?? 0;
     return Padding(
@@ -174,11 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppTheme.primaryPink,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.person,
-                  size: 60,
-                  color: AppTheme.primaryWhite,
-                ),
+                child: Icon(Icons.person, size: 60, color: AppTheme.textBlack),
               ),
               Positioned(
                 bottom: 0,
@@ -194,7 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Icon(
                     canTransact ? Icons.check : Icons.priority_high,
                     size: 16,
-                    color: AppTheme.primaryWhite,
+                    color: AppTheme.textBlack,
                   ),
                 ),
               ),
@@ -240,9 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               "Edit Profile",
               style: AppTheme.labelLarge.copyWith(
-                color: AppTheme.secondaryNavy,
+                color: AppTheme.brand,
                 decoration: TextDecoration.underline,
-                decorationColor: AppTheme.secondaryNavy,
+                decorationColor: AppTheme.brand,
               ),
             ),
           ),
@@ -258,8 +311,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const Text("Personal Information", style: AppTheme.labelLarge),
-          const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
+          Text("Personal Information", style: AppTheme.labelLarge),
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
           _buildInfoRow("User ID", user?.userId ?? ''),
           _buildInfoRow("First Name", user?.firstName ?? ''),
           _buildInfoRow("Last Name", user?.lastName ?? ''),
@@ -280,8 +333,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Profile Information", style: AppTheme.labelLarge),
-          const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
+          Text("Profile Information", style: AppTheme.labelLarge),
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
           _buildInfoRow("Date of Birth", _formatDate(profile?.dateOfBirth)),
           _buildInfoRow("Nationality", profile?.nationalityCountryCode ?? ''),
           _buildInfoRow("Occupation", profile?.occupationTitle ?? ''),
@@ -317,7 +370,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       decoration: BoxDecoration(
-        color: AppTheme.primaryWhite,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         border: Border.all(
           color: AppTheme.successGreen.withValues(alpha: 0.4),
@@ -331,7 +384,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text("Compliance & Risk", style: AppTheme.labelLarge),
               ),
               Container(
@@ -353,8 +406,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          const Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
-          _buildInfoRow("KYC Status", profile?.KYCStatus ?? ''),
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
+          _buildInfoRow("KYC Status", profile?.kycStatus ?? ''),
           _buildInfoRow("AML Status", profile?.antiMoneyLaunderingStatus ?? ''),
           _buildInfoRow(
             "PEP Screening",
@@ -393,125 +446,139 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPrimaryWallet(List<Map<String, dynamic>> accounts) {
-    final account = accounts.firstWhere(
-      (a) => a['isDefault'] == true,
-      orElse: () => <String, dynamic>{},
-    );
-    Map<String, dynamic> activeAccount = {};
-    if (account.isNotEmpty) {
-      activeAccount = account;
+  /// The primary account's receive QR - the same code the Receive sheet shows -
+  /// with the account's details underneath.
+  Widget _buildPrimaryAccountQr(FiatAccount? account) {
+    if (account == null) {
+      return AppCard(
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        child: Row(
+          children: [
+            Icon(Icons.qr_code_2, color: AppTheme.textBlack, size: 32),
+            const SizedBox(width: AppTheme.spacingMd),
+            Expanded(
+              child: Text(
+                "No wallet yet - your primary account QR will appear here "
+                "once you have one.",
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+
+    final qrRepo = UserQRRepository.instance;
+    final payload = buildAccountQrPayload(account, qrRepo.userData);
+    final active = account.status.toUpperCase() == 'ACTIVE';
+    final tone = active ? AppTheme.successGreen : AppTheme.warningOrange;
+    final name = account.accountName.isNotEmpty
+        ? account.accountName
+        : '${account.currencyCode} Wallet';
 
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Primary Treasury Node", style: AppTheme.labelLarge),
-          const SizedBox(height: AppTheme.spacingMd),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Primary Account:",
-                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              Expanded(
+                child: Text("Receive money", style: AppTheme.labelLarge),
               ),
-              Text(
-                activeAccount['accountName'] ?? 'No active account',
-                style: AppTheme.labelLarge,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.brand.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                ),
+                child: Text(
+                  "Primary account",
+                  style: AppTheme.labelSmall.copyWith(
+                    color: AppTheme.brand,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingXs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  activeAccount['accountNumber'] ?? '',
-                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: activeAccount['accountNumber'] ?? ''),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Virtual account handle copied to clipboard',
-                      ),
-                    ),
-                  );
-                },
-                child: const Text("Copy"),
-              ),
-            ],
+          Text(
+            "Anyone can scan this code to pay your ${account.currencyCode} account.",
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
-          InkWell(
-            onTap: () => showComingSoon(context, "Request payment"),
-            child: Container(
-              width: MediaQuery.of(context).size.width,
-              decoration: BoxDecoration(
-                color: AppTheme.secondaryNavy,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Center(
-                  child: Text(
-                    "Request Payment",
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.primaryWhite,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQRCodeSection() {
-    return AppCard(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Dynamic Settlement QR", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingLg),
           Center(
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                color: AppTheme.gray50,
-                border: Border.all(color: AppTheme.gray300, width: 1.5),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            child: qrRepo.isUserLoading && payload.isEmpty
+                ? SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryPink,
+                      ),
+                    ),
+                  )
+                : PrettyQrWidget(qrData: payload),
+          ),
+          if (payload.isEmpty && !qrRepo.isUserLoading) ...[
+            const SizedBox(height: AppTheme.spacingSm),
+            Center(
+              child: TextButton(
+                onPressed: _refresh,
+                child: const Text("Could not load the QR code - tap to retry"),
               ),
-              child: const Icon(
-                Icons.qr_code_2,
-                size: 150,
-                color: AppTheme.textBlack,
-              ),
+            ),
+          ],
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
+          _buildInfoRow("Account name", name),
+          _buildInfoRow("Zentag", account.zentag),
+          _buildInfoRow("Currency", account.currencyCode),
+          _buildInfoRow("Account ID", account.accountId),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
+            child: Row(
+              children: [
+                Text(
+                  "Status",
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+                ),
+                const Spacer(),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: tone,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  account.status,
+                  style: AppTheme.labelLarge.copyWith(color: tone),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          const Text("Broadcast Invoice:", style: AppTheme.labelLarge),
-          const SizedBox(height: AppTheme.spacingMd),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildShareIcon(Icons.message, "WhatsApp"),
-              _buildShareIcon(Icons.email, "Gmail"),
-              _buildShareIcon(Icons.chat, "Messenger"),
-              _buildShareIcon(Icons.more_horiz, "More"),
+              Expanded(
+                child: SecondaryButton(
+                  label: "Copy Zentag",
+                  onPressed: () => _copy(account.zentag, "Zentag"),
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacingMd),
+              Expanded(
+                child: SecondaryButton(
+                  label: "Copy account ID",
+                  onPressed: () => _copy(account.accountId, "Account ID"),
+                ),
+              ),
             ],
           ),
         ],
@@ -519,48 +586,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildShareIcon(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppTheme.spacingMd),
-          decoration: BoxDecoration(
-            color: AppTheme.gray100,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          ),
-          child: Icon(icon, color: AppTheme.gray700, size: 24),
-        ),
-        const SizedBox(height: AppTheme.spacingXs),
-        Text(
-          label,
-          style: AppTheme.labelSmall.copyWith(color: AppTheme.gray500),
-        ),
-      ],
-    );
+  void _copy(String value, String label) {
+    if (value.trim().isEmpty) {
+      ZentraNotifier.warning(
+        "Nothing to copy",
+        "Account details are still loading - please try again.",
+      );
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: value));
+    ZentraNotifier.success("Copied", "$label copied to clipboard.");
   }
 
   Widget _buildWalletCarousel(List<Map<String, dynamic>> accounts) {
     if (accounts.isEmpty) {
-      return Container(
+      return AppCard(
         padding: const EdgeInsets.all(AppTheme.spacingLg),
-        decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-          boxShadow: AppTheme.elevatedShadow,
-        ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.account_balance_wallet_outlined,
-              color: AppTheme.primaryWhite,
+              color: AppTheme.textBlack,
             ),
             const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: Text(
-                "No wallet yet — create one from the Wallets tab to get started.",
-                style: AppTheme.bodyMedium.copyWith(
-                  color: AppTheme.primaryWhite,
-                ),
+                "No wallet yet - create one from the Wallets tab to get started.",
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
               ),
             ),
           ],
@@ -569,124 +621,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final currentWallet = accounts[accountIndex];
+    final multiple = accounts.length > 1;
 
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: BoxDecoration(
-        gradient: AppTheme.primaryGradient,
-        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        boxShadow: AppTheme.elevatedShadow,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                currentWallet['type'] ?? '',
-                style: AppTheme.headlineSmall.copyWith(
-                  color: AppTheme.primaryWhite,
+              Expanded(
+                child: Text(
+                  currentWallet['type'] ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.labelLarge,
                 ),
               ),
-              const Icon(
-                Icons.account_balance_wallet,
-                color: AppTheme.primaryWhite,
-              ),
+              if (currentWallet['isDefault'] == true)
+                Text(
+                  "Default",
+                  style: AppTheme.labelSmall.copyWith(color: AppTheme.brand),
+                ),
+              const SizedBox(width: AppTheme.spacingSm),
+              Icon(Icons.account_balance_wallet, color: AppTheme.textBlack),
             ],
           ),
           const SizedBox(height: AppTheme.spacingXs),
           Text(
             "Ledger ID: ${currentWallet['ledgerId']}",
-            style: AppTheme.bodySmall.copyWith(color: Colors.white70),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
+          Divider(height: AppTheme.spacingXl, color: AppTheme.gray100),
           Text(
-            "Available Liquidity",
-            style: AppTheme.bodyMedium.copyWith(color: Colors.white70),
+            "Available balance",
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
-          const SizedBox(height: AppTheme.spacingSm),
+          const SizedBox(height: AppTheme.spacingXs),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                isBalanceVisible
-                    ? "${currentWallet['currency'] ?? ''} ${currentWallet['balance'] ?? ''}"
-                    : "••••••••",
-                style: AppTheme.displaySmall.copyWith(
-                  color: AppTheme.primaryWhite,
+              Expanded(
+                child: Text(
+                  isBalanceVisible
+                      ? "${currentWallet['currency'] ?? ''} ${currentWallet['balance'] ?? ''}"
+                      : "••••••••",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTheme.displaySmall,
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  setState(() {
-                    isBalanceVisible = !isBalanceVisible;
-                  });
-                },
+                onPressed: () =>
+                    setState(() => isBalanceVisible = !isBalanceVisible),
                 icon: Icon(
                   isBalanceVisible ? Icons.visibility : Icons.visibility_off,
-                  color: AppTheme.primaryWhite,
+                  color: AppTheme.textBlack,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: () {
-                  setState(() {
+          if (multiple) ...[
+            const SizedBox(height: AppTheme.spacingSm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: () => setState(() {
                     accountIndex =
                         (accountIndex - 1 + accounts.length) % accounts.length;
-                  });
-                },
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: AppTheme.primaryWhite,
+                  }),
+                  icon: Icon(Icons.arrow_back, color: AppTheme.textBlack),
                 ),
-              ),
-              Row(
-                children: List.generate(accounts.length, (index) {
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: index == accountIndex
-                          ? AppTheme.primaryWhite
-                          : AppTheme.primaryWhite.withValues(alpha: 0.4),
-                      shape: BoxShape.circle,
-                    ),
-                  );
-                }),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
+                Row(
+                  children: List.generate(accounts.length, (index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: index == accountIndex
+                            ? AppTheme.brand
+                            : AppTheme.gray300,
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }),
+                ),
+                IconButton(
+                  onPressed: () => setState(() {
                     accountIndex = (accountIndex + 1) % accounts.length;
-                  });
-                },
-                icon: const Icon(
-                  Icons.arrow_forward,
-                  color: AppTheme.primaryWhite,
+                  }),
+                  icon: Icon(Icons.arrow_forward, color: AppTheme.textBlack),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildBankAccounts() {
-    final accounts = BankAccountsRepository.instance.data ?? [];
+    // `data` is a snapshot (primary + accounts); the settlement list wants
+    // every linked account.
+    final accounts = BankAccountsRepository.instance.accounts;
     return AppCard(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Linked Settlement Accounts", style: AppTheme.labelLarge),
+          Text("Linked Settlement Accounts", style: AppTheme.labelLarge),
           const SizedBox(height: AppTheme.spacingMd),
           if (accounts.isEmpty)
             Padding(
@@ -720,7 +766,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(account.bankName, style: AppTheme.headlineSmall),
               Text(
-                _formatDate(account.createdAt),
+                _formatDate(account.linkedAt),
                 style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
               ),
             ],
@@ -748,7 +794,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 icon: Icon(
                   isBalanceVisible ? Icons.visibility : Icons.visibility_off,
-                  color: AppTheme.gray700,
+                  color: AppTheme.textBlack,
                 ),
               ),
             ],

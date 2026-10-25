@@ -27,12 +27,12 @@ class SaveNowButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(200),
                   color: AppColors.primary.withAlpha(70),
                 ),
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.all(6.0),
                   child: Icon(
                     Icons.arrow_downward,
                     size: 22,
-                    color: AppColors.primary,
+                    color: AppTheme.textBlack,
                   ),
                 ),
               ),

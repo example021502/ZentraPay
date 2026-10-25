@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_card.dart';
 
@@ -8,8 +8,10 @@ class LearnEarnCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Only the first 4 render inline; the rest live behind the "See more"
+    // link on the section header.
     final tutorials = TutorialsRepository.instance.data?.tutorials
-        .take(5)
+        .take(4)
         .toList();
     if (tutorials == null) {
       if (TutorialsRepository.instance.isLoading) {

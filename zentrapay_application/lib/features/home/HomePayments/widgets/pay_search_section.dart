@@ -12,6 +12,8 @@ class PaySearchSection extends StatelessWidget {
   final ValueChanged<SearchAppUser> onSelectUser;
   final ValueChanged<SearchBillProvider> onSelectBillProvider;
   final ValueChanged<Banks> onSelectBank;
+  final ValueChanged<MobileMoneyProvider> onSelectMobileMoney;
+  final String hintText;
 
   const PaySearchSection({
     super.key,
@@ -22,12 +24,15 @@ class PaySearchSection extends StatelessWidget {
     required this.onSelectUser,
     required this.onSelectBillProvider,
     required this.onSelectBank,
+    required this.onSelectMobileMoney,
+    this.hintText = "Search people, banks, mobile money...",
   });
 
   bool get _hasSearchResults =>
       searchResult.appUsers.isNotEmpty ||
       searchResult.billProviders.isNotEmpty ||
-      searchResult.banks.isNotEmpty;
+      searchResult.banks.isNotEmpty ||
+      searchResult.mobileMoney.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +40,11 @@ class PaySearchSection extends StatelessWidget {
       children: [
         SearchBar(
           controller: controller,
-          hintText: "Search...",
+          hintText: hintText,
           hintStyle: WidgetStateProperty.all(
             TextStyle(color: AppTheme.gray500, fontSize: 14),
           ),
-          leading: const Icon(Icons.search, color: AppTheme.gray500),
+          leading: Icon(Icons.search, color: AppTheme.textBlack),
           trailing: [
             if (isSearching)
               const Padding(
@@ -101,9 +106,19 @@ class PaySearchSection extends StatelessWidget {
                         ...searchResult.banks.map(
                           (b) => SearchResultTile(
                             title: b.bankName,
-                            subtitle: "${b.bankCode} · Coming soon",
+                            subtitle: "Bank · ${b.countryCode}",
                             dimmed: false,
+                            icon: Icons.account_balance_outlined,
                             onTap: () => onSelectBank(b),
+                          ),
+                        ),
+                        ...searchResult.mobileMoney.map(
+                          (m) => SearchResultTile(
+                            title: m.name,
+                            subtitle: "Mobile money · ${m.countryCode}",
+                            dimmed: false,
+                            icon: Icons.phone_android_outlined,
+                            onTap: () => onSelectMobileMoney(m),
                           ),
                         ),
                       ],

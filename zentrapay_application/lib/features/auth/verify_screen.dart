@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/utils/Common/AppSetPinSheet.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/Common/app_set_pin_sheet.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/main.dart';
 
 class VerifyScreen extends StatelessWidget {
@@ -10,7 +10,7 @@ class VerifyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppTheme.headerPink,
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -23,7 +23,7 @@ class VerifyScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.fromLTRB(30, 40, 30, 50),
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: AppTheme.surface,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(AppTheme.radiusXxl),
                       ),
@@ -61,13 +61,13 @@ class VerifyScreen extends StatelessWidget {
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: AppTheme.secondaryNavy.withAlpha(20),
+                            color: AppTheme.buttonColor.withAlpha(20),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.mark_email_read_outlined,
                             size: 60,
-                            color: AppTheme.secondaryNavy,
+                            color: AppTheme.buttonColor,
                           ),
                         ),
                         const SizedBox(height: AppTheme.spacingXxl),
@@ -107,7 +107,8 @@ class VerifyScreen extends StatelessWidget {
         child: OutlinedButton(
           onPressed: () => Navigator.pop(context),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: AppColors.main),
+            backgroundColor: AppTheme.buttonColor,
+            side: BorderSide(color: AppTheme.buttonColor),
             minimumSize: const Size(0, 55),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
@@ -115,7 +116,7 @@ class VerifyScreen extends StatelessWidget {
           ),
           child: const Text(
             "Back",
-            style: TextStyle(color: AppColors.main, fontSize: 16),
+            style: TextStyle(color: Colors.white, fontSize: 16),
           ),
         ),
       ),
@@ -146,7 +147,7 @@ class VerifyScreen extends StatelessWidget {
             );
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.secondary,
+            backgroundColor: AppTheme.buttonColor,
             minimumSize: const Size(0, 55),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),

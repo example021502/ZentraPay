@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/main.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 
@@ -21,11 +21,7 @@ class SavingChallenges extends StatelessWidget {
               onPressed: () {
                 ZentraNotifier.success("New Challenge", "Not yet implemented");
               },
-              icon: const Icon(
-                Icons.add_circle,
-                color: AppTheme.secondaryNavy,
-                size: 40,
-              ),
+              icon: Icon(Icons.add_circle, color: AppTheme.textBlack, size: 40),
             ),
           ],
         ),
@@ -59,7 +55,7 @@ class SavingChallenges extends StatelessWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(15),
         boxShadow: AppTheme.cardShadow,
       ),

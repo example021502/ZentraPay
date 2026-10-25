@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/core/utils/session_reset.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/auth_text_field.dart';
 import 'package:zentrapay_application/main.dart';
 
-import '../../features/home/repository/cache_homeData.dart';
+import '../../features/home/repository/cache_home_data.dart';
 import '../../core/theme/app_theme.dart';
 import 'api_auth_services.dart';
 
@@ -20,6 +21,9 @@ class _LoginFormState extends State<LoginForm> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  String emailError = "";
+  String contactError = "";
+  String passwordError = "";
   bool useEmail = true;
   String contact = "";
   bool isLoading = false;
@@ -28,26 +32,6 @@ class _LoginFormState extends State<LoginForm> {
   late final double maxWidth = isTablet
       ? 400
       : MediaQuery.of(context).size.width;
-
-  void loginNowTemp() async {
-    Navigator.pushNamed(
-      context,
-      '/home',
-      arguments: {
-        'zentag': 'Testing',
-        'email': "Testing@gmail.com",
-        'fullName': "Testing testing",
-      },
-    );
-  }
-
-  // void loginNow() {
-  //   Navigator.pushNamed(
-  //     context,
-  //     '/home',
-  //     arguments: {'email': "email@gmail.com", 'fullName': "bypass name"},
-  //   );
-  // }
 
   void loginNow() async {
     debugPrint('LOGIN init');
@@ -90,15 +74,13 @@ class _LoginFormState extends State<LoginForm> {
     try {
       // Perform API request (this automatically executes Privy internal auth now)
       final res = await loginUser(form);
-      print("RES:: $res");
       // Check backend response success flag
       if (!res?['success'] || res?['data'] == null) {
         return ZentraNotifier.error(
           "Failed",
-          res?['message'] ?? "Unknown error occurred",
+          friendlyMessage(res?['message'], fallback: "Could not log you in."),
         );
       }
-      print("PASSED--=");
 
       // Handle successful authentication
       ZentraNotifier.success(
@@ -106,18 +88,23 @@ class _LoginFormState extends State<LoginForm> {
         res?["message"]! ?? "Login Successful.",
       );
 
-      // Extract user data from nested 'data' field
-      final userData = res?['data'];
-      final token = userData?['token'];
-      final email = userData?['email'];
-      final fullName = userData?['fullName'];
-      final zentag = userData?['zentag'];
+      // The backend returns {token, userId, email, firstName, lastName}.
+      // Keep the token AND the identity so every screen can greet the user
+      // without being handed route arguments.
+      final userData = Map<String, dynamic>.from(res?['data']);
+      final token = userData['token'];
 
+      // Drop whatever the previous user left behind before this session starts.
+      clearUserCaches();
       await SecureStorageService.saveToken(token);
+      await SecureStorageService.saveSession(userData);
       WalletsRepository.instance.ensureLoaded();
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
-      TransactionsRepository.instance.ensureLoaded();
+      // Fire-and-forget preload: a history failure must never block login
+      // navigation. ensureLoaded rethrows, so it needs an explicit swallow.
+      TransactionsRepository.instance.ensureLoaded().catchError((_) {});
+      CardsRepository.instance.ensureLoaded();
       Future.delayed(const Duration(seconds: 2), () {
         if (!mounted) return;
 
@@ -137,21 +124,20 @@ class _LoginFormState extends State<LoginForm> {
         //   );
         // }
 
-        // Pass user data as arguments
-        Navigator.pushNamed(
+        // Replace the whole stack with Home so back can never return to
+        // the login / onboarding screens.
+        Navigator.pushNamedAndRemoveUntil(
           context,
           '/home',
-          arguments: {'zentag': zentag, 'email': email, 'fullName': fullName},
+          (route) => false,
+          arguments: userData,
         );
       });
     } catch (e) {
       // Catch any network, parsing, or unexpected runtime errors to prevent permanent loading loops
       if (!mounted) return;
       debugPrint('LOGIN EXCEPTION: $e');
-      ZentraNotifier.error(
-        "Error",
-        "An unexpected error occurred: ${e.toString()}",
-      );
+      ZentraNotifier.error("Error", kGenericErrorMessage);
     } finally {
       setState(() {
         isLoading = false;
@@ -181,7 +167,7 @@ class _LoginFormState extends State<LoginForm> {
               style: TextStyle(
                 fontSize: isTablet ? 35 : 30,
                 fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
+                color: AppTheme.buttonColor,
                 letterSpacing: 0.5,
               ),
             ),
@@ -206,7 +192,7 @@ class _LoginFormState extends State<LoginForm> {
                   style: TextStyle(
                     fontSize: isTablet ? 35 : 30,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.secondary,
+                    color: AppTheme.buttonColor,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -230,7 +216,7 @@ class _LoginFormState extends State<LoginForm> {
                 "Login using:",
                 style: TextStyle(
                   fontSize: 13,
-                  color: AppColors.secondary,
+                  color: AppTheme.buttonColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -247,7 +233,7 @@ class _LoginFormState extends State<LoginForm> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary,
+                    color: AppTheme.buttonColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -269,15 +255,17 @@ class _LoginFormState extends State<LoginForm> {
                 isPassword: false,
                 controller: _emailController,
                 isLoading: isLoading,
+                errorText: emailError,
               )
             : IntlPhoneField(
                 enabled: !isLoading,
                 controller: _contactController,
                 decoration: InputDecoration(
                   counterText: '',
+                  errorText: contactError,
                   labelText: "Contact Number",
                   filled: true,
-                  fillColor: AppColors.primary,
+                  fillColor: AppTheme.surface,
                   labelStyle: TextStyle(
                     color: AppColors.textBlack.withAlpha(60),
                     fontSize: 13,
@@ -289,21 +277,28 @@ class _LoginFormState extends State<LoginForm> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: AppColors.secondary.withAlpha(80),
+                      color: AppTheme.buttonColor.withAlpha(80),
+                      width: 1.5,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryPink.withAlpha(80),
                       width: 1.5,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: AppColors.secondary,
+                      color: AppTheme.buttonColor,
                       width: 2,
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: AppColors.secondary.withAlpha(30),
+                      color: AppTheme.buttonColor.withAlpha(30),
                       width: 1.5,
                     ),
                   ),
@@ -321,6 +316,7 @@ class _LoginFormState extends State<LoginForm> {
           isPassword: true,
           controller: _passwordController,
           isLoading: isLoading,
+          errorText: passwordError,
         ),
 
         // Elegant login button with gradient
@@ -331,11 +327,11 @@ class _LoginFormState extends State<LoginForm> {
               width: maxWidth,
               height: 56,
               decoration: BoxDecoration(
-                color: AppColors.secondary,
+                color: AppTheme.buttonColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.secondary.withAlpha(40),
+                    color: AppTheme.buttonColor.withAlpha(40),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -385,7 +381,7 @@ class _LoginFormState extends State<LoginForm> {
                 "Sign Up",
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.secondary,
+                  color: AppTheme.buttonColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),

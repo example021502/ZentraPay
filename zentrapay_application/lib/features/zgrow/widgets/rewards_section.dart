@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
-import 'package:zentrapay_application/features/zgrow/repository/cache_zgrowData.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
+import 'package:zentrapay_application/features/zgrow/widgets/reward_tile.dart';
+import 'package:zentrapay_application/features/zgrow/widgets/rewards_all_screen.dart';
 
-/// "Rewards" header + summary, collapsed entirely until RewardsRepository
-/// actually has data.
+/// "Rewards" header + latest tiles. Only the first 4 render inline; a
+/// "See more" link (right of the heading) opens the full-list screen and only
+/// appears when MORE than 4 rewards exist.
 class RewardsSection extends StatelessWidget {
   const RewardsSection({super.key});
 
@@ -25,19 +28,19 @@ class RewardsSection extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Rewards", style: AppTheme.bodyMedium),
-                GestureDetector(
-                  onTap: () {
-                    showComingSoon(context, "More rewards");
-                  },
-                  child: Text(
-                    "See more",
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.primaryPink,
-                      fontWeight: FontWeight.w600,
+                Text("Rewards", style: AppTheme.bodyMedium),
+                if ((rewards?.rewards.length ?? 0) > 4)
+                  GestureDetector(
+                    onTap: () => RewardsAllScreen.show(context),
+                    child: Text(
+                      "See more",
+                      style: AppTheme.bodyMedium.copyWith(
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.brand,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -74,7 +77,7 @@ class RewardsSection extends StatelessWidget {
 
     // Check if the list of items is empty
     if (rewardItems.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text("No rewards yet.", style: AppTheme.labelSmall),
       );
@@ -82,83 +85,7 @@ class RewardsSection extends StatelessWidget {
 
     return Column(
       spacing: 15,
-      children: [
-        ...rewardItems.map((reward) {
-          final bool isPoints = reward.rewardType.toLowerCase() == "points";
-          final bool isCash = reward.rewardType.toLowerCase() == "cash";
-          final bool isBadge = reward.rewardType.toLowerCase() == "badge";
-          final bool isGiftCard =
-              reward.rewardType.toLowerCase() == "gift_card";
-          final IconData icon = isGiftCard
-              ? Icons.card_giftcard_outlined
-              : isPoints
-              ? Icons.stars_outlined
-              : isCash
-              ? Icons.attach_money_outlined
-              : isBadge
-              ? Icons.military_tech_outlined
-              : Icons.redeem_outlined;
-
-          return Material(
-            color: Colors.transparent,
-            child: ListTile(
-              contentPadding: EdgeInsets.symmetric(vertical: 5, horizontal: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              tileColor: AppTheme.secondaryNavy.withAlpha(20),
-              dense: true,
-              leading: Container(
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryNavy.withAlpha(20),
-                  borderRadius: BorderRadius.circular(200),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: AppTheme.textBlack,
-                    weight: 1.5,
-                  ),
-                ),
-              ),
-              title: Text(
-                reward.title,
-                style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                reward.description,
-                style: AppTheme.labelSmall.copyWith(
-                  color: AppTheme.textBlack.withAlpha(100),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "worth",
-                    style: AppTheme.labelSmall.copyWith(
-                      color: AppTheme.textBlack.withAlpha(100),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${reward.currencyCode} ${reward.worth}',
-                    style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.successGreen,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
+      children: [for (final reward in rewardItems) RewardTile(reward: reward)],
     );
   }
 }

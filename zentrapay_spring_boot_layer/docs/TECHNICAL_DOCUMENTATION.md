@@ -13,7 +13,7 @@ Project: `zentrapay_spring_boot_layer`
 | Security | Spring Security (stateless, JWT-based) |
 | JWT | `io.jsonwebtoken` (jjwt) 0.12.6, HMAC-SHA256 |
 | Validation | `spring-boot-starter-validation` (Jakarta Bean Validation, `@Valid`) |
-| Outbound HTTP (payment gateways) | `RestTemplate` (one shared bean; no WebClient anywhere) |
+| Outbound HTTP (payment gateways) | `RestClient` via `GatewayHttp` (timeouts in `HttpClientsConfig`); `RestTemplate` only for the directory sync and AfriqLink |
 | Boilerplate reduction | Lombok |
 | Build | Gradle (Kotlin DSL), Gradle wrapper |
 | Transport | HTTPS only — `server.ssl.enabled=true`, bundled `keystore.p12` |
@@ -181,7 +181,7 @@ All responses are wrapped in `ApiResponse<T>`: `{ "success": bool, "data": T | n
 ### `/api/transactions` — `TransactionsController`
 | Method | Path | Auth param | Notes |
 |---|---|---|---|
-| GET | `/?page=0&size=20` | `Authentication` | paginated, backed by `TransactionModel` (also written by `PaymentsServices`) |
+| GET | `/?page=0&size=20` | `Authentication` | paginated, backed by `TransactionModel` (also written by `PaymentServices`) |
 | GET | `/{transactionId}` | `Authentication` | ownership-checked |
 
 ### `/api/currencyBalances` — `WalletBalancesController`
@@ -208,29 +208,18 @@ All responses are wrapped in `ApiResponse<T>`: `{ "success": bool, "data": T | n
 
 ## 4. Payment gateway architecture
 
-`modules/payments/gateway/PaymentGatewayFactory` decides which external gateway
-handles a disbursement and applies automatic failover:
+Replaced. The current design (routing, customers and recipients per gateway, the debit-then-call-then-refund
+flow, webhooks, reconciliation) is described in **`PAYMENTS_AND_GATEWAYS.md`**. In short:
 
-| Transaction type | Currency | Primary gateway | Failover gateway |
-|---|---|---|---|
-| International (`isInternational=true`) | any | **Onafriq** | **Flutterwave** |
-| National, Ghana | `GHS` | **Paystack** | **Flutterwave** |
-| National, other | any other | **Paystack** | **Flutterwave** |
+| Corridor | Primary | Failover |
+|---|---|---|
+| National | Paystack | Flutterwave |
+| Cross-border | Onafriq | Flutterwave |
 
-- All three gateways (`PaystackGatewayService`/`PaystackService`,
-  `OnafriqGatewayService`, `FlutterwaveGatewayService`) implement
-  `PaymentGatewayService` and make real `RestTemplate` HTTP calls (not mocks).
-- The factory checks `gateway.isOperational()` and `gateway.supportsCurrency(...)`
-  before attempting each gateway in the chain, and catches exceptions to move to the
-  next one. If every gateway in the chain fails, the caller's wallet is re-credited
-  and the whole disbursement fails.
-- `PaymentsServices.makeDisbursement()` wraps debit → gateway call → transaction
-  save in a single `@Transactional` boundary: if the gateway call throws, the sender
-  is re-credited before the exception propagates, so wallet balance and transaction
-  history never desync.
-- Internal wallet-to-wallet transfers (`PaymentsServices.makePaymentToAppUser`)
-  never touch an external gateway — they're pure debit/credit against
-  `UserWalletsRepository`.
+* Gateway calls: `service/gateway/{Paystack,Flutterwave,Onafriq}Services` through `GatewayHttp`.
+* Routing, customers, recipients: `GatewayServices`. Bank payouts with failover: `BankTransferServices`.
+* Every balance change: `LedgerOperations` (one database transaction per change).
+* Wallet-to-wallet payments never touch a gateway.
 
 ## 5. Error handling
 
@@ -301,7 +290,7 @@ this step hasn't been run yet — do it once, locally, before first boot.
   security config, all controllers/services, and the JPA layer against a real
   Postgres instance).
 - There is currently no dedicated unit/integration test suite beyond the
-  context-load smoke test — new business logic (especially in `PaymentsServices`
+  context-load smoke test — new business logic (especially in `PaymentServices`
   and the gateway factory) is a good candidate for adding real unit tests going
   forward.
 

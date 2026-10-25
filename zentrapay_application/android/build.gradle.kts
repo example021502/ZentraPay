@@ -26,6 +26,15 @@ subprojects {
 // which all require compileSdk 36+ — every subproject needs to compile against
 // the same SDK level the app now does (see :app's compileSdk in its own
 // build.gradle.kts) or AGP's AAR-metadata check fails the build.
+//
+// AGP 9.0 removed the old DSL types (com.android.build.gradle.BaseExtension and
+// friends) and exposes only com.android.build.api.dsl.* now. Casting to
+// BaseExtension fails under AGP 9 with:
+//   ClassCastException: ApplicationExtensionImpl$AgpDecorated_Decorated
+//   cannot be cast to com.android.build.gradle.BaseExtension
+// so resolve the extension through the new CommonExtension interface and assign
+// the `compileSdk` property instead of calling the removed compileSdkVersion().
+//
 // NOTE: The evaluationDependsOn(":app") block below forces :app to be evaluated
 // eagerly. Registering an afterEvaluate hook on an already-evaluated project
 // throws under Gradle 9+ ("Cannot run Project.afterEvaluate(Action) when the
@@ -35,10 +44,9 @@ subprojects {
 subprojects {
     if (!state.executed) {
         afterEvaluate {
-            if (project.hasProperty("android")) {
-                val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-                android?.compileSdkVersion(36)
-            }
+            val androidExtension =
+                project.extensions.findByType(com.android.build.api.dsl.CommonExtension::class.java)
+            androidExtension?.compileSdk = 36
         }
     }
 }

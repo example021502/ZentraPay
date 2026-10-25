@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/features/home/repository/cache_homeData.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/AppConfirmSheet.dart';
-import 'package:zentrapay_application/core/utils/Notifier.dart';
+import 'package:zentrapay_application/core/utils/Common/app_confirm_sheet.dart';
+import 'package:zentrapay_application/core/utils/Common/provider_display.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -39,9 +40,9 @@ class ProviderPickerSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (context) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.85,
@@ -134,9 +135,9 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
       builder: (sheetContext) {
         return Padding(
@@ -362,10 +363,13 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
         final name = (provider[widget.nameKey] ?? 'N/A').toString();
         final logoUrl = (provider['logoUrl'] ?? '').toString();
         final category = (provider['category'] ?? '').toString();
+        // Same visual priority as the home services grid: logo -> country
+        // flag -> category icon (ProviderDisplay.dart).
+        final flag = countryCodeToFlag(provider['countryCode']?.toString());
         return Container(
           margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
           decoration: BoxDecoration(
-            color: AppTheme.primaryWhite,
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             boxShadow: AppTheme.cardShadow,
           ),
@@ -374,11 +378,16 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
                 ? CircleAvatar(backgroundImage: NetworkImage(logoUrl))
                 : CircleAvatar(
                     backgroundColor: AppColors.main.withAlpha(25),
-                    child: Icon(Icons.storefront, color: AppColors.main),
+                    child: flag.isNotEmpty
+                        ? Text(flag, style: const TextStyle(fontSize: 20))
+                        : Icon(
+                            providerCategoryIcon(category),
+                            color: AppTheme.textBlack,
+                          ),
                   ),
             title: Text(name, style: AppTheme.titleLarge),
             subtitle: category.isNotEmpty ? Text(category) : null,
-            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+            trailing: Icon(Icons.chevron_right, color: AppTheme.textBlack),
             onTap: () => _showProviderDetails(provider),
           ),
         );

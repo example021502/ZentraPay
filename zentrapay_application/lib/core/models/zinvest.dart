@@ -48,8 +48,7 @@ class LiquidityProfile {
   factory LiquidityProfile.fromJson(Map<String, dynamic> json) =>
       LiquidityProfile(
         totalValue: (json['totalValue'] ?? '0').toString(),
-        totalGainLossPercent: (json['totalGainLossPercent'] ?? '0')
-            .toString(),
+        totalGainLossPercent: (json['totalGainLossPercent'] ?? '0').toString(),
         riskProfile: json['riskProfile'] ?? 'MODERATE',
       );
 }
@@ -82,14 +81,13 @@ class InvestmentRisk {
     required this.severity,
   });
 
-  factory InvestmentRisk.fromJson(Map<String, dynamic> json) =>
-      InvestmentRisk(
-        investmentId: json['investmentId'] ?? '',
-        name: json['name'] ?? '',
-        type: json['type'] ?? '',
-        message: json['message'] ?? '',
-        severity: json['severity'] ?? 'LOW',
-      );
+  factory InvestmentRisk.fromJson(Map<String, dynamic> json) => InvestmentRisk(
+    investmentId: json['investmentId'] ?? '',
+    name: json['name'] ?? '',
+    type: json['type'] ?? '',
+    message: json['message'] ?? '',
+    severity: json['severity'] ?? 'LOW',
+  );
 }
 
 class InvestmentAlert {

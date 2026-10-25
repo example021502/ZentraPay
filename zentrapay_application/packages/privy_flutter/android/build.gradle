@@ -1,0 +1,38 @@
+group = "io.privy.privyflutter"
+version = "1.0-SNAPSHOT"
+
+// Local copy of privy_flutter 0.10.1, patched for Flutter's Built-in Kotlin
+// migration: the original applied the Kotlin Gradle Plugin (kotlin-android)
+// itself, which makes Flutter warn that "future versions of Flutter will fail to
+// build". With AGP 9 Built-in Kotlin the library's Kotlin sources are compiled
+// by AGP, so the Kotlin plugin, its buildscript classpath and the Spotless
+// formatter (a developer-only tool) are dropped. Re-check upstream before
+// replacing this copy with a newer pub.dev release.
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: "com.android.library"
+
+android {
+    namespace = "io.privy.privyflutter"
+
+    compileSdk = 34
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdk = 28
+    }
+
+    dependencies {
+        implementation "io.privy:privy-core:0.12.1"
+    }
+}

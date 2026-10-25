@@ -53,9 +53,9 @@ class _InvestmentListState extends State<InvestmentList> {
       await widget.onSell(investment.investmentId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to sell: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to sell: $e")));
       }
     } finally {
       if (mounted) setState(() => _sellingId = null);

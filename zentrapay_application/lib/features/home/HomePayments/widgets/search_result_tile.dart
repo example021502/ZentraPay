@@ -6,6 +6,7 @@ class SearchResultTile extends StatelessWidget {
   final String subtitle;
   final bool dimmed;
   final VoidCallback onTap;
+  final IconData icon;
 
   const SearchResultTile({
     super.key,
@@ -13,6 +14,7 @@ class SearchResultTile extends StatelessWidget {
     required this.subtitle,
     required this.dimmed,
     required this.onTap,
+    this.icon = Icons.person,
   });
 
   @override
@@ -38,14 +40,8 @@ class SearchResultTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: AppTheme.secondaryNavy.withValues(
-                    alpha: 0.1,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 30,
-                    color: AppTheme.secondaryNavy,
-                  ),
+                  backgroundColor: AppTheme.brand.withValues(alpha: 0.1),
+                  child: Icon(icon, size: 30, color: AppTheme.textBlack),
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
                 Expanded(

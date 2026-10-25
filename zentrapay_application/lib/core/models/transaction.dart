@@ -1,59 +1,92 @@
 class AppTransaction {
   final String transactionId;
   final String receiverId;
+  final String txnRef;
+  final String destinationId;
+
+  /// Signed display amount straight from the backend — e.g. "-GHS 100.00"
+  /// (debit) or "+GHS 100.00" (credit). The leading sign is the single
+  /// source of truth for credit vs debit: it drives the green/red amount
+  /// colors, the call_received/call_made icons and "Send Again" visibility
+  /// (see [isCredit]/[isDebit]). The currency code is folded into the same
+  /// string (see [currencyCode]).
   final String amount;
-  final String createdAt;
-  final String? failureReason;
   final String status;
-  final String updatedAt;
-  final String transactionType;
   final String receiverName;
-  final String receiverEmail;
-  final String receiverPhoneNumber;
-  final String? purpose;
-  final String internalReferenceId;
-  final String entryId;
+  final String? receiverIdentifier;
+  final String completedAt;
+  final String transactionType;
 
   AppTransaction({
     required this.transactionId,
     required this.receiverId,
+    required this.txnRef,
+    required this.destinationId,
     required this.amount,
-    required this.createdAt,
     required this.status,
-    required this.internalReferenceId,
     required this.receiverName,
-    required this.receiverEmail,
-    required this.receiverPhoneNumber,
-    this.purpose,
-    this.failureReason,
-    required this.updatedAt,
+    required this.receiverIdentifier,
+    required this.completedAt,
     required this.transactionType,
-    required this.entryId,
   });
 
   factory AppTransaction.fromJson(Map<String, dynamic> json) {
+    // ?.toString() everywhere: UUID/timestamp values can arrive as non-String
+    // JSON types depending on the endpoint, and a hard cast used to throw a
+    // TypeError that aborted the whole history parse.
     return AppTransaction(
-      transactionId: (json['transactionId']?.toString()) ?? '',
-      receiverId: (json['receiverId']?.toString()) ?? '',
-      transactionType: (json['transactionType']?.toString()) ?? '',
+      transactionId: (json['transactionId']?.toString()) ?? 'Undefined',
+      receiverId: (json['receiverId']?.toString()) ?? 'Undefined',
+      // The ledger's unique, human-quotable reference is internalReferenceId;
+      // this model still exposes it under its legacy TXN_Ref name. Both
+      // producers (GET /api/history and POST /api/payments/initialize) send
+      // TXN_Ref; internalReferenceId is kept as a defensive fallback.
+      txnRef:
+          (json['TXN_Ref'] ?? json['internalReferenceId']?.toString()) ??
+          'Undefined',
+      destinationId: (json['destinationId']?.toString()) ?? 'Undefined',
       amount: (json['amount']?.toString()) ?? '',
       status: (json['status']?.toString()) ?? '',
-      internalReferenceId: (json['internalReferenceId']?.toString()) ?? '',
-      receiverName: (json['receiverName']?.toString()) ?? '',
-      receiverEmail: (json['receiverEmail']?.toString()) ?? '',
-      receiverPhoneNumber: (json['receiverPhoneNumber']?.toString()) ?? '',
-      purpose: json['purpose']?.toString(),
-      failureReason: json['failureReason']?.toString(),
-      updatedAt: (json['updatedAt']?.toString()) ?? '',
-      createdAt: (json['createdAt']?.toString()) ?? '',
-      entryId: (json['entryId']?.toString()) ?? '',
+      receiverName: (json['receiverName']?.toString()) ?? 'Undefined',
+      receiverIdentifier: (json['receiverIdentifier']?.toString()),
+      // completedAt for the payment response; the history endpoint's rows
+      // carry createdAt instead.
+      completedAt: (json['completedAt'] ?? json['createdAt'])?.toString() ?? '',
+      transactionType: (json['transactionType']?.toString()) ?? '',
     );
   }
 
-  @override
-  String toString() {
-    return 'AppTransaction(id: $transactionId, name: $receiverName, identifier: $receiverId)';
+  /// True for money coming IN — the backend signs credits "+".
+  bool get isCredit => amount.trim().startsWith('+');
+
+  /// True for money going OUT — the backend signs debits "-".
+  bool get isDebit => amount.trim().startsWith('-');
+
+  /// Currency code folded into the signed amount string ("-GHS 100.00" -> "GHS").
+  String get currencyCode {
+    final trimmed = amount.trim();
+    final body = (trimmed.startsWith('+') || trimmed.startsWith('-'))
+        ? trimmed.substring(1)
+        : trimmed;
+    final spaceIndex = body.indexOf(' ');
+    return spaceIndex > 0 ? body.substring(0, spaceIndex) : '';
   }
+
+  /// The amount without its credit/debit sign ("+GHS 100.00" -> "GHS 100.00")
+  /// for prose like "GHS 100.00 sent to Ama".
+  String get absoluteAmount => amount.trim().replaceFirst(RegExp(r'^[+-]'), '');
+
+  /// Terminal failure states the ledger can report — used to flip the
+  /// post-payment overlay from success to error even when the HTTP call
+  /// itself returned a response body.
+  bool get isFailedStatus =>
+      status.trim().toUpperCase() == 'FAILED' ||
+      status.trim().toUpperCase() == 'EXPIRED';
+
+  // @override
+  // String toString() {
+  //   return 'AppTransaction(id: $transactionId, txn_ref: $txnRef, name: $receiverName, identifier: $receiverPhoneNumber)';
+  // }
 }
 
 class TransactionPage {

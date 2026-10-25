@@ -37,7 +37,7 @@ class WalletCardTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.credit_card, color: Colors.white, size: 28),
+                Icon(Icons.credit_card, color: AppTheme.textBlack, size: 28),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppTheme.spacingSm,
