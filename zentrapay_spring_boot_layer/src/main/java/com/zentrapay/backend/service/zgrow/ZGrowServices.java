@@ -62,25 +62,26 @@ public class ZGrowServices {
         return rewardsRepository.findAll().stream()
                 .filter(r -> Boolean.TRUE.equals(r.getIsActive()))
                 .map(
-                r-> new RewardsDTO(
-                        r.getRewardId(),
-                        r.getRewardType(),
-                        r.getTitle(),
-                        r.getDescription(),
-                        r.getWorth(),
-                        r.getCurrencyCode(),
-                        r.getIsActive(),
-                        r.getCreatedAt(),
-                        r.getUpdatedAt()
-                                )
-        ).toList();
+                        r -> new RewardsDTO(
+                                r.getRewardId(),
+                                r.getRewardType(),
+                                r.getTitle(),
+                                r.getDescription(),
+                                r.getWorth(),
+                                r.getCurrencyCode(),
+                                r.getIsActive(),
+                                r.getCreatedAt(),
+                                r.getUpdatedAt()
+                        )
+                ).toList();
     }
+
     @Transactional(readOnly = true)
     public List<TutorialsDTO> listTutorials() {
         log.info("======== RESOLVING THE TUTORIALS =========");
 
         return tutorialsRepository.findAll().stream().map(
-                r-> new TutorialsDTO(
+                r -> new TutorialsDTO(
                         r.getId(),
                         r.getTitle(),
                         r.getType(),
@@ -92,7 +93,7 @@ public class ZGrowServices {
                         r.getCreatedAt(),
                         r.getUpdatedAt()
                 )
-                        ).toList();
+        ).toList();
     }
 
     // ========================================================================
@@ -114,7 +115,9 @@ public class ZGrowServices {
                 .toList();
     }
 
-    /** Active challenges filtered to one category, for the ZGrow category tabs. */
+    /**
+     * Active challenges filtered to one category, for the ZGrow category tabs.
+     */
     @Transactional(readOnly = true)
     public List<ChallengesResponseDTO> listActiveChallengesByCategory(Datatypes.ChallengeCategory category) {
         return challengesRepository.findByIsActiveTrueAndCategory(category).stream()
@@ -131,7 +134,9 @@ public class ZGrowServices {
         return toChallengeWithTargets(challenge);
     }
 
-    /** Challenge ids this user has declined — used to filter the catalog. */
+    /**
+     * Challenge ids this user has declined — used to filter the catalog.
+     */
     @Transactional(readOnly = true)
     public List<UUID> listDeclinedChallengeIds(UUID userId) {
         log.info("======== RESOLVING THE DECLINED CHALLENGES =========");
@@ -201,7 +206,9 @@ public class ZGrowServices {
         return toUserChallengeWithLogs(saved);
     }
 
-    /** Every challenge the user has enrolled in. */
+    /**
+     * Every challenge the user has enrolled in.
+     */
     @Transactional(readOnly = true)
     public List<UserChallengesResponseDTO> listMyChallenges(UUID userId) {
         return userChallengesRepository.findByUserId(userId).stream()
@@ -221,7 +228,7 @@ public class ZGrowServices {
     @Transactional(readOnly = true)
     public GamificationSettingsDTO getGamificationSettings(UUID userId) {
         boolean enabled = gamificationSettingsRepository.findById(userId)
-                .map(s -> Boolean.TRUE.equals(s.getChallengesEnabled()))
+                .map(UserGamificationSettingsModel::isChallengesEnabled)
                 .orElse(false);
         return new GamificationSettingsDTO(enabled);
     }
@@ -241,7 +248,7 @@ public class ZGrowServices {
                         .build());
         settings.setChallengesEnabled(Boolean.TRUE.equals(challengesEnabled));
         UserGamificationSettingsModel saved = gamificationSettingsRepository.save(settings);
-        return new GamificationSettingsDTO(Boolean.TRUE.equals(saved.getChallengesEnabled()));
+        return new GamificationSettingsDTO(saved.isChallengesEnabled());
     }
 
     /**
