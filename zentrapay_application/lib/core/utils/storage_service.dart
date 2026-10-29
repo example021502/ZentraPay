@@ -115,7 +115,9 @@ class SecureStorageService {
 
     final session = {
       'userId': pick('userId', 'sub'),
-      'email': pick('email', 'email'),
+      'phoneNumber': pick('phoneNumber', 'phoneNumber'),
+      'countryCode': pick('countryCode', 'countryCode'),
+      'userType': pick('userType', 'userType'),
       'firstName': pick('firstName', 'firstName'),
       'lastName': pick('lastName', 'lastName'),
     };

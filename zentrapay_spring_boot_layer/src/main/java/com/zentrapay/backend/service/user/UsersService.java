@@ -68,12 +68,12 @@ public class UsersService {
             throw new RuntimeException("Phone number already taken");
         }
 
-        if(req.termsConsent() == false){
+        if (req.termsConsent() == false) {
             throw new RuntimeException("Please accept the Terms of use to continue");
         }
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
-        // The country must be one the payment providers support AND that is switched on right now
+        // The country must be one of the payment providers support AND that is switched on right now
         GatewayCountryModel country = supportedRegionService.requireCountry(req.countryCode());
 
         System.out.println("Found country: " + country.getCountryCode());
@@ -100,14 +100,14 @@ public class UsersService {
             fiatWallet.setUserId(user.getUserId());
             fiatWallet.setCountryCode(country.getCountryCode());
             fiatWallet.setWalletName("Zentrapay_Wallet");
-           fiatWallet = fiatWalletRepository.save(fiatWallet);
+            fiatWallet = fiatWalletRepository.save(fiatWallet);
 //            CRYPTO WALLET CREATION
             CryptoWalletModel cryptoWallet = new CryptoWalletModel();
             cryptoWallet.setUserId(user.getUserId());
             cryptoWallet.setStatus("ACTIVE");
             cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
-           final String currencyCode = gatewayCurrenciesRepository
+            final String currencyCode = gatewayCurrenciesRepository
                     .getCurrencyCodesByCountryCode(user.getCountryCode()).stream()
                     .findFirst()
                     .orElse("GHS");
@@ -123,7 +123,7 @@ public class UsersService {
             cryptoAccount.setIsDefault(true);
             cryptoAccount.setStatus("ACTIVE");
             cryptoAccountRepository.save(cryptoAccount);
-        }else{
+        } else {
             throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");
         }
 
@@ -133,7 +133,7 @@ public class UsersService {
     }
 
     private static @NonNull FiatAccountModel getFiatAccount(RegisterRequestDTO req, String currencyCode, FiatWalletModel fiatWallet) {
-        final String zentag = req.phoneNumber() + "_" + currencyCode +"@zentrapay";
+        final String zentag = req.phoneNumber() + "_" + currencyCode + "@zentrapay";
         FiatAccountModel fiatAccount = new FiatAccountModel();
         fiatAccount.setWalletId(fiatWallet.getWalletId());
         fiatAccount.setAccountName("Default Account");
@@ -277,9 +277,9 @@ public class UsersService {
                 .orElse("");
     }
 
-//    GETTING USER INFROMATION
+    //    GETTING USER INFROMATION
     @Transactional(readOnly = true)
-public UserInformation getMe(@Valid UUID userId) {
+    public UserInformation getMe(@Valid UUID userId) {
         UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -339,8 +339,10 @@ public UserInformation getMe(@Valid UUID userId) {
         if (req.nationalityCountryCode() != null) profile.setNationalityCountryCode(req.nationalityCountryCode());
         if (req.identityDocumentType() != null) profile.setIdentityDocumentType(req.identityDocumentType());
         if (req.identityDocumentNumber() != null) profile.setIdentityDocumentNumber(req.identityDocumentNumber());
-        if (req.identityDocumentIssuingCountryCode() != null) profile.setIdentityDocumentIssuingCountryCode(req.identityDocumentIssuingCountryCode());
-        if (req.identityDocumentExpirationDate() != null) profile.setIdentityDocumentExpirationDate(req.identityDocumentExpirationDate());
+        if (req.identityDocumentIssuingCountryCode() != null)
+            profile.setIdentityDocumentIssuingCountryCode(req.identityDocumentIssuingCountryCode());
+        if (req.identityDocumentExpirationDate() != null)
+            profile.setIdentityDocumentExpirationDate(req.identityDocumentExpirationDate());
         if (req.addressLine1() != null) profile.setAddressLine1(req.addressLine1());
         if (req.addressLine2() != null) profile.setAddressLine2(req.addressLine2());
         if (req.cityName() != null) profile.setCityName(req.cityName());

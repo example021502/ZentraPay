@@ -13,133 +13,44 @@
 
 library;
 
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/features/wallet/models/responseEntities.dart';
 
 // ---------------------------------------------------------------------------
 // Endpoints — align these with your Spring Boot controller that hosts fundWallet
 // ---------------------------------------------------------------------------
-const String _kTopupInitiatePath = '/api/wallet/topup/initiate';
+const String _topupPaystackEndpoint = '/api/topup/paystack';
+const String _topupFlutterwaveEndpoint = '/api/topup/flutterwave';
 const String _kTopupVerifyPath = '/api/wallet/topup/verify/';
 
 // ---------------------------------------------------------------------------
-// Response models
+// Topup services
 // ---------------------------------------------------------------------------
-
-/// Backend response when a top-up is initiated.
-class TopupInitResponse {
-  /// Internal reference, e.g. `ZP_DEP_99201` (used for idempotency & verify).
-  final String reference;
-
-  /// Backend transaction status: PENDING / SUCCESS / FAILED.
-  final String status;
-
-  /// Human message from the backend.
-  final String message;
-
-  /// Payment method selected: `card` | `bank_transfer` | `mobile_money`.
-  final String? paymentMethod;
-
-  /// Card / checkout redirect URL (returned by the gateway initialize charge).
-  final String? authorizationUrl;
-
-  /// Paystack `access_code` used to launch the Paystack Flutter SDK charge UI.
-  final String? accessCode;
-
-  /// Bank-transfer details returned by the gateway (virtual account), if any.
-  final Map<String, dynamic>? virtualAccount;
-
-  /// Mobile-money prompt info returned by the gateway, if any.
-  final Map<String, dynamic>? mobileMoney;
-
-  /// Any extra gateway payload the backend chose to return.
-  final Map<String, dynamic>? gatewayData;
-
-  TopupInitResponse({
-    required this.reference,
-    required this.status,
-    this.message = '',
-    this.paymentMethod,
-    this.authorizationUrl,
-    this.accessCode,
-    this.virtualAccount,
-    this.mobileMoney,
-    this.gatewayData,
-  });
-
-  factory TopupInitResponse.fromJson(Map<String, dynamic> json) {
-    return TopupInitResponse(
-      reference: (json['reference'] ?? json['ref'] ?? '') as String,
-      status: (json['status'] ?? 'PENDING') as String,
-      message: (json['message'] ?? '') as String,
-      paymentMethod: json['paymentMethod'] as String?,
-      authorizationUrl: json['authorizationUrl'] as String?,
-      accessCode: json['accessCode'] as String?,
-      virtualAccount: json['virtualAccount'] != null
-          ? Map<String, dynamic>.from(json['virtualAccount'] as Map)
-          : null,
-      mobileMoney: json['mobileMoney'] != null
-          ? Map<String, dynamic>.from(json['mobileMoney'] as Map)
-          : null,
-      gatewayData: json['gatewayData'] != null
-          ? Map<String, dynamic>.from(json['gatewayData'] as Map)
-          : null,
-    );
-  }
-}
-
-/// Backend response when a top-up reference is verified.
-class TopupVerifyResponse {
-  final String reference;
-  final String status;
-  final num amount;
-  final String currency;
-  final String message;
-
-  TopupVerifyResponse({
-    required this.reference,
-    required this.status,
-    required this.amount,
-    required this.currency,
-    this.message = '',
-  });
-
-  bool get isSuccess =>
-      status.toUpperCase() == 'SUCCESS' ||
-      status.toUpperCase() == 'COMPLETED';
-
-  factory TopupVerifyResponse.fromJson(Map<String, dynamic> json) {
-    final rawAmount = json['amount'] ?? 0;
-    final parsed = rawAmount is num
-        ? rawAmount
-        : num.tryParse(rawAmount.toString()) ?? 0;
-    return TopupVerifyResponse(
-      reference: (json['reference'] ?? '') as String,
-      status: (json['status'] ?? 'PENDING') as String,
-      amount: parsed,
-      currency: (json['currency'] ?? 'GHS') as String,
-      message: (json['message'] ?? '') as String,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Service
-// ---------------------------------------------------------------------------
-
 class TopupService {
   TopupService._();
 
   static final Dio _dio = ApiClient().dio;
 
-  /// Paystack public key from `.env`. Falls back to the test key so the card
-  /// flow works in development. Switch to the live key in production.
+  // ===============================================
+  // PAYSTACK PUBLIC KEY
+  // ===============================================
   static String get paystackPublicKey {
-    return dotenv.get('PAYSTACK_PUBLIC_KEY',
-            fallback: dotenv.get('PAYSTACK_TEST_PK', fallback: '')) as String;
+    return dotenv.get(
+      'PAYSTACK_PUBLIC_KEY',
+      fallback: dotenv.get('PAYSTACK_TEST_PK', fallback: ''),
+    );
+  }
+
+  // =======================================
+  // FLUTTERWAVE PUBLICK KEY
+  // =======================================
+  static String get flutterwavePK {
+    return dotenv.get(
+      'FLUTTERWAVE_PUBLIC_KEY',
+      fallback: dotenv.get('FLUTTERWAVE_TEST_PK', fallback: ''),
+    );
   }
 
   /// Initiate a wallet top-up. Creates the `PENDING` transaction (via your
@@ -147,15 +58,18 @@ class TopupService {
   ///
   /// [amount] is in major currency units (e.g. `100` for 100 GHS). The backend
   /// converts to minor units for the gateway.
-  static Future<TopupInitResponse> initiate({
+  static Future<TopupResponse> topup({
     required double amount,
     required String currencyCode,
     required String source, // 'bank' | 'mobile_money'
     required String paymentMethod, // 'card' | 'bank_transfer' | 'mobile_money'
     String? phoneNumber,
+    required String gateway,
   }) async {
     final response = await _dio.post(
-      _kTopupInitiatePath,
+      gateway.toLowerCase() == "paystack"
+          ? _topupPaystackEndpoint
+          : _topupFlutterwaveEndpoint,
       data: {
         'amount': amount,
         'currencyCode': currencyCode,
@@ -165,7 +79,8 @@ class TopupService {
           'phoneNumber': phoneNumber,
       },
     );
-    return TopupInitResponse.fromJson(response.data as Map<String, dynamic>);
+    print("===== THE TOP UP REQUEST RESPONSE:: $response");
+    return TopupResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
   /// Verify a top-up reference server-side (re-confirms with the gateway and

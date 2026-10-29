@@ -51,13 +51,13 @@ class LoginScreen extends StatelessWidget {
                           width: maxWidth,
                           decoration: AppTheme.cardDecoration.copyWith(
                             borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(20),
+                              top: Radius.circular(30),
                             ),
                           ),
                           child: const Padding(
                             padding: EdgeInsets.symmetric(
                               horizontal: 15.0,
-                              vertical: 30.0,
+                              vertical: 20.0,
                             ),
                             child: Column(
                               children: [

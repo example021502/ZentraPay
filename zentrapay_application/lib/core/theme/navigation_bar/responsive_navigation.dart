@@ -288,9 +288,6 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     },
                   ),
                   _buildDrawerItem(
-                    // Index 4 is Settings in _pages/_tabTitles — the old
-                    // "Merchant" label + storefront icon were left over from
-                    // when Merchant was its own tab.
                     icon: Icons.settings_outlined,
                     label: "Settings",
                     isSelected: _selectedIndex == 4,
@@ -305,7 +302,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "ZVoice AI",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/zvoice');
+                      Navigator.pushReplacementNamed(context, '/zvoice');
                     },
                   ),
                   // "Secure" is folded into Settings now (tab index 4,
@@ -316,7 +313,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Profile",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/profile');
+                      Navigator.pushReplacementNamed(context, '/profile');
                     },
                   ),
                   _buildDrawerItem(
@@ -324,7 +321,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Settings",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (_) => const Settings()),
                       );
@@ -335,7 +332,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Converter",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/converter');
+                      Navigator.pushReplacementNamed(context, '/converter');
                     },
                   ),
                   _buildDrawerItem(
@@ -343,7 +340,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Milestones",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/milestones');
+                      Navigator.pushReplacementNamed(context, '/milestones');
                     },
                   ),
                   _buildDrawerItem(
@@ -351,7 +348,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "AI Assistant",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/ai_assistance');
+                      Navigator.pushReplacementNamed(context, '/ai_assistance');
                     },
                   ),
                   _buildDrawerItem(
@@ -359,7 +356,7 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Liquidity Hub",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/liquidity_hub');
+                      Navigator.pushReplacementNamed(context, '/liquidity_hub');
                     },
                   ),
                   _buildDrawerItem(
@@ -367,7 +364,10 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
                     label: "Fraud Detection",
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/fraud_detection');
+                      Navigator.pushReplacementNamed(
+                        context,
+                        '/fraud_detection',
+                      );
                     },
                   ),
                 ],
@@ -478,8 +478,10 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
         onTap: () async {
           Navigator.pop(context);
           bool isConfirm = await showCloseConfirmationDialog(context);
-          if (!mounted) return;
           if (isConfirm) {
+            await SecureStorageService.deleteToken();
+            await SecureStorageService.clearCustomer();
+            if (!mounted) return;
             Navigator.pushNamedAndRemoveUntil(
               context,
               "/login",

@@ -14,7 +14,7 @@ public record RegisterRequestDTO(
         @NotBlank(message = "Phone number is required") String phoneNumber,
         @NotBlank(message = "Country code is required") String countryCode,
         @NotBlank(message = "Password is required")
-        @Size(min = 8, message = "password has to be at least 6 characters long.")
+        @Size(min = 6, message = "password has to be at least 6 characters long.")
         String password,
         @NotBlank(message = "PIN is required") String pin
 ) {

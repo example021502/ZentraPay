@@ -181,7 +181,7 @@ class TabsContainerState extends State<TabsContainer>
           return Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              child: CircularProgressIndicator(color: AppTheme.brand),
+              child: CircularProgressIndicator(color: AppTheme.primaryWhite),
             ),
           );
         }

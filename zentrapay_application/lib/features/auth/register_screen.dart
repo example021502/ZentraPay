@@ -39,6 +39,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool hasFieldError = false;
 
   void register() async {
+    if (hasFieldError) {
+      setState(() {
+        hasFieldError = false;
+        firstNameError = '';
+        lastNameError = '';
+        emailError = '';
+        phoneNumberError = '';
+        passwordError = '';
+      });
+    }
+
     // Comment: Validate required input text fields
     if (_firstNameController.text.trim() == "" ||
         _lastNameController.text.trim() == "" ||
@@ -49,6 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "All fields are required",
       );
     }
+
     if (_firstNameController.text.trim() == "") {
       setState(() {
         firstNameError = "Firstname required!";
@@ -79,9 +91,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         hasFieldError = true;
       });
     }
-    if (_passwordController.text.trim().length < 8) {
+    if (_passwordController.text.trim().length < 6) {
       setState(() {
-        passwordError = "password too short!";
+        passwordError = "password too short! Atleast 6 characters!";
         hasFieldError = true;
       });
     }
@@ -245,13 +257,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Container(
                       decoration: BoxDecoration(
                         color: AppTheme.primaryWhite,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(30),
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(AppTheme.spacingMd),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15.0,
+                          vertical: 20.0,
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -450,7 +464,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppTheme.spacingMd),
+                            const SizedBox(height: AppTheme.spacingSm),
                             Material(
                               color: Colors.transparent,
                               child: GestureDetector(
@@ -489,7 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
