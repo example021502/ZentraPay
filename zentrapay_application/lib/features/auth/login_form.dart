@@ -157,7 +157,7 @@ class _LoginFormState extends State<LoginForm> {
   @override
   Widget build(BuildContext context) {
     return Column(
-      spacing: 20,
+      spacing: 15,
       children: [
         Column(
           children: [
@@ -249,74 +249,79 @@ class _LoginFormState extends State<LoginForm> {
             ],
           ),
         ),
-        useEmail
-            ? AuthTextField(
-                label: "Email Address",
-                isPassword: false,
-                controller: _emailController,
-                isLoading: isLoading,
-                errorText: emailError,
-              )
-            : IntlPhoneField(
-                enabled: !isLoading,
-                controller: _contactController,
-                decoration: InputDecoration(
-                  counterText: '',
-                  errorText: contactError,
-                  labelText: "Contact Number",
-                  filled: true,
-                  fillColor: AppTheme.surface,
-                  labelStyle: TextStyle(
-                    color: AppColors.textBlack.withAlpha(60),
-                    fontSize: 13,
-                  ),
-                  hintStyle: TextStyle(
-                    color: AppColors.textBlack.withAlpha(40),
-                    fontSize: 13,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.buttonColor.withAlpha(80),
-                      width: 1.5,
+        Column(
+          spacing: 10,
+          children: [
+            useEmail
+                ? AuthTextField(
+                    label: "Email Address",
+                    isPassword: false,
+                    controller: _emailController,
+                    isLoading: isLoading,
+                    errorText: emailError,
+                  )
+                : IntlPhoneField(
+                    enabled: !isLoading,
+                    controller: _contactController,
+                    decoration: InputDecoration(
+                      counterText: '',
+                      errorText: contactError,
+                      labelText: "Contact Number",
+                      filled: true,
+                      fillColor: AppTheme.surface,
+                      labelStyle: TextStyle(
+                        color: AppColors.textBlack.withAlpha(60),
+                        fontSize: 13,
+                      ),
+                      hintStyle: TextStyle(
+                        color: AppColors.textBlack.withAlpha(40),
+                        fontSize: 13,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.buttonColor.withAlpha(80),
+                          width: 1.5,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryPink.withAlpha(80),
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.buttonColor,
+                          width: 2,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.buttonColor.withAlpha(30),
+                          width: 1.5,
+                        ),
+                      ),
                     ),
+                    initialCountryCode: 'GH',
+                    onChanged: (phone) {
+                      setState(() {
+                        contact = phone.completeNumber;
+                      });
+                    },
                   ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.primaryPink.withAlpha(80),
-                      width: 1.5,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.buttonColor,
-                      width: 2,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.buttonColor.withAlpha(30),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-                initialCountryCode: 'GH',
-                onChanged: (phone) {
-                  setState(() {
-                    contact = phone.completeNumber;
-                  });
-                },
-              ),
 
-        AuthTextField(
-          label: "Password",
-          isPassword: true,
-          controller: _passwordController,
-          isLoading: isLoading,
-          errorText: passwordError,
+            AuthTextField(
+              label: "Password",
+              isPassword: true,
+              controller: _passwordController,
+              isLoading: isLoading,
+              errorText: passwordError,
+            ),
+          ],
         ),
 
         // Elegant login button with gradient

@@ -70,7 +70,7 @@ public class AfriqLinkClient {
             String firstName,
             String lastName) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("client_id", clientId);
+//        body.put("client_id", clientId);
         body.put("bank_code", bankCode);
         body.put("account_number", accountNumber);
         body.put("first_name", firstName);
@@ -86,8 +86,8 @@ public class AfriqLinkClient {
         if (response == null || !response.accepted()) {
             throw new PaymentGatewayException("AfriqLink linking request rejected: "
                     + (response == null || response.message() == null
-                            ? "unknown error"
-                            : response.message()));
+                    ? "unknown error"
+                    : response.message()));
         }
         return response;
     }

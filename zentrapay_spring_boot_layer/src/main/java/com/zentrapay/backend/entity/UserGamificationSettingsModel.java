@@ -1,10 +1,7 @@
 package com.zentrapay.backend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -19,8 +16,6 @@ import java.util.UUID;
 @Entity
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "user_gamification_settings")
 public class UserGamificationSettingsModel {
 
@@ -28,8 +23,9 @@ public class UserGamificationSettingsModel {
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
+    @Builder.Default
     @Column(name = "challenges_enabled", nullable = false)
-    private Boolean challengesEnabled = false;
+    private boolean challengesEnabled = false;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

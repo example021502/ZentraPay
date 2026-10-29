@@ -11,6 +11,7 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/loan_application_sheet.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/other_bank_accounts_strip.dart';
+import 'package:zentrapay_application/features/wallet/topup_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ZBankingScreen extends StatefulWidget {
@@ -395,6 +396,16 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 title: "Currency conversion",
                 subtitle: "Convert money at live rates",
                 onTap: () => Navigator.pushNamed(context, "/converter"),
+              ),
+              _optionDivider(),
+              _optionRow(
+                icon: Icons.add_circle_outlined,
+                title: "Top Up Wallet",
+                subtitle: "Add money from bank or mobile money",
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TopupScreen()),
+                ),
               ),
               _optionDivider(),
               _optionRow(

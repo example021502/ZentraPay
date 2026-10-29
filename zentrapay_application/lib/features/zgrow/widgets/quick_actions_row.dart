@@ -3,6 +3,7 @@ import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/features/payments/milestones_screen.dart';
 import 'package:zentrapay_application/features/zbanking/pay_loans_screen.dart';
+import 'package:zentrapay_application/features/wallet/topup_screen.dart';
 import 'package:zentrapay_application/features/zgrow/emergency/emergency_vault_screen.dart';
 
 /// Emergency Vault / Pay Loans / Save Goal / Z-Invest row. Z-Invest is switched
@@ -52,6 +53,13 @@ class QuickActionsRow extends StatelessWidget {
               "ZInvest is not available at the moment",
               icon: Icons.lock_clock_outlined,
             ),
+          ),
+        ),
+        Expanded(
+          child: QuickActionButton(
+            icon: Icons.add_circle_outline,
+            label: "Top Up",
+            onTap: () => _open(context, const TopupScreen()),
           ),
         ),
       ],

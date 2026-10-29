@@ -1,14 +1,18 @@
 package com.zentrapay.backend.service.payment;
 
+import com.zentrapay.backend.dto.payment.GatewayCheckoutResult;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
 import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
 import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
 import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
 import com.zentrapay.backend.entity.*;
+import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.fx.ExchangeRateService;
+import com.zentrapay.backend.service.gateway.FlutterwaveServices;
+import com.zentrapay.backend.service.gateway.PaystackServices;
 import com.zentrapay.backend.service.region.SupportedRegionService;
 import com.zentrapay.backend.service.transaction.TransactionsQueryService;
 import com.zentrapay.backend.service.user.PinService;
@@ -56,6 +60,8 @@ public class PaymentServices {
     private final TransactionsQueryService transactionsQueryService;
     private final PinService pinService;
     private final SupportedRegionService supportedRegionService;
+    private final PaystackServices paystackServices;
+    private final FlutterwaveServices flutterwaveServices;
     private final AccountVerificationService accountVerificationService;
 
     @Value("${zentrapay.limits.send.tier1}")
@@ -244,7 +250,85 @@ public class PaymentServices {
     // ==================================================================
 
     private TransactionTransactionDTO fundWallet(UserModel sender, TransactionRequest req) {
-//       ALL THE WALLET TOP UP LOGIC HERE
+        log.info("========== WALLET FUNDING START: sender={} ==========", sender.getUserId());
+
+        // ────── 1. VALIDATION ──────
+        TransactionRequest.TransferDetails transfer = req.transfer();
+        BigDecimal amount = money(transfer.amount());
+        String sourceCurrency = transfer.currencyCode().toUpperCase();
+
+        if (amount.signum() <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+
+        supportedRegionService.requireCurrency(sourceCurrency);
+
+        if (transfer.currencyType() != null && "crypto".equalsIgnoreCase(transfer.currencyType())) {
+            throw new IllegalArgumentException("Crypto currencies are not supported at the moment!");
+        }
+
+        // Resolve the sender user and basic account checks
+        UserModel senderUser = userRepository.findById(sender.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (senderUser.getStatus() != Datatypes.UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Your account is " + senderUser.getStatus() + " at the moment");
+        }
+
+        pinService.requireValid(sender, req.pin());
+        supportedRegionService.requireUserCountry(sender);
+
+        // ────── 2. PERSIST PENDING TRANSACTION ──────
+        // The user must have a wallet/account in the funding currency
+        FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(sender.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("No wallet found"));
+
+        FiatAccountModel account = fiatAccountRepository.findByWalletIdAndCurrencyCode(wallet.getWalletId(), sourceCurrency)
+                .orElseThrow(() -> new ResourceNotFoundException("No " + sourceCurrency + " account found"));
+
+        // Build a CASH_IN_CARD transaction draft and record it as PENDING
+        TransactionModel draft = new TransactionModel();
+        draft.setInternalReferenceId("FUND-" + UUID.randomUUID());
+        draft.setTransactionType(Datatypes.TransactionType.CASH_IN_CARD);
+        draft.setAmount(amount);
+        draft.setSourceCurrencyCode(sourceCurrency);
+        draft.setDestinationCurrencyCode(sourceCurrency);
+        draft.setDestinationAmount(amount);
+        draft.setPurpose("Wallet funding");
+        draft.setReceiverId(sender.getUserId());
+        draft.setReceiverName(senderUser.getFirstName() + " " + senderUser.getLastName());
+        draft.setReceiverEmail(senderUser.getEmail());
+        draft.setReceiverPhoneNumber(senderUser.getPhoneNumber());
+        draft.setDestinationIdentifier(account.getZentag());
+
+        TransactionModel txn = ledgerOperations.recordFundingAttempt(draft);
+        String reference = LedgerOperations.gatewayReference(txn);
+
+        // ────── 3. INITIATE GATEWAY CHECKOUT ──────
+        // Try Paystack first, then Flutterwave as failover
+        GatewayCheckoutResult checkout;
+        try {
+            checkout = paystackServices.initializeCheckout(
+                    senderUser.getEmail(),
+                    amount,
+                    sourceCurrency,
+                    reference
+            );
+        } catch (PaymentGatewayException paystackError) {
+            log.warn("Paystack checkout init failed, falling back to Flutterwave: {}", paystackError.getMessage());
+            checkout = flutterwaveServices.initializeCheckout(
+                    senderUser.getEmail(),
+                    senderUser.getFirstName() + " " + senderUser.getLastName(),
+                    senderUser.getPhoneNumber(),
+                    amount,
+                    sourceCurrency,
+                    reference
+            );
+        }
+
+        // ────── 4. RETURN TRANSACTION DTO ──────
+        // The transaction is now PENDING; webhook or reconciliation will update it to SUCCESS
+        return transactionsQueryService.toDto(txn, sender.getUserId());
     }
 
     // ==================================================================
@@ -302,7 +386,7 @@ public class PaymentServices {
     // ==================================================================
 
     /**
-     * Asks the providers who owns a bank account / mobile-money wallet in the same country as the sender.
+     * Asks the providers who own a bank account / mobile-money wallet in the same country as the sender.
      */
     public VerifiedAccountDTO verifyAccount(UUID userId, VerifyAccountRequestDTO req) {
         UserModel sender = userRepository.findById(userId)

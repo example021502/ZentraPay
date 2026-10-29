@@ -43,6 +43,9 @@ class AppTheme {
   static Color get cardBackground =>
       _pick(const Color(0xFFF8F9FA), darkSurface);
   static Color get dividerColor => _pick(const Color(0xFFE0E0E0), darkBorder);
+  static Color get focusFieldColor =>
+      _pick(AppTheme.secondaryNavy, AppTheme.primaryWhite);
+  static Color get fieldColor => _pick(AppTheme.gray300, AppTheme.primaryWhite);
 
   // Semantic colors
   static const Color errorRed = Color(0xFFD92D20);

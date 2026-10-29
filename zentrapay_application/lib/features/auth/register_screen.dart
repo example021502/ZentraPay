@@ -36,8 +36,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Map<String, dynamic> contactForm = {"phone_number": "", "country_code": ""};
 
   bool isLoading = false;
+  bool hasFieldError = false;
 
   void register() async {
+    if (hasFieldError) {
+      setState(() {
+        hasFieldError = false;
+        firstNameError = '';
+        lastNameError = '';
+        emailError = '';
+        phoneNumberError = '';
+        passwordError = '';
+      });
+    }
+
     // Comment: Validate required input text fields
     if (_firstNameController.text.trim() == "" ||
         _lastNameController.text.trim() == "" ||
@@ -48,54 +60,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "All fields are required",
       );
     }
+
     if (_firstNameController.text.trim() == "") {
       setState(() {
         firstNameError = "Firstname required!";
+        hasFieldError = true;
       });
     }
     if (_lastNameController.text.trim() == "") {
       setState(() {
         lastNameError = "Lastname required!";
+        hasFieldError = true;
       });
     }
     if (_emailController.text.trim() == "") {
       setState(() {
         emailError = "Email required!";
+        hasFieldError = true;
       });
     }
     if (!_emailController.text.trim().contains("@")) {
       setState(() {
         emailError = "Invalid Email!";
+        hasFieldError = true;
       });
     }
     if (_passwordController.text.trim() == "") {
       setState(() {
         passwordError = "Password required!";
+        hasFieldError = true;
       });
     }
-    if (_passwordController.text.trim().length < 8) {
+    if (_passwordController.text.trim().length < 6) {
       setState(() {
-        passwordError = "password too short!";
+        passwordError = "password too short! Atleast 6 characters!";
+        hasFieldError = true;
       });
     }
     if (contactForm['phone_number'].trim() == "") {
       setState(() {
         firstNameError = "phone number required!";
+        hasFieldError = true;
       });
     }
     if (contactForm['phone_number'].trim().length < 10) {
       setState(() {
         firstNameError = "Invalid phone number!";
+        hasFieldError = true;
       });
     }
 
     // Comment: Validate phone number format
     if (!_isPhoneValid) {
+      setState(() {
+        hasFieldError = true;
+      });
+      hasFieldError = true;
       return ZentraNotifier.error("Invalid value", "Invalid Phone number");
     }
 
     // Comment: Validate terms and conditions check status
     if (!termsConsent) {
+      setState(() {
+        hasFieldError = true;
+      });
       return ZentraNotifier.error(
         "Terms Required",
         "Please accept the Terms of Service and Privacy Policy",
@@ -111,8 +139,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (!isValidEmail(_emailController.text.trim())) {
+      setState(() {
+        hasFieldError = true;
+      });
       return ZentraNotifier.error("Invalid value", "Email is invalid");
     }
+    if (hasFieldError) return;
 
     // Comment: Request security PIN bottom sheet input if not already defined
     if (pin == "") {
@@ -216,30 +248,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
-            // Comment: Replacing IntrinsicHeight with ConstrainedBox prevents Chrome layout overflow calculations
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      constraints: BoxConstraints(maxWidth: maxWidth),
-                      decoration: AppTheme.cardDecoration.copyWith(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryWhite,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(30),
                         ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 15.0,
-                          vertical: 30.0,
+                          vertical: 20.0,
                         ),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Text.rich(
@@ -311,107 +339,95 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                             ),
-                            Column(
-                              children: [
-                                const SizedBox(height: AppTheme.spacingMd),
-                                AuthTextField(
-                                  label: "First Name",
-                                  isPassword: false,
-                                  controller: _firstNameController,
-                                  isLoading: isLoading,
-                                  errorText: firstNameError,
+                            const SizedBox(height: AppTheme.spacingMd),
+                            AuthTextField(
+                              label: "First Name",
+                              isPassword: false,
+                              controller: _firstNameController,
+                              isLoading: isLoading,
+                              errorText: firstNameError,
+                            ),
+                            AuthTextField(
+                              label: "Last Name",
+                              isPassword: false,
+                              controller: _lastNameController,
+                              isLoading: isLoading,
+                              errorText: lastNameError,
+                            ),
+                            AuthTextField(
+                              label: "Email Address",
+                              isPassword: false,
+                              controller: _emailController,
+                              isLoading: isLoading,
+                              errorText: emailError,
+                            ),
+                            IntlPhoneField(
+                              enabled: !isLoading,
+                              dropdownDecoration: const BoxDecoration(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(12),
                                 ),
-                                const SizedBox(height: 16),
-                                AuthTextField(
-                                  label: "Last Name",
-                                  isPassword: false,
-                                  controller: _lastNameController,
-                                  isLoading: isLoading,
-                                  errorText: lastNameError,
+                              ),
+                              decoration: InputDecoration(
+                                errorText: phoneNumberError,
+                                counterText: '',
+                                labelText: "Contact Number",
+                                filled: true,
+                                fillColor: AppColors.primary,
+                                labelStyle: TextStyle(
+                                  color: AppColors.textBlack.withAlpha(153),
+                                  fontSize: 13,
                                 ),
-                                const SizedBox(height: 16),
-                                AuthTextField(
-                                  label: "Email Address",
-                                  isPassword: false,
-                                  controller: _emailController,
-                                  isLoading: isLoading,
-                                  errorText: emailError,
+                                hintStyle: TextStyle(
+                                  color: AppColors.textBlack.withAlpha(102),
+                                  fontSize: 13,
                                 ),
-                                const SizedBox(height: 16),
-                                IntlPhoneField(
-                                  enabled: !isLoading,
-                                  dropdownDecoration: const BoxDecoration(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(12),
-                                    ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: AppColors.secondary.withAlpha(77),
+                                    width: 1.5,
                                   ),
-                                  decoration: InputDecoration(
-                                    errorText: phoneNumberError,
-                                    counterText: '',
-                                    labelText: "Contact Number",
-                                    filled: true,
-                                    fillColor: AppColors.primary,
-                                    labelStyle: TextStyle(
-                                      color: AppColors.textBlack.withAlpha(153),
-                                      fontSize: 13,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color: AppColors.textBlack.withAlpha(102),
-                                      fontSize: 13,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: AppColors.secondary.withAlpha(
-                                          77,
-                                        ),
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    errorBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: AppColors.main.withAlpha(77),
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: AppColors.secondary,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: AppColors.secondary.withAlpha(
-                                          77,
-                                        ),
-                                        width: 1.5,
-                                      ),
-                                    ),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: AppColors.main.withAlpha(77),
+                                    width: 1.5,
                                   ),
-                                  initialCountryCode: 'GH',
-                                  onChanged: (phone) {
-                                    setState(() {
-                                      contactForm['phone_number'] =
-                                          phone.completeNumber;
-                                      _isPhoneValid = phone.isValidNumber();
-                                      contactForm['country_code'] =
-                                          phone.countryISOCode;
-                                    });
-                                  },
                                 ),
-                                const SizedBox(height: 16),
-                                AuthTextField(
-                                  label: "Password",
-                                  isPassword: true,
-                                  controller: _passwordController,
-                                  isLoading: isLoading,
-                                  errorText: passwordError,
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: AppColors.secondary,
+                                    width: 2,
+                                  ),
                                 ),
-                              ],
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: AppColors.secondary.withAlpha(77),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                              initialCountryCode: 'GH',
+                              onChanged: (phone) {
+                                setState(() {
+                                  contactForm['phone_number'] =
+                                      phone.completeNumber;
+                                  _isPhoneValid = phone.isValidNumber();
+                                  contactForm['country_code'] =
+                                      phone.countryISOCode;
+                                });
+                              },
+                            ),
+                            AuthTextField(
+                              label: "Password",
+                              isPassword: true,
+                              controller: _passwordController,
+                              isLoading: isLoading,
+                              errorText: passwordError,
                             ),
                             const SizedBox(height: AppTheme.spacingMd),
                             Row(
@@ -448,7 +464,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: AppTheme.spacingMd),
+                            const SizedBox(height: AppTheme.spacingSm),
                             Material(
                               color: Colors.transparent,
                               child: GestureDetector(
@@ -487,7 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -522,8 +538,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
