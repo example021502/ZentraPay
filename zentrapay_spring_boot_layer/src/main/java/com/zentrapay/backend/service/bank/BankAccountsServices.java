@@ -72,8 +72,8 @@ public class BankAccountsServices {
      * with the per-link display fields (last digits, balance, label, primary).
      *
      * @return {@code primary} is the single primary account (or {@code null}
-     *         when the user has none yet); {@code accounts} holds every linked
-     *         account, primary first, so the strip renders a stable order.
+     * when the user has none yet); {@code accounts} holds every linked
+     * account, primary first, so the strip renders a stable order.
      */
     @Transactional(readOnly = true)
     public UserAccountsResponseDTO getUserAccounts(UUID userId) {
@@ -124,13 +124,11 @@ public class BankAccountsServices {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Target bank is not a valid bank id");
         }
-
-        final String accountNumber = request.accountNumber() == null
-                ? ""
-                : request.accountNumber().trim();
-        if (accountNumber.isEmpty()) {
-            throw new IllegalArgumentException("Target account number is required");
+        final String accountNumber = request.accountNumber().trim();
+        if (accountNumber.isBlank()) {
+            throw new IllegalArgumentException("Account number missing.");
         }
+
         // Keep only digits so spaces/dashes typed by the user are normalised.
         final String digits = accountNumber.replaceAll("[^0-9]", "");
         if (digits.length() < 4) {
@@ -139,7 +137,7 @@ public class BankAccountsServices {
         final String lastDigits = digits.substring(digits.length() - 4);
 
         UserModel user = userRepository.getUserByUserId(userId)
-                .orElseThrow(()-> new RuntimeException("Error:: User not found!"));
+                .orElseThrow(() -> new RuntimeException("Error:: User not found!"));
 
         final BanksModel bank = banksRepository.findById(bankId)
                 .orElseThrow(() -> new ResourceNotFoundException("Target bank not found"));
@@ -204,7 +202,9 @@ public class BankAccountsServices {
         return toUserAccount(saved, bank);
     }
 
-    /** Unlinks one of the user's banks. */
+    /**
+     * Unlinks one of the user's banks.
+     */
     @Transactional
     public void unlinkBank(UUID userId, UUID userBankId) {
         // Unlinks a bank; if it was the primary one, the oldest remaining link becomes primary
@@ -233,7 +233,9 @@ public class BankAccountsServices {
     }
     /* ------------------------------------------------------------- internals */
 
-    /** Maps a catalog row to the legacy accounts DTO. */
+    /**
+     * Maps a catalog row to the legacy accounts DTO.
+     */
     private static AccountsDTO toAccountsDTO(BanksModel b) {
         return new AccountsDTO(
                 b.getBankId(),
@@ -282,7 +284,9 @@ public class BankAccountsServices {
         return result;
     }
 
-    /** Maps a link row (+ its catalog bank, possibly {@code null}) to the DTO. */
+    /**
+     * Maps a link row (+ its catalog bank, possibly {@code null}) to the DTO.
+     */
     private static UserAccountsDTO toUserAccount(UserBankModel row, BanksModel bank) {
         return new UserAccountsDTO(
                 row.getUserBankId(),

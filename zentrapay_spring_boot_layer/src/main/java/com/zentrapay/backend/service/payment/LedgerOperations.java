@@ -54,9 +54,9 @@ public class LedgerOperations {
      * Debit, credit, transaction row, 2 ledger entries and 2 notifications are
      * all-or-nothing.
      *
-     * @param draft          the transaction with sender/receiver details filled in (not saved yet)
-     * @param sender         the account to debit (in {@code draft.amount}, source currency)
-     * @param receiver       the account to credit (in {@code draft.destinationAmount}, destination currency)
+     * @param draft    the transaction with sender/receiver details filled in (not saved yet)
+     * @param sender   the account to debit (in {@code draft.amount}, source currency)
+     * @param receiver the account to credit (in {@code draft.destinationAmount}, destination currency)
      */
     @Transactional
     public TransactionModel transferBetweenWallets(TransactionModel draft, FiatAccountModel sender, FiatAccountModel receiver) {
@@ -79,10 +79,10 @@ public class LedgerOperations {
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
         TransactionModel txn = transactionRepository.save(draft);
 
-        writeEntry(txn, entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
+        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
                 draft.getAmount(), draft.getSourceCurrencyCode(),
                 "Sent to " + draft.getReceiverName());
-        writeEntry(txn, entryId + "_CREDIT", receiver.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
+        writeEntry(txn.getTransactionId(), entryId + "_CREDIT", receiver.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
                 draft.getDestinationAmount(), draft.getDestinationCurrencyCode(),
                 "Received from " + draft.getSenderName());
 
@@ -114,18 +114,22 @@ public class LedgerOperations {
         TransactionModel txn = transactionRepository.save(draft);
         txn.setExternalReferenceId(gatewayReference(txn));
 
-        writeEntry(txn, entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
+        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
                 draft.getAmount(), draft.getSourceCurrencyCode(),
                 "Transfer to " + draft.getReceiverName());
         return txn;
     }
 
-    /** The reference we send to every gateway for this transaction (valid for Paystack: lowercase, 16+ chars). */
+    /**
+     * The reference we send to every gateway for this transaction (valid for Paystack: lowercase, 16+ chars).
+     */
     public static String gatewayReference(TransactionModel txn) {
         return "zp-" + txn.getTransactionId();
     }
 
-    /** Parses a gateway reference back into the transaction id, or null when it is not ours. */
+    /**
+     * Parses a gateway reference back into the transaction id, or null when it is not ours.
+     */
     public static UUID transactionIdFromReference(String reference) {
         if (reference == null || !reference.startsWith("zp-")) {
             return null;
@@ -155,7 +159,9 @@ public class LedgerOperations {
         return transactionRepository.save(txn);
     }
 
-    /** Records which gateway is handling the payout (used before the call, so reconciliation knows where to look). */
+    /**
+     * Records which gateway is handling the payout (used before the call, so reconciliation knows where to look).
+     */
     @Transactional
     public void assignGateway(UUID transactionId, UUID gatewayId) {
         TransactionModel txn = lock(transactionId);
@@ -163,7 +169,9 @@ public class LedgerOperations {
         transactionRepository.save(txn);
     }
 
-    /** The gateway confirmed delivery. Does nothing if the payment is already final. Returns true if it changed. */
+    /**
+     * The gateway confirmed delivery. Does nothing if the payment is already final. Returns true if it changed.
+     */
     @Transactional
     public boolean complete(UUID transactionId) {
         TransactionModel txn = lock(transactionId);
@@ -195,7 +203,7 @@ public class LedgerOperations {
 
         FiatAccountModel account = senderAccount(txn);
         credit(account.getAccountId(), txn.getAmount());
-        writeEntry(txn, txn.getEntryId() + "_REFUND", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
+        writeEntry(txn.getTransactionId(), txn.getEntryId() + "_REFUND", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
                 txn.getAmount(), txn.getSourceCurrencyCode(), "Refund: " + txn.getInternalReferenceId());
 
         txn.setStatus(settledThenReversed ? Datatypes.TransactionStatus.REVERSED : Datatypes.TransactionStatus.FAILED);
@@ -254,7 +262,7 @@ public class LedgerOperations {
 
         FiatAccountModel account = receiverAccount(txn);
         credit(account.getAccountId(), txn.getAmount());
-        writeEntry(txn, txn.getEntryId() + "_CREDIT", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
+        writeEntry(txn.getTransactionId(), txn.getEntryId() + "_CREDIT", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
                 txn.getAmount(), txn.getDestinationCurrencyCode(), "Wallet funding: " + txn.getInternalReferenceId());
 
         txn.setStatus(Datatypes.TransactionStatus.SUCCESS);
@@ -264,7 +272,9 @@ public class LedgerOperations {
         return true;
     }
 
-    /** The checkout failed or was abandoned: close it, nothing was credited. */
+    /**
+     * The checkout failed or was abandoned: close it, nothing was credited.
+     */
     @Transactional
     public boolean failFunding(UUID transactionId, String reason) {
         TransactionModel txn = lock(transactionId);
@@ -303,10 +313,10 @@ public class LedgerOperations {
     }
 
     // Writes one ledger line; the running balance is read AFTER the balance update in this same transaction
-    private void writeEntry(TransactionModel txn, String entryId, UUID accountId,
-                            Datatypes.LedgerEntryType type, BigDecimal amount, String currency, String narration) {
+    public void writeEntry(UUID txnId, String entryId, UUID accountId,
+                           Datatypes.LedgerEntryType type, BigDecimal amount, String currency, String narration) {
         LedgerEntryModel entry = new LedgerEntryModel();
-        entry.setTransactionId(txn.getTransactionId());
+        entry.setTransactionId(txnId);
         entry.setEntryId(entryId);
         entry.setAccountId(accountId);
         entry.setType(type);

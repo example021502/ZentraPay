@@ -1,15 +1,11 @@
 package com.zentrapay.backend.service.wallet;
 
+import com.zentrapay.backend.entity.*;
 import lombok.extern.slf4j.Slf4j;
-import com.zentrapay.backend.entity.CryptoAccountModel;
-import com.zentrapay.backend.entity.CryptoWalletModel;
-import com.zentrapay.backend.entity.FiatAccountModel;
-import com.zentrapay.backend.entity.FiatWalletModel;
-import com.zentrapay.backend.entity.GatewayCurrencyModel;
-import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.dto.wallet.*;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +79,22 @@ public class WalletsAccountsServices {
         final UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. User missing!"));
 
+        FiatAccountModel account = createAccount(req, wallet, user);
+        fiatAccountRepository.save(account);
+
+        return new FiatAccountDTO(
+                account.getAccountId(),
+                account.getAccountName(),
+                account.getCurrencyCode(),
+                account.getZentag(),
+                account.getBalance(),
+                account.isDefault(),
+                account.getStatus(),
+                account.getCreatedAt()
+        );
+    }
+
+    private static @NonNull FiatAccountModel createAccount(CreateFiatAccountRequest req, FiatWalletModel wallet, UserModel user) {
         FiatAccountModel account = new FiatAccountModel();
         account.setWalletId(wallet.getWalletId());
         account.setAccountName(req.accountName());
@@ -96,18 +108,7 @@ public class WalletsAccountsServices {
         account.setBalance(BigDecimal.ZERO);
         account.setDefault(false);
         account.setStatus("ACTIVE");
-        fiatAccountRepository.save(account);
-
-        return new FiatAccountDTO(
-                account.getAccountId(),
-                account.getAccountName(),
-                account.getCurrencyCode(),
-                account.getZentag(),
-                account.getBalance(),
-                account.isDefault(),
-                account.getStatus(),
-                account.getCreatedAt()
-                );
+        return account;
     }
 
     @Transactional(readOnly = true)

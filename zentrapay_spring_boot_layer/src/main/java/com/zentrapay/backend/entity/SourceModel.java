@@ -6,7 +6,6 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -16,7 +15,7 @@ import java.util.UUID;
 @Entity
 @Data
 @Table(name = "funding_sources")
-public class SourcesModel {
+public class SourceModel {
 
     // Primary Key mapped to reward_id UUID
     @Id

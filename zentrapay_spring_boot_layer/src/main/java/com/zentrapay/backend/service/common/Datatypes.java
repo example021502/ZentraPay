@@ -190,4 +190,20 @@ public class Datatypes {
         DEPOSIT
     }
 
+    public enum PaymentMethod {
+        BANK_TRANSFER("bank_transfer"),
+        MOBILE_MONEY_TRANSFER("mobile_money_transfer"),
+        CARD_TRANSFER("card_transfer");
+
+        private final String method;
+
+        PaymentMethod(String method) {
+            this.method = method;
+        }
+
+        public final String getMethod() {
+            return method;
+        }
+    }
+
 }

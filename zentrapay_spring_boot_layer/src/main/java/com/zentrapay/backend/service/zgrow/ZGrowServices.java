@@ -1,21 +1,8 @@
 package com.zentrapay.backend.service.zgrow;
 
-import com.zentrapay.backend.entity.ChallengesModel;
-import com.zentrapay.backend.entity.ChallengesProgressModel;
-import com.zentrapay.backend.entity.ChallengesTargetModel;
-import com.zentrapay.backend.entity.DeclinedChallengesModel;
-import com.zentrapay.backend.entity.UserChallengesModel;
-import com.zentrapay.backend.entity.UserGamificationSettingsModel;
-import com.zentrapay.backend.entity.UserSavingsModel;
-import com.zentrapay.backend.repository.ChallengesProgressRepository;
-import com.zentrapay.backend.repository.ChallengesRepository;
-import com.zentrapay.backend.repository.ChallengesTargetRepository;
-import com.zentrapay.backend.repository.DeclinedChallengesRepository;
-import com.zentrapay.backend.repository.RewardsRepository;
-import com.zentrapay.backend.repository.TutorialsRepository;
-import com.zentrapay.backend.repository.UserChallengesRepository;
-import com.zentrapay.backend.repository.UserGamificationSettingsRepository;
-import com.zentrapay.backend.repository.UserSavingsRepository;
+import com.zentrapay.backend.dto.wallet.SourceDTO;
+import com.zentrapay.backend.entity.*;
+import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.service.user.UsersService;
@@ -53,6 +40,7 @@ public class ZGrowServices {
     private final DeclinedChallengesRepository declinedChallengesRepository;
     private final UserGamificationSettingsRepository gamificationSettingsRepository;
     private final UserSavingsRepository userSavingsRepository;
+    private final SourceRepository sourceRepository;
 
     @Transactional(readOnly = true)
     public List<RewardsDTO> listRewards() {
@@ -405,4 +393,20 @@ public class ZGrowServices {
                         .toList();
         return ChallengeMapper.toUserChallengeResponseDTO(enrollment, logs);
     }
+
+    /**
+     * Getting all the funding sources
+     *
+     * @return
+     */
+
+    public List<SourceDTO> getSources() {
+        List<SourceModel> sources = sourceRepository.findAllActive(true);
+        return sources.stream().map(s -> new SourceDTO(
+                s.getSourceId(),
+                s.getName(),
+                s.getMethod()
+        )).toList();
+    }
+
 }

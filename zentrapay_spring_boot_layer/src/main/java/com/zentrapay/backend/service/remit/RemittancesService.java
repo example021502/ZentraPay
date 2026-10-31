@@ -208,7 +208,7 @@ public class RemittancesService {
             throw new IllegalArgumentException("Insufficient balance. Please top up your " + sourceCurrency + " account first");
         }
 
-        // 1. Ask the providers who owns the account - nothing is debited yet
+        // 1. Ask the providers who own the account - nothing is debited yet
         String accountNumber;
         String accountName;
         UUID destinationId;
