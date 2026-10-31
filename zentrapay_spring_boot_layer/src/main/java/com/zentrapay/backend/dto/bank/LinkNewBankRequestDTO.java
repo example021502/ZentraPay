@@ -9,7 +9,7 @@ import java.util.UUID;
  * link-a-bank sheet payload.
  */
 public record LinkNewBankRequestDTO(
-        @NotBlank(message = "Target bank is required") String bankId,
+        @NotBlank(message = "Bank id is required") String bankId,
         @NotBlank(message = "Target account number is required") String accountNumber,
         /** Account holder's first name, as it appears on the bank account. */
         @NotBlank(message = "First name is required") String firstName,

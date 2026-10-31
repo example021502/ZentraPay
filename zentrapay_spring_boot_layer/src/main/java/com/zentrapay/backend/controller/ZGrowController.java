@@ -1,5 +1,6 @@
 package com.zentrapay.backend.controller;
 
+import com.zentrapay.backend.dto.wallet.SourceDTO;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.dto.zgrow.*;
 import com.zentrapay.backend.service.zgrow.ZGrowServices;
@@ -53,7 +54,9 @@ public class ZGrowController {
     // CHALLENGES
     // ========================================================================
 
-    /** Active challenges; pass {@code ?category=SAVINGS} to filter by category. */
+    /**
+     * Active challenges; pass {@code ?category=SAVINGS} to filter by category.
+     */
     @GetMapping("/challenges")
     public ResponseEntity<ApiResponse<List<ChallengesResponseDTO>>> challenges(
             @CurrentUser AuthenticatedUser user,
@@ -77,7 +80,9 @@ public class ZGrowController {
                 "Gamification settings retrieved"));
     }
 
-    /** Records a toggle change; echoes the stored state for the client. */
+    /**
+     * Records a toggle change; echoes the stored state for the client.
+     */
     @PutMapping("/gamification")
     public ResponseEntity<ApiResponse<GamificationSettingsDTO>> updateGamification(
             @CurrentUser AuthenticatedUser user,
@@ -154,5 +159,11 @@ public class ZGrowController {
             @PathVariable UUID userChallengeId) {
         UserChallengesResponseDTO mine = zGrowServices.getMyChallenge(user.getUserId(), userChallengeId);
         return ResponseEntity.ok(ApiResponse.success(mine, "Challenge retrieved"));
+    }
+
+    @GetMapping("/sources")
+    public ResponseEntity<ApiResponse<List<SourceDTO>>> getSources() {
+        List<SourceDTO> sources = zGrowServices.getSources();
+        return ResponseEntity.ok(ApiResponse.success(sources, "Funding sources retrieved"));
     }
 }
