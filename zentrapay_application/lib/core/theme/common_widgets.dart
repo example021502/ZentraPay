@@ -648,11 +648,13 @@ class TransactionListItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: AppTheme.spacingXs),
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.symmetric(
+          vertical: AppTheme.radiusSm,
+          horizontal: AppTheme.radiusLg,
+        ),
         decoration: BoxDecoration(
           color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXxl),
           boxShadow: AppTheme.cardShadow,
         ),
         child: Row(

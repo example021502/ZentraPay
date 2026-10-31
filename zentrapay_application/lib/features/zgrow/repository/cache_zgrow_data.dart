@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:zentrapay_application/core/models/wallet.dart';
 import 'package:zentrapay_application/core/models/zgrow.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
@@ -573,6 +574,68 @@ class SavingsRepository extends ChangeNotifier {
 
   void clear() {
     _buckets = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+}
+
+class FundingSourcesRepository extends ChangeNotifier {
+  FundingSourcesRepository._();
+  static final FundingSourcesRepository instance = FundingSourcesRepository._();
+
+  FundingSources? _data;
+  bool _loading = false;
+  Object? _error;
+
+  FundingSources? get data => _data;
+  bool get isLoaded => _data != null;
+  bool get isLoading => _loading;
+  Object? get error => _error;
+
+  /// The actual network call.
+  Future<FundingSources> fetch() async {
+    final response = await _dio.get('/api/zgrow/sources');
+    print("SOURCES ARE:: ${response.data['data']}");
+    return FundingSources.fromJson(response.data['data']);
+  }
+
+  /// Loads the resource the first time it's needed; subsequent calls are a
+  /// no-op unless [forceRefresh] is set (pull-to-refresh, explicit retry).
+  Future<FundingSources?> ensureLoaded({bool forceRefresh = false}) async {
+    if (_data != null && !forceRefresh) return _data;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _data = await fetch();
+      return _data;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Applies a POST/PUT response onto the cached value without refetching.
+  void applyDelta(FundingSources Function(FundingSources current) updater) {
+    final current = _data;
+    if (current == null) return;
+    _data = updater(current);
+    notifyListeners();
+  }
+
+  /// Replaces the cached value outright.
+  void setData(FundingSources value) {
+    _data = value;
+    _error = null;
+    notifyListeners();
+  }
+
+  void clear() {
+    _data = null;
     _error = null;
     _loading = false;
     notifyListeners();

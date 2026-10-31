@@ -22,10 +22,6 @@ class SectionHeader extends StatelessWidget {
   /// Extra content under the title (stat chips, a tab strip, a hero card).
   final Widget? child;
 
-  /// Height of the white rounded edge painted along the header's bottom, so
-  /// the sheet below appears to slide up over the gradient.
-  final double bottomOverlap;
-
   /// Colour of the sheet that follows; match the screen body behind it.
   final Color? sheetColor;
 
@@ -38,7 +34,6 @@ class SectionHeader extends StatelessWidget {
     this.onBack,
     this.actions = const [],
     this.child,
-    this.bottomOverlap = 24,
     this.sheetColor,
   });
 
@@ -47,109 +42,82 @@ class SectionHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: AppTheme.headerPink,
-      child: ClipRect(
-        child: Stack(
-          children: [
-            // The sheet's rounded top edge, drawn over the header.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: bottomOverlap,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: sheetColor ?? AppTheme.surface,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(bottomOverlap),
-                  ),
-                ),
-              ),
-            ),
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppTheme.spacingMd,
-                  AppTheme.spacingSm,
-                  AppTheme.spacingMd,
-                  AppTheme.spacingMd + bottomOverlap,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppTheme.spacingMd,
+            AppTheme.spacingLg,
+            AppTheme.spacingMd,
+            AppTheme.spacingXxl,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showBack || actions.isNotEmpty)
+                Row(
                   children: [
-                    if (showBack || actions.isNotEmpty)
-                      Row(
-                        children: [
-                          if (showBack)
-                            SectionHeaderButton(
-                              icon: Icons.arrow_back_ios_new_rounded,
-                              onTap:
-                                  onBack ?? () => Navigator.maybePop(context),
-                            ),
-                          const Spacer(),
-                          ...actions.map(
-                            (a) => Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: a,
-                            ),
-                          ),
-                        ],
+                    if (showBack)
+                      SectionHeaderButton(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        onTap: onBack ?? () => Navigator.maybePop(context),
                       ),
-                    if (showBack || actions.isNotEmpty)
-                      const SizedBox(height: AppTheme.spacingSm),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.glassSurfaceStrong,
-                            borderRadius: BorderRadius.circular(
-                              AppTheme.radiusLg,
-                            ),
-                            border: Border.all(color: AppTheme.glassBorder),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: AppTheme.textBlack,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: AppTheme.spacingMd),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTheme.whiteHeadline.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              if (subtitle.isNotEmpty)
-                                Text(
-                                  subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTheme.whiteBodySmall.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    const Spacer(),
+                    ...actions.map(
+                      (a) => Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: a,
+                      ),
                     ),
-                    if (child != null) ...[
-                      const SizedBox(height: AppTheme.spacingMd),
-                      child!,
-                    ],
                   ],
                 ),
+              if (showBack || actions.isNotEmpty)
+                const SizedBox(height: AppTheme.spacingSm),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.glassSurfaceStrong,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      border: Border.all(color: AppTheme.glassBorder),
+                    ),
+                    child: Icon(icon, color: AppTheme.primaryWhite, size: 26),
+                  ),
+                  const SizedBox(width: AppTheme.spacingMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.headlineMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryWhite,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTheme.whiteBodySmall.copyWith(
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              if (child != null) ...[
+                const SizedBox(height: AppTheme.spacingMd),
+                child!,
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -230,7 +198,12 @@ class SectionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: color ?? AppTheme.surface,
+      decoration: BoxDecoration(
+        color: color ?? AppTheme.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusXxl),
+        ),
+      ),
       child: Padding(
         padding: padding.add(EdgeInsets.only(top: topPadding)),
         child: child,

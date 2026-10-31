@@ -59,7 +59,7 @@ class _ZGrowScreenState extends State<ZGrowScreen> {
       ),
       sheet: SectionSheet(
         color: AppTheme.gray50,
-        topPadding: 12,
+        topPadding: AppTheme.spacingLg,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [

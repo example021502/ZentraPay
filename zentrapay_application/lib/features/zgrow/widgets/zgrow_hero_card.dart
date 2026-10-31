@@ -24,35 +24,11 @@ class _ZGrowHeroCardState extends State<ZGrowHeroCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                "Your Overall Savings",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTheme.headlineSmall.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppTheme.spacingSm),
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(20),
-                borderRadius: BorderRadius.circular(200),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(10.0),
-                child: Icon(
-                  Icons.savings_outlined,
-                  color: AppTheme.textBlack,
-                  size: 20,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          "Your Overall Savings",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTheme.headlineSmall.copyWith(color: AppColors.primary),
         ),
         AppTheme.divider(context, AppColors.primary),
         Row(
@@ -73,7 +49,7 @@ class _ZGrowHeroCardState extends State<ZGrowHeroCard> {
               icon: Icon(
                 _amountVisible ? Icons.visibility_off : Icons.visibility,
                 size: 22,
-                color: AppTheme.textBlack,
+                color: AppTheme.primaryWhite,
               ),
               tooltip: _amountVisible ? "Hide amount" : "Show amount",
             ),
