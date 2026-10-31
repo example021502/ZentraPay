@@ -28,6 +28,7 @@ class HomeTransactions extends StatelessWidget {
         Text("Latest Activities", style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingMd),
         Column(
+          spacing: AppTheme.spacingMd,
           children: clippedHistory.map((item) {
             final title = item["title"] ?? "Transaction";
             // `time` is the raw backend timestamp string — always format it
@@ -85,7 +86,7 @@ class HomeTransactions extends StatelessWidget {
     // maps built without the full transaction record.
     final String status = transaction != null && transaction.status.isNotEmpty
         ? transaction.status
-        : "Completed";
+        : "Undefined";
     final String reference =
         transaction != null && transaction.txnRef.isNotEmpty
         ? transaction.txnRef

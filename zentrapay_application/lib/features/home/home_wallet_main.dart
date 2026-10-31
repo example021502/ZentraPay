@@ -131,7 +131,9 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                         // sign drives the icon and amount color downstream
                         // (TransactionListItem, AmountText).
                         'amount': t.amount,
-                        'icon': t.isCredit
+                        'icon': t.status.toLowerCase() == "failed"
+                            ? Icons.close_rounded
+                            : t.isCredit
                             ? Icons.call_received_rounded
                             : Icons.call_made_rounded,
                         'type': t.transactionType,

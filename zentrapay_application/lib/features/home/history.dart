@@ -135,6 +135,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
 
                     if (displayed.isEmpty) {
                       final err = repo.error;
+                      print("FAILED TO LOAD THE HISTORY:: $err");
                       return Container(
                         alignment: Alignment.center,
                         height: 100,
@@ -142,7 +143,7 @@ class _PaymentHistoryState extends State<PaymentHistory> {
                           // Distinguish "genuinely no transactions" from
                           // "the request/parse failed" — these looked identical.
                           err != null
-                              ? 'Could not load history.\n$err'
+                              ? 'Could not load history.'
                               : "No history found",
                           textAlign: TextAlign.center,
                           style: AppStyles.text.copyWith(

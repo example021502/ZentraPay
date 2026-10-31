@@ -116,6 +116,11 @@ class WalletsAccountsSnapshot {
     required this.cryptoAccounts,
   });
 
+  void clearWallets() {
+    fiatAccounts.clear();
+    cryptoAccounts.clear();
+  }
+
   // Comment: matches AccountsBalancesResponseDTO on the backend
   // ({fiatBalances, cryptoBalances}) — a user now has one wallet with many
   // currency accounts inside it, so this is a flat list of accounts, not a
@@ -203,4 +208,67 @@ class UserQRInfo {
     zentag: zentag ?? this.zentag,
     userType: userType ?? this.userType,
   );
+}
+
+class FundingSource {
+  String sourceId;
+  String name;
+  String method;
+
+  FundingSource({
+    required this.sourceId,
+    required this.name,
+    required this.method,
+  });
+
+  /// Factory constructor to parse a single JSON map into a SupportedCurrencies instance.
+  // Comment: backend's SupportedCurrencyDTO has no separate currencyId — the
+  // currency code doubles as the id — and its flag-country field is named
+  // "countryCode", not "countryIsoCode".
+  factory FundingSource.fromJson(Map<String, dynamic> json) => FundingSource(
+    sourceId: json['sourceId'] ?? '',
+    name: json['name'] ?? '',
+    method: json['method'] ?? 2,
+  );
+}
+
+// Comment: Corrected FundingSources model class with proper field declarations, state getters, and JSON parsing.
+class FundingSources {
+  // Comment: List of available funding sources
+  final List<FundingSource> sources;
+
+  // Comment: Private backing fields for state management
+  bool _isLoading;
+  Object? _error;
+
+  // Comment: Constructor for the FundingSources collection
+  FundingSources({required this.sources, bool isLoading = false, Object? error})
+    : _isLoading = isLoading,
+      _error = error;
+
+  // Comment: Getter for the source data list
+  List<FundingSource> get data => sources;
+
+  // Comment: Getter for any error object
+  Object? get error => _error;
+
+  // Comment: Getter for loading status flag
+  bool get isLoading => _isLoading;
+
+  // Comment: Getter checking if data is loaded and available
+  bool get isLoaded => sources.isNotEmpty;
+
+  // Comment: Factory constructor to safely parse a JSON list into a FundingSources instance
+  factory FundingSources.fromJson(List<dynamic> jsonList) {
+    return FundingSources(
+      sources: jsonList
+          .map((json) => FundingSource.fromJson(json as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  // Comment: Method to clear all sources from the list
+  void clearSources() {
+    sources.clear();
+  }
 }

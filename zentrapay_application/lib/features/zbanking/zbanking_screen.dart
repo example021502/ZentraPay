@@ -11,7 +11,7 @@ import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/loan_application_sheet.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/other_bank_accounts_strip.dart';
-import 'package:zentrapay_application/features/wallet/topup_screen.dart';
+import 'package:zentrapay_application/features/wallet_topup/topup_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
 class ZBankingScreen extends StatefulWidget {
