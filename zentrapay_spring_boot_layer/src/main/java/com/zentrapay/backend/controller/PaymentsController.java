@@ -1,7 +1,6 @@
 package com.zentrapay.backend.controller;
 
 import com.zentrapay.backend.dto.common.ApiResponse;
-import com.zentrapay.backend.dto.payment.BankTransferRequestDTO;
 import com.zentrapay.backend.dto.payment.CheckoutResponseDTO;
 import com.zentrapay.backend.dto.payment.GatewayCustomerDTO;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
@@ -29,12 +28,11 @@ import java.util.UUID;
  *
  * <pre>
  * POST /api/payments/initialize             send money (P2P wallet-to-wallet or to a bank account)
- * POST /api/payments/bank-transfer          simple bank transfer (same engine as initialize)
- * POST /api/payments/verify-account         ask the providers who owns a bank account / mobile-money wallet
+ * POST /api/payments/verify-account         ask the providers who own a bank account / mobile-money wallet
  * GET  /api/payments/paystack/access-code   start a wallet top-up checkout
  * POST /api/payments/paystack/customer      get/create my customer on Paystack
  * POST /api/payments/flutterwave/customer   get/create my customer on Flutterwave
- * GET  /api/payments/{accountId}/qr         QR code image for an account
+ * GET  /api/payments/{accountId}/QR code image for an account
  * </pre>
  * Webhooks live in their own controllers (Paystack / Flutterwave / Onafriq).
  */
@@ -55,30 +53,6 @@ public class PaymentsController {
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody TransactionRequest request) {
         TransactionTransactionDTO transaction = paymentServices.initialize(user.getUserId(), request);
-        return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
-    }
-
-    /**
-     * Simple bank-transfer shape (flat body). It is turned into the same request as
-     * /initialize, so it follows exactly the same rules. No TXN_Ref is sent here, so a
-     * fresh one is made; retries of this call are therefore NOT de-duplicated.
-     */
-    @PostMapping("/bank-transfer")
-    public ResponseEntity<ApiResponse<TransactionTransactionDTO>> bankTransfer(
-            @CurrentUser AuthenticatedUser user,
-            @Valid @RequestBody BankTransferRequestDTO request) {
-        TransactionRequest payment = new TransactionRequest(
-                request.pin(),
-                "ZPB-" + UUID.randomUUID(),
-                new TransactionRequest.TransferDetails(new BigDecimal(request.amount()), request.currencyCode(),
-                        "FIAT", request.description(), null, null),
-                null,
-                new TransactionRequest.BankDetails(null, null, request.channelCode(), request.accountNumber(),
-                        request.accountName(), user.getCountryCode()),
-                null,
-                Datatypes.TransactionType.CASH_OUT_BANK,
-                null);
-        TransactionTransactionDTO transaction = paymentServices.initialize(user.getUserId(), payment);
         return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
     }
 

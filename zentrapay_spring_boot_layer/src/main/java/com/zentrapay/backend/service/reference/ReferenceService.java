@@ -4,8 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.GatewayCountriesRepository;
-import com.zentrapay.backend.repository.GatewayCurrenciesRepository;
 import com.zentrapay.backend.repository.ProviderCategoryRepository;
+import com.zentrapay.backend.service.region.CurrencyCatalog;
+import com.zentrapay.backend.service.region.SupportedRegionService;
 import com.zentrapay.backend.dto.reference.BankDTO;
 import com.zentrapay.backend.dto.reference.CountryDTO;
 import com.zentrapay.backend.dto.reference.CurrencyDTO;
@@ -20,10 +21,10 @@ import java.util.List;
  * Read-only reference/lookup data — countries, currencies, provider categories.
  * All public, all "load once" client-side (see API_CONTRACT.md §2).
  *
- * <p>Countries/currencies are served from {@code gateway_countries} /
- * {@code gateway_currencies} — V9__gateway_directory_consolidation retired the
- * old world-reference {@code countries}/{@code currencies} tables, and those
- * directories are kept fresh by the scheduled GatewayDirectorySyncService.
+ * <p>Everything here comes from {@code gateway_countries} alone: the countries,
+ * and the currencies (each country's {@code default_currency}). There is no
+ * currencies table; the directory is kept fresh by the scheduled
+ * GatewayDirectorySyncService.
  */
 @Slf4j
 @Service
@@ -32,7 +33,7 @@ import java.util.List;
 public class ReferenceService {
 
     private final GatewayCountriesRepository gatewayCountriesRepository;
-    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
+    private final SupportedRegionService supportedRegionService;
     private final ProviderCategoryRepository providerCategoryRepository;
     private final BanksRepository banksRepository;
 
@@ -43,19 +44,21 @@ public class ReferenceService {
                         c.getIso3Code(),
                         c.getCountryName(),
                         c.getDialCode(),
-                        c.getCurrencyCode(),
+                        c.getDefaultCurrency(),
                         c.getRegion()))
                 .toList();
     }
 
+    // Currencies are the countries' default currencies - there is no separate currencies table
     public List<CurrencyDTO> getCurrencies() {
-        return gatewayCurrenciesRepository.findByActive(true).stream()
-                .map(c -> new CurrencyDTO(
-                        c.getCurrencyCode(),
-                        c.getCurrencyName(),
-                        c.getSymbol(),
-                        c.isCrypto(),
-                        c.getDecimalPlaces()))
+        return supportedRegionService.supportedCurrencyCodes().stream()
+                .map(code -> new CurrencyDTO(
+                        code,
+                        CurrencyCatalog.name(code),
+                        CurrencyCatalog.symbol(code),
+                        false,
+                        CurrencyCatalog.decimals(code),
+                        supportedRegionService.countriesUsing(code)))
                 .toList();
     }
 

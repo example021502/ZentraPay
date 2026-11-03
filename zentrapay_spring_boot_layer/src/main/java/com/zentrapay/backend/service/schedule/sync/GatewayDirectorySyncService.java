@@ -1,9 +1,7 @@
 package com.zentrapay.backend.service.schedule.sync;
 
 import com.zentrapay.backend.entity.GatewayCountryModel;
-import com.zentrapay.backend.entity.GatewayCurrencyModel;
 import com.zentrapay.backend.repository.GatewayCountriesRepository;
-import com.zentrapay.backend.repository.GatewayCurrenciesRepository;
 import com.zentrapay.backend.dto.schedules.FlutterwaveBankResponseDTO;
 import com.zentrapay.backend.dto.schedules.OnafriqBankResponseDTO;
 import com.zentrapay.backend.dto.schedules.PaystackBankResponseDTO;
@@ -20,23 +18,23 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 /**
- * Keeps {@code gateway_countries} / {@code gateway_currencies} — the canonical
- * "what can ZentraPay move money in" directory — populated from what the
- * connected gateways actually report as supported.
+ * Keeps {@code gateway_countries} - the one "where can ZentraPay move money" table - populated from what
+ * the connected gateways actually report as supported.
  * <p>
  * Strategy per configured country: ask Paystack ({@code /bank?country=XX}),
  * Flutterwave ({@code /banks/XX}) and Onafriq
  * ({@code /api/financial-institutions?country=XX}). A gateway answering with
- * data proves it supports that country; the currency codes carried by the
- * returned banks prove it supports those currencies. Results merge into
- * idempotent upserts so repeated runs simply refresh the rows.
+ * data proves it supports that country. Results merge into idempotent upserts so repeated runs simply
+ * refresh the rows.
+ * <p>
+ * Each country row carries its {@code default_currency}, which restricts payments. The sync only fills it
+ * in for a country it creates; a value that is already there (seeded, or edited by hand) is never overwritten.
+ * There is no currencies table.
  */
 @Service
 @Slf4j
@@ -46,7 +44,6 @@ public class GatewayDirectorySyncService {
     // Short timeouts: this runs at startup, a slow gateway must not hold the app back
     private final RestTemplate restTemplate = buildRestTemplate();
     private final GatewayCountriesRepository gatewayCountriesRepository;
-    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
 
     @Value("${paystack.base-url}")
     String paystackBaseUrl;
@@ -65,11 +62,9 @@ public class GatewayDirectorySyncService {
     @Value("${app.gateway.countries:GH,NG,KE,TZ,UG,RW,ZA,CI,SN,CM}")
     String configuredCountries;
 
-    // Static reference metadata: gateways prove *support*; this map supplies
-    // display names, dial codes and default currencies so the tables stay
-    // self-describing for the frontend pickers.
+    // Static reference metadata: gateways prove *support*; this map supplies display names, dial codes
+    // and the starting default currency for a country that is not in the table yet.
     private static final Map<String, CountryMeta> COUNTRY_META = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    private static final Map<String, CurrencyMeta> CURRENCY_META = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     static {
         register("GH", "Ghana", "GHA", "+233", "West Africa", "GHS");
@@ -82,19 +77,6 @@ public class GatewayDirectorySyncService {
         register("CI", "Ivory Coast", "CIV", "+225", "West Africa", "XOF");
         register("SN", "Senegal", "SEN", "+221", "West Africa", "XOF");
         register("CM", "Cameroon", "CMR", "+237", "Central Africa", "XAF");
-
-        currency("GHS", "Ghanaian Cedi", "GH\u20b5", 2, "GH");
-        currency("NGN", "Nigerian Naira", "\u20a6", 2, "NG");
-        currency("KES", "Kenyan Shilling", "KSh", 2, "KE");
-        currency("TZS", "Tanzanian Shilling", "TSh", 2, "TZ");
-        currency("UGX", "Ugandan Shilling", "USh", 0, "UG");
-        currency("RWF", "Rwandan Franc", "FRw", 0, "RW");
-        currency("ZAR", "South African Rand", "R", 2, "ZA");
-        currency("XOF", "West African CFA Franc", "CFA", 0, "");
-        currency("XAF", "Central African CFA Franc", "FCFA", 0, "");
-        currency("USD", "US Dollar", "$", 2, "");
-        currency("EUR", "Euro", "\u20ac", 2, "");
-        currency("GBP", "British Pound", "\u00a3", 2, "");
     }
 
     private static RestTemplate buildRestTemplate() {
@@ -108,15 +90,11 @@ public class GatewayDirectorySyncService {
         COUNTRY_META.put(code, new CountryMeta(name, iso3, dial, region, curr));
     }
 
-    private static void currency(String code, String name, String symbol, int decimals, String homeCountry) {
-        CURRENCY_META.put(code, new CurrencyMeta(name, symbol, decimals, homeCountry));
-    }
-
     /**
      * Entry point used by the scheduler: probes every configured country
-     * against all three gateways and rebuilds both directory tables.
+     * against all three gateways and refreshes the country rows.
      * Populated on every boot (cold-start seed, see Schedulers#onStartup) and again daily as part of
-     * Schedulers#syncProvidersDaily's unified run — no separate cron here, so this directory refreshes on
+     * Schedulers#syncProvidersDaily's unified run - no separate cron here, so this directory refreshes on
      * the same trigger and country list as banks/bill-providers/momo instead
      * of drifting on its own independent schedule.
      */
@@ -126,22 +104,17 @@ public class GatewayDirectorySyncService {
 
         // countryCode -> gateways proving support for it
         Map<String, Set<String>> countryGateways = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        // countryCode -> currency codes proven by that country's bank lists
-        Map<String, Set<String>> countryCurrencies = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
         for (String raw : configuredCountries.split(",")) {
             String cc = raw.trim();
             if (cc.isEmpty()) continue;
-            probePaystack(cc.toUpperCase(), countryGateways, countryCurrencies);
-            probeFlutterwave(cc.toUpperCase(), countryGateways, countryCurrencies);
-            probeOnafriq(cc.toUpperCase(), countryGateways, countryCurrencies);
+            probePaystack(cc.toUpperCase(), countryGateways);
+            probeFlutterwave(cc.toUpperCase(), countryGateways);
+            probeOnafriq(cc.toUpperCase(), countryGateways);
         }
 
-        // If no gateway answered we know nothing new, so nothing may be switched off below
-        final boolean gatewaysAnswered = !countryGateways.isEmpty();
-
         // Cold-start fallback: gateways unreachable (no keys offline / network)
-        // — seed the configured launch corridors marked 'bootstrap' so
+        // - seed the configured launch corridors marked 'bootstrap' so
         // registration and wallet creation still work until the next run.
         if (countryGateways.isEmpty()) {
             for (String raw : configuredCountries.split(",")) {
@@ -152,36 +125,17 @@ public class GatewayDirectorySyncService {
             }
         }
 
-        Set<String> activeCurrencyCodes = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (Map.Entry<String, Set<String>> e : countryGateways.entrySet()) {
-            String countryCode = e.getKey().toUpperCase();
-            CountryMeta meta = COUNTRY_META.get(countryCode);
-            String defaultCurrency = meta != null ? meta.defaultCurrency() : "USD";
-
-            upsertCountry(countryCode, defaultCurrency,
-                    String.join(",", e.getValue()).toLowerCase(), now);
-
-            // Every proven currency plus the country's default are active.
-            activeCurrencyCodes.add(defaultCurrency);
-            countryCurrencies.getOrDefault(countryCode, Set.of())
-                    .forEach(cur -> activeCurrencyCodes.add(cur.toUpperCase()));
+            upsertCountry(e.getKey().toUpperCase(), String.join(",", e.getValue()).toLowerCase(), now);
         }
-        activeCurrencyCodes.forEach(c -> upsertCurrency(c, now));
-        if (gatewaysAnswered) {
-            deactivateStale(activeCurrencyCodes);
-        } else {
-            log.warn("No gateway answered the directory probe - keeping the existing currencies active");
-        }
-        log.info("Gateway directory refreshed: {} countries, {} currencies",
-                countryGateways.size(), activeCurrencyCodes.size());
+        log.info("Gateway directory refreshed: {} countries", countryGateways.size());
     }
 
-        // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
     // Gateway probes
     // ------------------------------------------------------------------
 
-    private void probePaystack(String cc, Map<String, Set<String>> countryGateways,
-                               Map<String, Set<String>> countryCurrencies) {
+    private void probePaystack(String cc, Map<String, Set<String>> countryGateways) {
         String url = paystackBaseUrl + "/bank?country=" + cc;
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + paystackSk);
@@ -190,15 +144,13 @@ public class GatewayDirectorySyncService {
                     url, HttpMethod.GET, new HttpEntity<>(headers), PaystackBankResponseDTO.class);
             if (response.getBody() != null && Boolean.TRUE.equals(response.getBody().status())) {
                 countryGateways.computeIfAbsent(cc, k -> new LinkedHashSet<>()).add("paystack");
-                collectCurrencies(cc, response.getBody().data(), countryCurrencies);
             }
         } catch (Exception e) {
             log.warn("Paystack probe failed for {}: {}", cc, e.getMessage());
         }
     }
 
-    private void probeFlutterwave(String cc, Map<String, Set<String>> countryGateways,
-                                  Map<String, Set<String>> countryCurrencies) {
+    private void probeFlutterwave(String cc, Map<String, Set<String>> countryGateways) {
         String url = flutterwaveBaseUrl + "/banks/" + cc;
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + flutterwaveSk);
@@ -207,15 +159,13 @@ public class GatewayDirectorySyncService {
                     url, HttpMethod.GET, new HttpEntity<>(headers), FlutterwaveBankResponseDTO.class);
             if (response.getBody() != null && "success".equalsIgnoreCase(response.getBody().status())) {
                 countryGateways.computeIfAbsent(cc, k -> new LinkedHashSet<>()).add("flutterwave");
-                registerDefaultCurrency(cc, countryCurrencies);
             }
         } catch (Exception e) {
             log.warn("Flutterwave probe failed for {}: {}", cc, e.getMessage());
         }
     }
 
-    private void probeOnafriq(String cc, Map<String, Set<String>> countryGateways,
-                              Map<String, Set<String>> countryCurrencies) {
+    private void probeOnafriq(String cc, Map<String, Set<String>> countryGateways) {
         String url = onafriqBaseUrl + "/api/financial-institutions?country=" + cc;
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + onafriqSk);
@@ -235,27 +185,7 @@ public class GatewayDirectorySyncService {
     // Persistence helpers
     // ------------------------------------------------------------------
 
-    /** Extracts currency codes from Paystack's bank list (only gateway that returns them). */
-    private void collectCurrencies(String cc, List<PaystackBankResponseDTO.BankItemDTO> items,
-                                   Map<String, Set<String>> countryCurrencies) {
-        for (PaystackBankResponseDTO.BankItemDTO item : items) {
-            if (item != null && item.currency() != null && !item.currency().isBlank()) {
-                countryCurrencies.computeIfAbsent(cc, k -> new LinkedHashSet<>())
-                        .add(item.currency().trim().toUpperCase());
-            }
-        }
-        // Fall back to the registered default so the corridor is always represented.
-        countryCurrencies.computeIfAbsent(cc, k -> {
-            CountryMeta meta = COUNTRY_META.get(cc);
-            Set<String> fallback = new LinkedHashSet<>();
-            if (meta != null) {
-                fallback.add(meta.defaultCurrency());
-            }
-            return fallback;
-        });
-    }
-
-    private void upsertCountry(String countryCode, String currencyCode, String gateways, LocalDateTime now) {
+    private void upsertCountry(String countryCode, String gateways, LocalDateTime now) {
         GatewayCountryModel row = gatewayCountriesRepository.findById(countryCode)
                 .orElseGet(() -> {
                     GatewayCountryModel fresh = new GatewayCountryModel();
@@ -268,7 +198,11 @@ public class GatewayDirectorySyncService {
         row.setIso3Code(meta != null ? meta.iso3() : countryCode);
         row.setDialCode(meta != null ? meta.dial() : "");
         row.setRegion(meta != null ? meta.region() : "");
-        row.setCurrencyCode(currencyCode);
+        // default_currency decides which currency payments use. A value already in the table (seeded or edited
+        // by hand) is kept; the built-in one only fills a brand-new or blank row.
+        if (row.getDefaultCurrency() == null || row.getDefaultCurrency().isBlank()) {
+            row.setDefaultCurrency(meta != null ? meta.defaultCurrency() : "USD");
+        }
         row.setGateways(gateways);
         row.setDefault("GH".equalsIgnoreCase(countryCode));
         row.setActive(true);
@@ -276,57 +210,9 @@ public class GatewayDirectorySyncService {
         gatewayCountriesRepository.save(row);
     }
 
-    /**
-     * Registers the country's default currency so the corridor is always
-     * represented in the directory even when the gateway's bank list carries
-     * no usable currency codes.
-     */
-    private void registerDefaultCurrency(String cc, Map<String, Set<String>> countryCurrencies) {
-        CountryMeta meta = COUNTRY_META.get(cc);
-        if (meta != null) {
-            countryCurrencies.computeIfAbsent(cc, k -> new LinkedHashSet<>()).add(meta.defaultCurrency());
-        }
-    }
-
-    private void upsertCurrency(String code, LocalDateTime now) {
-        CurrencyMeta meta = CURRENCY_META.get(code);
-        GatewayCurrencyModel row = gatewayCurrenciesRepository.findById(code)
-                .orElseGet(() -> {
-                    GatewayCurrencyModel fresh = new GatewayCurrencyModel();
-                    fresh.setCurrencyCode(code);
-                    fresh.setCreatedAt(now);
-                    return fresh;
-                });
-        row.setCurrencyName(meta != null ? meta.name() : code);
-        row.setSymbol(meta != null ? meta.symbol() : code);
-        row.setCrypto(false);
-        row.setDecimalPlaces((short) (meta != null ? meta.decimals() : 2));
-        row.setCountryCode(meta != null ? meta.homeCountry() : "");
-        row.setGateways(row.getGateways() == null || row.getGateways().isBlank()
-                ? "flutterwave" : row.getGateways());
-        row.setDefault("GHS".equalsIgnoreCase(code));
-        row.setActive(true);
-        row.setUpdatedAt(now);
-        gatewayCurrenciesRepository.save(row);
-    }
-
-    /** Soft-deactivates rows the gateways no longer prove support for. */
-    private void deactivateStale(Set<String> activeCurrencyCodes) {
-        final LocalDateTime now = LocalDateTime.now();
-        for (GatewayCurrencyModel existing : gatewayCurrenciesRepository.findAll()) {
-            if (existing.isActive() && !activeCurrencyCodes.contains(existing.getCurrencyCode())) {
-                existing.setActive(false);
-                existing.setUpdatedAt(now);
-                gatewayCurrenciesRepository.save(existing);
-            }
-        }
-    }
-
     // ------------------------------------------------------------------
     // Static reference metadata records
     // ------------------------------------------------------------------
 
     private record CountryMeta(String name, String iso3, String dial, String region, String defaultCurrency) {}
-
-    private record CurrencyMeta(String name, String symbol, int decimals, String homeCountry) {}
 }

@@ -36,9 +36,38 @@ public class OnafriqServices {
     private String secretKey;
     @Value("${onafriq.partner-id}")
     private String partnerId;
+    // Paths are configurable because the real Onafriq contract is not confirmed yet (see class note).
+    @Value("${onafriq.paths.customers:/customers}")
+    private String customersPath;
+    @Value("${onafriq.paths.recipients:/recipients}")
+    private String recipientsPath;
+    @Value("${onafriq.paths.transfers:/transfers}")
+    private String transfersPath;
+
+    /**
+     * True once real partner credentials are configured. The shipped placeholders
+     * (onafriq-secret-key-here / your_partner_id) and blank values count as NOT configured.
+     */
+    public boolean isConfigured() {
+        return isReal(secretKey, "onafriq-secret-key-here") && isReal(partnerId, "your_partner_id");
+    }
+
+    private static boolean isReal(String value, String placeholder) {
+        return value != null && !value.isBlank() && !value.equals(placeholder);
+    }
+
+    // Fails fast, before any money moves, with a message the app can show.
+    private void requireConfigured() {
+        if (!isConfigured()) {
+            throw new PaymentGatewayException(
+                    "Cross-border payouts are not available yet: the Onafriq partner account has not been set up. "
+                            + "Please try again later.");
+        }
+    }
 
     /** Registers the sender with Onafriq and returns its customer id. */
     public String createCustomer(String email, String firstName, String lastName, String phoneNumber) {
+        requireConfigured();
         log.info("Onafriq: creating customer for {}", email);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("partner_id", partnerId);
@@ -48,13 +77,14 @@ public class OnafriqServices {
         if (phoneNumber != null && !phoneNumber.isBlank()) {
             body.put("phone", phoneNumber);
         }
-        return idFrom(http.post(GATEWAY, baseUrl + "/customers", secretKey, body, JsonNode.class), "customer");
+        return idFrom(http.post(GATEWAY, baseUrl + customersPath, secretKey, body, JsonNode.class), "customer");
     }
 
     /** Registers the receiving bank account / mobile-money wallet and returns its recipient id. */
     public String createRecipient(String checkoutType, String countryCode, String accountName,
                                   String accountNumber, String channelCode, String currency) {
-        log.info("Onafriq: creating {} recipient {} / {}", checkoutType, channelCode, accountNumber);
+        requireConfigured();
+        log.info("Onafriq: creating {} recipient {} / {}", checkoutType, channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("partner_id", partnerId);
         body.put("destination_type", checkoutType);
@@ -63,12 +93,13 @@ public class OnafriqServices {
         body.put("recipient_name", accountName);
         body.put("country_code", countryCode);
         body.put("currency", currency);
-        return idFrom(http.post(GATEWAY, baseUrl + "/recipients", secretKey, body, JsonNode.class), "recipient");
+        return idFrom(http.post(GATEWAY, baseUrl + recipientsPath, secretKey, body, JsonNode.class), "recipient");
     }
 
     /** Sends a cross-border payout. The reference is our idempotency key. */
     public GatewayTransferResult sendTransfer(BigDecimal amount, String recipientId, String currency,
                                               String narration, String reference) {
+        requireConfigured();
         log.info("Onafriq: transfer ref={} amount={} {} recipient={}", reference, amount, currency, recipientId);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("partner_id", partnerId);
@@ -80,7 +111,7 @@ public class OnafriqServices {
             body.put("narration", narration);
         }
 
-        JsonNode response = http.post(GATEWAY, baseUrl + "/transfers", secretKey, body, JsonNode.class);
+        JsonNode response = http.post(GATEWAY, baseUrl + transfersPath, secretKey, body, JsonNode.class);
         String status = response == null ? "" : response.path("data").path("status").asString("").toUpperCase();
         if ("FAILED".equals(status) || "REVERSED".equals(status)) {
             throw new PaymentGatewayException("Onafriq transfer not accepted (status " + status + ")");

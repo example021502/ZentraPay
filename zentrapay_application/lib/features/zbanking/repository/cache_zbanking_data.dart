@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/BankLinkRequestDto.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
@@ -80,34 +81,17 @@ class BankAccountsRepository extends ChangeNotifier {
 
   /* ------------------------------------------------------- mutations */
 
-  /// Links a bank from the catalog (`POST /api/zbanking/link`), then refreshes
-  /// the snapshot so the header/strip pick it up.
+  /// Saves a bank the user connected through the AfriLink Connect widget
+  /// (`POST /api/zbanking/link`), then refreshes the snapshot so the header/strip
+  /// pick it up.
   ///
-  /// [firstName]/[lastName] are the account holder's names exactly as typed in
-  /// the sheet — both are required by the backend DTO and are forwarded in the
-  /// open-banking linking request to AfriqLink (our bank-data provider).
-  ///
-  /// [primary] promotes this account to the header immediately; the first bank
-  /// a user ever links is promoted server-side regardless.
-  Future<BankAccounts> linkBank({
-    required String bankId,
-    required String accountNumber,
-    required String firstName,
-    required String lastName,
-    String? linkLabel,
-    bool primary = false,
-  }) async {
+  /// Only AfriLink's account id (plus the institution name the widget showed) is sent —
+  /// never an account number, holder name or credentials. The backend verifies the id with
+  /// AfriLink and the first bank a user links is promoted to primary server-side.
+  Future<BankAccounts> linkBank(BankLinkRequestDto request) async {
     final response = await _dio.post(
       '/api/zbanking/link',
-      data: {
-        'bankId': bankId,
-        'accountNumber': accountNumber,
-        'firstName': firstName.trim(),
-        'lastName': lastName.trim(),
-        'primary': primary,
-        if (linkLabel != null && linkLabel.trim().isNotEmpty)
-          'linkLabel': linkLabel.trim(),
-      },
+      data: request.toJson(),
     );
     // The POST response already carries the linked account (including the
     // primary flag the server decided), so trust it directly: refreshing

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/theme/app_theme.dart';
 
 class CustomKeypad extends StatelessWidget {
   final Function(String) onDigitPress;
@@ -35,13 +36,13 @@ class CustomKeypad extends StatelessWidget {
     onTap: () => onDigitPress(value),
     child: Container(
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: AppTheme.buttonColor,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Center(
         child: Text(
           value,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          style: AppTheme.headlineLarge.copyWith(color: AppTheme.primaryWhite),
         ),
       ),
     ),
@@ -51,10 +52,12 @@ class CustomKeypad extends StatelessWidget {
     onTap: onDelete,
     child: Container(
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: AppTheme.buttonColor,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: const Center(child: Icon(Icons.backspace_outlined)),
+      child: Center(
+        child: Icon(Icons.backspace_outlined, color: AppTheme.primaryWhite),
+      ),
     ),
   );
 }

@@ -21,7 +21,10 @@ bool get sendAgainInFlight => _sendAgainInFlight;
 /// user themself — "send again" on such a row would prefill a transfer to
 /// yourself. Outgoing rows (amount signed "-") hold the real counterparty,
 /// which is the only case where re-sending makes sense.
-bool canSendAgain(AppTransaction transaction) => transaction.isDebit;
+bool canSendAgain(AppTransaction transaction) =>
+    transaction.isDebit &&
+    transaction.transactionType.trim().toUpperCase() == 'P2P_TRANSFER' &&
+    !transaction.isUnsuccessful;
 
 /// Every "pay this past counterparty again" entry point runs through here —
 /// Pay's Recent Payments strip, the History page's details sheet and the

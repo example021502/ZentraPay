@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/custom_keypad.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/core/utils/payment_currency.dart';
 import 'package:zentrapay_application/features/home/get_currency_iso_code_helper.dart';
 
 /// Bottom-anchored amount-entry overlay, driven entirely by [CustomKeypad]
@@ -19,10 +20,11 @@ class EnterAmount extends StatefulWidget {
 
   final String recipient;
 
-  /// Currency to preselect when the sheet opens — e.g. the currency of the
-  /// account whose QR code was just scanned (a transfer must land in an
-  /// account the receiver actually holds). Falls back to GHS when absent or
-  /// not a valid 3-letter code.
+  /// Currency to preselect while the user's own payment currency is still
+  /// being looked up (or when it cannot be). Payments are made in the default
+  /// currency of the country the user registered in, so once that is known it
+  /// replaces this and the currency picker is switched off. Falls back to GHS
+  /// when absent or not a valid 3-letter code.
   final String? preferredCurrency;
 
   @override
@@ -36,6 +38,27 @@ class _EnterAmountState extends State<EnterAmount> {
 
   late String currencyCode = _initialCurrency;
   late String countryFlag = extractCountryIsoCode(currencyCode);
+
+  // The only currency this user may pay in: the default currency of the
+  // country they registered in. Once known the picker is switched off; if it
+  // cannot be looked up, the picker stays and the backend refuses a wrong one.
+  String _lockedCurrency = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _lockToSenderCurrency();
+  }
+
+  Future<void> _lockToSenderCurrency() async {
+    final locked = await PaymentCurrency.ofSender();
+    if (!mounted || locked.isEmpty) return;
+    setState(() {
+      _lockedCurrency = locked;
+      currencyCode = locked;
+      countryFlag = extractCountryIsoCode(locked);
+    });
+  }
 
   String get _initialCurrency {
     final String preferred =
@@ -135,18 +158,22 @@ class _EnterAmountState extends State<EnterAmount> {
                       const SizedBox(height: AppTheme.spacingLg),
                     ],
                     GestureDetector(
-                      onTap: () => showCurrencyPicker(
-                        context: context,
-                        showFlag: true,
-                        showCurrencyName: true,
-                        showCurrencyCode: true,
-                        onSelect: (Currency currency) {
-                          setState(() {
-                            currencyCode = currency.code;
-                            countryFlag = extractCountryIsoCode(currency.code);
-                          });
-                        },
-                      ),
+                      onTap: _lockedCurrency.isNotEmpty
+                          ? null
+                          : () => showCurrencyPicker(
+                              context: context,
+                              showFlag: true,
+                              showCurrencyName: true,
+                              showCurrencyCode: true,
+                              onSelect: (Currency currency) {
+                                setState(() {
+                                  currencyCode = currency.code;
+                                  countryFlag = extractCountryIsoCode(
+                                    currency.code,
+                                  );
+                                });
+                              },
+                            ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
@@ -164,12 +191,14 @@ class _EnterAmountState extends State<EnterAmount> {
                               color: AppTheme.gray500,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Icon(
-                            Icons.expand_more_outlined,
-                            size: 22,
-                            color: AppTheme.textBlack,
-                          ),
+                          if (_lockedCurrency.isEmpty) ...[
+                            const SizedBox(width: 10),
+                            Icon(
+                              Icons.expand_more_outlined,
+                              size: 22,
+                              color: AppTheme.textBlack,
+                            ),
+                          ],
                         ],
                       ),
                     ),

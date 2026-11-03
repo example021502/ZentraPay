@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -86,7 +87,7 @@ public class PaystackServices {
     /** Registers a bank account / mobile-money wallet and returns its recipient code (RCP_xxx). */
     public String createRecipient(String checkoutType, String countryCode, String accountName,
                                   String accountNumber, String channelCode, String currency) {
-        log.info("Paystack: creating {} recipient {} / {}", checkoutType, channelCode, accountNumber);
+        log.info("Paystack: creating {} recipient {} / {}", checkoutType, channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("type", recipientType(checkoutType, countryCode));
         body.put("name", accountName);
@@ -130,7 +131,14 @@ public class PaystackServices {
             throw new PaymentGatewayException("Paystack transfer rejected: " + (response == null ? "no response" : response.message()));
         }
         String status = String.valueOf(response.data().status()).toLowerCase();
-        if ("failed".equals(status) || "reversed".equals(status) || "otp".equals(status)) {
+        if ("otp".equals(status)) {
+            // Transfer OTP is switched on for this Paystack business: the transfer is created but waits for an OTP
+            // nobody can enter from a server. Refuse it so the sender is refunded; fix = disable "Confirm transfers
+            // before sending" under Settings > Preferences in the Paystack dashboard.
+            log.error("Paystack transfer {} is waiting for an OTP - disable transfer OTP in the Paystack dashboard", reference);
+            throw new PaymentGatewayException("Paystack transfer needs OTP confirmation (status otp)");
+        }
+        if ("failed".equals(status) || "reversed".equals(status)) {
             throw new PaymentGatewayException("Paystack transfer not accepted (status " + status + ")");
         }
         return new GatewayTransferResult(response.data().transferCode(), "success".equals(status));
@@ -165,17 +173,82 @@ public class PaystackServices {
         return new GatewayCheckoutResult(response.data().authorizationUrl(), response.data().accessCode());
     }
 
-    /** Asks Paystack what happened to a checkout (used when the webhook never arrived). */
+    /**
+     * Asks Paystack what happened to a checkout (used when the webhook never arrived). When the customer
+     * paid with a card Paystack can charge again, the reply also carries that card's token.
+     */
     public GatewayChargeStatus chargeStatus(String reference) {
-        PaystackVerifyResponseDTO response = http.get(GATEWAY, baseUrl + "/transaction/verify/" + reference, secretKey, PaystackVerifyResponseDTO.class);
-        if (response == null || response.data() == null) {
+        JsonNode body = http.get(GATEWAY, baseUrl + "/transaction/verify/" + reference, secretKey, JsonNode.class);
+        JsonNode data = body == null ? null : body.path("data");
+        if (data == null || data.isMissingNode() || data.isNull()) {
             return new GatewayChargeStatus(false, false, null, null);
         }
-        String status = String.valueOf(response.data().status()).toLowerCase();
-        BigDecimal paid = response.data().amount() == null ? null : BigDecimal.valueOf(response.data().amount()).movePointLeft(2);
+        return statusOf(data);
+    }
+
+    /**
+     * Charges a saved card (Paystack "charge authorization"): no customer interaction, so it works only for
+     * cards the customer already approved and Paystack marked reusable. Returns what Paystack says right away;
+     * anything not final is settled later through the webhook / verify call.
+     */
+    public GatewayChargeStatus chargeSavedCard(String authorizationCode, String email, BigDecimal amount,
+                                               String currency, String reference) {
+        log.info("Paystack: saved-card charge ref={} amount={} {}", reference, amount, currency);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("authorization_code", authorizationCode);
+        body.put("email", email);
+        body.put("amount", toMinorUnits(amount));
+        body.put("currency", currency);
+        body.put("reference", reference);
+        JsonNode reply = http.post(GATEWAY, baseUrl + "/transaction/charge_authorization", secretKey, body, JsonNode.class);
+        JsonNode data = reply == null ? null : reply.path("data");
+        if (data == null || data.isMissingNode() || data.isNull()) {
+            throw new PaymentGatewayException("Paystack declined the card charge: "
+                    + (reply == null ? "no response" : reply.path("message").asString("no details")));
+        }
+        return statusOf(data);
+    }
+
+    // Shared by verify and charge-authorization replies (same "data" shape)
+    private static GatewayChargeStatus statusOf(JsonNode data) {
+        String status = data.path("status").asString("").toLowerCase();
+        BigDecimal paid = data.path("amount").isNumber() ? data.path("amount").decimalValue().movePointLeft(2) : null;
         return new GatewayChargeStatus("success".equals(status),
                 "failed".equals(status) || "abandoned".equals(status) || "reversed".equals(status),
-                paid, response.data().currency());
+                paid, data.path("currency").asString(null), cardOf(data.path("authorization")));
+    }
+
+    private static GatewayCardToken cardOf(JsonNode auth) {
+        if (auth == null || auth.isMissingNode() || auth.isNull()) {
+            return null;
+        }
+        String token = auth.path("authorization_code").asString("");
+        String last4 = auth.path("last4").asString("");
+        if (token.isBlank() || last4.isBlank() || !"card".equalsIgnoreCase(auth.path("channel").asString("card"))) {
+            return null;
+        }
+        Integer month = parseInt(auth.path("exp_month").asString(""));
+        Integer year = parseInt(auth.path("exp_year").asString(""));
+        String signature = auth.path("signature").asString("");
+        if (signature.isBlank()) {
+            signature = last4 + "-" + month + "-" + year;
+        }
+        return new GatewayCardToken("PAYSTACK", token, signature, last4,
+                trimToNull(auth.path("brand").asString("")), trimToNull(auth.path("card_type").asString("")),
+                trimToNull(auth.path("bank").asString("")), month, year,
+                trimToNull(auth.path("country_code").asString("")), auth.path("reusable").asBoolean(false));
+    }
+
+    private static Integer parseInt(String s) {
+        try {
+            return s == null || s.isBlank() ? null : Integer.valueOf(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String trimToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     // ------------------------------------------------------------------
@@ -195,6 +268,7 @@ public class PaystackServices {
 
     // Paystack amounts are whole minor units: 10.50 GHS -> 1050
     static long toMinorUnits(BigDecimal amount) {
-        return amount.movePointRight(2).longValueExact();
+        // Round first: a converted amount can carry many decimals and longValueExact would throw on them
+        return amount.setScale(2, java.math.RoundingMode.HALF_UP).movePointRight(2).longValueExact();
     }
 }

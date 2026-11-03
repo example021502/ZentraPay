@@ -45,7 +45,7 @@ const List<String> _technicalMarkers = [
   'timed out',
   'jwt',
   'bearer',
-  'afriqlink',
+  'afrilink',
   'paystack',
   'flutterwave',
   'onafriq',

@@ -275,6 +275,7 @@ class _FraudDetectionScreenState extends State<FraudDetectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const SectionAppBar(),
       backgroundColor: AppTheme.surface,
       body: RefreshIndicator(
         onRefresh: _refresh,

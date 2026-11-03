@@ -24,7 +24,7 @@ class PayLoansScreen extends StatefulWidget {
 
 class _PayLoansScreenState extends State<PayLoansScreen> {
   static const _payable = {'ACTIVE', 'APPROVED'};
-  static const _closed = {'REPAID', 'REJECTED', 'DEFAULTED', 'CANCELLED'};
+  static const _closed = {'REPAID', 'CLOSED', 'REJECTED', 'DEFAULTED', 'CANCELLED'};
 
   @override
   void initState() {
@@ -57,6 +57,7 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const SectionAppBar(),
       backgroundColor: AppTheme.gray50,
       body: ListenableBuilder(
         listenable: LoansRepository.instance,
@@ -116,9 +117,9 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
               ),
               child: Padding(
                 padding: EdgeInsets.all(10.0),
-                child: Icon(
+                child: const Icon(
                   Icons.account_balance_wallet_outlined,
-                  color: AppTheme.textBlack,
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
@@ -266,6 +267,7 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'REPAID':
+      case 'CLOSED':
         return AppTheme.successGreen;
       case 'PENDING':
         return AppTheme.warningOrange;
@@ -403,7 +405,7 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
       ),
       child: Text(
-        text[0] + text.substring(1).toLowerCase(),
+        text == 'CLOSED' ? 'Repaid' : text[0] + text.substring(1).toLowerCase(),
         style: AppTheme.labelSmall.copyWith(
           color: tone,
           fontWeight: FontWeight.w700,
@@ -482,6 +484,9 @@ class _RepaySheetState extends State<_RepaySheet> {
         value.toStringAsFixed(2),
       );
       WalletsRepository.instance.refresh().catchError((_) => null);
+      TransactionsRepository.instance
+          .ensureLoaded(forceRefresh: true)
+          .catchError((_) => null);
       if (!mounted) return;
       Navigator.of(context).pop();
       final cleared = updated.outstandingBalance.toAmount() <= 0.001;

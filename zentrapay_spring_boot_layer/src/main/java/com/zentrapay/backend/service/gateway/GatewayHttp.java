@@ -48,7 +48,7 @@ public class GatewayHttp {
     }
 
     private <T> T send(String gateway, HttpMethod method, String url, String secretKey, Object body, Class<T> responseType) {
-        log.info("{} {} {}", gateway, method, url);
+        log.info("{} {} {}", gateway, method, redact(url));
         try {
             RestClient.RequestBodySpec request = restClient.method(method)
                     .uri(url)
@@ -63,28 +63,33 @@ public class GatewayHttp {
         } catch (HttpClientErrorException e) {
             // 4xx - the gateway looked at the request and said no
             String reason = readMessage(e.getResponseBodyAsString());
-            log.warn("{} rejected {} [{}]: {}", gateway, url, e.getStatusCode().value(), reason);
+            log.warn("{} rejected {} [{}]: {}", gateway, redact(url), e.getStatusCode().value(), reason);
             throw new PaymentGatewayException(gateway + " rejected the request: " + reason, e);
 
         } catch (HttpServerErrorException e) {
             // 5xx - the gateway failed, we cannot know if it processed the request
-            log.error("{} server error on {} [{}]: {}", gateway, url, e.getStatusCode().value(), e.getResponseBodyAsString());
+            log.error("{} server error on {} [{}]: {}", gateway, redact(url), e.getStatusCode().value(), e.getResponseBodyAsString());
             throw PaymentGatewayException.unknownOutcome(gateway + " is having problems, please try again", e);
 
         } catch (ResourceAccessException e) {
             if (neverReachedGateway(e)) {
-                log.error("{} unreachable on {}: {}", gateway, url, e.getMessage());
+                log.error("{} unreachable on {}: {}", gateway, redact(url), e.getMessage());
                 throw new PaymentGatewayException(gateway + " is unreachable, please try again", e);
             }
             // e.g. read timeout: the request was sent but no answer came back
-            log.error("{} did not answer on {}: {}", gateway, url, e.getMessage());
+            log.error("{} did not answer on {}: {}", gateway, redact(url), e.getMessage());
             throw PaymentGatewayException.unknownOutcome(gateway + " did not respond in time", e);
 
         } catch (Exception e) {
             // 2xx with a body we could not read
-            log.error("{} reply could not be processed on {}: {}", gateway, url, e.getMessage(), e);
+            log.error("{} reply could not be processed on {}: {}", gateway, redact(url), e.getMessage(), e);
             throw PaymentGatewayException.unknownOutcome(gateway + " returned an unreadable response", e);
         }
+    }
+
+    // Account numbers travel in some query strings (Paystack resolve): never write them to the log
+    private static String redact(String url) {
+        return url == null ? null : url.replaceAll("(account_number=)[^&]+", "$1***");
     }
 
     // True when the connection was never established, so nothing was sent

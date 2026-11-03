@@ -23,7 +23,7 @@ import java.util.Optional;
  * shown before the user confirms a bank transfer.
  *
  * <p>The account-name check asks Paystack first and Flutterwave if Paystack cannot answer,
- * using each gateway's OWN code for the bank. (AfriqLink is only used to LINK a bank account.)
+ * using each gateway's OWN code for the bank. (AfriLink is only used to LINK a bank account.)
  */
 @Slf4j
 @Service

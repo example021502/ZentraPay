@@ -127,6 +127,7 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const SectionAppBar(),
       backgroundColor: AppTheme.surface,
       body: Column(
         children: [

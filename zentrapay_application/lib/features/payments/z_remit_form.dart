@@ -3,15 +3,18 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/models/money.dart';
+import 'package:zentrapay_application/core/models/reference_data.dart';
 import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Common/app_confirm_sheet.dart';
 import 'package:zentrapay_application/core/utils/Common/transaction_result_overlay.dart';
 import 'package:zentrapay_application/core/utils/loading_overlay.dart';
+import 'package:zentrapay_application/core/utils/payment_currency.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/verify_payee_sheet.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
+import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/features/zgrow/emergency/emergency_vault.dart';
 import 'package:zentrapay_application/features/zremit/repository/cache_zremit_data.dart';
 
@@ -77,6 +80,12 @@ class ZRemitFormState extends State<ZRemitForm> {
   );
   final TextEditingController _receiveController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
+  final TextEditingController _receiverController = TextEditingController();
+
+  // The destination country the user picked; everything else (currency,
+  // recipient search) follows from it.
+  AppCountry? _country;
+  String _senderCountryCode = "";
 
   Timer? _searchDebounce;
   bool _searching = false;
@@ -85,6 +94,10 @@ class ZRemitFormState extends State<ZRemitForm> {
   _RemitRecipient? _recipient;
   String _sourceCurrency = "";
   String _destinationCurrency = "";
+
+  // The default currency of the country the sender registered in - the only
+  // currency they can send from (the destination is the other country's).
+  String _homeCurrency = "";
 
   // Live conversion preview (debounced, one-shot per change - not a cache).
   Timer? _previewDebounce;
@@ -99,6 +112,18 @@ class ZRemitFormState extends State<ZRemitForm> {
     WalletsRepository.instance.ensureLoaded().catchError((_) => null);
     CountriesRepository.instance.ensureLoaded().catchError((_) => null);
     WalletsRepository.instance.addListener(_onWalletsChanged);
+    UserProfileRepository.instance
+        .ensureLoaded()
+        .then((snapshot) {
+          if (!mounted || snapshot == null) return;
+          setState(() => _senderCountryCode = snapshot.user.countryCode);
+        })
+        .catchError((_) {});
+    PaymentCurrency.ofSender().then((code) {
+      if (!mounted || code.isEmpty) return;
+      setState(() => _homeCurrency = code);
+      _schedulePreview();
+    });
   }
 
   @override
@@ -110,6 +135,7 @@ class ZRemitFormState extends State<ZRemitForm> {
     _amountController.dispose();
     _receiveController.dispose();
     _reasonController.dispose();
+    _receiverController.dispose();
     super.dispose();
   }
 
@@ -117,16 +143,23 @@ class ZRemitFormState extends State<ZRemitForm> {
     if (mounted) setState(() {});
   }
 
-  /// Currencies the sender actually holds money in.
+  /// Currencies the sender can send from: the one they registered with, if
+  /// they hold an account in it (any held currency while that is unknown).
   List<String> get _sourceCurrencies {
     final accounts = WalletsRepository.instance.data?.fiatAccounts ?? const [];
-    return accounts.map((a) => a.currencyCode).toSet().toList();
+    final held = accounts.map((a) => a.currencyCode).toSet();
+    if (_homeCurrency.isEmpty) return held.toList();
+    return held.where((c) => c.toUpperCase() == _homeCurrency).toList();
   }
 
   String get _effectiveSource {
     final options = _sourceCurrencies;
-    if (options.isEmpty) return _sourceCurrency;
+    if (options.isEmpty) {
+      return _homeCurrency.isNotEmpty ? _homeCurrency : _sourceCurrency;
+    }
     if (options.contains(_sourceCurrency)) return _sourceCurrency;
+    // Once the registered currency is known it is the only option
+    if (_homeCurrency.isNotEmpty) return options.first;
     final defaults = WalletsRepository.instance.data!.fiatAccounts
         .where((a) => a.isDefault)
         .map((a) => a.currencyCode);
@@ -151,6 +184,7 @@ class ZRemitFormState extends State<ZRemitForm> {
         final result = await SearchRepository.search(
           query,
           international: true,
+          country: _country?.countryCode,
         );
         if (!mounted) return;
         setState(() => _results = result);
@@ -167,19 +201,51 @@ class ZRemitFormState extends State<ZRemitForm> {
       _recipient = recipient;
       _results = ContactSearchResult.empty();
       _searchController.clear();
-      _destinationCurrency = _currencyOfCountry(recipient.countryCode);
+      // The receiver name defaults to the verified name; the user can still
+      // correct it.
+      if (_receiverController.text.trim().isEmpty) {
+        _receiverController.text = recipient.name;
+      }
     });
     _schedulePreview();
   }
 
-  String _currencyOfCountry(String countryCode) {
-    final countries = CountriesRepository.instance.data ?? const [];
-    for (final c in countries) {
-      if (c.countryCode.toUpperCase() == countryCode.toUpperCase()) {
-        return c.defaultCurrencyCode;
-      }
-    }
-    return "";
+  // ---- destination country ----------------------------------------------
+
+  Future<void> _chooseCountry() async {
+    final all =
+        await CountriesRepository.instance.ensureLoaded().catchError(
+          (_) => <AppCountry>[],
+        ) ??
+        const <AppCountry>[];
+    if (!mounted) return;
+    final options =
+        all
+            .where(
+              (c) =>
+                  c.countryCode.toUpperCase() !=
+                  _senderCountryCode.toUpperCase(),
+            )
+            .toList()
+          ..sort((a, b) => a.countryName.compareTo(b.countryName));
+    final picked = await showModalBottomSheet<AppCountry>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CountrySheet(countries: options, selected: _country),
+    );
+    if (picked == null || !mounted) return;
+    if (picked.countryCode == _country?.countryCode) return;
+    setState(() {
+      _country = picked;
+      // The currency is the destination country's default currency.
+      _destinationCurrency = picked.defaultCurrencyCode.trim().toUpperCase();
+      // A recipient from another country no longer applies.
+      _recipient = null;
+      _results = ContactSearchResult.empty();
+      _searchController.clear();
+    });
+    _schedulePreview();
   }
 
   void _onSelectUser(SearchAppUser user) {
@@ -299,6 +365,15 @@ class ZRemitFormState extends State<ZRemitForm> {
   // ---- send -------------------------------------------------------------
 
   Future<void> _send() async {
+    if (_country == null) {
+      await showTransactionResultOverlay(
+        context: context,
+        status: TransactionResultStatus.error,
+        title: "Choose a destination",
+        message: "Pick the country you are sending money to first.",
+      );
+      return;
+    }
     final recipient = _recipient;
     if (recipient == null) {
       await showTransactionResultOverlay(
@@ -310,6 +385,7 @@ class ZRemitFormState extends State<ZRemitForm> {
       return;
     }
     if (!_formKey.currentState!.validate() || _sending) return;
+    final receiverName = _receiverController.text.trim();
 
     final source = _effectiveSource;
     if (source.isEmpty) return;
@@ -321,7 +397,7 @@ class ZRemitFormState extends State<ZRemitForm> {
       isDismissible: false,
       backgroundColor: Colors.transparent,
       builder: (_) => AppConfirmPinSheet(
-        name: recipient.name,
+        name: receiverName,
         currencyCode: source,
         amount: amount,
       ),
@@ -339,10 +415,10 @@ class ZRemitFormState extends State<ZRemitForm> {
               ? source
               : _destinationCurrency,
           channel: recipient.channel,
-          recipientName: recipient.name,
+          recipientName: receiverName,
           recipientPhoneNumber: recipient.phoneNumber,
           recipientUserId: recipient.userId,
-          recipientCountryCode: recipient.countryCode,
+          recipientCountryCode: _country!.countryCode,
           purpose: _reasonController.text.trim(),
           recipientType: recipient.type,
           bankId: recipient.bankId,
@@ -353,8 +429,7 @@ class ZRemitFormState extends State<ZRemitForm> {
         ),
         message: "Sending your money…",
       );
-      WalletsRepository.instance.refresh().catchError((_) => null);
-      TransactionsRepository.instance.ensureLoaded().catchError((_) => null);
+      _syncAfterAttempt();
       // Emergency Vault round-up (no-op unless the vault is on).
       int savedMinor = 0;
       try {
@@ -376,9 +451,10 @@ class ZRemitFormState extends State<ZRemitForm> {
         title: status.toUpperCase() == 'PENDING'
             ? "Transfer on its way"
             : "Transfer sent",
-        message: "$source $amount sent to ${recipient.name}.",
+        message: "$source $amount sent to $receiverName.",
         details: [
-          TransactionResultDetail("Recipient", recipient.name),
+          TransactionResultDetail("Recipient", receiverName),
+          TransactionResultDetail("Country", _country!.countryName),
           TransactionResultDetail("Destination", recipient.detail),
           TransactionResultDetail("Amount", "$source $amount"),
           if (_receiveController.text.isNotEmpty &&
@@ -397,6 +473,7 @@ class ZRemitFormState extends State<ZRemitForm> {
       );
       reset();
     } catch (e) {
+      _syncAfterAttempt();
       if (!mounted) return;
       await showTransactionResultOverlay(
         context: context,
@@ -407,6 +484,14 @@ class ZRemitFormState extends State<ZRemitForm> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  // Sent, still processing or refused: the attempt is on the server, so the
+  // history and balance follow right away - before the result sheet is even
+  // dismissed (an open payout is re-checked automatically).
+  void _syncAfterAttempt() {
+    TransactionsRepository.instance.syncLatest();
+    WalletsRepository.instance.refresh().catchError((_) => null);
   }
 
   String _messageOf(Object e) {
@@ -421,7 +506,9 @@ class ZRemitFormState extends State<ZRemitForm> {
   void reset() {
     setState(() {
       _recipient = null;
+      _country = null;
       _destinationCurrency = "";
+      _receiverController.clear();
       _amountController.text = "0.00";
       _receiveController.clear();
       _reasonController.clear();
@@ -517,17 +604,75 @@ class ZRemitFormState extends State<ZRemitForm> {
           Text("Send money abroad", style: AppTheme.headlineSmall),
           const SizedBox(height: 4),
           Text(
-            "Search people, banks and mobile money outside your country.",
+            "Choose where the money is going, who receives it and how.",
             style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          if (recipient == null)
+          _label("Destination country"),
+          InkWell(
+            onTap: _chooseCountry,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            child: InputDecorator(
+              decoration: _decoration(
+                suffix: Icon(Icons.keyboard_arrow_down, color: AppTheme.gray500),
+              ),
+              child: Text(
+                _country?.countryName ?? "Select a country",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: _country == null
+                      ? AppTheme.textBlack.withAlpha(128)
+                      : AppTheme.textBlack,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          _label("Currency"),
+          InputDecorator(
+            decoration: _decoration(
+              suffix: Icon(Icons.lock_outline, size: 18, color: AppTheme.gray500),
+            ),
+            child: Text(
+              _destinationCurrency.isEmpty
+                  ? "Set by the destination country"
+                  : _destinationCurrency,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: _destinationCurrency.isEmpty
+                    ? FontWeight.normal
+                    : FontWeight.bold,
+                color: _destinationCurrency.isEmpty
+                    ? AppTheme.textBlack.withAlpha(128)
+                    : AppTheme.textBlack,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          _label("Receiver name"),
+          TextFormField(
+            controller: _receiverController,
+            textCapitalization: TextCapitalization.words,
+            cursorColor: AppTheme.textBlack,
+            decoration: _decoration(hint: "Full name of the person receiving"),
+            validator: (val) => val == null || val.trim().length < 2
+                ? "Enter the receiver's name"
+                : null,
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          _label("Send to"),
+          if (_country == null)
+            Text(
+              "Pick a destination country to search its people, banks and mobile money.",
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+            )
+          else if (recipient == null)
             PaySearchSection(
               controller: _searchController,
               isSearching: _searching,
               searchResult: _results,
               onChanged: _onSearchChanged,
-              hintText: "Search people, banks, mobile money abroad...",
+              hintText: "Search people, banks, mobile money in ${_country!.countryName}...",
               onSelectUser: _onSelectUser,
               onSelectBillProvider: (_) {},
               onSelectBank: _onSelectBank,
@@ -657,6 +802,109 @@ class ZRemitFormState extends State<ZRemitForm> {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Searchable list of destination countries (the sender's own country is not
+/// offered: ZRemit is cross-border only).
+class _CountrySheet extends StatefulWidget {
+  final List<AppCountry> countries;
+  final AppCountry? selected;
+
+  const _CountrySheet({required this.countries, this.selected});
+
+  @override
+  State<_CountrySheet> createState() => _CountrySheetState();
+}
+
+class _CountrySheetState extends State<_CountrySheet> {
+  String _query = "";
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _query.trim().toLowerCase();
+    final shown = widget.countries
+        .where(
+          (c) =>
+              q.isEmpty ||
+              c.countryName.toLowerCase().contains(q) ||
+              c.countryCode.toLowerCase().contains(q) ||
+              c.defaultCurrencyCode.toLowerCase().contains(q),
+        )
+        .toList();
+    final height = MediaQuery.of(context).size.height * 0.7;
+    return Container(
+      height: height,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusXxl),
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: AppTheme.spacingSm),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppTheme.dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            child: TextField(
+              cursorColor: AppTheme.textBlack,
+              onChanged: (v) => setState(() => _query = v),
+              decoration: InputDecoration(
+                hintText: "Search country or currency",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  borderSide: BorderSide(color: AppTheme.dividerColor),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: shown.isEmpty
+                ? Center(
+                    child: Text(
+                      widget.countries.isEmpty
+                          ? "No destination countries available."
+                          : "No match.",
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.gray500,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: shown.length,
+                    itemBuilder: (_, i) {
+                      final c = shown[i];
+                      final isSelected =
+                          c.countryCode == widget.selected?.countryCode;
+                      return ListTile(
+                        title: Text(c.countryName, style: AppTheme.labelLarge),
+                        subtitle: Text(
+                          c.defaultCurrencyCode,
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.gray500,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle, color: AppTheme.brand)
+                            : null,
+                        onTap: () => Navigator.pop(context, c),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

@@ -33,8 +33,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AccountVerificationService {
 
-    /** What the providers said about the account. {@code gateway} is the provider that answered. */
-    public record Verified(String accountName, String accountNumber, String destinationName, GatewayModel gateway) {
+    /**
+     * What the providers said about the account. {@code gateway} is the provider that answered.
+     */
+    public record Verified(String accountName, String accountNumber, String destinationName, UUID gatewayId) {
     }
 
     private final GatewayServices gatewayServices;
@@ -64,10 +66,10 @@ public class AccountVerificationService {
             asked = true;
             try {
                 GatewayAccountResult result = resolveOn(gateway, accountNumber, code);
-                log.info("Account check: {} confirmed {} / {}", gateway.getProviderName(), bank.getBankName(), accountNumber);
-                return new Verified(result.accountName(), accountNumber, bank.getBankName(), gateway);
+                log.info("Account check: {} confirmed {} / {}", gateway.getProviderName(), bank.getBankName(), com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
+                return new Verified(result.accountName(), accountNumber, bank.getBankName(), gateway.getProviderId());
             } catch (PaymentGatewayException e) {
-                log.warn("Account check: {} could not confirm {} / {}: {}", gateway.getProviderName(), bank.getBankName(), accountNumber, e.getMessage());
+                log.warn("Account check: {} could not confirm {} / {}: {}", gateway.getProviderName(), bank.getBankName(), com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber), e.getMessage());
                 last = e;
             }
         }
@@ -95,16 +97,16 @@ public class AccountVerificationService {
             }
             try {
                 GatewayAccountResult result = resolveOn(gateway, phoneNumber, code);
-                log.info("Wallet check: {} confirmed {} / {}", gateway.getProviderName(), network.getName(), phoneNumber);
-                return Optional.of(new Verified(result.accountName(), phoneNumber, network.getName(), gateway));
+                log.info("Wallet check: {} confirmed {} / {}", gateway.getProviderName(), network.getName(), com.zentrapay.backend.service.payment.DestinationTokenService.mask(phoneNumber));
+                return Optional.of(new Verified(result.accountName(), phoneNumber, network.getName(), gateway.getProviderId()));
             } catch (PaymentGatewayException e) {
-                log.info("Wallet check: {} has no name for {} / {}: {}", gateway.getProviderName(), network.getName(), phoneNumber, e.getMessage());
+                log.info("Wallet check: {} has no name for {} / {}: {}", gateway.getProviderName(), network.getName(), com.zentrapay.backend.service.payment.DestinationTokenService.mask(phoneNumber), e.getMessage());
             }
         }
         return Optional.empty();
     }
 
-    // Providers that can look an account up, best first. Providers that are switched off are skipped.
+    // Providers that can look an account up best first. Providers that are switched off are skipped.
     private List<GatewayModel> resolvers() {
         List<GatewayModel> list = new ArrayList<>();
         for (Datatypes.PaymentGateway name : List.of(Datatypes.PaymentGateway.PAYSTACK, Datatypes.PaymentGateway.FLUTTERWAVE)) {

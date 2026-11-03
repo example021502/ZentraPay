@@ -15,7 +15,6 @@ library;
 
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:zentrapay_application/core/models/wallet.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 import 'package:zentrapay_application/features/wallet_topup/models/responseEntities.dart';
 
@@ -24,7 +23,7 @@ import 'package:zentrapay_application/features/wallet_topup/models/responseEntit
 // ---------------------------------------------------------------------------
 const String _topupPaystackEndpoint = '/api/topup/paystack';
 const String _topupFlutterwaveEndpoint = '/api/topup/flutterwave';
-const String _kTopupVerifyPath = '/api/wallet/topup/verify/';
+const String _kTopupVerifyPath = '/api/topup/verify/';
 
 // ---------------------------------------------------------------------------
 // Topup services
@@ -66,6 +65,7 @@ class TopupService {
     required String paymentMethod, // 'card' | 'bank_transfer' | 'mobile_money'
     String? phoneNumber,
     required String gateway,
+    bool saveCard = false,
   }) async {
     final response = await _dio.post(
       gateway.toLowerCase() == "paystack"
@@ -76,12 +76,22 @@ class TopupService {
         'currencyCode': currencyCode,
         'source': source,
         'paymentMethod': paymentMethod,
+        if (saveCard) 'saveCard': true,
         if (phoneNumber != null && phoneNumber.isNotEmpty)
           'phoneNumber': phoneNumber,
       },
     );
-    print("===== THE TOP UP REQUEST RESPONSE:: $response");
-    return TopupResponse.fromJson(response.data as Map<String, dynamic>);
+    // The backend wraps every reply as {success, message, data:{reference, accessCode,
+    // authorizationUrl, gateway}}; TopupResponse wants them flat, so unwrap here.
+    final envelope = Map<String, dynamic>.from(response.data as Map);
+    final data = Map<String, dynamic>.from((envelope['data'] ?? {}) as Map);
+    return TopupResponse.fromJson({
+      ...data,
+      'status': envelope['success'] == true && data['reference'] != null,
+      'message': envelope['message'] ?? '',
+      'paymentMethod': paymentMethod,
+      'gatewayData': {'name': data['gateway'] ?? gateway},
+    });
   }
 
   /// Verify a top-up reference server-side (re-confirms with the gateway and
@@ -89,7 +99,10 @@ class TopupService {
   /// payment (Paystack success, bank transfer alert, MoMo confirmation).
   static Future<TopupVerifyResponse> verify(String reference) async {
     final response = await _dio.get('$_kTopupVerifyPath$reference');
-    return TopupVerifyResponse.fromJson(response.data as Map<String, dynamic>);
+    final envelope = Map<String, dynamic>.from(response.data as Map);
+    return TopupVerifyResponse.fromJson(
+      Map<String, dynamic>.from((envelope['data'] ?? {}) as Map),
+    );
   }
 
   /// Turns a thrown error into a customer-safe message.

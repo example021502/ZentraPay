@@ -290,6 +290,50 @@ public class LedgerOperations {
     }
 
     // ==================================================================
+    // 4. Internal moves (savings goals, loans): wallet account <-> ZentraPay product
+    // ==================================================================
+
+    /**
+     * Takes money out of one of the user's wallet accounts for a ZentraPay product (a savings goal,
+     * a loan repayment). Debit, SUCCESS transaction row and ledger entry are one all-or-nothing step;
+     * "Insufficient balance" is thrown (and nothing is written) when the account cannot cover it.
+     */
+    @Transactional
+    public TransactionModel debitInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
+        debit(account.getAccountId(), draft.getAmount());
+        String entryId = NanoIdGenerator.generate("ENT_");
+        draft.setEntryId(entryId);
+        draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
+        TransactionModel txn = transactionRepository.save(draft);
+        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", account.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
+                draft.getAmount(), draft.getSourceCurrencyCode(), narration);
+        notify(txn.getSenderId(), txn, notifyTitle, notifyMessage);
+        return txn;
+    }
+
+    /**
+     * Puts money into one of the user's wallet accounts from a ZentraPay product (a savings goal
+     * withdrawal, a loan paid out). Same all-or-nothing rule as {@link #debitInternal}.
+     */
+    @Transactional
+    public TransactionModel creditInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
+        credit(account.getAccountId(), draft.getDestinationAmount());
+        String entryId = NanoIdGenerator.generate("ENT_");
+        draft.setEntryId(entryId);
+        draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
+        TransactionModel txn = transactionRepository.save(draft);
+        writeEntry(txn.getTransactionId(), entryId + "_CREDIT", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
+                draft.getDestinationAmount(), draft.getDestinationCurrencyCode(), narration);
+        notify(txn.getReceiverId(), txn, notifyTitle, notifyMessage);
+        return txn;
+    }
+
+    /** The user's wallet account in this currency (public so product services can find it). */
+    public FiatAccountModel walletAccount(UUID userId, String currencyCode) {
+        return accountFor(userId, currencyCode.toUpperCase());
+    }
+
+    // ==================================================================
     // Helpers
     // ==================================================================
 

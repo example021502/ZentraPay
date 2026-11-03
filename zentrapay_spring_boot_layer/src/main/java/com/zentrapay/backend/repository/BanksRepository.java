@@ -23,9 +23,14 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
     // Payouts: the same bank in another gateway's catalogue, found by name
     Optional<BanksModel> findFirstByGatewayIgnoreCaseAndCountryCodeIgnoreCaseAndBankNameIgnoreCase(String gateway, String countryCode, String bankName);
 
+    // ZBank link: best-effort match of an AfriLink institution name into the payout catalogue
+    Optional<BanksModel> findFirstByBankNameIgnoreCase(String bankName);
+
     // Used by the provider sync job to upsert rather than duplicate rows on
     // every scheduled run.
     Optional<BanksModel> findByCodeAndGatewayAndCountryCode(String code, String gateway, String countryCode);
+
+    Optional<BanksModel> findByIdAndActive(@Param("bankId") UUID bankId, @Param("active") boolean active);
 
     // Searches funding sources by query while ensuring it only returns sources belonging to the user
     @Query("""

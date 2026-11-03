@@ -4,6 +4,7 @@ import 'package:zentrapay_application/features/Settings/repository/cache_setting
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
+import 'package:zentrapay_application/features/wallet_topup/saved_cards_repository.dart';
 import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart'
     as zbanking;
 import 'package:zentrapay_application/features/zgrow/emergency/emergency_vault.dart';
@@ -46,6 +47,8 @@ void clearUserCaches() {
   CountriesRepository.instance.clear();
   CurrenciesRepository.instance.clear();
   ProviderCategoriesRepository.instance.clear();
+
+  SavedCardsRepository.instance.reset();
 
   RatesRepository.instance.clear();
   ConverterHistoryRepository.instance.clear();

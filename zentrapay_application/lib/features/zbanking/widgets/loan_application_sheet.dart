@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
@@ -206,12 +207,23 @@ class _LoanApplicationBodyState extends State<_LoanApplicationBody> {
           termsAccepted: _terms,
         ),
       );
+      // An approved loan is paid straight into the wallet: refresh balances and history
+      WalletsRepository.instance.refresh().catchError((_) => null);
+      TransactionsRepository.instance
+          .ensureLoaded(forceRefresh: true)
+          .catchError((_) => null);
       if (!mounted) return;
       Navigator.of(context).pop();
+      final amountText = _money(
+        double.tryParse(loan.principalAmount) ?? 0,
+        loan.currencyCode,
+      );
+      final approved = loan.status.toUpperCase() == 'ACTIVE';
       ZentraNotifier.success(
-        'Application submitted',
-        'Your ${_money(double.tryParse(loan.principalAmount) ?? 0, loan.currencyCode)} '
-            'loan request is now under review.',
+        approved ? 'Loan approved' : 'Application submitted',
+        approved
+            ? 'Your $amountText loan was paid into your wallet. Repay it any time from Pay Loans.'
+            : 'Your $amountText loan request is now under review.',
       );
     } catch (e) {
       if (!mounted) return;

@@ -1,6 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_theme.dart';
+
+/// A zero-height app bar in the header colour. Used as a Scaffold's `appBar`, it reserves the status-bar
+/// area (battery, network, clock) so scrolling content slides BEHIND it instead of mixing with the system
+/// information; the [SectionHeader] below it then starts under the status bar.
+class SectionAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const SectionAppBar({super.key});
+
+  @override
+  Size get preferredSize => Size.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: 0,
+      backgroundColor: AppTheme.headerPink,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+    );
+  }
+}
 
 /// The shared hero header for every section: flat primary pink (a darkened
 /// pink in dark mode) with a glass icon badge, so each section looks like part
@@ -57,11 +80,7 @@ class SectionHeader extends StatelessWidget {
               if (showBack || actions.isNotEmpty)
                 Row(
                   children: [
-                    if (showBack)
-                      SectionHeaderButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: onBack ?? () => Navigator.maybePop(context),
-                      ),
+                    if (showBack) SectionBackArrow(onTap: onBack),
                     const Spacer(),
                     ...actions.map(
                       (a) => Padding(
@@ -124,11 +143,13 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// The back arrow of a sub-section: just the icon, no container.
+/// The back arrow of every inner section: just the plain arrow icon, no container, the same arrow the
+/// Send section uses. [color] defaults to white because it sits on the pink [SectionHeader].
 class SectionBackArrow extends StatelessWidget {
   final VoidCallback? onTap;
+  final Color? color;
 
-  const SectionBackArrow({super.key, this.onTap});
+  const SectionBackArrow({super.key, this.onTap, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +158,11 @@ class SectionBackArrow extends StatelessWidget {
       radius: 24,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Icon(Icons.arrow_back, color: AppTheme.textBlack, size: 24),
+        child: Icon(
+          Icons.arrow_back,
+          color: color ?? AppTheme.primaryWhite,
+          size: 22,
+        ),
       ),
     );
   }
@@ -167,7 +192,7 @@ class SectionHeaderButton extends StatelessWidget {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(icon, color: AppTheme.textBlack, size: 20),
+          child: Icon(icon, color: AppTheme.primaryWhite, size: 20),
         ),
       ),
     );

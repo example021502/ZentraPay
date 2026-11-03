@@ -20,6 +20,7 @@ class VerifiedPayee {
   final String accountNumber;
   final String countryCode;
   final bool nameConfirmed;
+  final String gatewayId;
   final Map<String, dynamic> recipient;
 
   const VerifiedPayee({
@@ -29,6 +30,7 @@ class VerifiedPayee {
     required this.accountNumber,
     required this.countryCode,
     required this.nameConfirmed,
+    required this.gatewayId,
     required this.recipient,
   });
 }
@@ -49,8 +51,8 @@ Future<VerifiedPayee?> showVerifyPayeeSheet({
   assert((bank == null) != (mobileMoney == null));
   return showAppOverlaySheet<VerifiedPayee>(
     context: context,
-    minHeightFraction: 0.65,
-    maxWidth: 560,
+    minHeightFraction: 0.5,
+    maxWidth: MediaQuery.of(context).size.width,
     builder: (_) => _VerifyPayeeBody(bank: bank, mobileMoney: mobileMoney),
   );
 }
@@ -154,48 +156,43 @@ class _VerifyPayeeBodyState extends State<_VerifyPayeeBody> {
       final message = (e.response!.data as Map)['message'];
       if (message is String && message.isNotEmpty) return message;
     }
-    return "We could not check this account right now. Please try again.";
+    return "We could not check this account. Please try again.";
   }
 
   void _continue() {
     final verified = _verified;
-    if (verified == null) return;
+    if (verified == null || verified.verificationToken.isEmpty) return;
     final number = _number;
     final name = verified.accountName.trim();
-    final Map<String, dynamic> recipient;
-    if (_isBank) {
-      final bank = widget.bank!;
-      recipient = {
-        'bankId': bank.bankId,
-        'bankName': bank.bankName,
-        'bankCode': bank.bankCode,
-        'accountNumber': number,
-        'accountName': name,
-        'countryCode': bank.countryCode,
-      };
-    } else {
-      final momo = widget.mobileMoney!;
-      recipient = {
-        'providerId': momo.providerId,
-        'providerName': momo.name,
-        'providerCode': momo.providerCode,
-        'phoneNumber': number,
-        if (name.isNotEmpty) 'accountName': name,
-        'countryCode': momo.countryCode,
-      };
-    }
+    final gatewayId = verified.gatewayId.trim();
+    // Only the server-issued token goes forward (the account number / name are NOT re-sent; the
+    // server takes them from the token), plus the id of the gateway that verified the account:
+    // the server tries that gateway first and the others only if it fails.
+    final Map<String, dynamic> recipient = {
+      'verificationToken': verified.verificationToken,
+      if (gatewayId.isNotEmpty) 'gatewayId': gatewayId,
+    };
     Navigator.pop(
       context,
       VerifiedPayee(
         kind: _isBank ? PayeeKind.bank : PayeeKind.mobileMoney,
-        displayName: name.isNotEmpty ? name : "$_destinationName · $number",
+        displayName: name.isNotEmpty
+            ? name
+            : "$_destinationName · ${_maskNumber(number)}",
         destinationName: _destinationName,
-        accountNumber: number,
+        // Masked: this object lives on in app state while the user enters amount + PIN.
+        accountNumber: _maskNumber(number),
         countryCode: _countryCode,
         nameConfirmed: verified.verified && name.isNotEmpty,
+        gatewayId: gatewayId,
         recipient: recipient,
       ),
     );
+  }
+
+  static String _maskNumber(String number) {
+    if (number.length <= 4) return '****';
+    return '${'*' * (number.length - 4)}${number.substring(number.length - 4)}';
   }
 
   Widget _nameField(TextEditingController controller, String label) {
@@ -229,6 +226,7 @@ class _VerifyPayeeBodyState extends State<_VerifyPayeeBody> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [

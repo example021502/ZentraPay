@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/features/payments/milestones_screen.dart';
@@ -56,57 +55,11 @@ class QuickActionsRow extends StatelessWidget {
             ),
           ),
         ),
-        // Comment: Using showModalBottomSheet with isScrollControlled to display the TopupScreen properly as an interactive modal overlay.
         Expanded(
           child: QuickActionButton(
             icon: Icons.add_circle_outline,
             label: "Top Up",
-            onTap: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled:
-                  true, // Comment: Allows the sheet to scale dynamically with content and keyboard
-              backgroundColor: Colors
-                  .transparent, // Comment: Prevents default background override so custom container styles apply
-              builder: (BuildContext context) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppTheme.gray50,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppTheme.radiusXxl),
-                    ),
-                    border: Border.all(color: AppTheme.textBlack),
-                  ),
-                  // Comment: Restricts maximum height to 85% of screen to avoid full-screen stretching conflicts
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.85,
-                    maxWidth: double.infinity,
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      AppTheme.spacingMd,
-                      AppTheme.spacingLg,
-                      AppTheme.spacingMd,
-                      (AppTheme.spacingLg +
-                          MediaQuery.of(context).viewInsets.bottom),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Comment: Title at the top of the modal
-                        Text(
-                          'Fund your zentrapay wallet',
-                          style: AppTheme.headlineMedium,
-                        ),
-                        AppTheme.divider(context, AppTheme.gray500),
-                        const SizedBox(height: AppTheme.spacingMd),
-                        const TopupScreen(),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+            onTap: () => showTopupSheet(context),
           ),
         ),
       ],

@@ -1,7 +1,9 @@
 package com.zentrapay.backend.service.loan;
 
 import com.zentrapay.backend.dto.loan.LoanDTOs.*;
+import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.LoanModel;
+import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.entity.UserProfileModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
@@ -9,13 +11,19 @@ import com.zentrapay.backend.repository.LoanRepository;
 import com.zentrapay.backend.repository.UserProfileRepository;
 import com.zentrapay.backend.repository.UserRepository;
 import com.zentrapay.backend.service.common.Datatypes;
+import com.zentrapay.backend.service.payment.LedgerOperations;
+import com.zentrapay.backend.service.payment.TransactionRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -38,8 +46,10 @@ import java.util.UUID;
  *       stated monthly income.</li>
  *   <li><b>Consent.</b> The credit check and the terms must be accepted.</li>
  * </ul>
- * A successful application is stored as PENDING for review; nothing is paid out
- * from here.
+ * A successful application is decided automatically (the checks above are the credit
+ * decision): the loan becomes ACTIVE and is paid into the user's wallet, ready to be
+ * repaid with {@link #repay}. Set {@code zentrapay.loans.auto-disburse=false} to keep new
+ * applications PENDING for manual review instead.
  */
 @Slf4j
 @Service
@@ -68,6 +78,13 @@ public class LoanService {
     private final LoanRepository loanRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
+    private final LedgerOperations ledgerOperations;
+    private final TransactionRecorder transactionRecorder;
+    private final TransactionTemplate tx;
+
+    // When true a passing application is approved and paid out at once; when false it waits as PENDING
+    @Value("${zentrapay.loans.auto-disburse:true}")
+    private boolean autoDisburse;
 
     /** The user's loans and applications, newest first. */
     @Transactional(readOnly = true)
@@ -132,7 +149,123 @@ public class LoanService {
         loan.setTermsAccepted(true);
         loan.setRiskGrade(eligibility.grade());
         loan.setDecisionNote("Submitted for review");
-        return toDTO(loanRepository.save(loan));
+        LoanModel saved = loanRepository.save(loan);
+        if (autoDisburse) {
+            disburse(user, saved);
+        }
+        return toDTO(saved);
+    }
+
+    /** Approves the loan and pays the principal into the borrower's wallet (one all-or-nothing step with the application). */
+    private void disburse(UserModel user, LoanModel loan) {
+        FiatAccountModel account;
+        try {
+            account = ledgerOperations.walletAccount(user.getUserId(), loan.getCurrencyCode());
+        } catch (ResourceNotFoundException e) {
+            throw new IllegalArgumentException("You need a " + loan.getCurrencyCode() + " account to receive a loan. Please create one first.");
+        }
+        TransactionModel draft = new TransactionModel();
+        draft.setInternalReferenceId("LOAN-" + UUID.randomUUID());
+        draft.setTransactionType(Datatypes.TransactionType.LOAN_DISBURSEMENT);
+        draft.setAmount(loan.getPrincipalAmount());
+        draft.setSourceCurrencyCode(loan.getCurrencyCode());
+        draft.setDestinationCurrencyCode(loan.getCurrencyCode());
+        draft.setDestinationAmount(loan.getPrincipalAmount());
+        draft.setPurpose("Loan paid into your wallet");
+        draft.setSenderName("ZentraPay Loans");
+        draft.setReceiverId(user.getUserId());
+        draft.setReceiverName(user.getFirstName() + " " + user.getLastName());
+        draft.setReceiverEmail(user.getEmail());
+        draft.setReceiverPhoneNumber(user.getPhoneNumber());
+        draft.setDestinationIdentifier(account.getZentag());
+        TransactionModel txn = ledgerOperations.creditInternal(draft, account, "Loan disbursement", "Loan approved",
+                "Your loan of " + loan.getCurrencyCode() + " " + loan.getPrincipalAmount().toPlainString() + " has been paid into your wallet.");
+
+        loan.setStatus("ACTIVE");
+        loan.setApprovedAt(LocalDateTime.now());
+        loan.setDueDate(LocalDate.now().plusMonths(loan.getTermMonths()));
+        loan.setDisbursementTransactionId(txn.getTransactionId());
+        loan.setDecisionNote("Approved and paid into your wallet");
+        loanRepository.save(loan);
+        log.info("Loan {} approved and disbursed to user {}", loan.getLoanId(), user.getUserId());
+    }
+
+    /**
+     * Pays back part or all of a loan from the user's wallet. The loan's balance, the wallet debit, the
+     * transaction and its ledger entry change together or not at all; a refused repayment is still
+     * recorded as a FAILED transaction. The loan is CLOSED when nothing is left to pay.
+     */
+    public LoanDTO repay(UUID userId, UUID loanId, BigDecimal rawAmount) {
+        UserModel user = loadUser(userId);
+        if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Your account is " + user.getStatus() + " at the moment");
+        }
+        if (rawAmount == null || rawAmount.signum() <= 0) {
+            throw new IllegalArgumentException("Enter the amount you want to pay.");
+        }
+        BigDecimal amount = rawAmount.setScale(2, RoundingMode.HALF_UP);
+        LoanModel peek = loanRepository.findById(loanId).filter(l -> l.getUserId().equals(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+        TransactionModel attempt = new TransactionModel();
+        attempt.setInternalReferenceId("LREPAY-" + UUID.randomUUID());
+        attempt.setTransactionType(Datatypes.TransactionType.LOAN_REPAYMENT);
+        attempt.setAmount(amount);
+        attempt.setSourceCurrencyCode(peek.getCurrencyCode());
+        attempt.setDestinationCurrencyCode(peek.getCurrencyCode());
+        attempt.setDestinationAmount(amount);
+        attempt.setPurpose("Loan repayment");
+        attempt.setDestinationIdentifier(peek.getLoanId().toString());
+        attempt.setSenderId(userId);
+        attempt.setSenderName(user.getFirstName() + " " + user.getLastName());
+        attempt.setSenderEmail(user.getEmail());
+        attempt.setSenderPhoneNumber(user.getPhoneNumber());
+        attempt.setReceiverName("ZentraPay Loans");
+
+        try {
+            LoanModel result = tx.execute(status -> {
+                LoanModel loan = loanRepository.findOwnedForUpdate(loanId, userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+                if (!loan.getStatus().equals("ACTIVE") && !loan.getStatus().equals("APPROVED")) {
+                    throw new IllegalArgumentException(loan.getStatus().equals("PENDING")
+                            ? "This loan has not been approved yet, so there is nothing to repay."
+                            : "This loan has nothing left to repay.");
+                }
+                if (amount.compareTo(loan.getOutstandingBalance()) > 0) {
+                    throw new IllegalArgumentException("That is more than the "
+                            + loan.getCurrencyCode() + " " + loan.getOutstandingBalance().setScale(2, RoundingMode.HALF_UP).toPlainString() + " you owe.");
+                }
+                FiatAccountModel account;
+                try {
+                    account = ledgerOperations.walletAccount(userId, loan.getCurrencyCode());
+                } catch (ResourceNotFoundException e) {
+                    throw new IllegalArgumentException("You do not have a " + loan.getCurrencyCode() + " account to pay from.");
+                }
+                if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
+                    throw new IllegalArgumentException("Your " + loan.getCurrencyCode() + " account is " + account.getStatus() + " at the moment");
+                }
+                if (account.getBalance().compareTo(amount) < 0) {
+                    throw new IllegalArgumentException("Insufficient balance. Please top up your " + loan.getCurrencyCode() + " account first");
+                }
+                ledgerOperations.debitInternal(attempt, account, "Loan repayment", "Loan repayment received",
+                        "We received your repayment of " + loan.getCurrencyCode() + " " + amount.toPlainString() + ".");
+
+                BigDecimal left = loan.getOutstandingBalance().subtract(amount).setScale(2, RoundingMode.HALF_UP);
+                loan.setOutstandingBalance(left);
+                loan.setRepaidAmount(loan.getRepaidAmount().add(amount));
+                if (left.signum() <= 0) {
+                    loan.setStatus("CLOSED");
+                    loan.setClosedAt(LocalDateTime.now());
+                    loan.setDecisionNote("Fully repaid");
+                }
+                return loanRepository.save(loan);
+            });
+            return toDTO(result);
+        } catch (RuntimeException e) {
+            transactionRecorder.recordFailure(attempt,
+                    e.getMessage() == null || e.getMessage().isBlank() ? "The repayment could not be completed" : e.getMessage());
+            throw e;
+        }
     }
 
     // ------------------------------------------------------------------ rules

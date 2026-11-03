@@ -98,23 +98,32 @@ public class ProviderSyncService {
     // Comment: Fetches banks across Paystack, Flutterwave, and Onafriq for a given country and saves them
     private void fetchAndSaveBanks(String countryCode) {
         // Comment: 1. FETCHING AND PARSING BANKS FROM PAYSTACK
-        String paystackUrl = paystackBaseUrl + "/bank?country=" + countryCode;
-        HttpHeaders paystackHeaders = new HttpHeaders();
-        paystackHeaders.set("Authorization", "Bearer " + paystackSk);
+        // Paystack's `country` filter wants the country NAME ("ghana"). Given an ISO code ("GH") it answers
+        // "success" with ZERO banks, which used to leave only the placeholder seed rows (fake codes such as
+        // GH_GCB) in the catalogue, so no bank transfer could ever be verified or sent.
+        String paystackCountry = paystackCountryName(countryCode);
+        if (paystackCountry == null) {
+            log.info("Paystack does not list banks for [" + countryCode + "]; skipping it.");
+        } else {
+            String paystackUrl = paystackBaseUrl + "/bank?country=" + paystackCountry;
+            HttpHeaders paystackHeaders = new HttpHeaders();
+            paystackHeaders.set("Authorization", "Bearer " + paystackSk);
 
-        try {
-            ResponseEntity<PaystackBankResponseDTO> response = restTemplate.exchange(
-                    paystackUrl, HttpMethod.GET, new HttpEntity<>(paystackHeaders), PaystackBankResponseDTO.class
-            );
+            try {
+                ResponseEntity<PaystackBankResponseDTO> response = restTemplate.exchange(
+                        paystackUrl, HttpMethod.GET, new HttpEntity<>(paystackHeaders), PaystackBankResponseDTO.class
+                );
 
-            if (response.getBody() != null && Boolean.TRUE.equals(response.getBody().status())) {
-                List<BanksModel> banks = paystackBankMapper.mapToEntities(response.getBody(), countryCode);
-                persistBanks(banks);
-                deactivateMissingBanks("paystack", countryCode, banks);
-                log.info("Paystack Banks Response [" + countryCode + "]: Success. Upserted " + banks.size() + " banks.");
+                if (response.getBody() != null && Boolean.TRUE.equals(response.getBody().status())) {
+                    List<BanksModel> banks = paystackBankMapper.mapToEntities(response.getBody(), countryCode);
+                    persistBanks(banks);
+                    // Only retire older rows when Paystack really returned a list (an empty one is ignored)
+                    deactivateMissingBanks("paystack", countryCode, banks);
+                    log.info("Paystack Banks Response [" + countryCode + "]: Success. Upserted " + banks.size() + " banks.");
+                }
+            } catch (Exception e) {
+                log.error("Failed to fetch Paystack banks for [" + countryCode + "]: " + e.getMessage());
             }
-        } catch (Exception e) {
-            log.error("Failed to fetch Paystack banks for [" + countryCode + "]: " + e.getMessage());
         }
 
         // Comment: 2. FETCHING AND PARSING BANKS FROM FLUTTERWAVE
@@ -157,6 +166,21 @@ public class ProviderSyncService {
         } catch (Exception e) {
             log.error("Failed to fetch Onafriq institutions for [" + countryCode + "]: " + e.getMessage());
         }
+    }
+
+    // The countries Paystack serves (GET /country), by the name its bank list filter expects
+    private static final java.util.Map<String, String> PAYSTACK_COUNTRIES = java.util.Map.of(
+            "GH", "ghana",
+            "NG", "nigeria",
+            "KE", "kenya",
+            "ZA", "south africa",
+            "CI", "cote d'ivoire",
+            "RW", "rwanda",
+            "EG", "egypt");
+
+    /** The name Paystack uses for this country, or null when Paystack does not operate there. */
+    static String paystackCountryName(String countryCode) {
+        return countryCode == null ? null : PAYSTACK_COUNTRIES.get(countryCode.trim().toUpperCase());
     }
 
     // Comment: Fetches bill providers exclusively from Flutterwave as Paystack doesn't support this
@@ -224,7 +248,7 @@ public class ProviderSyncService {
     // Paystack lists its mobile-money operators as "banks" of type mobile_money, per currency
     private void fetchPaystackMobileMoney(String countryCode) {
         String currency = gatewayCountriesRepository.findFirstByCountryCode(countryCode.toUpperCase())
-                .map(c -> c.getCurrencyCode())
+                .map(c -> c.getDefaultCurrency())
                 .orElse(null);
         if (currency == null || currency.isBlank()) {
             return;

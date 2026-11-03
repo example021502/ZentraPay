@@ -25,9 +25,10 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // ensureLoaded rethrows on failure; unhandled here it became an
       // "unhandled exception" that still left the list permanently empty.
-      TransactionsRepository.instance.ensureLoaded().catchError(
-        (Object e) => debugPrint('History load failed: $e'),
-      );
+      TransactionsRepository.instance
+          .ensureLoaded()
+          .then((_) => TransactionsRepository.instance.syncLatest())
+          .catchError((Object e) => debugPrint('History load failed: $e'));
     });
     _scrollController.addListener(_onScroll);
   }
@@ -61,12 +62,20 @@ class _PaymentHistoryState extends State<PaymentHistory> {
   // Comment: the amount string from the backend carries a credit/debit sign
   // ("+GHS 100.00" / "-GHS 100.00") — the sign picks the arrow direction.
   IconData _getIcon(AppTransaction transaction) {
+    if (transaction.isOpenStatus) return Icons.schedule_rounded;
+    if (transaction.isUnsuccessful) {
+      return transaction.status.trim().toUpperCase() == 'REVERSED'
+          ? Icons.undo_rounded
+          : Icons.cancel_outlined;
+    }
     if (transaction.isDebit) return Icons.call_made_rounded;
     return Icons.call_received_rounded;
   }
 
   // Comment: debits render in the app's main color, credits in green.
   Color _getColor(AppTransaction transaction) {
+    if (transaction.isOpenStatus) return AppTheme.warningOrange;
+    if (transaction.isUnsuccessful) return AppTheme.errorRed;
     if (transaction.isCredit) return AppColors.green;
     return AppColors.main;
   }
@@ -220,17 +229,33 @@ class _PaymentHistoryState extends State<PaymentHistory> {
             color: AppColors.textBlack,
           ),
         ),
-        subtitle: Text(
-          date,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: AppColors.lightGrey,
+        subtitle: Text.rich(
+          TextSpan(
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: AppColors.lightGrey,
+            ),
+            children: [
+              TextSpan(text: '$date  \u2022  '),
+              TextSpan(
+                text: transaction.statusLabel,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: transaction.isUnsuccessful || transaction.isOpenStatus
+                      ? _getColor(transaction)
+                      : AppColors.lightGrey,
+                ),
+              ),
+            ],
           ),
         ),
         trailing: Text(
           transaction.amount,
           style: TextStyle(
+            decoration: transaction.isUnsuccessful
+                ? TextDecoration.lineThrough
+                : null,
             fontSize: 13,
             fontWeight: FontWeight.w600,
             // The signed amount from the backend decides the color: a "-"
@@ -271,7 +296,14 @@ class _PaymentHistoryState extends State<PaymentHistory> {
               style: AppStyles.header.copyWith(fontSize: 24),
             ),
             const SizedBox(height: 12),
-            _detailRow("Status", transaction.status),
+            _detailRow("Status", transaction.statusLabel),
+            if (transaction.typeLabel.isNotEmpty)
+              _detailRow("Type", transaction.typeLabel),
+            if (transaction.purpose.trim().isNotEmpty)
+              _detailRow("For", transaction.purpose),
+            if (transaction.isUnsuccessful &&
+                transaction.failureReason.trim().isNotEmpty)
+              _detailRow("Reason", transaction.failureReason),
             _detailRow("Reference", transaction.txnRef),
             _detailRow("Date", formatDateTimeString(transaction.completedAt)),
             const SizedBox(height: 16),
@@ -313,7 +345,14 @@ class _PaymentHistoryState extends State<PaymentHistory> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(color: AppColors.lightGrey)),
-        Text(value, style: TextStyle(color: AppColors.textBlack)),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(color: AppColors.textBlack),
+          ),
+        ),
       ],
     ),
   );
