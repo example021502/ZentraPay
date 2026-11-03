@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../features/home/repository/cache_home_data.dart';
 import '../../../../features/payments/repository/cache_payments_data.dart';
 import '../../../../core/utils/Common/app_confirm_sheet.dart';
 import '../../../../core/utils/Common/enter_amount.dart';
@@ -122,6 +123,7 @@ class PaymentController {
         message: "Processing payment…",
       );
       debugPrint("============= THE TRANSACTION RESULT:: $transaction");
+      _syncAfterAttempt();
       if (!context.mounted) return;
       // payment() hands back {'data': AppTransaction, 'message': String}; a
       // response that carried no transaction data is a failure, not a success.
@@ -187,10 +189,15 @@ class PaymentController {
       await showTransactionResultOverlay(
         context: context,
         status: TransactionResultStatus.success,
-        title: (transaction['message'] ?? "Payment Successful").toString(),
+        // A bank / mobile-money payout can still be on its way: say so instead of claiming it arrived.
+        title: data.isOpenStatus
+            ? "Payment processing"
+            : (transaction['message'] ?? "Payment Successful").toString(),
         // amountLabel drops the debit sign so the sentence reads
         // "GHS 100.00 sent to Ama" rather than "-GHS 100.00 sent to Ama".
-        message: "$amountLabel sent to $recipientNameForUI.",
+        message: data.isOpenStatus
+            ? "$amountLabel is on its way to $recipientNameForUI. The status updates in your history once it is confirmed."
+            : "$amountLabel sent to $recipientNameForUI.",
         details: [
           TransactionResultDetail("Recipient", recipientNameForUI),
           TransactionResultDetail("Amount", amountLabel),
@@ -205,6 +212,8 @@ class PaymentController {
         ],
       );
     } catch (e) {
+      // A refused attempt is saved as FAILED on the server: show it in the history now
+      _syncAfterAttempt();
       if (!context.mounted) return;
       await showTransactionResultOverlay(
         context: context,
@@ -216,6 +225,16 @@ class PaymentController {
       _payInFlight = false;
       onStateChanged(_payInFlight);
     }
+  }
+
+  /// Whatever happened (done, still processing, refused, wrong PIN, network
+  /// error) the backend keeps a record of the attempt: bring the history and
+  /// the balance up to date right away - before the result sheet is even
+  /// dismissed - instead of waiting for a manual refresh. A payout that is
+  /// still processing keeps being re-checked automatically.
+  void _syncAfterAttempt() {
+    TransactionsRepository.instance.syncLatest();
+    WalletsRepository.instance.refresh().catchError((_) => null);
   }
 
   String _extractErrorMessage(Object e) {

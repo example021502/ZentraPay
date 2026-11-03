@@ -146,6 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ].where((p) => p != null && p.isNotEmpty).join(' ');
 
         return Scaffold(
+          appBar: const SectionAppBar(),
           backgroundColor: AppTheme.gray50,
           body: Column(
             children: [

@@ -239,33 +239,6 @@ class PaymentsService {
     }
   }
 
-  static Future<AppTransaction> payBankTransfer({
-    required String pin,
-    required String amount,
-    required String currencyCode,
-    required String channelCode,
-    required String accountNumber,
-    required String accountName,
-    String? description,
-  }) async {
-    final response = await _dio.post(
-      '/api/payments/bank-transfer',
-      data: {
-        'pin': pin,
-        'amount': amount,
-        'currencyCode': currencyCode,
-        'channelCode': channelCode,
-        'accountNumber': accountNumber,
-        'accountName': accountName,
-        'description': ?description,
-      },
-    );
-    if (response.data['data'] == null) {
-      throw Exception('Bank transfer response missing transaction data');
-    }
-    return _applyTransactionResult(response.data['data']);
-  }
-
   static Future<Map<String, dynamic>> getPaystackAccessCode({
     required String amount,
     required String currencyCode,

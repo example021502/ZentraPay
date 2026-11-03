@@ -187,7 +187,7 @@ class _PaySectionMainState extends State<PaySectionMain> {
                 ),
                 child: Icon(
                   Icons.qr_code_2_outlined,
-                  color: AppTheme.textBlack,
+                  color: AppTheme.buttonColor,
                   size: 35,
                 ),
               ),
@@ -223,28 +223,8 @@ class _PaySectionMainState extends State<PaySectionMain> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                GestureDetector(
-                                  onTap: () => Navigator.pop(context),
-                                  child: Icon(
-                                    Icons.arrow_back,
-                                    size: 22,
-                                    color: AppTheme.textBlack,
-                                  ),
-                                ),
-                                const SizedBox(width: AppTheme.spacingSm),
-                                Text(
-                                  "Send Money",
-                                  style: AppTheme.headlineSmall,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        // No back arrow: this is a bottom sheet, swipe down to close it
+                        Text("Send Money", style: AppTheme.headlineSmall),
                         const SizedBox(height: AppTheme.spacingLg),
                         PaySearchSection(
                           controller: _searchController,

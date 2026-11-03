@@ -41,6 +41,7 @@ public class BillProvidersService {
     private final FiatWalletRepository fiatWalletRepository;
     private final FiatAccountRepository fiatAccountRepository;
     private final TransactionRepository transactionRepository;
+    private final com.zentrapay.backend.service.payment.TransactionRecorder transactionRecorder;
     private final LedgerOperations ledgerOperations;
     private final FlutterwaveServices flutterwaveServices;
     private final GatewayServices gatewayServices;
@@ -94,29 +95,11 @@ public class BillProvidersService {
         log.info("========== BILL PAYMENT START: user={} provider={} ==========", userId, request.providerId());
         UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        pinService.requireValid(user, request.pin());
-        if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
-            throw new IllegalArgumentException("Your account is " + user.getStatus() + " at the moment");
-        }
-
-        BillProviderModel provider = requirePayableProvider(request.providerId());
-        GatewayModel flutterwave = gatewayServices.gatewayByName(Datatypes.PaymentGateway.FLUTTERWAVE);
         String currency = request.currencyCode().toUpperCase();
         BigDecimal amount = request.amount().setScale(2, RoundingMode.HALF_UP);
         String customer = request.customerReference().trim();
 
-        FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("No wallet found"));
-        FiatAccountModel account = fiatAccountRepository.findByWalletIdAndCurrencyCode(wallet.getWalletId(), currency)
-                .orElseThrow(() -> new IllegalArgumentException("You do not have a " + currency + " account yet. Please create one first."));
-        if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
-            throw new IllegalArgumentException("Your " + currency + " account is " + account.getStatus() + " at the moment");
-        }
-        if (account.getBalance().compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Insufficient balance. Please top up your " + currency + " account first");
-        }
-
-        // 1) Debit and record (INITIATED)
+        // Built first so that, if any check below refuses the payment, the attempt is still saved as FAILED
         TransactionModel draft = new TransactionModel();
         draft.setInternalReferenceId("BILL-" + UUID.randomUUID());
         draft.setTransactionType(Datatypes.TransactionType.BILL_PAYMENT);
@@ -124,14 +107,44 @@ public class BillProvidersService {
         draft.setSourceCurrencyCode(currency);
         draft.setDestinationCurrencyCode(currency);
         draft.setDestinationAmount(amount);
-        draft.setPurpose("Bill payment: " + provider.getBillerName());
+        draft.setPurpose("Bill payment");
         draft.setSenderId(userId);
         draft.setSenderName(user.getFirstName() + " " + user.getLastName());
         draft.setSenderEmail(user.getEmail());
         draft.setSenderPhoneNumber(user.getPhoneNumber());
-        draft.setReceiverName(provider.getBillerName());
         draft.setDestinationIdentifier(customer);
-        draft.setGatewayId(flutterwave.getProviderId());
+
+        BillProviderModel provider;
+        GatewayModel flutterwave;
+        FiatAccountModel account;
+        try {
+            pinService.requireValid(user, request.pin());
+            if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
+                throw new IllegalArgumentException("Your account is " + user.getStatus() + " at the moment");
+            }
+
+            provider = requirePayableProvider(request.providerId());
+            draft.setPurpose("Bill payment: " + provider.getBillerName());
+            draft.setReceiverName(provider.getBillerName());
+            flutterwave = gatewayServices.gatewayByName(Datatypes.PaymentGateway.FLUTTERWAVE);
+            draft.setGatewayId(flutterwave.getProviderId());
+
+            FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("No wallet found"));
+            account = fiatAccountRepository.findByWalletIdAndCurrencyCode(wallet.getWalletId(), currency)
+                    .orElseThrow(() -> new IllegalArgumentException("You do not have a " + currency + " account yet. Please create one first."));
+            if (!"ACTIVE".equalsIgnoreCase(account.getStatus())) {
+                throw new IllegalArgumentException("Your " + currency + " account is " + account.getStatus() + " at the moment");
+            }
+            if (account.getBalance().compareTo(amount) < 0) {
+                throw new IllegalArgumentException("Insufficient balance. Please top up your " + currency + " account first");
+            }
+        } catch (RuntimeException e) {
+            transactionRecorder.recordFailure(draft, e.getMessage());
+            throw e;
+        }
+
+        // 1) Debit and record (INITIATED)
         TransactionModel txn = ledgerOperations.debitForPayout(draft, account);
 
         BillPaymentModel payment = new BillPaymentModel();

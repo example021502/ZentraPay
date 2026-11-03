@@ -13,7 +13,7 @@ Project: `zentrapay_spring_boot_layer`
 | Security | Spring Security (stateless, JWT-based) |
 | JWT | `io.jsonwebtoken` (jjwt) 0.12.6, HMAC-SHA256 |
 | Validation | `spring-boot-starter-validation` (Jakarta Bean Validation, `@Valid`) |
-| Outbound HTTP (payment gateways) | `RestClient` via `GatewayHttp` (timeouts in `HttpClientsConfig`); `RestTemplate` only for the directory sync and AfriqLink |
+| Outbound HTTP (payment gateways) | `RestClient` via `GatewayHttp` (timeouts in `HttpClientsConfig`); `RestTemplate` only for the directory sync and AfriLink |
 | Boilerplate reduction | Lombok |
 | Build | Gradle (Kotlin DSL), Gradle wrapper |
 | Transport | HTTPS only — `server.ssl.enabled=true`, bundled `keystore.p12` |

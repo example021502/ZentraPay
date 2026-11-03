@@ -25,12 +25,17 @@ class AppCountry {
   );
 }
 
+/// A currency ZentraPay moves money in. There is no currencies table on the
+/// backend: a currency is listed because at least one active country has it
+/// as its `default_currency`, and [countryCodes] are those countries (XOF is
+/// shared by several).
 class AppCurrency {
   final String currencyCode;
   final String currencyName;
   final String symbol;
   final bool isCrypto;
   final int decimalPlaces;
+  final List<String> countryCodes;
 
   AppCurrency({
     required this.currencyCode,
@@ -38,16 +43,20 @@ class AppCurrency {
     required this.symbol,
     required this.isCrypto,
     required this.decimalPlaces,
+    this.countryCodes = const [],
   });
 
   factory AppCurrency.fromJson(Map<String, dynamic> json) => AppCurrency(
     currencyCode: json['currencyCode'] ?? '',
     currencyName: json['currencyName'] ?? '',
-    // Backend CurrencyDTO exposes `symbol` (V2 seeds "GH₵", "₦", ...) — the
+    // Backend CurrencyDTO exposes `symbol` ("GH₵", "₦", ...) — the
     // old key `countryIsoCode` never existed in the reference endpoint.
     symbol: json['symbol'] ?? '',
     isCrypto: json['isCrypto'] ?? false,
     decimalPlaces: json['decimalPlaces'] ?? 2,
+    countryCodes: ((json['countryCodes'] as List?) ?? const [])
+        .map((e) => e.toString())
+        .toList(),
   );
 }
 

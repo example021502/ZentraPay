@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:zentrapay_application/core/models/bill_service_provider.dart';
@@ -462,6 +464,9 @@ class TransactionsRepository extends ChangeNotifier {
 
   /// Clears cached history on user logout or session reset.
   void clear() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _pollRounds = 0;
     _items.clear();
     _page = 0;
     _totalPages = 1;
@@ -469,6 +474,83 @@ class TransactionsRepository extends ChangeNotifier {
     _loading = false;
     _loadedOnce = false;
     notifyListeners();
+  }
+
+  // ---- live sync ---------------------------------------------------------
+
+  bool _syncing = false;
+  bool _syncAgain = false;
+  Timer? _pollTimer;
+  int _pollRounds = 0;
+
+  /// Silently re-reads the newest page and merges it into the list: new rows
+  /// (including FAILED attempts) appear at the top, rows already listed take
+  /// the server's latest status, older pages the user scrolled to are kept.
+  /// There is no loading flash, so it is safe to call after every payment
+  /// attempt - successful or not.
+  ///
+  /// While any listed transaction is still open (PENDING / INITIATED ...) the
+  /// repository keeps re-checking by itself, so a bank or mobile-money payout
+  /// flips to its final status in the history without the user refreshing.
+  Future<void> syncLatest() => _sync(fromPoll: false);
+
+  Future<void> _sync({required bool fromPoll}) async {
+    if (!fromPoll) _pollRounds = 0;
+    if (!_loadedOnce) {
+      // Nothing cached yet: a normal first load does the same job.
+      try {
+        await ensureLoaded();
+      } catch (_) {
+        return;
+      }
+      _schedulePoll();
+      return;
+    }
+    if (_syncing) {
+      _syncAgain = true;
+      return;
+    }
+    _syncing = true;
+    try {
+      final result = await _fetchPage(0);
+      final freshIds = {
+        for (final t in result.content) t.transactionId.trim(),
+      };
+      final older = _items.where(
+        (t) => !freshIds.contains(t.transactionId.trim()),
+      );
+      final merged = [...result.content, ...older];
+      _items
+        ..clear()
+        ..addAll(merged);
+      // Only page 0 is loaded so far: its paging info is the current truth.
+      if (_page == 0) _totalPages = result.totalPages;
+      _error = null;
+      notifyListeners();
+    } catch (e) {
+      // Silent: the list keeps what it has and the next sync tries again.
+      debugPrint('Transactions sync failed: $e');
+    } finally {
+      _syncing = false;
+    }
+    if (_syncAgain) {
+      _syncAgain = false;
+      await _sync(fromPoll: fromPoll);
+      return;
+    }
+    _schedulePoll();
+  }
+
+  // Re-check every few seconds while something is unfinished, backing off
+  // after a while, and give up after ~10 minutes (a manual refresh still works).
+  void _schedulePoll() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    final hasOpen = _items.any((t) => t.isOpenStatus);
+    if (!hasOpen || _pollRounds >= 40) return;
+    final delay = Duration(seconds: _pollRounds < 12 ? 4 : 20);
+    _pollRounds++;
+    _pollTimer = Timer(delay, () => _sync(fromPoll: true));
   }
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
@@ -484,6 +566,8 @@ class TransactionsRepository extends ChangeNotifier {
       _page = result.page;
       _totalPages = result.totalPages;
       _loadedOnce = true;
+      _pollRounds = 0;
+      _schedulePoll();
     } catch (e) {
       _error = e;
       rethrow;
@@ -540,6 +624,17 @@ class TransactionsRepository extends ChangeNotifier {
     if (!alreadyListed) {
       _items.insert(0, transaction);
       notifyListeners();
+    } else if (hasUsableId) {
+      // Same transaction again (a retried request, a webhook): take its latest status
+      final index = _items.indexWhere((i) => i.transactionId.trim() == txnId);
+      if (index >= 0) {
+        _items[index] = transaction;
+        notifyListeners();
+      }
+    }
+    if (transaction.isOpenStatus) {
+      _pollRounds = 0;
+      _schedulePoll();
     }
   }
 
@@ -1295,6 +1390,7 @@ class SearchRepository {
   static Future<ContactSearchResult> search(
     String query, {
     bool international = false,
+    String? country,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return ContactSearchResult.empty();
@@ -1307,7 +1403,12 @@ class SearchRepository {
     final encodedQuery = Uri.encodeComponent(trimmed);
     final response = await _dio.get(
       '/api/search/search-contacts/$encodedQuery',
-      queryParameters: {'scope': international ? 'INTERNATIONAL' : 'DOMESTIC'},
+      queryParameters: {
+        'scope': international ? 'INTERNATIONAL' : 'DOMESTIC',
+        // ZRemit: only the destination country the user picked
+        if (international && country != null && country.isNotEmpty)
+          'country': country,
+      },
     );
     return ContactSearchResult.fromJson(response.data['data']);
   }

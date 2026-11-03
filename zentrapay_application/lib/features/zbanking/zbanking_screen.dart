@@ -1,5 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/AfriLinkBankConnectScreen.dart';
 import 'package:zentrapay_application/core/models/money.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
@@ -7,10 +7,10 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
-import 'package:zentrapay_application/core/utils/interceptor.dart';
-import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
-import 'package:zentrapay_application/features/zbanking/widgets/loan_application_sheet.dart';
+import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/features/zbanking/pay_loans_screen.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/other_bank_accounts_strip.dart';
+import 'package:zentrapay_application/features/wallet_topup/saved_cards_screen.dart';
 import 'package:zentrapay_application/features/wallet_topup/topup_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -23,10 +23,6 @@ class ZBankingScreen extends StatefulWidget {
 
 class _ZBankingScreenState extends State<ZBankingScreen> {
   bool _balanceHidden = false;
-
-  // Used only by the savings-create sheet until a dedicated savings
-  // repository exists; the token/interceptor config lives in ApiClient.
-  final Dio _dio = ApiClient().dio;
 
   @override
   void initState() {
@@ -62,14 +58,14 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               if (primary != null)
                 _headerActionPill(
                   label: 'Link bank',
-                  onTap: () => showLinkBankSheet(context),
+                  onTap: () => linkBankWithAfriLink(context),
                 ),
             ],
             child: _buildHeaderCard(primary),
           ),
           sheet: SectionSheet(
             color: AppTheme.gray50,
-            topPadding: 12,
+            topPadding: AppTheme.spacingMd,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -212,7 +208,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add, size: 16, color: AppTheme.textBlack),
+              Icon(Icons.add, size: 16, color: AppTheme.primaryWhite),
               const SizedBox(width: 5),
               Text(
                 label,
@@ -326,7 +322,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
         children: [
           Icon(
             Icons.account_balance_outlined,
-            color: AppTheme.textBlack,
+            color: AppTheme.primaryWhite,
             size: 30,
           ),
           const SizedBox(height: AppTheme.spacingSm),
@@ -347,7 +343,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
           Center(
             child: _headerActionPill(
               label: 'Link a bank',
-              onTap: () => showLinkBankSheet(context),
+              onTap: () => linkBankWithAfriLink(context),
             ),
           ),
         ],
@@ -380,15 +376,21 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               _optionRow(
                 icon: Icons.payments_outlined,
                 title: "Micro-loan",
-                subtitle: "Apply for a quick loan",
-                onTap: () => showLoanApplicationSheet(context),
+                subtitle: "Apply for a loan or repay one",
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PayLoansScreen()),
+                ),
               ),
               _optionDivider(),
               _optionRow(
                 icon: Icons.track_changes_outlined,
                 title: "Financial goals",
                 subtitle: "Save towards what matters",
-                onTap: () => _showCreateSavingsDialog(context, const []),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MilestonesScreen()),
+                ),
               ),
               _optionDivider(),
               _optionRow(
@@ -401,10 +403,17 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
               _optionRow(
                 icon: Icons.add_circle_outlined,
                 title: "Top Up Wallet",
-                subtitle: "Add money from bank or mobile money",
+                subtitle: "Add money from your linked bank",
+                onTap: () => showTopupSheet(context),
+              ),
+              _optionDivider(),
+              _optionRow(
+                icon: Icons.credit_card_rounded,
+                title: "Saved cards",
+                subtitle: "Top up with a card you already used",
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const TopupScreen()),
+                  MaterialPageRoute(builder: (_) => const SavedCardsScreen()),
                 ),
               ),
               _optionDivider(),
@@ -564,248 +573,6 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
         const SizedBox(height: AppTheme.spacingSm),
         TextButton(onPressed: onRetry, child: const Text('Retry')),
       ],
-    );
-  }
-
-  // ============================================================
-  // DIALOGS / BOTTOM SHEETS
-  // ============================================================
-
-  Future<void> _showCreateSavingsDialog(
-    BuildContext context,
-    List<Map<String, dynamic>> goals,
-  ) async {
-    final nameController = TextEditingController();
-    final depositController = TextEditingController();
-    final targetController = TextEditingController();
-    bool submitting = false;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          child: StatefulBuilder(
-            builder: (sheetContext, setState) {
-              return Container(
-                padding: const EdgeInsets.all(AppTheme.spacingLg),
-                decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Goals', style: AppTheme.headlineSmall),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    if (goals.isNotEmpty)
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxHeight: 150),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: Column(
-                            children: [
-                              ListView.builder(
-                                itemCount: goals.length,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemBuilder: (context, index) {
-                                  // Builder function returning a widget for each index
-                                  final goal =
-                                      goals[index]; // Access the individual goal item
-                                  final n = double.parse(
-                                    goal['progress'].replaceAll('%', ''),
-                                  );
-                                  final bool isGreen = n > 50;
-                                  return Material(
-                                    child: ListTile(
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal: 10.0,
-                                      ),
-                                      tileColor: AppTheme.brand.withAlpha(
-                                        20,
-                                      ), // Background color in normal state
-                                      selectedTileColor: AppTheme.lightGrey,
-                                      selected: false,
-                                      iconColor: AppTheme
-                                          .textBlack, // Color for leading & trailing icons
-                                      textColor: AppTheme.textBlack,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          15.0,
-                                        ),
-                                        side: BorderSide(
-                                          color: AppTheme.lightGrey,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      leading: Container(
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.brand.withAlpha(20),
-                                          borderRadius: BorderRadius.circular(
-                                            200,
-                                          ),
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: const Icon(Icons.flag),
-                                        ),
-                                      ), // Icon on the left side
-                                      title: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            goal["title"] ?? "Unknown",
-                                            style: AppTheme.bodyMedium,
-                                          ),
-                                          Text(
-                                            goal["progress"] ?? "0%",
-                                            style: AppTheme.headlineSmall
-                                                .copyWith(
-                                                  color: isGreen
-                                                      ? AppTheme.successGreen
-                                                      : AppTheme.warningOrange,
-                                                ),
-                                          ),
-
-                                          Container(
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.primaryPink
-                                                  .withAlpha(20),
-                                              borderRadius:
-                                                  BorderRadius.circular(200),
-                                            ),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 2.0,
-                                                    horizontal: 10.0,
-                                                  ),
-                                              child: Text(
-                                                "active",
-                                                style: AppTheme.bodySmall,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ), // Primary text element
-                                      subtitle: Text(
-                                        goal["description"] ?? "Unknown",
-                                        style: AppTheme.bodySmall.copyWith(
-                                          color: AppTheme.textBlack.withAlpha(
-                                            100,
-                                          ),
-                                        ),
-                                      ), // Secondary text element
-                                      trailing: const Icon(
-                                        Icons.chevron_right,
-                                      ), // Icon on the right side
-                                      onTap: () {
-                                        // Interaction callback when tapped
-                                        // Handle tap action
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    Text(
-                      "You want to set a new goal?",
-                      style: AppTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppTheme.spacingSm),
-                    AppTextField(
-                      controller: nameController,
-                      labelText: 'Name',
-                      hintText: 'e.g. Rent Fund',
-                    ),
-                    const SizedBox(height: AppTheme.spacingSm),
-                    AppTextField(
-                      controller: depositController,
-                      labelText: 'Initial deposit (GHS)',
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingSm),
-                    AppTextField(
-                      controller: targetController,
-                      labelText: 'Target amount (optional)',
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                    const SizedBox(height: AppTheme.spacingLg),
-                    PrimaryButton(
-                      label: 'Create',
-                      loading: submitting,
-                      onPressed: () async {
-                        final name = nameController.text.trim();
-                        final deposit = depositController.text.trim();
-                        final parsedDeposit = double.tryParse(deposit);
-                        if (name.isEmpty) {
-                          ZentraNotifier.error(
-                            'Missing Name',
-                            'Give your Goal a name.',
-                          );
-                          return;
-                        }
-                        if (deposit.isEmpty ||
-                            parsedDeposit == null ||
-                            parsedDeposit < 0) {
-                          ZentraNotifier.error(
-                            'Invalid Deposit',
-                            'Enter a valid initial deposit.',
-                          );
-                          return;
-                        }
-                        final target = targetController.text.trim();
-                        setState(() => submitting = true);
-                        try {
-                          // No dedicated savings repository exists yet, so call
-                          // the documented endpoint directly
-                          // (POST /api/zbanking/savings/create).
-                          await _dio.post(
-                            '/api/zbanking/savings/create',
-                            data: {
-                              'savingsName': name,
-                              'currencyCode': 'GHS',
-                              'targetAmount': target.isEmpty ? null : target,
-                              'initialDeposit': deposit,
-                            },
-                          );
-                          if (sheetContext.mounted) Navigator.pop(sheetContext);
-                          ZentraNotifier.success(
-                            'Savings Created',
-                            '$name is ready to grow.',
-                          );
-                        } catch (e) {
-                          setState(() => submitting = false);
-                          ZentraNotifier.error(
-                            "Couldn't create goal",
-                            "We couldn't create your goal right now. "
-                                "Please try again later.",
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
     );
   }
 }

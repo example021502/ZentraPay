@@ -9,11 +9,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * Canonical mapping of {@code gateway_countries} (V9__gateway_directory_consolidation.sql).
- * This is now THE supported-countries table: it only ever contains countries the
- * connected gateways (Paystack / Flutterwave / Onafriq) actually support, kept
- * fresh by the scheduled {@code GatewayDirectorySyncService}. ISO 3166-1 alpha-2
- * country code is the natural key.
+ * Canonical mapping of {@code gateway_countries} - the ONLY reference table for places and money.
+ * It contains the countries the connected gateways (Paystack / Flutterwave / Onafriq) support, kept
+ * fresh by the scheduled {@code GatewayDirectorySyncService}. ISO 3166-1 alpha-2 country code is the
+ * natural key.
+ *
+ * <p>{@link #defaultCurrency} is what restricts payments: a user registered in this country pays in this
+ * currency, and a cross-border payment to this country arrives in it. There is no separate currencies table.
  */
 @Entity
 @Data
@@ -35,9 +37,9 @@ public class GatewayCountryModel {
     @Column(name = "region", length = 40)
     private String region;
 
-    /** Default payout/settlement currency for this country. */
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
+    /** The currency (ISO 4217 code) people registered in this country pay in, and cross-border payments arrive in. */
+    @Column(name = "default_currency", nullable = false, length = 8)
+    private String defaultCurrency;
 
     /** Comma-separated gateways supporting this country, e.g. "paystack,flutterwave". */
     @Column(name = "gateways", nullable = false)

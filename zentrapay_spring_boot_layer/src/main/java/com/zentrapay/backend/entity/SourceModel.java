@@ -26,12 +26,14 @@ public class SourceModel {
     @Column(name = "name", nullable = false)
     private String name;
 
+    // Stored by name (BANK_TRANSFER ...), not by ordinal, so reordering the enum can never corrupt rows
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false)
     private Datatypes.PaymentMethod method;
 
     // Soft-delete / status flag
     @Column(name = "active", nullable = false)
-    private Boolean isActive = true;
+    private Boolean active = true;
 
     // Automatic creation timestamp
     @CreationTimestamp

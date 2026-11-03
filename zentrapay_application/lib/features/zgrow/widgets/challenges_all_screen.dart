@@ -75,6 +75,7 @@ class _ChallengesAllScreenState extends State<ChallengesAllScreen> {
   Widget build(BuildContext context) {
     final String title = _isAccepted ? "Accepted Challenges" : "All Challenges";
     return Scaffold(
+      appBar: const SectionAppBar(),
       backgroundColor: AppTheme.gray50,
       body: Column(
         children: [

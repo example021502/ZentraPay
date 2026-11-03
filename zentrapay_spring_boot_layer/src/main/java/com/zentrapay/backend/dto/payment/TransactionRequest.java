@@ -18,8 +18,8 @@ import java.util.UUID;
  *   "transactionType": "P2P_TRANSFER" | "CASH_OUT_BANK" | "CASH_OUT_MOMO",
  *   "transfer": { "amount": 10, "currencyCode": "GHS", "purpose": "...", "destinationCurrencyCode"?: "GHS" },
  *   "appUser": { "userId": "...", "zentag": "..." }            // for P2P_TRANSFER
- *   "bank":    { "bankCode": "...", "accountNumber": "...", "accountName": "..." }   // for CASH_OUT_BANK
- *   "mobileMoney": { "providerId": "...", "providerCode": "MTN", "phoneNumber": "...", "accountName"?: "..." }   // for CASH_OUT_MOMO
+ *   "bank":    { "verificationToken": "...", "gatewayId": "..." }      // CASH_OUT_BANK (both from /verify-account)
+ *   "mobileMoney": { "verificationToken": "...", "gatewayId": "..." }  // CASH_OUT_MOMO (both from /verify-account)
  * }
  * </pre>
  *
@@ -58,36 +58,28 @@ public record TransactionRequest(
     }
 
     /**
-     * Sending to a bank account.
+     * Sending to a bank account that is not a ZentraPay account.
+     *
+     * <p>Only the token from {@code POST /api/payments/verify-account} is accepted. The bank, the
+     * account number and the holder name all come from what the provider confirmed (see
+     * DestinationTokenService), never from the request, so they cannot be altered or skipped.
      */
     public record BankDetails(
-            UUID bankId,
-            String bankName,
-            @NotBlank(message = "Bank code missing!")
-            String bankCode,
-            @NotBlank(message = "Account number missing!")
-            String accountNumber,
-            @NotBlank(message = "Account name missing!")
-            String accountName,
-            // Country of the bank; defaults to the sender's country
-            String countryCode
+            @NotBlank(message = "Please verify the account before sending")
+            String verificationToken,
+            // The gateway that verified the account (from /verify-account). Tried FIRST; the others are the fallback.
+            UUID gatewayId
     ) {
     }
 
     /**
-     * Sending to a mobile-money wallet.
+     * Sending to a mobile-money wallet; same rule as {@link BankDetails}.
      */
     public record MobileMoneyDetails(
-            UUID providerId,
-            String providerName,
-            // The network code from search (e.g. MTN); used when providerId is not sent
-            String providerCode,
-            @NotBlank(message = "Wallet phone number missing!")
-            String phoneNumber,
-            // Optional: the name shown to the sender; the confirmed name from the provider wins when there is one
-            String accountName,
-            // Country of the network; defaults to the sender's country
-            String countryCode
+            @NotBlank(message = "Please verify the wallet before sending")
+            String verificationToken,
+            // The gateway that verified the wallet (from /verify-account); null when none could look it up
+            UUID gatewayId
     ) {
     }
 

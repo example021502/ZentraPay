@@ -22,7 +22,7 @@ public class Schedulers {
     @Autowired
     private ProviderSyncService providerSyncService;
 
-    // Comment: gateway_countries/gateway_currencies syncer — unified onto this
+    // Comment: gateway_countries syncer — unified onto this
     // same daily trigger (and country list) instead of running independently
     // on its own 02:00 cron, so the whole reference-data directory refreshes
     // together instead of drifting apart.
@@ -45,8 +45,8 @@ public class Schedulers {
     // Comment: The directory (countries + currencies) is refreshed FIRST: the provider sync reads each
     // country's currency from it (Paystack mobile money is listed per currency).
     // Runs every day at 00:00 UTC to sync provider data (banks,
-    // bill providers, mobile-money providers) AND the gateway_countries /
-    // gateway_currencies directory from Paystack / Flutterwave / Onafriq.
+    // bill providers, mobile-money providers) AND the gateway_countries
+    // directory from Paystack / Flutterwave / Onafriq.
     // Each sync is idempotent (upsert by gateway code), so a missed run is
     // harmless and a manual re-run just refreshes the directory.
     @Scheduled(cron = "0 0 0 * * *", zone = "UTC")
@@ -57,8 +57,8 @@ public class Schedulers {
                 .filter(c -> !c.isEmpty())
                 .toList();
         try {
-            // Comment: Same trigger, same country list — gateway_countries /
-            // gateway_currencies now refresh alongside banks/bill-providers/momo.
+            // Comment: Same trigger, same country list — gateway_countries
+            // now refreshes alongside banks/bill-providers/momo.
             gatewayDirectorySyncService.refreshGatewayDirectory();
             log.info("Gateway directory synchronization completed successfully.");
         } catch (Exception e) {

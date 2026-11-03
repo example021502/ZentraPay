@@ -48,6 +48,13 @@ public class LoanModel {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "PENDING";
 
+    /** How much of the loan has been paid back so far. */
+    @Column(name = "repaid_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal repaidAmount = BigDecimal.ZERO;
+
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
     @Column(name = "disbursement_transaction_id")
     private UUID disbursementTransactionId;
 

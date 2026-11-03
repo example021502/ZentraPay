@@ -9,6 +9,12 @@ import java.math.BigDecimal;
  * @param finalFailure true when the checkout is over and unpaid (failed / abandoned / expired)
  * @param amount      amount paid, in major units (null if unknown)
  * @param currency    currency paid (null if unknown)
+ * @param card        the reusable card the customer paid with, when the gateway reports one (else null)
  */
-public record GatewayChargeStatus(boolean successful, boolean finalFailure, BigDecimal amount, String currency) {
+public record GatewayChargeStatus(boolean successful, boolean finalFailure, BigDecimal amount, String currency,
+                                  GatewayCardToken card) {
+
+    public GatewayChargeStatus(boolean successful, boolean finalFailure, BigDecimal amount, String currency) {
+        this(successful, finalFailure, amount, currency, null);
+    }
 }

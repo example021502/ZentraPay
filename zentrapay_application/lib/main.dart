@@ -14,7 +14,6 @@ import 'package:zentrapay_application/core/utils/loading_overlay.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/login_screen.dart';
 import 'package:zentrapay_application/features/home/HomePayments/pay.dart';
-import 'package:zentrapay_application/features/home/external_payment_screen.dart';
 import 'package:zentrapay_application/features/home/zentrapay_splash_screen_main.dart';
 import 'package:zentrapay_application/features/payanywhere/payanywhere_screen.dart';
 import 'package:zentrapay_application/features/payments/ai_assistance_screen.dart';
@@ -169,7 +168,6 @@ class MainApp extends StatelessWidget {
                 '/liquidity_hub': (context) => const LiquidityHubScreen(),
                 '/voice_recording': (context) => const ZVoiceScreen(),
                 '/fraud_detection': (context) => const FraudDetectionScreen(),
-                '/external_payment': (context) => const ExternalPaymentScreen(),
                 '/zbanking': (context) => const ZBankingScreen(),
                 '/zremit': (context) => const ZRemitScreen(),
                 '/zvoice': (context) => const ZVoiceScreen(),

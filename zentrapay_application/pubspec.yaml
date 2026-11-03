@@ -59,6 +59,7 @@ dependencies:
   pretty_qr_code: ^3.6.0
   mobile_scanner: ^7.4.2
   speech_to_text: ^7.5.0
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   flutter_test:

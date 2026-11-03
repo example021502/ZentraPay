@@ -30,11 +30,15 @@ public class UserBankModel {
     @Column(name = "balance", nullable = false)
     private BigDecimal balance;
 
-    @Column(name = "bank_id", nullable = false)
+    /**
+     * Optional best-effort match into the {@code banks} payout catalogue. A bank linked through
+     * AfriLink does not need to exist there, so this may be null.
+     */
+    @Column(name = "bank_id")
     private UUID bankId;
 
     @Column(name = "last_digits", nullable = false)
-    private String lastDigits;
+    private String lastDigits = "";
 
     @Column(name = "connection_status", nullable = false)
     private String connectionStatus = "active";
@@ -59,6 +63,29 @@ public class UserBankModel {
      */
     @Column(name = "link_label", length = 120)
     private String linkLabel;
+
+    /** Which open-banking provider confirmed the link (AFRILINK, or LEGACY for older rows). */
+    @Column(name = "provider", nullable = false, length = 30)
+    private String provider = "LEGACY";
+
+    /** The provider's opaque account id (AfriLink {@code data.id}); unique per provider. */
+    @Column(name = "provider_account_id", length = 128)
+    private String providerAccountId;
+
+    @Column(name = "institution_id", length = 128)
+    private String institutionId;
+
+    @Column(name = "institution_name", length = 180)
+    private String institutionName;
+
+    @Column(name = "account_type", length = 40)
+    private String accountType;
+
+    @Column(name = "currency_code", length = 3)
+    private String currencyCode;
+
+    @Column(name = "country_code", length = 3)
+    private String countryCode;
 
     @CreationTimestamp
     @Column(name = "linked_at", nullable = false)

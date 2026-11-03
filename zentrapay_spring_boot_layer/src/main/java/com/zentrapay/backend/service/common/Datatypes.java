@@ -122,6 +122,14 @@ public class Datatypes {
         // funding user wallet account
         WALLET_FUNDING,
 
+        // Comment: Money moved between a wallet account and one of the user's savings goals
+        SAVINGS_DEPOSIT,
+        SAVINGS_WITHDRAWAL,
+
+        // Comment: Micro-loans - the loan paid into the wallet, and the user paying it back
+        LOAN_DISBURSEMENT,
+        LOAN_REPAYMENT,
+
         // Comment: Platform operational adjustments, fees, and refunds
         PLATFORM_FEE,
         REFUND

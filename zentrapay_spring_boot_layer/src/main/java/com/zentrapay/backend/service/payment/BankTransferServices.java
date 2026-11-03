@@ -19,7 +19,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sends money to a bank account through the payment gateways, with failover.
+ * Sends money to a bank account / mobile-money wallet through the payment gateways.
+ *
+ * <p>Gateway choice: a domestic payout to an account that was verified goes through THE GATEWAY THAT
+ * VERIFIED IT (its id travels in the encrypted verification token) - no other gateway is tried. Only
+ * payouts without a verifying gateway (mobile-money wallets no provider could look up, cross-border
+ * sends) use the routing order with failover.
  *
  * <p>The payout happens in two steps around the debit (see PaymentServices):
  * <ol>
@@ -51,10 +56,14 @@ public class BankTransferServices {
      * Everything a gateway needs to know about the payout. {@code destinationType} is BANK or
      * MOBILE_MONEY; {@code bankId}/{@code bankCode} then hold the bank or the mobile-money network
      * (id and code) and {@code accountNumber} the account number or the wallet phone number.
+     *
+     * <p>{@code gatewayId} is the gateway that VERIFIED the account. When it is set, that gateway is
+     * tried FIRST (with its own bank code); if it cannot take the payout the other gateways of the normal
+     * routing order are tried as alternatives. When it is null, the normal routing order applies.
      */
     public record Payout(String destinationType, UserModel sender, boolean crossBorder, UUID bankId, String bankCode,
                          String countryCode, String currencyCode, String accountNumber, String accountName,
-                         BigDecimal amount, String narration) {
+                         BigDecimal amount, String narration, UUID gatewayId) {
         public boolean isMobileMoney() {
             return "MOBILE_MONEY".equalsIgnoreCase(destinationType);
         }
@@ -76,11 +85,11 @@ public class BankTransferServices {
      * here is a clean error for the user.
      */
     public Prepared prepare(Payout payout) {
-        log.info("Bank payout: preparing gateways for {} / {}", payout.bankCode(), payout.accountNumber());
+        log.info("Bank payout: preparing gateways for {} / {}", payout.bankCode(), DestinationTokenService.mask(payout.accountNumber()));
         Optional<BanksModel> bank = payout.isMobileMoney() ? Optional.empty() : findBank(payout);
         PaymentGatewayException lastError = null;
 
-        for (GatewayModel gateway : gatewayServices.gatewaysFor(payout.crossBorder())) {
+        for (GatewayModel gateway : candidateGateways(payout)) {
             try {
                 Prepared prepared = prepareOn(gateway, payout, bank);
                 if (prepared != null) {
@@ -95,6 +104,30 @@ public class BankTransferServices {
                 ? (payout.isMobileMoney() ? "This mobile money network is not supported for transfers right now"
                 : "This bank is not supported for transfers right now")
                 : "Bank transfers are unavailable right now: " + lastError.getMessage());
+    }
+
+    /**
+     * The gateways this payout may use, best first: the gateway that verified the account (when it is
+     * known, active and valid for this corridor) goes first, then the rest of the routing order for the
+     * country as alternatives if it refuses.
+     */
+    private List<GatewayModel> candidateGateways(Payout payout) {
+        List<GatewayModel> routing = gatewayServices.gatewaysFor(payout.crossBorder(), payout.countryCode());
+        if (payout.gatewayId() == null) {
+            return routing;
+        }
+        // Only a gateway that is in the routing list (active, serves this country/corridor) can be promoted
+        Optional<GatewayModel> preferred = routing.stream()
+                .filter(g -> g.getProviderId().equals(payout.gatewayId()))
+                .findFirst();
+        if (preferred.isEmpty()) {
+            log.warn("Bank payout: the verifying gateway {} is not available for this payout, using the normal order", payout.gatewayId());
+            return routing;
+        }
+        List<GatewayModel> ordered = new java.util.ArrayList<>(routing);
+        ordered.remove(preferred.get());
+        ordered.add(0, preferred.get());
+        return ordered;
     }
 
     // Customer + recipient on ONE gateway (same gateway for both); null if the gateway has no code for this bank
@@ -125,7 +158,7 @@ public class BankTransferServices {
         PaymentGatewayException lastError = null;
 
         // First the gateway we already prepared, then the others in routing order
-        List<GatewayModel> gateways = gatewayServices.gatewaysFor(payout.crossBorder()).stream()
+        List<GatewayModel> gateways = candidateGateways(payout).stream()
                 .filter(g -> !g.getProviderId().equals(first.gateway().getProviderId()))
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         gateways.add(0, first.gateway());
@@ -147,14 +180,13 @@ public class BankTransferServices {
             }
 
             // The transfer itself
+            GatewayTransferResult result;
             try {
                 ledgerOperations.assignGateway(txn.getTransactionId(), gateway.getProviderId());
-                log.info("=================== MAKING THE TRANSFER ON GATEWAY :: {} ===============", gateway.getProviderName());
-                GatewayTransferResult result = transferVia(gateway, prepared.recipient(), payout, LedgerOperations.gatewayReference(txn));
-                log.info("THE GATEWAY RESULTS ARE:: {}", result);
+                log.info("Bank payout: making the transfer on {}", gateway.getProviderName());
+                result = transferVia(gateway, prepared.recipient(), payout, LedgerOperations.gatewayReference(txn));
                 log.info("Bank payout: {} accepted {} (code {}, settled {})", gateway.getProviderName(),
                         txn.getInternalReferenceId(), result.gatewayCode(), result.settled());
-                return ledgerOperations.markSubmitted(txn.getTransactionId(), gateway.getProviderId(), result.settled());
 
             } catch (PaymentGatewayException e) {
                 if (e.isOutcomeUnknown()) {
@@ -164,13 +196,37 @@ public class BankTransferServices {
                     return ledgerOperations.markSubmitted(txn.getTransactionId(), gateway.getProviderId(), false);
                 }
                 log.warn("Bank payout: {} refused {}: {}", gateway.getProviderName(), txn.getInternalReferenceId(), e.getMessage());
+                if (looksLikeLowSettlementBalance(e.getMessage())) {
+                    // Not the customer's fault: OUR balance at the gateway cannot cover the payout
+                    log.error("*** SETTLEMENT BALANCE TOO LOW on {} - top up the {} balance (in test mode: Dashboard > Transfers > Balance) ***",
+                            gateway.getProviderName(), payout.currencyCode());
+                }
                 lastError = e;
+                continue;
+
+            } catch (RuntimeException e) {
+                // A bug in OUR code around the gateway call. The sender is already debited and we cannot tell
+                // whether anything reached the gateway, so do NOT refund and do NOT try another gateway: leave
+                // the payment PENDING; the reconciliation job asks the gateway and refunds if it never saw it.
+                log.error("Bank payout: unexpected error on {} for {} - keeping it PENDING for reconciliation",
+                        gateway.getProviderName(), txn.getInternalReferenceId(), e);
+                return ledgerOperations.markSubmitted(txn.getTransactionId(), gateway.getProviderId(), false);
             }
+            return ledgerOperations.markSubmitted(txn.getTransactionId(), gateway.getProviderId(), result.settled());
         }
 
         // Every gateway refused: give the money back
         ledgerOperations.refund(txn.getTransactionId(), false, lastError == null ? "No gateway could take this transfer" : lastError.getMessage());
         throw new PaymentGatewayException("The transfer could not be completed and your money has been returned to your wallet.");
+    }
+
+    // Gateways word "our settlement balance is too small" in a few ways
+    private static boolean looksLikeLowSettlementBalance(String message) {
+        if (message == null) {
+            return false;
+        }
+        String m = message.toLowerCase();
+        return m.contains("balance") || m.contains("insufficient");
     }
 
     // Calls the right gateway's transfer API
@@ -204,7 +260,7 @@ public class BankTransferServices {
         }
         if (bank.isEmpty()) {
             // Not in our catalogue: trust the code the app sent, but only on the primary gateway
-            boolean isPrimary = gatewayServices.gatewaysFor(payout.crossBorder()).get(0).getProviderId().equals(gateway.getProviderId());
+            boolean isPrimary = candidateGateways(payout).get(0).getProviderId().equals(gateway.getProviderId());
             return isPrimary ? payout.bankCode() : null;
         }
         return bankCatalogService.codeOnGateway(bank.get(), gateway.getProviderName(), payout.countryCode());

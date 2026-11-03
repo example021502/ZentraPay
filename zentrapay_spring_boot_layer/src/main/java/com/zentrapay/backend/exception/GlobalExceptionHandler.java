@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
     // Words that mean a message was written for developers: exception types,
     // transport / database details, and the names of the providers we run on.
     private static final List<String> TECHNICAL_MARKERS = List.of(
-            "exception", "stacktrace", "afriqlink", "paystack", "flutterwave", "onafriq", "privy",
+            "exception", "stacktrace", "afrilink", "paystack", "flutterwave", "onafriq", "privy",
             "gateway", "http", "status code", "sql", "jdbc", "hibernate", "spring", "timeout",
             "timed out", "connection", "jwt", "endpoint", "api key", "secret", "refused", "socket");
     private static final Pattern NULL_WORD = Pattern.compile("\\bnull\\b", Pattern.CASE_INSENSITIVE);

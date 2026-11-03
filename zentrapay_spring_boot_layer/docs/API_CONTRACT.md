@@ -40,7 +40,7 @@ Transaction `status`: `INITIATED`, `PENDING`, `SUCCESS`, `FAILED`, `REVERSED`, `
 | GET | `/api/history?page=&size=` | paged transactions `{content, page, size, totalElements, totalPages}`; `amount` is signed ("-GHS 25.50" / "+USD 10.00") |
 | GET | `/api/wallet/balances` | |
 | POST | `/api/wallet/newFiat` | open a currency account |
-| POST | `/api/wallet/supportedCurrencies` | currencies the user can still open |
+| POST | `/api/wallet/supportedCurrencies` | currencies the user can still open (the countries' default currencies, minus the ones they hold) |
 | GET | `/api/notifications?limit=&offset=` / PATCH `/{id}/read` | |
 | GET | `/api/converter/rates?base=` / POST `/convert` / GET `/history` | |
 
@@ -48,9 +48,20 @@ Transaction `status`: `INITIATED`, `PENDING`, `SUCCESS`, `FAILED`, `REVERSED`, `
 | Verb | Path | Auth |
 |---|---|---|
 | GET | `/api/reference/countries`, `/currencies`, `/provider-categories`, `/banks?query=&country=` | Public |
+
+**Currencies come from the country table.** There is no currencies table: `gateway_countries.default_currency` is the only
+source (`countries` returns it as `defaultCurrencyCode`; `currencies` is the distinct set of active countries' default
+currencies, each with `{currencyCode, currencyName, symbol, isCrypto, decimalPlaces, countryCodes}`).
+It also restricts payments, by where the sender is registered:
+- **domestic** (P2P, bank, mobile money): the sender pays in their own country's default currency and the recipient
+  receives that same currency;
+- **cross-border** (`/api/remittance`): the sender still pays in their own country's default currency; the money arrives
+  in the destination country's default currency.
+Any other `currencyCode` / `destinationCurrencyCode` is refused with a message naming the allowed currency; a blank one takes
+the allowed default. Change a country's `default_currency` in the table to change what it may use (the sync never overwrites it).
 | GET | `/api/payment-channels?countryCode=&type=` | Bearer |
 | GET | `/api/payment-channels/resolve?channelCode=&accountNumber=` | Bearer - account holder name (Paystack, then Flutterwave) |
-| GET | `/api/search/search-contacts/{query}`, `/search-contact/{query}` | Bearer |
+| GET | `/api/search/search-contacts/{query}`, `/search-contact/{query}` (`?scope=DOMESTIC\|INTERNATIONAL`, `&country=NG` narrows INTERNATIONAL to one destination country) | Bearer |
 | GET | `/api/service-providers` | Bearer |
 
 ## Bills - `/api/bill-providers`
@@ -61,7 +72,7 @@ Transaction `status`: `INITIATED`, `PENDING`, `SUCCESS`, `FAILED`, `REVERSED`, `
 `POST /send`, `GET /history`, `GET /rates?source=&destination=&amount=`. Cross-border only; the recipient must be a ZentraPay user for now.
 
 ## Bank accounts (ZBank) - `/api/zbanking`
-`GET /userAccounts`, `POST /link`, `POST /primary/{id}`, `DELETE /unlink/{id}` (linking goes through AfriqLink).
+`GET /userAccounts`, `POST /link`, `POST /primary/{id}`, `DELETE /unlink/{id}` (linking goes through AfriLink).
 
 ## Cards - `/api/cards`
 `GET /userCards`, `GET /otherCards`.

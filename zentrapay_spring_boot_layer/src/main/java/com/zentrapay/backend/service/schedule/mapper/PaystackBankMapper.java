@@ -16,7 +16,9 @@ public class PaystackBankMapper implements BankMapper<PaystackBankResponseDTO> {
         }
 
         return response.data().stream()
-                .filter(PaystackBankResponseDTO.BankItemDTO::active)
+                // a missing "active" flag means the bank is usable; only an explicit false hides it
+                .filter(item -> !Boolean.FALSE.equals(item.active()))
+                .filter(item -> item.code() != null && !item.code().isBlank() && item.name() != null)
                 .map(item -> {
                     BanksModel bank = new BanksModel();
                     bank.setBankName(item.name());

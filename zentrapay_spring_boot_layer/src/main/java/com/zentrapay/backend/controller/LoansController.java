@@ -16,7 +16,8 @@ import java.util.List;
  * <pre>
  * GET  /api/zbanking/loans              my loans and applications
  * GET  /api/zbanking/loans/eligibility  what I may borrow (KYC level, risk grade, limits)
- * POST /api/zbanking/loans/submit an application
+ * POST /api/zbanking/loans/apply        submit an application (approved loans are paid into the wallet)
+ * POST /api/zbanking/loans/{id}/repay   pay back part or all of a loan from my wallet
  * </pre>
  */
 @RestController
@@ -40,5 +41,12 @@ public class LoansController {
     public ResponseEntity<ApiResponse<LoanDTO>> apply(@CurrentUser AuthenticatedUser user,
                                                       @RequestBody LoanApplicationRequestDTO request) {
         return ResponseEntity.ok(ApiResponse.success(loanService.apply(user.getUserId(), request), "Application submitted"));
+    }
+
+    @PostMapping("/{loanId}/repay")
+    public ResponseEntity<ApiResponse<LoanDTO>> repay(@CurrentUser AuthenticatedUser user,
+                                                      @PathVariable java.util.UUID loanId,
+                                                      @RequestBody RepayRequestDTO request) {
+        return ResponseEntity.ok(ApiResponse.success(loanService.repay(user.getUserId(), loanId, request.amount()), "Repayment received"));
     }
 }

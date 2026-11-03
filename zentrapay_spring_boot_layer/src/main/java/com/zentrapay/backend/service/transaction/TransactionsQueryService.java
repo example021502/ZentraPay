@@ -63,7 +63,9 @@ public class TransactionsQueryService {
                 // The client's model reads completedAt (falling back to
                 // createdAt); the ledger only tracks createdAt.
                 t.getCreatedAt(),
-                t.getTransactionType()
+                t.getTransactionType(),
+                t.getFailureReason(),
+                t.getPurpose()
         );
     }
 

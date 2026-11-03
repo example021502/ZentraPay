@@ -20,7 +20,7 @@ import java.util.UUID;
  * ({@code transactionId} points at the sender's debit leg). The legacy FKs to
  * the dropped {@code countries}/{@code currencies} tables were removed by
  * V9__gateway_directory_consolidation.sql — supported-country/currency checks
- * now run against {@code gateway_countries}/{@code gateway_currencies}.
+ * now run against {@code gateway_countries} alone (its {@code default_currency}).
  */
 @Entity
 @Data

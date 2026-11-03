@@ -56,6 +56,14 @@ public class SearchContactsService {
     }
 
     public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId, Scope scope) {
+        return searchContacts(req, userId, scope, null);
+    }
+
+    /**
+     * @param destinationCountry ZRemit only: narrows the search to this one country (the one the user picked as the
+     *                           destination). Blank = every other supported country.
+     */
+    public SearchResponseDTO searchContacts(@Valid SearchRequestDTO req, UUID userId, Scope scope, String destinationCountry) {
         // Searches app users, banks, mobile-money networks (and, at home, bill providers) that match the typed text
         log.info("Searching {} contacts for user {} with query '{}'", scope, userId, req.query());
         int limit = req.limit() > 0 ? req.limit() : 20;
@@ -66,7 +74,7 @@ public class SearchContactsService {
         String senderCountry = sender.getCountryCode().toLowerCase();
 
         if (scope == Scope.INTERNATIONAL) {
-            return searchAbroad(query, sender, senderCountry, limit);
+            return searchAbroad(query, sender, senderCountry, limit, destinationCountry);
         }
 
 //  GETTING ALL THE MATCHED USER ACCOUNTS
@@ -93,9 +101,11 @@ public class SearchContactsService {
     }
 
     // ZRemit: everything abroad - but only in countries ZentraPay (through its gateways) supports
-    private SearchResponseDTO searchAbroad(String query, UserModel sender, String senderCountry, int limit) {
+    private SearchResponseDTO searchAbroad(String query, UserModel sender, String senderCountry, int limit, String destinationCountry) {
+        boolean oneCountry = destinationCountry != null && !destinationCountry.isBlank();
         List<String> supported = supportedRegionService.activeCountryCodes().stream()
                 .filter(code -> !code.equalsIgnoreCase(senderCountry))
+                .filter(code -> !oneCountry || code.equalsIgnoreCase(destinationCountry.trim()))
                 .toList();
         if (supported.isEmpty()) {
             return new SearchResponseDTO(List.of(), List.of(), List.of(), List.of());

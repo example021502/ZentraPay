@@ -34,6 +34,8 @@ public class SearchContactsController {
             @PathVariable("query") String query,
             // DOMESTIC (default): the searcher own country. INTERNATIONAL: every other supported country (ZRemit)
             @RequestParam(value = "scope", defaultValue = "DOMESTIC") String scope,
+            // INTERNATIONAL only: limit the search to the destination country the user picked (ISO code, e.g. NG)
+            @RequestParam(value = "country", required = false) String country,
             @AuthenticationPrincipal AuthenticatedUser user // Captures the authenticated principal set by your JWT filter
     ) {
         // Extract the user UUID from the principal name (assuming your JWT subject stores the user UUID string)
@@ -45,7 +47,7 @@ public class SearchContactsController {
         SearchRequestDTO request = new SearchRequestDTO(query, 20);
 
         // Perform the search operation
-        SearchResponseDTO contacts = searchContactsService.searchContacts(request, userId, SearchContactsService.Scope.parse(scope));
+        SearchResponseDTO contacts = searchContactsService.searchContacts(request, userId, SearchContactsService.Scope.parse(scope), country);
 
         // Return the success response
         return ResponseEntity.ok(ApiResponse.success(contacts, "Search Successful"));

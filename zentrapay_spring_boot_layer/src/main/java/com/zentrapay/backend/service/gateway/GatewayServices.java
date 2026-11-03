@@ -6,6 +6,7 @@ import com.zentrapay.backend.entity.GatewayRecipientsModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
+import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.GatewayCustomerRepository;
 import com.zentrapay.backend.repository.GatewayRecipientsRepository;
 import com.zentrapay.backend.repository.GatewayRepository;
@@ -25,8 +26,9 @@ import java.util.UUID;
  *
  * <p><b>Routing</b> (primary first, then the failover):
  * <ul>
- *   <li>national payments      : Paystack -> Flutterwave</li>
- *   <li>cross-border payments  : Onafriq  -> Flutterwave</li>
+ *   <li>national payments      : Paystack (primary) -> Flutterwave (secondary), narrowed to the gateways that
+ *       serve the user's country when the gateway directory lists them</li>
+ *   <li>cross-border payments  : Onafriq only</li>
  * </ul>
  *
  * <p><b>Customer / recipient rule</b>: a recipient is always created on the SAME
@@ -43,6 +45,7 @@ import java.util.UUID;
 public class GatewayServices {
 
     private final GatewayRepository gatewayRepository;
+    private final GatewayCountriesRepository gatewayCountriesRepository;
     private final GatewayCustomerRepository gatewayCustomerRepository;
     private final GatewayRecipientsRepository gatewayRecipientsRepository;
     private final PaystackServices paystackServices;
@@ -67,9 +70,35 @@ public class GatewayServices {
      * @param crossBorder true when sender and receiver are in different countries
      */
     public List<GatewayModel> gatewaysFor(boolean crossBorder) {
+        return gatewaysFor(crossBorder, null);
+    }
+
+    /**
+     * Same, narrowed to the gateways that serve {@code countryCode} (the nation of the user / payee).
+     * Domestic: Paystack first, Flutterwave second - but a gateway the directory says does not operate in
+     * that country is left out, so e.g. a country only Flutterwave serves goes straight to Flutterwave.
+     * When the directory has no gateway list for the country the standard order is used as it is.
+     * Cross-border: Onafriq only.
+     */
+    public List<GatewayModel> gatewaysFor(boolean crossBorder, String countryCode) {
         List<Datatypes.PaymentGateway> order = crossBorder
-                ? List.of(Datatypes.PaymentGateway.ONAFRIQ, Datatypes.PaymentGateway.FLUTTERWAVE)
+                ? List.of(Datatypes.PaymentGateway.ONAFRIQ)
                 : List.of(Datatypes.PaymentGateway.PAYSTACK, Datatypes.PaymentGateway.FLUTTERWAVE);
+
+        if (!crossBorder && countryCode != null && !countryCode.isBlank()) {
+            java.util.Set<String> serving = gatewayCountriesRepository.findFirstByCountryCode(countryCode.trim().toUpperCase())
+                    .map(c -> c.getGateways() == null ? "" : c.getGateways())
+                    .map(list -> java.util.Arrays.stream(list.split(","))
+                            .map(g -> g.trim().toUpperCase()).filter(g -> !g.isEmpty())
+                            .collect(java.util.stream.Collectors.toSet()))
+                    .orElse(java.util.Set.of());
+            if (!serving.isEmpty()) {
+                List<Datatypes.PaymentGateway> narrowed = order.stream().filter(g -> serving.contains(g.name())).toList();
+                if (!narrowed.isEmpty()) {
+                    order = narrowed;
+                }
+            }
+        }
 
         List<GatewayModel> gateways = new ArrayList<>();
         for (Datatypes.PaymentGateway name : order) {
@@ -165,7 +194,7 @@ public class GatewayServices {
 
     private GatewayRecipientsModel createRecipient(GatewayCustomerModel customer, Destination d) {
         GatewayModel gateway = gatewayById(customer.getGatewayId());
-        log.info("Creating {} recipient {} / {} for user {}", gateway.getProviderName(), d.channelCode(), d.accountNumber(), customer.getUserId());
+        log.info("Creating {} recipient {} / {} for user {}", gateway.getProviderName(), d.channelCode(), com.zentrapay.backend.service.payment.DestinationTokenService.mask(d.accountNumber()), customer.getUserId());
 
         String recipientCode = switch (nameOf(gateway)) {
             case PAYSTACK ->

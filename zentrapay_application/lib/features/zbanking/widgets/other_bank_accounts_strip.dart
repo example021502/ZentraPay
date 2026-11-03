@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/AfriLinkBankConnectScreen.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
-import 'package:zentrapay_application/features/zbanking/widgets/link_bank_sheet.dart';
 
 /// Bottom section of the ZBank screen: the horizontally scrollable strip of
 /// every linked account that isn't the primary (the primary lives in the
@@ -33,7 +33,7 @@ class OtherBankAccountsStrip extends StatelessWidget {
                 const SizedBox(width: AppTheme.spacingMd),
             itemBuilder: (context, index) {
               if (index == accounts.length) {
-                return _AddBankCard(onTap: () => showLinkBankSheet(context));
+                return _AddBankCard(onTap: () => linkBankWithAfriLink(context));
               }
               return _BankAccountCard(account: accounts[index]);
             },

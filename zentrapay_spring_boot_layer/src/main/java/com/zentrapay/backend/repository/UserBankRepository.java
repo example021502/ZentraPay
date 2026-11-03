@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface UserBankRepository extends JpaRepository<UserBankModel, UUID> {
-    @Query("SELECT ub.bankId FROM UserBankModel ub WHERE ub.userId = :userId")
+    @Query("SELECT ub.bankId FROM UserBankModel ub WHERE ub.userId = :userId AND ub.bankId IS NOT NULL")
     List<UUID> getBankIdsByUserId(@Param("userId") UUID userId);
 
     @Query("SELECT ub.balance FROM UserBankModel ub WHERE ub.userId = :userId AND ub.bankId = :bankId")
@@ -34,4 +34,7 @@ public interface UserBankRepository extends JpaRepository<UserBankModel, UUID> {
 
     /** Used to reject linking the same bank twice. */
     Optional<UserBankModel> findByUserIdAndBankId(UUID userId, UUID bankId);
+
+    /** An AfriLink account can only ever belong to one user. */
+    Optional<UserBankModel> findByProviderAndProviderAccountId(String provider, String providerAccountId);
 }

@@ -3,15 +3,18 @@ package com.zentrapay.backend.service.bank;
 import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.entity.UserBankModel;
-import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.repository.BanksRepository;
-import com.zentrapay.backend.repository.UserBankRepository;
+import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.UserRepository;
+import com.zentrapay.backend.entity.GatewayCountryModel;
+import com.zentrapay.backend.entity.UserModel;
+import com.zentrapay.backend.repository.UserBankRepository;
 import com.zentrapay.backend.dto.bank.AccountsDTO;
 import com.zentrapay.backend.dto.bank.AccountsResponseDTO;
 import com.zentrapay.backend.dto.bank.LinkNewBankRequestDTO;
 import com.zentrapay.backend.dto.bank.UserAccountsDTO;
 import com.zentrapay.backend.dto.bank.UserAccountsResponseDTO;
+import com.zentrapay.backend.dto.payment.AfriLinkAccountDTO;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,15 +30,6 @@ import java.util.UUID;
 /**
  * ZBank Lite bank accounts — linking a bank, promoting a primary account and
  * reading back the linked accounts for the ZBank screen.
- *
- * <p>Two read shapes exist and both are still served:
- * <ul>
- *   <li>{@link #getAccounts} → the legacy catalog-only {@code AccountsResponseDTO}
- *       (kept so the older {@code /accounts} contract does not break).</li>
- *   <li>{@link #getUserAccounts} → the real per-user
- *       {@code UserAccountsResponseDTO} (primary + every linked account) used by
- *       the ZBank header and the horizontal strip of bank cards.</li>
- * </ul>
  */
 @Slf4j
 @Service
@@ -44,8 +38,9 @@ public class BankAccountsServices {
 
     private final BanksRepository banksRepository;
     private final UserBankRepository userBankRepository;
-    private final UserRepository userRepository;
     private final BankAccountLinkService bankAccountLinkService;
+    private final GatewayCountriesRepository gatewayCountriesRepository;
+    private final UserRepository userRepository;
 
     /* ---------------------------------------------------------------- reads */
 
@@ -55,6 +50,7 @@ public class BankAccountsServices {
      */
     @Transactional(readOnly = true)
     public AccountsResponseDTO getAccounts(UUID userId) {
+        // Comment: Fetch linked bank IDs for the given user
         List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
         if (bankIds.isEmpty()) {
             return new AccountsResponseDTO(List.of());
@@ -69,17 +65,11 @@ public class BankAccountsServices {
 
     /**
      * Canonical read for the ZBank screen: the user's linked accounts enriched
-     * with the per-link display fields (last digits, balance, label, primary).
-     *
-     * @return {@code primary} is the single primary account (or {@code null}
-     * when the user has none yet); {@code accounts} holds every linked
-     * account, primary first, so the strip renders a stable order.
+     * with per-link display fields.
      */
     @Transactional(readOnly = true)
     public UserAccountsResponseDTO getUserAccounts(UUID userId) {
-        // Reads the primary account and every linked account for the ZBank screen
         log.info("Loading linked bank accounts for user {}", userId);
-        List<UUID> bankIds = userBankRepository.getBankIdsByUserId(userId);
         List<UserAccountsDTO> accounts = buildUserAccounts(userId);
 
         UserAccountsDTO primary = null;
@@ -89,101 +79,93 @@ public class BankAccountsServices {
                 break;
             }
         }
-        // No explicit primary yet (e.g. rows linked before V35): fall back to the
-        // earliest link so the header never renders blank on existing data.
         if (primary == null && !accounts.isEmpty()) {
             primary = accounts.get(0);
         }
         return new UserAccountsResponseDTO(primary, accounts);
     }
+
     /* --------------------------------------------------------------- writes */
 
     /**
-     * Links a bank to the user (ZBank Lite "link a bank" sheet).
+     * Links a bank the user connected through the AfriLink Connect widget.
      *
-     * <p>The first bank a user links becomes primary automatically, so the
-     * header is never empty after a fresh link. Linking the same bank twice is
-     * rejected rather than duplicated.
-     *
-     * <p>Before anything is persisted the account is pushed through the
-     * open-banking linking request to <b>AfriqLink</b> — the settlement
-     * gateways (Paystack/Flutterwave/Onafriq) only move money and are never
-     * used for account linking. The holder's first/last name from the request
-     * are part of that provider payload; if AfriqLink declines, the link fails
-     * with the provider's reason and nothing is saved.
-     *
-     * @return the newly linked account.
+     * <p>The app sends what the widget returned: a session id + auth token (the backend submits them to
+     * AfriLink's linking endpoint with the public key) or the id of an account the widget already
+     * completed (read back from AfriLink). Either way AfriLink must confirm the link, so a made-up value
+     * is rejected. Accounts already linked to anyone are refused, and one row is saved holding AfriLink's
+     * account id, the institution, currency and the last digits - never an account number or
+     * credentials. The first bank a user links becomes primary.
      */
     @Transactional
     public UserAccountsDTO linkBank(UUID userId, LinkNewBankRequestDTO request) {
-        // Links a bank: validate the account number, ask AfriqLink to confirm it, then save the link (first link becomes primary)
-        log.info("Linking a bank for user {}", userId);
-        final UUID bankId;
-        try {
-            bankId = UUID.fromString(request.bankId());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Target bank is not a valid bank id");
-        }
-        final String accountNumber = request.accountNumber().trim();
-        if (accountNumber.isBlank()) {
-            throw new IllegalArgumentException("Account number missing.");
+        log.info("Linking an AfriLink account for user {}", userId);
+
+        // 1. Cheap early check when the app already knows the account id (also stops a replayed id)
+        if (request.hasAccountId() && accountAlreadyLinked(request.accountId().trim())) {
+            throw new IllegalArgumentException("This bank account is already linked");
         }
 
-        // Keep only digits so spaces/dashes typed by the user are normalised.
-        final String digits = accountNumber.replaceAll("[^0-9]", "");
-        if (digits.length() < 4) {
-            throw new IllegalArgumentException("Target account number is too short");
-        }
-        final String lastDigits = digits.substring(digits.length() - 4);
+        // 2. AfriLink confirms the link: completes it with the token, or reads the account back
+        final AfriLinkAccountDTO account = bankAccountLinkService.link(request, userId.toString());
+        final String accountId = account.accountId();
 
-        UserModel user = userRepository.getUserByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Error:: User not found!"));
-
-        final BanksModel bank = banksRepository.findById(bankId)
-                .orElseThrow(() -> new ResourceNotFoundException("Target bank not found"));
-
-        if (userBankRepository.findByUserIdAndBankId(userId, bankId).isPresent()) {
-            throw new IllegalArgumentException("You have already linked this bank");
+        // 3. A token link only reveals its account id now: an AfriLink account belongs to one user only
+        if (accountAlreadyLinked(accountId)) {
+            throw new IllegalArgumentException("This bank account is already linked");
         }
 
-        // Send the real open-banking linking request (AfriqLink) BEFORE writing
-        // anything: if the provider declines this throws (and rolls back
-        // nothing — no row exists yet), so a link AfriqLink did not confirm
-        // can never reach the database.
-        final BankAccountLinkService.BankLinkOutcome outcome =
-                bankAccountLinkService.link(bank, digits, request.firstName().trim(), request.lastName().trim());
+        final String institutionName = firstNonBlank(account.institutionName(), request.institutionName(), "Bank account");
+        final String countryCode = request.institutionCountry() == null || request.institutionCountry().isBlank()
+                ? null : request.institutionCountry().trim().toUpperCase();
 
-        // A user's first linked bank is automatically primary.
-        final boolean makePrimary = Boolean.TRUE.equals(request.primary())
-                || userBankRepository.getBankIdsByUserId(userId).isEmpty();
+        // 3. Best-effort match into the payout catalogue (informational; linking does not need it)
+        final Optional<BanksModel> catalogBank = banksRepository.findFirstByBankNameIgnoreCase(institutionName);
+
+        // 4. The first linked bank becomes primary
+        final boolean makePrimary = userBankRepository.findByUserId(userId).isEmpty();
         if (makePrimary) {
             userBankRepository.clearPrimaryForUser(userId);
         }
 
         final UserBankModel row = new UserBankModel();
         row.setUserId(userId);
-        row.setBankId(bankId);
-        row.setBalance(BigDecimal.ZERO);
-        row.setLastDigits(lastDigits);
+        row.setBankId(catalogBank.map(BanksModel::getBankId).orElse(null));
+        row.setBalance(account.balance() == null ? BigDecimal.ZERO : account.balance());
+        row.setLastDigits(account.lastDigits() == null ? "" : account.lastDigits());
         row.setConnectionStatus("active");
-        // Records which provider confirmed the link, e.g. "afriqlink:LNK_1a2b3c".
-        row.setConnectionId(outcome.connectionId());
+        row.setConnectionId(BankAccountLinkService.PROVIDER_AFRILINK + ":" + accountId);
+        row.setProvider(BankAccountLinkService.PROVIDER_AFRILINK);
+        row.setProviderAccountId(accountId);
+        row.setInstitutionId(firstNonBlank(account.institutionId(), request.institutionId(), null));
+        row.setInstitutionName(institutionName);
+        row.setAccountType(account.accountType());
+        final String linkCountry = countryCode != null ? countryCode
+                : catalogBank.map(BanksModel::getCountryCode)
+                .orElseGet(() -> userRepository.findById(userId).map(UserModel::getCountryCode).orElse(null));
+        row.setCountryCode(linkCountry);
+        // The currency decides which wallet this bank can fund: what the bank reports, else the catalogue
+        // bank's currency, else the currency of the bank's country
+        row.setCurrencyCode(firstNonBlank(account.currencyCode(),
+                catalogBank.map(BanksModel::getCurrencyCode).orElse(null),
+                linkCountry == null ? null : gatewayCountriesRepository.findFirstByCountryCode(linkCountry)
+                        .map(GatewayCountryModel::getDefaultCurrency).orElse(null)));
+        if (row.getCurrencyCode() != null) {
+            row.setCurrencyCode(row.getCurrencyCode().toUpperCase());
+        }
         row.setPrimary(makePrimary);
-        final String label = request.linkLabel() == null || request.linkLabel().isBlank()
-                ? null
-                : request.linkLabel().trim();
-        row.setLinkLabel(label);
 
         final UserBankModel saved = userBankRepository.save(row);
-        return toUserAccount(saved, bank);
+        return toUserAccount(saved, catalogBank.orElse(null));
+    }
+
+    private boolean accountAlreadyLinked(String accountId) {
+        return accountId != null
+                && userBankRepository.findByProviderAndProviderAccountId(BankAccountLinkService.PROVIDER_AFRILINK, accountId).isPresent();
     }
 
     /**
-     * Promotes an already-linked account to be the user's primary (the one shown
-     * in the ZBank header). Any previous primary is demoted in the same
-     * transaction so the partial unique index can never be violated.
-     *
-     * @param userBankId id of the user's link row — NOT the catalog bank id.
+     * Promotes an already-linked account to be the user's primary account.
      */
     @Transactional
     public UserAccountsDTO setPrimary(UUID userId, UUID userBankId) {
@@ -197,8 +179,7 @@ public class BankAccountsServices {
         row.setPrimary(true);
         final UserBankModel saved = userBankRepository.save(row);
 
-        final BanksModel bank = banksRepository.findById(saved.getBankId())
-                .orElseThrow(() -> new ResourceNotFoundException("Bank not found"));
+        final BanksModel bank = saved.getBankId() == null ? null : banksRepository.findById(saved.getBankId()).orElse(null);
         return toUserAccount(saved, bank);
     }
 
@@ -207,7 +188,6 @@ public class BankAccountsServices {
      */
     @Transactional
     public void unlinkBank(UUID userId, UUID userBankId) {
-        // Unlinks a bank; if it was the primary one, the oldest remaining link becomes primary
         log.info("Unlinking bank account {} for user {}", userBankId, userId);
         final UserBankModel row = userBankRepository.findById(userBankId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bank account not found"));
@@ -218,7 +198,6 @@ public class BankAccountsServices {
         final boolean wasPrimary = Boolean.TRUE.equals(row.getPrimary());
         userBankRepository.delete(row);
 
-        // Promote another account so the header keeps showing a primary.
         if (wasPrimary) {
             List<UserBankModel> remaining = userBankRepository.findByUserId(userId);
             if (!remaining.isEmpty()) {
@@ -231,11 +210,9 @@ public class BankAccountsServices {
             }
         }
     }
+
     /* ------------------------------------------------------------- internals */
 
-    /**
-     * Maps a catalog row to the legacy accounts DTO.
-     */
     private static AccountsDTO toAccountsDTO(BanksModel b) {
         return new AccountsDTO(
                 b.getBankId(),
@@ -259,12 +236,6 @@ public class BankAccountsServices {
         );
     }
 
-    /**
-     * Joins the user's link rows with the catalog, one entry per linked bank,
-     * primary first then oldest link first. A missing catalog row is still
-     * surfaced (with null display fields) so the user can unlink it rather than
-     * it silently vanishing from the screen.
-     */
     private List<UserAccountsDTO> buildUserAccounts(UUID userId) {
         List<UserBankModel> rows = userBankRepository.findByUserId(userId);
         if (rows.isEmpty()) {
@@ -276,7 +247,7 @@ public class BankAccountsServices {
 
         List<UserAccountsDTO> result = new ArrayList<>();
         for (UserBankModel row : rows) {
-            Optional<BanksModel> bank = banksRepository.findById(row.getBankId());
+            Optional<BanksModel> bank = row.getBankId() == null ? Optional.empty() : banksRepository.findById(row.getBankId());
             result.add(toUserAccount(row, bank.orElse(null)));
         }
         result.sort(Comparator.comparing(
@@ -284,9 +255,6 @@ public class BankAccountsServices {
         return result;
     }
 
-    /**
-     * Maps a link row (+ its catalog bank, possibly {@code null}) to the DTO.
-     */
     private static UserAccountsDTO toUserAccount(UserBankModel row, BanksModel bank) {
         return new UserAccountsDTO(
                 row.getUserBankId(),
@@ -298,12 +266,22 @@ public class BankAccountsServices {
                 row.getConnectionId(),
                 row.getLinkedAt(),
                 row.getUpdatedAt(),
-                bank == null ? null : bank.getBankName(),
-                bank == null ? null : bank.getCode(),
-                bank == null ? null : bank.getCountryCode(),
-                bank == null ? null : bank.getCurrencyCode(),
+                firstNonBlank(row.getInstitutionName(), bank == null ? null : bank.getBankName(), null),
+                bank == null ? row.getInstitutionId() : bank.getCode(),
+                firstNonBlank(row.getCountryCode(), bank == null ? null : bank.getCountryCode(), null),
+                firstNonBlank(row.getCurrencyCode(), bank == null ? null : bank.getCurrencyCode(), null),
                 row.getLinkLabel(),
                 Boolean.TRUE.equals(row.getPrimary())
         );
+    }
+
+    private static String firstNonBlank(String a, String b, String fallback) {
+        if (a != null && !a.isBlank()) {
+            return a.trim();
+        }
+        if (b != null && !b.isBlank()) {
+            return b.trim();
+        }
+        return fallback;
     }
 }

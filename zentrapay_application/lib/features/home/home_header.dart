@@ -111,7 +111,7 @@ class _HomeHeaderState extends State<HomeHeader> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Icon(icon, color: AppTheme.secondaryNavy, size: 22),
+            child: Icon(icon, color: AppTheme.textBlack, size: 22),
           ),
         ),
       ),

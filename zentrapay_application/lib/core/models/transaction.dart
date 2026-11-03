@@ -17,6 +17,12 @@ class AppTransaction {
   final String completedAt;
   final String transactionType;
 
+  /// Why a FAILED / REVERSED payment did not go through (empty otherwise).
+  final String failureReason;
+
+  /// What the payment was for ("Wallet funding", "Saved to goal: Rent" ...).
+  final String purpose;
+
   AppTransaction({
     required this.transactionId,
     required this.receiverId,
@@ -28,6 +34,8 @@ class AppTransaction {
     required this.receiverIdentifier,
     required this.completedAt,
     required this.transactionType,
+    this.failureReason = '',
+    this.purpose = '',
   });
 
   factory AppTransaction.fromJson(Map<String, dynamic> json) {
@@ -53,6 +61,8 @@ class AppTransaction {
       // carry createdAt instead.
       completedAt: (json['completedAt'] ?? json['createdAt'])?.toString() ?? '',
       transactionType: (json['transactionType']?.toString()) ?? '',
+      failureReason: (json['failureReason']?.toString()) ?? '',
+      purpose: (json['purpose']?.toString()) ?? '',
     );
   }
 
@@ -82,6 +92,76 @@ class AppTransaction {
   bool get isFailedStatus =>
       status.trim().toUpperCase() == 'FAILED' ||
       status.trim().toUpperCase() == 'EXPIRED';
+
+  /// Every status the ledger can hold, as a short label for the history list.
+  String get statusLabel {
+    switch (status.trim().toUpperCase()) {
+      case 'SUCCESS':
+        return 'Successful';
+      case 'FAILED':
+        return 'Failed';
+      case 'EXPIRED':
+        return 'Expired';
+      case 'REVERSED':
+        return 'Reversed';
+      case 'INITIATED':
+        return 'Processing';
+      case 'PENDING':
+      case 'PENDING_USER_PIN':
+      case 'STK_PUSH_TRIGGERED':
+        return 'Pending';
+      default:
+        return status.trim().isEmpty ? 'Unknown' : status.trim();
+    }
+  }
+
+  /// True while the money is still on its way (not final yet).
+  bool get isOpenStatus {
+    final s = status.trim().toUpperCase();
+    return s == 'PENDING' ||
+        s == 'INITIATED' ||
+        s == 'PENDING_USER_PIN' ||
+        s == 'STK_PUSH_TRIGGERED';
+  }
+
+  /// True for a payment that ended without the money arriving.
+  bool get isUnsuccessful {
+    final s = status.trim().toUpperCase();
+    return s == 'FAILED' || s == 'EXPIRED' || s == 'REVERSED';
+  }
+
+  /// What kind of payment this is, in words.
+  String get typeLabel {
+    switch (transactionType.trim().toUpperCase()) {
+      case 'P2P_TRANSFER':
+        return 'Transfer to ZentraPay user';
+      case 'CASH_OUT_BANK':
+        return 'Bank transfer';
+      case 'CASH_OUT_MOMO':
+        return 'Mobile money transfer';
+      case 'CASH_IN_CARD':
+      case 'CASH_IN_BANK':
+      case 'CASH_IN_MOMO':
+      case 'WALLET_FUNDING':
+        return 'Wallet top-up';
+      case 'BILL_PAYMENT':
+        return 'Bill payment';
+      case 'SAVINGS_DEPOSIT':
+        return 'Saved to goal';
+      case 'SAVINGS_WITHDRAWAL':
+        return 'Withdrawn from goal';
+      case 'LOAN_DISBURSEMENT':
+        return 'Loan received';
+      case 'LOAN_REPAYMENT':
+        return 'Loan repayment';
+      case 'REFUND':
+        return 'Refund';
+      case 'PLATFORM_FEE':
+        return 'Fee';
+      default:
+        return transactionType.trim();
+    }
+  }
 
   // @override
   // String toString() {

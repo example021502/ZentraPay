@@ -32,6 +32,10 @@ public record TransactionTransactionDTO(
         // Phone number of the counterparty — the client's searchable identifier.
         String receiverIdentifier,
         LocalDateTime completedAt,
-        Datatypes.TransactionType transactionType
+        Datatypes.TransactionType transactionType,
+        // Why a FAILED / REVERSED payment did not go through (null otherwise)
+        String failureReason,
+        // What the payment was for ("Wallet funding", "Saved to goal: Rent" ...)
+        String purpose
 ) {
 }

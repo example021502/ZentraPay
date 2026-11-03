@@ -32,14 +32,25 @@ Which gateway to try first is decided in one place: `GatewayServices.gatewaysFor
 
 `PaymentServices.initialize` -> checks the PIN, the account, the balance and the KYC limits, then:
 
-### P2P_TRANSFER (wallet to wallet, same or cross currency)
+**Currency rule (`SupportedRegionService.currenciesFor`).** The currency comes from the country table
+(`gateway_countries.default_currency`), not from a currencies table. The sender pays in the default currency of the
+country they registered in; a payment inside that country arrives in the same currency, and a cross-border remittance
+arrives in the destination country's default currency. Any other currency in the request is refused.
+
+### P2P_TRANSFER (wallet to wallet, same country - so one currency)
 One database transaction (`LedgerOperations.transferBetweenWallets`): debit, credit, `transactions` row, two
 `ledger_entries`, two notifications. All or nothing. Cross-currency uses the live rate from `ExchangeRateService`
 (the amount the receiver gets is stored in `transactions.destination_amount`).
 
 ### CASH_OUT_BANK (wallet to bank account, same or cross currency)
-1. `BankTransferServices.prepare` - find the first gateway that can take the bank account (customer + recipient
-   created). Nothing is debited yet, so a failure here is a clean error.
+1. `BankTransferServices.prepare` - create the customer + recipient on the gateway. Nothing is debited yet, so a
+   failure here is a clean error. **The gateway that verified the account goes first**: `POST /api/payments/verify-account`
+   returns `gatewayId` (also stored in the encrypted `verificationToken`). The app sends it back inside `bank` /
+   `mobileMoney` with the token (`{"verificationToken": "...", "gatewayId": "..."}`); the payload value wins, the token's
+   is the fallback. That gateway is tried first, with its own bank code; if it cannot take the payout the other gateways
+   of the routing order are tried as alternatives. A `gatewayId` that is unknown, inactive or not valid for the corridor
+   (e.g. Onafriq on a domestic payout) is ignored and the normal order is used. Payouts with no verifying gateway
+   (a mobile-money wallet no provider could look up; cross-border via Onafriq) use the routing order below.
 2. `LedgerOperations.debitForPayout` - debit the sender, save the transaction as **INITIATED**, write the debit ledger entry.
 3. `BankTransferServices.send` - call the gateway:
    * accepted -> **PENDING** (the webhook makes it SUCCESS);
@@ -80,7 +91,7 @@ are checked directly with the gateway and settled exactly like a webhook would.
 
 ## 7. Account name lookup
 `GET /api/payment-channels/resolve` asks Paystack, then Flutterwave, using each gateway's own bank code.
-AfriqLink is used only to **link** a bank account (`/api/zbanking/link`).
+AfriLink is used only to **link** a bank account (`/api/zbanking/link`).
 
 ## 8. Database
 Ten Flyway files in `src/main/resources/db/migration`:

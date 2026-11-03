@@ -74,7 +74,7 @@ public class FlutterwaveServices {
 
     /** Registers a bank account / mobile-money wallet and returns its beneficiary id. */
     public String createBeneficiary(String accountName, String accountNumber, String channelCode) {
-        log.info("Flutterwave: creating beneficiary {} / {}", channelCode, accountNumber);
+        log.info("Flutterwave: creating beneficiary {} / {}", channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("account_number", accountNumber);
         body.put("account_bank", channelCode);
@@ -97,11 +97,11 @@ public class FlutterwaveServices {
      */
     public GatewayTransferResult sendTransfer(BigDecimal amount, String channelCode, String accountNumber,
                                               String accountName, String currency, String narration, String reference) {
-        log.info("Flutterwave: transfer ref={} amount={} {} to {} / {}", reference, amount, currency, channelCode, accountNumber);
+        log.info("Flutterwave: transfer ref={} amount={} {} to {} / {}", reference, amount, currency, channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("account_bank", channelCode);
         body.put("account_number", accountNumber);
-        body.put("amount", amount);
+        body.put("amount", amount.setScale(2, java.math.RoundingMode.HALF_UP));
         body.put("currency", currency);
         body.put("reference", reference);
         body.put("narration", narration == null || narration.isBlank() ? "Bank Transfer" : narration);
@@ -156,13 +156,75 @@ public class FlutterwaveServices {
         return new GatewayCheckoutResult(response.data().link(), null);
     }
 
-    /** Asks Flutterwave what happened to a checkout (used when the webhook never arrived). */
+    /**
+     * Asks Flutterwave what happened to a checkout (used when the webhook never arrived). When the customer
+     * paid with a card and card tokenization is on for the account, the reply carries the reusable token.
+     */
     public GatewayChargeStatus chargeStatus(String reference) {
         JsonNode data = http.get(GATEWAY, baseUrl + "/transactions/verify_by_reference?tx_ref=" + reference, secretKey, JsonNode.class).path("data");
+        return statusOf(data);
+    }
+
+    /**
+     * Charges a saved card with its Flutterwave token (tokenized charge): no customer interaction.
+     * Anything not final is settled later through the webhook / verify call.
+     */
+    public GatewayChargeStatus chargeSavedCard(String token, String email, String country, BigDecimal amount,
+                                               String currency, String reference) {
+        log.info("Flutterwave: saved-card charge ref={} amount={} {}", reference, amount, currency);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("token", token);
+        body.put("email", email);
+        body.put("currency", currency);
+        body.put("country", country);
+        body.put("amount", amount);
+        body.put("tx_ref", reference);
+        body.put("narration", "ZentraPay wallet top-up");
+        JsonNode reply = http.post(GATEWAY, baseUrl + "/tokenized-charges", secretKey, body, JsonNode.class);
+        JsonNode data = reply == null ? null : reply.path("data");
+        if (data == null || data.isMissingNode() || data.isNull()) {
+            throw new PaymentGatewayException("Flutterwave declined the card charge: "
+                    + (reply == null ? "no response" : reply.path("message").asString("no details")));
+        }
+        return statusOf(data);
+    }
+
+    private static GatewayChargeStatus statusOf(JsonNode data) {
         String status = data.path("status").asString("").toLowerCase();
         BigDecimal paid = data.path("amount").isNumber() ? data.path("amount").decimalValue() : null;
         return new GatewayChargeStatus("successful".equals(status), "failed".equals(status) || "cancelled".equals(status),
-                paid, data.path("currency").asString(null));
+                paid, data.path("currency").asString(null), cardOf(data.path("card")));
+    }
+
+    private static GatewayCardToken cardOf(JsonNode card) {
+        if (card == null || card.isMissingNode() || card.isNull()) {
+            return null;
+        }
+        String token = card.path("token").asString("");
+        String last4 = card.path("last_4digits").asString("");
+        if (token.isBlank() || last4.isBlank()) {
+            return null;
+        }
+        // expiry arrives as "MM/YY"
+        Integer month = null;
+        Integer year = null;
+        String[] expiry = card.path("expiry").asString("").split("/");
+        if (expiry.length == 2) {
+            try {
+                month = Integer.valueOf(expiry[0].trim());
+                int y = Integer.parseInt(expiry[1].trim());
+                year = y < 100 ? 2000 + y : y;
+            } catch (NumberFormatException ignored) {
+                // leave the expiry unknown
+            }
+        }
+        String type = card.path("type").asString("").trim();
+        String issuer = card.path("issuer").asString("").trim();
+        String country = card.path("country").asString("").trim();
+        return new GatewayCardToken("FLUTTERWAVE", token,
+                last4 + "-" + card.path("first_6digits").asString("") + "-" + month + "-" + year,
+                last4, type.isEmpty() ? null : type, type.isEmpty() ? null : type,
+                issuer.isEmpty() ? null : issuer, month, year, country.isEmpty() ? null : country, true);
     }
 
     // ------------------------------------------------------------------

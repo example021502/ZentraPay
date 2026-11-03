@@ -2,9 +2,8 @@ package com.zentrapay.backend.service.fx;
 
 import com.zentrapay.backend.dto.converter.ConverterDTOs.*;
 import com.zentrapay.backend.entity.ConversionModel;
-import com.zentrapay.backend.entity.GatewayCurrencyModel;
 import com.zentrapay.backend.repository.ConversionRepository;
-import com.zentrapay.backend.repository.GatewayCurrenciesRepository;
+import com.zentrapay.backend.service.region.SupportedRegionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,19 +23,19 @@ import java.util.UUID;
 public class ConverterService {
 
     private final ExchangeRateService exchangeRateService;
-    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
+    private final SupportedRegionService supportedRegionService;
     private final ConversionRepository conversionRepository;
 
     /** The rate from {@code base} to every supported currency that has a rate. */
     public RatesDTO rates(String base) {
         String baseCode = base.trim().toUpperCase();
         Map<String, String> rates = new LinkedHashMap<>();
-        for (GatewayCurrencyModel currency : gatewayCurrenciesRepository.findByActive(true)) {
-            if (currency.getCurrencyCode().equalsIgnoreCase(baseCode)) {
+        for (String currency : supportedRegionService.supportedCurrencyCodes()) {
+            if (currency.equalsIgnoreCase(baseCode)) {
                 continue;
             }
             try {
-                rates.put(currency.getCurrencyCode(), exchangeRateService.rate(baseCode, currency.getCurrencyCode())
+                rates.put(currency, exchangeRateService.rate(baseCode, currency)
                         .setScale(6, RoundingMode.HALF_UP).toPlainString());
             } catch (IllegalArgumentException noRate) {
                 // No rate for this pair yet - leave it out of the list

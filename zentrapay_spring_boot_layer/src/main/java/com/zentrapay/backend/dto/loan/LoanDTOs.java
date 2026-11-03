@@ -40,6 +40,10 @@ public final class LoanDTOs {
     ) {
     }
 
+    /** POST /{loanId}/repay body. */
+    public record RepayRequestDTO(BigDecimal amount) {
+    }
+
     /** One loan / application. */
     public record LoanDTO(
             UUID loanId,

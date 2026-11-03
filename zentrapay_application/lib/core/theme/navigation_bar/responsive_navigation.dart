@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/navigation_bar_main.dart';
 import 'package:zentrapay_application/core/utils/double_back_to_exit.dart';
@@ -10,6 +10,7 @@ import 'package:zentrapay_application/features/Settings/settings.dart';
 import 'package:zentrapay_application/features/home/close_confirmation.dart';
 import 'package:zentrapay_application/features/home/home_wallet_main.dart';
 import 'package:zentrapay_application/features/home/notifications_overlay.dart';
+import 'package:zentrapay_application/features/wallet_topup/gateway_checkout.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
 import 'package:zentrapay_application/features/zremit/zremit_screen.dart';
@@ -39,9 +40,6 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     const ZBankingScreen(),
     const Settings(),
   ];
-
-  // Create a local class property for Paystack
-  final Paystack _paystack = Paystack();
 
   @override
   void initState() {
@@ -75,15 +73,10 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     TabSwitchNotifier.instance.select(AppTab.values[index]);
   }
 
-  // Handle the async initialization properly
+  // Warm up the Paystack SDK with the PUBLIC key from .env (top-ups launch it later).
   Future<void> _initializePaystack() async {
     try {
-      // The official SDK accepts your public key and a boolean for logging
-      bool isInitialized = await _paystack.initialize(
-        "pk_test_your_public_key_here",
-        true,
-      );
-      if (isInitialized) {
+      if (await GatewayCheckout.ensurePaystackReady()) {
         debugPrint("Successfully initialized the Paystack SDK");
       }
     } catch (e) {
@@ -127,8 +120,12 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
       // Show drawer only on tablet screens
       drawer: _isTablet ? _buildDrawer() : null,
       // The user-information app bar belongs to Home alone. Every other
-      // section draws its own titled SectionHeader, so no app bar here.
-      appBar: (_isTablet || _selectedIndex != 0) ? null : _buildAppBar(),
+      // section draws its own titled SectionHeader, under a slim SectionAppBar that
+      // holds the status bar area, so scrolling content hides behind it instead of
+      // mixing with the battery / network / time.
+      appBar: _selectedIndex != 0
+          ? const SectionAppBar()
+          : (_isTablet ? null : _buildAppBar()),
       // Show bottom nav only on mobile
       bottomNavigationBar: _isTablet ? null : _buildBottomNav(),
       // IndexedStack keeps all four tabs mounted and alive at once, only

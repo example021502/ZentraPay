@@ -35,6 +35,7 @@ public class PaymentWebhookService {
 
     private final LedgerOperations ledgerOperations;
     private final TransactionRepository transactionRepository;
+    private final com.zentrapay.backend.service.card.CardVaultService cardVaultService;
 
     // ==================================================================
     // Paystack
@@ -128,7 +129,13 @@ public class PaymentWebhookService {
 
     /** The gateway says the customer paid: credit their wallet (only if amount and currency match). */
     public void checkoutPaid(String reference, BigDecimal paidAmount, String paidCurrency) {
-        findTransaction(reference).ifPresent(txn -> ledgerOperations.creditFunding(txn.getTransactionId(), paidAmount, paidCurrency));
+        findTransaction(reference).ifPresent(txn -> {
+            ledgerOperations.creditFunding(txn.getTransactionId(), paidAmount, paidCurrency);
+            // "Save this card": only once the money really arrived, and never at the cost of the top-up itself
+            transactionRepository.findById(txn.getTransactionId())
+                    .filter(com.zentrapay.backend.service.card.CardVaultService::paid)
+                    .ifPresent(cardVaultService::captureAfterTopup);
+        });
     }
 
     /** The checkout failed or was abandoned: close it without crediting anything. */

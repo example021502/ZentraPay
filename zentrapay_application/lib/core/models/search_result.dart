@@ -191,25 +191,35 @@ class ContactSearchResult {
 /// by {@code POST /api/payments/verify-account}.
 class VerifiedAccount {
   final bool verified;
+  final String gatewayId;
   final String accountName;
   final String accountNumber;
   final String destinationName;
   final String countryCode;
 
+  /// Opaque, encrypted, 15-minute token for this verified destination. It is the ONLY thing the
+  /// payment call sends: the server decides bank / number / name from it, so nothing sensitive
+  /// is re-posted and nothing can be changed after the name was shown. [accountNumber] is masked.
+  final String verificationToken;
+
   VerifiedAccount({
     required this.verified,
+    required this.gatewayId,
     required this.accountName,
     required this.accountNumber,
     required this.destinationName,
     required this.countryCode,
+    this.verificationToken = '',
   });
 
   factory VerifiedAccount.fromJson(Map<String, dynamic> json) =>
       VerifiedAccount(
         verified: json['verified'] == true,
+        gatewayId: json['gatewayId']?.toString() ?? '',
         accountName: json['accountName']?.toString() ?? '',
         accountNumber: json['accountNumber']?.toString() ?? '',
         destinationName: json['destinationName']?.toString() ?? '',
         countryCode: json['countryCode']?.toString() ?? '',
+        verificationToken: json['verificationToken']?.toString() ?? '',
       );
 }

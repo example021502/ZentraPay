@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import com.zentrapay.backend.service.user.PinService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.zentrapay.backend.service.payment.TransactionRecorder;
+import com.zentrapay.backend.service.payment.DestinationTokenService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,12 +31,13 @@ import java.util.UUID;
  *
  * <p>Rule 1: remittances are CROSS-BORDER ONLY. A recipient in the sender's own country is
  * rejected with an explicit message - domestic transfers belong to POST /api/payments/initialize.
- * <p>Rule 2: the destination country and both currencies must be active in the gateway
- * directory ({@code gateway_countries} / {@code gateway_currencies}).
+ * <p>Rule 2: the destination country must be active in {@code gateway_countries}, and the currencies are fixed
+ * by the countries' {@code default_currency}: the sender pays in the default currency of the country they
+ * registered in, and the money arrives in the destination country's default currency.
  *
  * <p>A remittance can go to a registered ZentraPay user (wallet to wallet, the ledger handles the
  * currency conversion), to a bank account abroad, or to a mobile-money wallet abroad. The last two
- * use the cross-border payout route (Onafriq first, Flutterwave as the fallback) and are checked with
+ * use the cross-border payout route (Onafriq) and are checked with
  * the payment providers BEFORE any money is debited.
  */
 @Slf4j
@@ -47,7 +50,6 @@ public class RemittancesService {
     private final FiatAccountRepository fiatAccountRepository;
     private final RemittancesRepository remittancesRepository;
     private final GatewayCountriesRepository gatewayCountriesRepository;
-    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
     private final ExchangeRateService exchangeRateService;
     private final LedgerOperations ledgerOperations;
     private final PinService pinService;
@@ -55,6 +57,7 @@ public class RemittancesService {
     private final AccountVerificationService accountVerificationService;
     private final BankTransferServices bankTransferServices;
     private final TransactionRepository transactionRepository;
+    private final TransactionRecorder transactionRecorder;
 
     // Flat percentage fee on the source amount - overridable per environment
     @Value("${app.remit.fee-percent:1.0}")
@@ -71,11 +74,12 @@ public class RemittancesService {
         String destinationCountryCode = normalise(req.destinationCountryCode());
         assertCrossBorder(sender, destinationCountryCode);
 
-        GatewayCountryModel country = requireActiveCountry(destinationCountryCode);
-        String source = normalise(req.sourceCurrencyCode());
-        String destination = country.getCurrencyCode();
-        assertCurrencySupported(source);
-        assertCurrencySupported(destination);
+        requireActiveCountry(destinationCountryCode);
+        // Pay in the sender's own country currency; it arrives in the destination country's default currency
+        SupportedRegionService.PaymentCurrencies currencies = supportedRegionService.currenciesFor(
+                sender, destinationCountryCode, req.sourceCurrencyCode(), null);
+        String source = currencies.source();
+        String destination = currencies.destination();
 
         BigDecimal rate = exchangeRateService.rate(source, destination);
         BigDecimal fee = feeFor(req.amount());
@@ -90,25 +94,62 @@ public class RemittancesService {
     public RemitResponseDTO send(UUID senderId, RemitRequestDTO req) {
         log.info("========== REMIT START: sender={} to {} ==========", senderId, req.recipientCountryCode());
         UserModel sender = requireUser(senderId);
+        try {
+            return doSend(sender, req);
+        } catch (RuntimeException e) {
+            // Whatever stopped the remittance, the attempt stays in the user's history as FAILED
+            recordFailedRemit(sender, req, e);
+            throw e;
+        }
+    }
+
+    // Saves a refused remittance as a FAILED transaction (no money moved, so no ledger entries); never throws
+    private void recordFailedRemit(UserModel sender, RemitRequestDTO req, RuntimeException cause) {
+        try {
+            String type = recipientTypeOf(req);
+            TransactionModel draft = new TransactionModel();
+            draft.setTransactionType(switch (type) {
+                case "BANK" -> Datatypes.TransactionType.CASH_OUT_BANK;
+                case "MOBILE_MONEY" -> Datatypes.TransactionType.CASH_OUT_MOMO;
+                default -> Datatypes.TransactionType.P2P_TRANSFER;
+            });
+            draft.setAmount(req.amount() == null ? java.math.BigDecimal.ZERO : scale(req.amount()));
+            String source = normalise(req.sourceCurrencyCode()).toUpperCase();
+            draft.setSourceCurrencyCode(source);
+            draft.setDestinationCurrencyCode(req.destinationCurrencyCode() == null || req.destinationCurrencyCode().isBlank()
+                    ? source : normalise(req.destinationCurrencyCode()).toUpperCase());
+            draft.setPurpose(Optional.ofNullable(req.purpose()).filter(p -> !p.isBlank()).orElse("Cross-border remittance"));
+            draft.setSenderId(sender.getUserId());
+            draft.setSenderName(sender.getFirstName() + " " + sender.getLastName());
+            draft.setSenderEmail(sender.getEmail());
+            draft.setSenderPhoneNumber(sender.getPhoneNumber());
+            draft.setReceiverName(normalise(req.recipientName()));
+            draft.setReceiverId(req.recipientUserId());
+            if (!"USER".equals(type)) {
+                String number = "MOBILE_MONEY".equals(type) ? normalise(req.recipientPhoneNumber()) : normalise(req.accountNumber());
+                draft.setDestinationIdentifier(DestinationTokenService.mask(number));
+            }
+            transactionRecorder.recordFailure(draft, cause.getMessage());
+        } catch (RuntimeException e) {
+            log.warn("Could not prepare the failed remittance record: {}", e.getMessage());
+        }
+    }
+
+    private RemitResponseDTO doSend(UserModel sender, RemitRequestDTO req) {
         pinService.requireValid(sender, req.pin());
         supportedRegionService.requireUserCountry(sender);
 
         // Cross-border only, and only to supported countries / currencies
         String destinationCountryCode = normalise(req.recipientCountryCode());
         assertCrossBorder(sender, destinationCountryCode);
-        GatewayCountryModel country = requireActiveCountry(destinationCountryCode);
+        requireActiveCountry(destinationCountryCode);
 
-        String sourceCurrency = normalise(req.sourceCurrencyCode()).toUpperCase();
-        String destinationCurrency = Optional.ofNullable(req.destinationCurrencyCode())
-                .filter(code -> !code.isBlank())
-                .map(code -> normalise(code).toUpperCase())
-                .orElse(country.getCurrencyCode());
-        if (!destinationCurrency.equalsIgnoreCase(country.getCurrencyCode())) {
-            throw new IllegalArgumentException("Payouts to " + destinationCountryCode.toUpperCase()
-                    + " settle in " + country.getCurrencyCode() + ", not " + destinationCurrency);
-        }
-        assertCurrencySupported(sourceCurrency);
-        assertCurrencySupported(destinationCurrency);
+        // The sender pays in the default currency of the country they registered in; the money arrives in the
+        // destination country's default currency. Anything else the app asked for is refused.
+        SupportedRegionService.PaymentCurrencies currencies = supportedRegionService.currenciesFor(
+                sender, destinationCountryCode, req.sourceCurrencyCode(), req.destinationCurrencyCode());
+        String sourceCurrency = currencies.source();
+        String destinationCurrency = currencies.destination();
 
         String recipientType = recipientTypeOf(req);
         if (!"USER".equals(recipientType)) {
@@ -237,7 +278,9 @@ public class RemittancesService {
         String purpose = Optional.ofNullable(req.purpose()).filter(p -> !p.isBlank()).orElse("Cross-border remittance");
         BankTransferServices.Payout payout = new BankTransferServices.Payout(recipientType, sender, true,
                 destinationId, destinationCode, country, destinationCurrency, accountNumber, accountName,
-                destinationAmount, purpose);
+                destinationAmount, purpose,
+                // Cross-border always goes through Onafriq, whichever provider confirmed the name
+                null);
         BankTransferServices.Prepared prepared = bankTransferServices.prepare(payout);
 
         // 3. Debit the sender (amount + fee) and call the provider; a refusal refunds the sender
@@ -255,7 +298,8 @@ public class RemittancesService {
         draft.setSenderEmail(sender.getEmail());
         draft.setSenderPhoneNumber(sender.getPhoneNumber());
         draft.setReceiverName(accountName);
-        draft.setDestinationIdentifier(accountNumber);
+        // Only the masked number is kept on the transaction row
+        draft.setDestinationIdentifier(DestinationTokenService.mask(accountNumber));
         if (mobileMoney) {
             draft.setReceiverPhoneNumber(accountNumber);
         }
@@ -341,11 +385,9 @@ public class RemittancesService {
     // Lightweight FX preview for the picker (no sender context; the country rule is enforced on send)
     @Transactional(readOnly = true)
     public RemitQuoteResponseDTO rates(String sourceCurrencyCode, String destinationCurrencyCode, BigDecimal amount) {
-        String source = normalise(sourceCurrencyCode);
-        String destination = normalise(destinationCurrencyCode);
         BigDecimal safeAmount = amount == null || amount.signum() <= 0 ? BigDecimal.valueOf(100) : scale(amount);
-        assertCurrencySupported(source);
-        assertCurrencySupported(destination);
+        String source = supportedRegionService.requireSupportedCurrency(sourceCurrencyCode);
+        String destination = supportedRegionService.requireSupportedCurrency(destinationCurrencyCode);
 
         BigDecimal rate = exchangeRateService.rate(source, destination);
         BigDecimal fee = feeFor(safeAmount);
@@ -397,14 +439,6 @@ public class RemittancesService {
                 .filter(GatewayCountryModel::isActive)
                 .orElseThrow(() -> new IllegalArgumentException("We currently don't support remittances to "
                         + countryCode.toUpperCase() + ". Please choose another destination country"));
-    }
-
-    // Every currency involved must be present AND active in the gateway directory
-    private void assertCurrencySupported(String currencyCode) {
-        gatewayCurrenciesRepository.findById(currencyCode)
-                .filter(GatewayCurrencyModel::isActive)
-                .orElseThrow(() -> new IllegalArgumentException("We currently don't support "
-                        + currencyCode.toUpperCase() + " transfers. Please choose another currency"));
     }
 
     private BigDecimal scale(BigDecimal value) {

@@ -22,7 +22,7 @@ src/main/java/com/zentrapay/backend/
     gateway/     PaystackServices, FlutterwaveServices, OnafriqServices (raw API calls),
                  GatewayHttp (shared HTTP + error classification), GatewayServices (routing,
                  customers, recipients)
-    bank/        BankAccountsServices (linked banks), BankAccountLinkService + AfriqLinkClient,
+    bank/        BankAccountsServices (linked banks), BankAccountLinkService + AfriLinkClient,
                  BankCatalogService (bank code per gateway)
     fx/          ExchangeRateService (one rate logic for everyone), ConverterService
     bill/ remit/ wallet/ card/ user/ search/ transaction/ notification/ reference/ provider/ zgrow/ qr/

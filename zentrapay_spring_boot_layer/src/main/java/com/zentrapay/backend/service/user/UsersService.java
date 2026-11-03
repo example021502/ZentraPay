@@ -34,7 +34,6 @@ public class UsersService {
     private final CryptoWalletRepository cryptoWalletRepository;
     private final FiatWalletRepository fiatWalletRepository;
     private final GatewayCountriesRepository gatewayCountriesRepository;
-    private final GatewayCurrenciesRepository gatewayCurrenciesRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginHistoryRepository loginHistoryRepository;
@@ -107,10 +106,8 @@ public class UsersService {
             cryptoWallet.setStatus("ACTIVE");
             cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
 
-            final String currencyCode = gatewayCurrenciesRepository
-                    .getCurrencyCodesByCountryCode(user.getCountryCode()).stream()
-                    .findFirst()
-                    .orElse("GHS");
+            // The first account is opened in the country's default currency - the one this user can pay in
+            final String currencyCode = supportedRegionService.defaultCurrencyOf(country);
             FiatAccountModel fiatAccount = getFiatAccount(req, currencyCode, fiatWallet);
             fiatAccountRepository.save(fiatAccount);
 
