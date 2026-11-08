@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/home/repository/cache_user_services_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/app_refresh.dart';
 import 'package:zentrapay_application/features/zvoice/zvoice_floating_button.dart';
@@ -17,6 +18,19 @@ class HomeWalletMain extends StatefulWidget {
 }
 
 class _HomeWalletMainState extends State<HomeWalletMain> {
+  @override
+  void initState() {
+    super.initState();
+    // The services the user added to Home. Deferred: the repository notifies listeners
+    // while loading, which must not happen during this build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UserServicesRepository.instance.ensureLoaded().catchError((e) {
+        debugPrint('Could not load your services: $e');
+        return null;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.of(context).size.width >= 600;
@@ -89,29 +103,30 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
             // ),
             // ALL THE USER'S SERVICE PROVIDERS HERE
             ListenableBuilder(
-              listenable: Listenable.merge([
-                BillProvidersRepository.instance,
-                ServiceProvidersRepository.instance,
-              ]),
+              // Only what the user added with the "New" tiles (user_services) - never the
+              // whole provider directory.
+              listenable: UserServicesRepository.instance,
               builder: (context, _) => HomeServicesGrid(
-                services: (ServiceProvidersRepository.instance.data ?? [])
+                services: UserServicesRepository.instance.services
                     .map(
                       (p) => {
-                        'providerName': p.providerName,
-                        'logoUrl': p.logoUrl ?? '',
+                        'providerId': p.providerId,
+                        'providerName': p.name,
+                        'logoUrl': p.logoUrl,
                         'category': p.categoryCode,
                         'countryCode': p.countryCode,
                       },
                     )
                     .toList(),
-                bills: (BillProvidersRepository.instance.data ?? [])
+                bills: UserServicesRepository.instance.bills
                     .map(
                       (p) => {
-                        'billerName': p.billerName,
-                        'logoUrl': p.logoUrl ?? '',
+                        'providerId': p.providerId,
+                        'billerName': p.name,
+                        'logoUrl': p.logoUrl,
                         'category': p.categoryCode,
                         // Drives the flag fallback when the biller has no logo.
-                        'countryCode': p.countryCode ?? '',
+                        'countryCode': p.countryCode,
                       },
                     )
                     .toList(),

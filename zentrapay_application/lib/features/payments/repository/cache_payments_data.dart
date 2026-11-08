@@ -239,6 +239,25 @@ class PaymentsService {
     }
   }
 
+  /// Retry, step 1 (`POST /api/payments/retry/{id}/check`): are the sender and the receiver of this
+  /// failed payment still valid? No PIN, nothing moves. When a party is no longer valid the backend
+  /// keeps that reason on the failed payment.
+  static Future<RetryCheck> checkRetry(String transactionId) async {
+    final response = await _dio.post('/api/payments/retry/$transactionId/check');
+    return RetryCheck.fromJson(
+      Map<String, dynamic>.from(response.data['data'] as Map),
+    );
+  }
+
+  /// Retry, step 2 (`POST /api/payments/retry/{id}`): checks again, verifies the PIN and pays again.
+  static Future<AppTransaction> retry(String transactionId, String pin) async {
+    final response = await _dio.post(
+      '/api/payments/retry/$transactionId',
+      data: {'pin': pin},
+    );
+    return _applyTransactionResult(response.data['data']);
+  }
+
   static Future<Map<String, dynamic>> getPaystackAccessCode({
     required String amount,
     required String currencyCode,

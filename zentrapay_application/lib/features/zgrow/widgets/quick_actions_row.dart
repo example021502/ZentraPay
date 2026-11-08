@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
-import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/features/goals/goals_screen.dart';
 import 'package:zentrapay_application/features/zbanking/pay_loans_screen.dart';
 import 'package:zentrapay_application/features/wallet_topup/topup_screen.dart';
 import 'package:zentrapay_application/features/zgrow/emergency/emergency_vault_screen.dart';
@@ -42,7 +42,7 @@ class QuickActionsRow extends StatelessWidget {
           child: QuickActionButton(
             icon: Icons.flag_outlined,
             label: "Save Goal",
-            onTap: () => _open(context, const MilestonesScreen()),
+            onTap: () => _open(context, const GoalsScreen()),
           ),
         ),
         Expanded(

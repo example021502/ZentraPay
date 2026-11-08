@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:zentrapay_application/core/models/zinvest.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 
 /// ZInvest data caches: portfolio, liquidity profile/trend, risk ranking
 /// and alerts. Every repository implements the "load once, then apply
@@ -91,6 +92,8 @@ class InvestmentsRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Buys a position: the cost (quantity x price) leaves the wallet, so the
+  /// wallet balance and the history are re-read once it succeeds.
   Future<Investment> invest({
     required String name,
     required String investmentType,
@@ -99,26 +102,65 @@ class InvestmentsRepository extends ChangeNotifier {
     required String buyPrice,
     required String currencyCode,
   }) async {
-    final response = await _dio.post(
-      '/api/zinvest/invest',
-      data: {
-        'name': name,
-        'investmentType': investmentType,
-        'symbol': symbol,
-        'quantity': quantity,
-        'buyPrice': buyPrice,
-        'currencyCode': currencyCode,
-      },
-    );
-    final investment = Investment.fromJson(response.data['data']);
-    addItem(investment);
-    return investment;
+    try {
+      final response = await _dio.post(
+        '/api/zinvest/invest',
+        data: {
+          'name': name,
+          'investmentType': investmentType,
+          'symbol': symbol,
+          'quantity': quantity,
+          'buyPrice': buyPrice,
+          'currencyCode': currencyCode,
+        },
+      );
+      final investment = Investment.fromJson(response.data['data']);
+      addItem(investment);
+      _moneyMoved();
+      return investment;
+    } on DioException catch (e) {
+      _moneyMoved(); // a refused attempt is saved as FAILED in the history
+      throw InvestmentException(_messageOf(e, 'Could not complete the purchase.'));
+    }
   }
 
+  /// Sells a position: its value goes back into the wallet and the position
+  /// stays in the list as CLOSED.
   Future<void> sell(String investmentId) async {
-    await _dio.post('/api/zinvest/$investmentId/sell');
-    removeItem((i) => i.investmentId == investmentId);
+    try {
+      final response = await _dio.post('/api/zinvest/$investmentId/sell');
+      final sold = Investment.fromJson(response.data['data']);
+      replaceItem((i) => i.investmentId == investmentId, sold);
+      _moneyMoved();
+    } on DioException catch (e) {
+      _moneyMoved();
+      throw InvestmentException(_messageOf(e, 'Could not sell this investment.'));
+    }
   }
+
+  // Wallet balance + history changed on the server: re-read both, quietly
+  void _moneyMoved() {
+    WalletsRepository.instance.refresh().catchError((_) => null);
+    TransactionsRepository.instance.syncLatest().catchError((_) {});
+  }
+
+  static String _messageOf(DioException e, String fallback) {
+    final body = e.response?.data;
+    if (body is Map && body['message'] is String) {
+      final message = (body['message'] as String).trim();
+      if (message.isNotEmpty) return message;
+    }
+    return fallback;
+  }
+}
+
+/// A ZInvest call the server refused; [toString] is the message to show.
+class InvestmentException implements Exception {
+  final String message;
+  InvestmentException(this.message);
+
+  @override
+  String toString() => message;
 }
 
 /// Liquidity profile (`GET /api/zinvest/liquidity-profile`). Single-value

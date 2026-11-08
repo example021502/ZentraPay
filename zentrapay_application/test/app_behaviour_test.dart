@@ -44,12 +44,12 @@ void main() {
     test('hides provider names and technical wording', () {
       final e = _dioError(
         status: 502,
-        body: {'message': 'AfriqLink gateway timeout while calling /v1/link'},
+        body: {'message': 'AfriLink gateway timeout while calling /v1/link'},
       );
       expect(errorMessage(e), kConnectionErrorMessage);
       final e2 = _dioError(
         status: 502,
-        body: {'message': 'AfriqLink rejected the request'},
+        body: {'message': 'AfriLink rejected the request'},
       );
       expect(errorMessage(e2), kGenericErrorMessage);
     });

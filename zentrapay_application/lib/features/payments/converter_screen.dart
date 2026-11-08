@@ -6,6 +6,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/features/home/new_wallet.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/main.dart';
@@ -39,10 +40,61 @@ class _ConverterScreenState extends State<ConverterScreen> {
   void initState() {
     super.initState();
     _loadRates();
+    WalletsRepository.instance.addListener(_onWallets);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted)
+        WalletsRepository.instance.ensureLoaded().catchError((_) => null);
+    });
+  }
+
+  void _onWallets() {
+    if (mounted) setState(() {});
+  }
+
+  /// Currencies of this conversion the user has no wallet account in. A conversion is only
+  /// allowed between two accounts they hold (the backend refuses it otherwise).
+  List<String> get _missingWallets {
+    final held = {
+      for (final a in WalletsRepository.instance.data?.fiatAccounts ?? const [])
+        a.currencyCode.toUpperCase(),
+    };
+    // Unknown until the wallets have loaded: do not accuse the user of missing accounts yet
+    if (WalletsRepository.instance.data == null) return const [];
+    return {
+      for (final c in [_from, _to])
+        if (!held.contains(c.toUpperCase())) c,
+    }.toList();
+  }
+
+  Future<void> _createWallet(String currencyCode) async {
+    try {
+      final currencies = await WalletsRepository.instance
+          .getSupportedCurrencies();
+      if (!mounted) return;
+      if (!currencies.any((c) => c.currencyCode == currencyCode)) {
+        ZentraNotifier.warning(
+          'Not available',
+          'A $currencyCode wallet account cannot be created for your account.',
+        );
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => CustomInputDialog(
+          type: 'Fiat',
+          currencies: currencies,
+          initialCurrencyCode: currencyCode,
+        ),
+      );
+    } catch (e) {
+      ZentraNotifier.warning('Warning', 'Something went wrong, try again!');
+    }
   }
 
   @override
   void dispose() {
+    WalletsRepository.instance.removeListener(_onWallets);
     _amountController.dispose();
     super.dispose();
   }
@@ -158,6 +210,14 @@ class _ConverterScreenState extends State<ConverterScreen> {
       ZentraNotifier.notice('Choose two different currencies.');
       return;
     }
+    final missing = _missingWallets;
+    if (missing.isNotEmpty) {
+      ZentraNotifier.warning(
+        'Wallet account needed',
+        'Create your ${missing.join(' and ')} wallet account first, then convert.',
+      );
+      return;
+    }
     setState(() => _converting = true);
     try {
       final result = await ConverterService.convert(
@@ -200,7 +260,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const SectionAppBar(),
-      backgroundColor: AppTheme.gray50,
+      backgroundColor: AppTheme.headerPink,
       body: Column(
         children: [
           SectionHeader(
@@ -217,20 +277,36 @@ class _ConverterScreenState extends State<ConverterScreen> {
               ),
             ],
           ),
+          // The sheet under the header: rounded top (radiusXxl) on the header
+          // colour, like every other section.
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 8, bottom: 16),
-              child: Column(
-                children: [
-                  _buildConverterCard(),
-                  const SizedBox(height: 20),
-                  _buildRateInfo(),
-                  const SizedBox(height: 20),
-                  _buildSummary(),
-                  const SizedBox(height: 20),
-                  _buildConvertButton(),
-                  const SizedBox(height: 20),
-                ],
+            child: Container(
+              width: double.infinity,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppTheme.gray50,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppTheme.radiusXxl),
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(
+                  top: AppTheme.spacingMd,
+                  bottom: 16,
+                ),
+                child: Column(
+                  children: [
+                    _buildConverterCard(),
+                    const SizedBox(height: 20),
+                    _buildRateInfo(),
+                    const SizedBox(height: 20),
+                    _buildSummary(),
+                    const SizedBox(height: 20),
+                    _buildMissingWallets(),
+                    _buildConvertButton(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),
@@ -531,6 +607,60 @@ class _ConverterScreenState extends State<ConverterScreen> {
     );
   }
 
+  /// Shown when the user lacks a wallet account for one of the two currencies: the conversion is
+  /// denied until they create it.
+  Widget _buildMissingWallets() {
+    final missing = _missingWallets;
+    if (missing.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        decoration: BoxDecoration(
+          color: AppTheme.warningOrange.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: AppTheme.warningOrange,
+                  size: 20,
+                ),
+                const SizedBox(width: AppTheme.spacingSm),
+                Expanded(
+                  child: Text(
+                    missing.length == 1
+                        ? "You don't have a ${missing.first} wallet account yet. Create it to convert between these currencies."
+                        : "You don't have ${missing.join(' and ')} wallet accounts yet. Create them to convert between these currencies.",
+                    style: AppTheme.bodySmall.copyWith(
+                      color: AppTheme.textBlack,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final c in missing)
+                  TextButton(
+                    onPressed: () => _createWallet(c),
+                    child: Text('Create $c wallet'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildConvertButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -539,7 +669,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
         child: PrimaryButton(
           label: 'Convert & save',
           loading: _converting,
-          onPressed: _loadingRates || _rate == null ? null : _convertAndSave,
+          onPressed:
+              _loadingRates || _rate == null || _missingWallets.isNotEmpty
+              ? null
+              : _convertAndSave,
         ),
       ),
     );

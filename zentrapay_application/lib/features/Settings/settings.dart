@@ -140,19 +140,19 @@ class _SettingsState extends State<Settings> {
     }
   }
 
-  Future<void> _toggleBiometric() => _change(
-    !biometricEnabled,
-    (v) => biometricEnabled = v,
-    (v) => SecuritySettingsRepository.instance.setBiometric(v),
-    "biometric sign-in",
-  );
+  // Biometric sign-in and two-factor authentication are not offered yet: the
+  // rows stay visible, but tapping them only says so (nothing is switched or
+  // saved).
+  Future<void> _toggleBiometric() async => _featureUnavailable();
 
-  Future<void> _toggleTwoFactor() => _change(
-    !twoFactorEnabled,
-    (v) => twoFactorEnabled = v,
-    (v) => SecuritySettingsRepository.instance.setTwoFactor(v),
-    "two-factor authentication",
-  );
+  Future<void> _toggleTwoFactor() async => _featureUnavailable();
+
+  void _featureUnavailable() {
+    ZentraNotifier.notice(
+      "This feature is not available at the moment.",
+      icon: Icons.schedule_rounded,
+    );
+  }
 
   Future<void> _toggleFraudProtection() => _change(
     !fraudProtection,
@@ -198,14 +198,9 @@ class _SettingsState extends State<Settings> {
           ListenableBuilder(
             listenable: UserProfileRepository.instance,
             builder: (context, _) {
-              final user = UserProfileRepository.instance.user;
               return SectionHeader(
-                title: (user?.fullName.trim().isNotEmpty ?? false)
-                    ? user!.fullName
-                    : "Your account",
-                subtitle: (user?.email.isNotEmpty ?? false)
-                    ? user!.email
-                    : "Profile, security and appearance",
+                title: "Settings",
+                subtitle: "Profile, security and appearance",
                 icon: Icons.manage_accounts_rounded,
                 sheetColor: AppTheme.gray50,
               );
@@ -215,9 +210,15 @@ class _SettingsState extends State<Settings> {
             constraints: BoxConstraints(
               minHeight: MediaQuery.of(context).size.height,
             ),
-            color: AppTheme.gray50,
+            decoration: BoxDecoration(
+              color: AppTheme.gray50,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXxl),
+            ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(15, 25, 15, 15),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingMd,
+                vertical: AppTheme.spacingLg,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

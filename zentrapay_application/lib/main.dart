@@ -20,7 +20,7 @@ import 'package:zentrapay_application/features/payments/ai_assistance_screen.dar
 import 'package:zentrapay_application/features/payments/converter_screen.dart';
 import 'package:zentrapay_application/features/payments/fraud_detection_screen.dart';
 import 'package:zentrapay_application/features/payments/liquidity_hub_screen.dart';
-import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/features/goals/goals_screen.dart';
 import 'package:zentrapay_application/features/profile/profile_screen.dart';
 import 'package:zentrapay_application/features/zbanking/zbanking_screen.dart';
 import 'package:zentrapay_application/features/zgrow/zgrow_screen.dart';
@@ -47,7 +47,8 @@ void main() async {
     await dotenv.load(fileName: ".env");
     await SecureStorageService.init();
     await SecureStorageService.loadSession();
-    await ThemeController.instance.restore();
+    // Light/dark mode is per account: the app always starts light (splash,
+    // login, register) and the signed-in user's own mode is applied later.
     // Privy native SDK only exists on Android/iOS. Skip on web/desktop so
     // `flutter run -d chrome/windows` boots without MissingPluginException.
     final isMobile =
@@ -163,7 +164,7 @@ class MainApp extends StatelessWidget {
                 '/pay': (context) => const PaySectionMain(),
                 '/ai_assistance': (context) => const AIAssistanceScreen(),
                 '/converter': (context) => const ConverterScreen(),
-                '/milestones': (context) => const MilestonesScreen(),
+                '/milestones': (context) => const GoalsScreen(),
                 '/profile': (context) => const ProfileScreen(),
                 '/liquidity_hub': (context) => const LiquidityHubScreen(),
                 '/voice_recording': (context) => const ZVoiceScreen(),

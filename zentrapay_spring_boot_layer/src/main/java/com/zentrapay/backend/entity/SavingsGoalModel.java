@@ -49,6 +49,23 @@ public class SavingsGoalModel {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";
 
+    // Saving into the goal is blocked until this moment (null / in the past = not frozen)
+    @Column(name = "frozen_until")
+    private LocalDateTime frozenUntil;
+
+    // Auto-save: {autoAmount} moves from the wallet into the goal every {autoFrequency} (DAILY, WEEKLY, MONTHLY)
+    @Column(name = "auto_enabled", nullable = false)
+    private boolean autoEnabled = false;
+
+    @Column(name = "auto_amount", precision = 19, scale = 4)
+    private BigDecimal autoAmount;
+
+    @Column(name = "auto_frequency", length = 10)
+    private String autoFrequency;
+
+    @Column(name = "auto_next_run")
+    private LocalDateTime autoNextRun;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -141,19 +141,26 @@ class SecureStorageService {
   // Appearance (device-local copy of the user's light / dark preference)
   // ============================================================================
 
-  static const String _darkModeKey = 'dark_mode';
+  // The preference is stored PER ACCOUNT (keyed by userId) so one user's dark
+  // mode never carries over to another account on the same device.
+  static String _darkModeKey(String userId) => 'dark_mode_$userId';
 
-  static Future<bool> readDarkMode() async {
+  static Future<bool> readDarkMode(String userId) async {
+    if (userId.isEmpty) return false;
     try {
-      return await _secureStorage.read(key: _darkModeKey) == 'true';
+      return await _secureStorage.read(key: _darkModeKey(userId)) == 'true';
     } catch (_) {
       return false;
     }
   }
 
-  static Future<void> saveDarkMode(bool dark) async {
+  static Future<void> saveDarkMode(String userId, bool dark) async {
+    if (userId.isEmpty) return;
     try {
-      await _secureStorage.write(key: _darkModeKey, value: dark.toString());
+      await _secureStorage.write(
+        key: _darkModeKey(userId),
+        value: dark.toString(),
+      );
     } catch (e) {
       debugPrint('Failed to save appearance: $e');
     }

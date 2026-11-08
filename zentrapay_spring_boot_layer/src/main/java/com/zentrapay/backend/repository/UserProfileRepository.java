@@ -10,4 +10,9 @@ import java.util.UUID;
 public interface UserProfileRepository extends JpaRepository<UserProfileModel, UUID> {
     @Query("SELECT u FROM UserProfileModel u WHERE u.userId = :userId")
     UserProfileModel getBtUserId(@Param("userId") UUID userId);
+
+    /** Profiles in the given review state, oldest submission first (the officer's work queue). */
+    @Query("SELECT p FROM UserProfileModel p WHERE p.KYCStatus = :status ORDER BY p.kycSubmittedAt ASC")
+    java.util.List<UserProfileModel> findByReviewStatus(@Param("status") String status,
+                                                        org.springframework.data.domain.Pageable pageable);
 }

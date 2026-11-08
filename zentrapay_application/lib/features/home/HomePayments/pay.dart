@@ -5,13 +5,13 @@ import 'package:zentrapay_application/core/models/search_result.dart';
 import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/make_payment.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/verify_payee_sheet.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/recent_payments_list.dart';
 import 'package:zentrapay_application/features/home/HomePayments/qr_scan_screen.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
+import 'package:zentrapay_application/features/home/bill_payment_sheet.dart';
 
 class PaySectionMain extends StatefulWidget {
   const PaySectionMain({super.key});
@@ -267,9 +267,10 @@ class _PaySectionMainState extends State<PaySectionMain> {
                               },
                             );
                           },
-                          onSelectBillProvider: (_) => showComingSoon(
+                          onSelectBillProvider: (bill) => BillPaymentSheet.show(
                             context,
-                            "Sending to a bill provider",
+                            providerId: bill.providerId,
+                            providerName: bill.billerName,
                           ),
                           onSelectBank: (bank) => _onSelectExternal(bank: bank),
                           onSelectMobileMoney: (momo) =>

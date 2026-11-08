@@ -215,7 +215,7 @@ class SectionSheet extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.fromLTRB(15, 0, 15, 15),
-    this.topPadding = 8,
+    this.topPadding = AppTheme.spacingMd,
     this.color,
   });
 

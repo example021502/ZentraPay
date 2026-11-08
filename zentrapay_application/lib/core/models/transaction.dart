@@ -150,6 +150,10 @@ class AppTransaction {
         return 'Saved to goal';
       case 'SAVINGS_WITHDRAWAL':
         return 'Withdrawn from goal';
+      case 'INVESTMENT_BUY':
+        return 'Investment bought';
+      case 'INVESTMENT_SELL':
+        return 'Investment sold';
       case 'LOAN_DISBURSEMENT':
         return 'Loan received';
       case 'LOAN_REPAYMENT':
@@ -167,6 +171,32 @@ class AppTransaction {
   // String toString() {
   //   return 'AppTransaction(id: $transactionId, txn_ref: $txnRef, name: $receiverName, identifier: $receiverPhoneNumber)';
   // }
+}
+
+/// Answer of `POST /api/payments/retry/{id}/check`: whether a failed payment can be tried again
+/// (both the sender and the receiver are still valid) and, if not, why.
+class RetryCheck {
+  final bool retryable;
+  final String message;
+  final String receiverName;
+  final String amount;
+  final String currencyCode;
+
+  RetryCheck({
+    required this.retryable,
+    required this.message,
+    required this.receiverName,
+    required this.amount,
+    required this.currencyCode,
+  });
+
+  factory RetryCheck.fromJson(Map<String, dynamic> json) => RetryCheck(
+    retryable: json['retryable'] == true,
+    message: (json['message'] ?? '').toString(),
+    receiverName: (json['receiverName'] ?? '').toString(),
+    amount: (json['amount'] ?? '').toString(),
+    currencyCode: (json['currencyCode'] ?? '').toString(),
+  );
 }
 
 class TransactionPage {

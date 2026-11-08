@@ -3,7 +3,9 @@ package com.zentrapay.backend.controller;
 import com.zentrapay.backend.dto.common.ApiResponse;
 import com.zentrapay.backend.dto.payment.CheckoutResponseDTO;
 import com.zentrapay.backend.dto.payment.GatewayCustomerDTO;
+import com.zentrapay.backend.dto.payment.RetryDTOs;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
+import com.zentrapay.backend.service.payment.TransactionRetryService;
 import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
 import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
 import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
@@ -44,6 +46,7 @@ public class PaymentsController {
     private final PaymentServices paymentServices;
     private final WalletFundingService walletFundingService;
     private final QRCodeService qrCodeService;
+    private final TransactionRetryService transactionRetryService;
 
     /**
      * Sends money. The signed-in user is the sender.
@@ -53,6 +56,27 @@ public class PaymentsController {
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody TransactionRequest request) {
         TransactionTransactionDTO transaction = paymentServices.initialize(user.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
+    }
+
+    /**
+     * Retry, step 1: are the sender and the receiver of this failed payment still valid? (no PIN, nothing moves)
+     */
+    @PostMapping("/retry/{transactionId}/check")
+    public ResponseEntity<ApiResponse<RetryDTOs.RetryCheckDTO>> checkRetry(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID transactionId) {
+        RetryDTOs.RetryCheckDTO check = transactionRetryService.check(user.getUserId(), transactionId);
+        return ResponseEntity.ok(ApiResponse.success(check, check.message()));
+    }
+
+    /**
+     * Retry, step 2: with the PIN, checks again and makes the payment again.
+     */
+    @PostMapping("/retry/{transactionId}")
+    public ResponseEntity<ApiResponse<TransactionTransactionDTO>> retry(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID transactionId,
+            @Valid @RequestBody RetryDTOs.RetryRequest request) {
+        TransactionTransactionDTO transaction = transactionRetryService.retry(user.getUserId(), transactionId, request.pin());
         return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
     }
 

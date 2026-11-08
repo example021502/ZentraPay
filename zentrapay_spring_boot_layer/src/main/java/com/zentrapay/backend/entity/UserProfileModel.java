@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -58,8 +59,9 @@ public class UserProfileModel {
     private String occupationTitle;
 
     // Comprehensive Compliance and Risk tracking fields.
+    @Convert(converter = AmlStatusConverter.class)
     @Column(name = "anti_money_laundering_status", nullable = false, length = 20)
-    private String antiMoneyLaunderingStatus = "clear";
+    private Datatypes.AntiMoneyStatuses antiMoneyLaunderingStatus = Datatypes.AntiMoneyStatuses.IN_REVIEW;
 
     @Column(name = "politically_exposed_person", nullable = false)
     private boolean isPoliticallyExposedPerson;
@@ -70,10 +72,8 @@ public class UserProfileModel {
     @Column(name = "kyc_status", nullable = false, length = 20)
     private String KYCStatus = "pending";
 
-    // Tier-2 document uploads — local-disk paths (see DocumentsService),
-    // nullable until each is actually uploaded. All three plus the
-    // identity/address/occupation fields above must be present for a user
-    // to reach kycTier 2 (see UsersService#recomputeKycTier).
+    // LEGACY local-disk paths from before documents moved to the image host.
+    // No longer written or read; kept only so the existing columns still map.
     @Column(name = "id_document_front_path", length = 255)
     private String idDocumentFrontPath;
 
@@ -83,8 +83,12 @@ public class UserProfileModel {
     @Column(name = "selfie_path", length = 255)
     private String selfiePath;
 
-    // Hosted (ImgBB) URLs for the same three uploads, alongside the local
-    // paths above — see DocumentsService / UploadImageToImgBBB.
+    // Tier-2 document images live on the external image host; only the URL it
+    // returned is saved here (see DocumentsService / ImageHostingService).
+    // nullable until each is uploaded. All three plus the identity / address /
+    // occupation fields above must be present before the profile is submitted
+    // for review; a verification officer then grants tier 2
+    // (see KycVerificationService).
     @Column(name = "id_document_front_image_url", length = 500)
     private String idDocumentFrontImageUrl;
 
@@ -93,6 +97,20 @@ public class UserProfileModel {
 
     @Column(name = "selfie_image_url", length = 500)
     private String selfieImageUrl;
+
+    // KYC review trail: when the complete profile was submitted, and who
+    // decided on it, when, and why (see KycVerificationService).
+    @Column(name = "kyc_submitted_at")
+    private LocalDateTime kycSubmittedAt;
+
+    @Column(name = "kyc_reviewed_at")
+    private LocalDateTime kycReviewedAt;
+
+    @Column(name = "kyc_reviewed_by")
+    private UUID kycReviewedBy;
+
+    @Column(name = "kyc_review_note", length = 500)
+    private String kycReviewNote;
 
     // System audit timestamps.
     @CreationTimestamp

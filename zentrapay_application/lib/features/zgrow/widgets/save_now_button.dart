@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/features/goals/goals_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
 class SaveNowButton extends StatelessWidget {
@@ -11,7 +11,7 @@ class SaveNowButton extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => const MilestonesScreen())),
+      ).push(MaterialPageRoute(builder: (_) => const GoalsScreen())),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.primary.withAlpha(30),

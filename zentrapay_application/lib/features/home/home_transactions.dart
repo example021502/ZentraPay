@@ -3,6 +3,7 @@ import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
+import 'package:zentrapay_application/features/home/HomePayments/retry_payment_flow.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 
 class HomeTransactions extends StatelessWidget {
@@ -139,7 +140,34 @@ class HomeTransactions extends StatelessWidget {
                 Expanded(child: _buildDetailItem("Reference", reference)),
               ],
             ),
+            if (transaction != null &&
+                transaction.isUnsuccessful &&
+                transaction.failureReason.trim().isNotEmpty) ...[
+              const SizedBox(height: AppTheme.spacingMd),
+              Text(
+                transaction.failureReason,
+                textAlign: TextAlign.center,
+                style: AppTheme.bodySmall.copyWith(color: AppTheme.errorRed),
+              ),
+            ],
             const SizedBox(height: AppTheme.spacingLg),
+            if (transaction != null && canRetry(transaction)) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(sheetContext);
+                    await retryFailedTransaction(
+                      context: pageContext,
+                      transaction: transaction,
+                    );
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text("Retry"),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingSm),
+            ],
             if (showSendAgain) ...[
               SizedBox(
                 width: double.infinity,

@@ -43,6 +43,11 @@ class _AuthTextFieldState extends State<AuthTextField> {
       enabled: !widget.isLoading,
       controller: widget.controller,
       obscureText: _isObscured,
+      autocorrect: !widget.isPassword,
+      enableSuggestions: !widget.isPassword,
+      keyboardType: widget.isPassword
+          ? TextInputType.visiblePassword
+          : TextInputType.text,
       style: TextStyle(color: AppColors.textBlack, fontSize: 14),
       decoration: InputDecoration(
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -83,16 +88,19 @@ class _AuthTextFieldState extends State<AuthTextField> {
         ),
         suffixIcon: widget.isPassword
             ? IconButton(
+                tooltip: _isObscured ? 'Show password' : 'Hide password',
                 onPressed: () {
                   setState(() {
                     _isObscured = !_isObscured;
                   });
                 },
+                // The icon shows the CURRENT state: crossed-out eye while the
+                // password is hidden, open eye while it is visible.
                 icon: Icon(
                   _isObscured
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: AppTheme.buttonColor.withAlpha(153),
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppTheme.textBlack,
                   size: 20,
                 ),
               )

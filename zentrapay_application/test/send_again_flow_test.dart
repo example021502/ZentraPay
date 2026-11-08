@@ -52,7 +52,7 @@ AppTransaction _transaction({
   receiverName: receiverName,
   receiverIdentifier: receiverPhoneNumber,
   completedAt: '2026-01-05T09:30:00',
-  transactionType: 'INTERNAL',
+  transactionType: 'P2P_TRANSFER',
 );
 
 void main() {

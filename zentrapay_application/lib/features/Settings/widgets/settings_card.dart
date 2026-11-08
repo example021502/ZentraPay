@@ -36,12 +36,16 @@ class SettingsIconChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = color ?? AppTheme.brand;
+    // The chip's background is a lightened secondary navy in light mode and a
+    // lightened primary pink in dark mode (AppTheme.buttonColor is exactly
+    // that pair); the icon takes the same colour unless a row overrides it.
+    final base = AppTheme.buttonColor;
+    final tint = color ?? base;
     return Container(
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: tint.withAlpha(AppTheme.isDark ? 60 : 28),
+        color: base.withAlpha(AppTheme.isDark ? 60 : 28),
         shape: BoxShape.circle,
       ),
       child: Icon(icon, size: 18, color: tint),

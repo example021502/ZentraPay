@@ -126,7 +126,7 @@ public class PaymentServices {
 
     /**
      * Saves a refused / failed send as a FAILED transaction (no money moved, so no ledger entries).
-     * Everything is best effort: reading the destination or the receiver must never hide the real error.
+     * Everything is the best effort: reading the destination or the receiver must never hide the real error.
      */
     private void recordFailedSend(UserModel sender, TransactionRequest req, Datatypes.TransactionType type, RuntimeException cause) {
         try {

@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.common;
 
-
 public class Datatypes {
 
     //    CHALLENGES REWARDS TYPES
@@ -126,6 +125,10 @@ public class Datatypes {
         SAVINGS_DEPOSIT,
         SAVINGS_WITHDRAWAL,
 
+        // Comment: Money moved between a wallet account and a ZInvest position (buy / sell)
+        INVESTMENT_BUY,
+        INVESTMENT_SELL,
+
         // Comment: Micro-loans - the loan paid into the wallet, and the user paying it back
         LOAN_DISBURSEMENT,
         LOAN_REPAYMENT,
@@ -206,6 +209,23 @@ public class Datatypes {
         private final String method;
 
         PaymentMethod(String method) {
+            this.method = method;
+        }
+
+        public final String getMethod() {
+            return method;
+        }
+    }
+
+    public enum AntiMoneyStatuses {
+        CLEAR("clear"),
+        IN_REVIEW("in_review"),
+        FLAGGED("flagged");
+
+
+        private final String method;
+
+        AntiMoneyStatuses(String method) {
             this.method = method;
         }
 

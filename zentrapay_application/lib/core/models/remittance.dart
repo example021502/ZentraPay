@@ -33,11 +33,19 @@ class RemittanceQuote {
   final String exchangeRate;
   final String fee;
 
-  RemittanceQuote({required this.exchangeRate, required this.fee});
+  /// What the recipient gets for the amount asked about (empty when none was given).
+  final String destinationAmount;
+
+  RemittanceQuote({
+    required this.exchangeRate,
+    required this.fee,
+    this.destinationAmount = '',
+  });
 
   factory RemittanceQuote.fromJson(Map<String, dynamic> json) =>
       RemittanceQuote(
         exchangeRate: (json['exchangeRate'] ?? '0').toString(),
         fee: (json['fee'] ?? '0').toString(),
+        destinationAmount: (json['destinationAmount'] ?? '').toString(),
       );
 }

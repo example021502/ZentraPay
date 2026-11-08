@@ -3,6 +3,7 @@ import 'package:zentrapay_application/core/models/transaction.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/utils/Common/format_date_time_string.dart';
+import 'package:zentrapay_application/features/home/HomePayments/retry_payment_flow.dart';
 import 'package:zentrapay_application/features/home/HomePayments/send_again_flow.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -307,6 +308,23 @@ class _PaymentHistoryState extends State<PaymentHistory> {
             _detailRow("Reference", transaction.txnRef),
             _detailRow("Date", formatDateTimeString(transaction.completedAt)),
             const SizedBox(height: 16),
+            if (canRetry(transaction)) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(sheetContext);
+                    await retryFailedTransaction(
+                      context: pageContext,
+                      transaction: transaction,
+                    );
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text("Retry"),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             if (showSendAgain) ...[
               SizedBox(
                 width: double.infinity,

@@ -7,10 +7,9 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
 import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
-import 'package:zentrapay_application/features/payments/milestones_screen.dart';
+import 'package:zentrapay_application/features/goals/goals_screen.dart';
 import 'package:zentrapay_application/features/zbanking/pay_loans_screen.dart';
 import 'package:zentrapay_application/features/zbanking/widgets/other_bank_accounts_strip.dart';
-import 'package:zentrapay_application/features/wallet_topup/saved_cards_screen.dart';
 import 'package:zentrapay_application/features/wallet_topup/topup_screen.dart';
 import 'package:zentrapay_application/main.dart';
 
@@ -34,7 +33,6 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: BankAccountsRepository.instance,
@@ -54,13 +52,9 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 : primary.displayName,
             icon: Icons.account_balance_rounded,
             sheetColor: AppTheme.gray50,
-            actions: [
-              if (primary != null)
-                _headerActionPill(
-                  label: 'Link bank',
-                  onTap: () => linkBankWithAfriLink(context),
-                ),
-            ],
+            // Always present, with or without a linked account: the "+" is how
+            // a bank account gets linked from this screen.
+            actions: [_headerAddButton(onTap: () => linkBankWithAfriLink(context))],
             child: _buildHeaderCard(primary),
           ),
           sheet: SectionSheet(
@@ -189,8 +183,29 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
     );
   }
 
-  // Labelled pill for the header's call to action. White on the pink header so
-  // it reads as the one action of the screen header.
+  // Round "+" icon button for the header: links a bank account. Always shown.
+  Widget _headerAddButton({required VoidCallback onTap}) {
+    return Tooltip(
+      message: 'Link a bank account',
+      child: Material(
+        color: AppColors.primary.withAlpha(36),
+        shape: CircleBorder(
+          side: BorderSide(color: AppColors.primary.withAlpha(90)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Padding(
+            padding: const EdgeInsets.all(9),
+            child: Icon(Icons.add, size: 22, color: AppTheme.primaryWhite),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Labelled pill for the empty-state call to action. White on the pink
+  // header so it reads as the one action of the card.
   Widget _headerActionPill({
     required String label,
     required VoidCallback onTap,
@@ -360,12 +375,12 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
   // horizontally clipped last tile.
 
   Widget _buildAccountOptionsSection(BuildContext context) {
-    // Every row opens its own section. Open Banking and Liquidity have no
-    // backing service yet, so they say so with a light notice instead of
-    // opening an empty page.
+    // Every row opens its own section. Liquidity has no backing service yet,
+    // so it says so with a light notice instead of opening an empty page.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: AppTheme.spacingMd),
         Text("Banking services", style: AppTheme.bodyMedium),
         const SizedBox(height: AppTheme.spacingSm),
         Container(
@@ -389,7 +404,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 subtitle: "Save towards what matters",
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const MilestonesScreen()),
+                  MaterialPageRoute(builder: (_) => const GoalsScreen()),
                 ),
               ),
               _optionDivider(),
@@ -411,16 +426,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
                 icon: Icons.credit_card_rounded,
                 title: "Saved cards",
                 subtitle: "Top up with a card you already used",
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SavedCardsScreen()),
-                ),
-              ),
-              _optionDivider(),
-              _optionRow(
-                icon: Icons.account_balance_outlined,
-                title: "Open Banking",
-                subtitle: "Connect your other accounts",
+                // Cards are not offered yet - say so instead of opening them.
                 onTap: _serviceUnavailable,
               ),
               _optionDivider(),
@@ -439,7 +445,7 @@ class _ZBankingScreenState extends State<ZBankingScreen> {
 
   void _serviceUnavailable() {
     ZentraNotifier.notice(
-      "This service isn't available right now. We'll let you know when it is.",
+      "This service is not available at the moment. We'll let you know when it is.",
       icon: Icons.schedule_rounded,
     );
   }

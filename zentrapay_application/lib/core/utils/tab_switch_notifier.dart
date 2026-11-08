@@ -47,4 +47,9 @@ class TabSwitchNotifier extends ChangeNotifier {
     _current = tab;
     notifyListeners();
   }
+
+  /// Puts the app back on Home. This singleton outlives the navigation shell,
+  /// so without a reset a user who logged out from Settings would land on
+  /// Settings again after the next login / register.
+  void reset() => select(AppTab.home);
 }

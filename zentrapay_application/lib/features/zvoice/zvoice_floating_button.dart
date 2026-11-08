@@ -53,10 +53,11 @@ class _ZVoiceFloatingButtonState extends State<ZVoiceFloatingButton>
               height: 50,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: AppTheme.primaryGradient,
+                // secondary navy in light mode, primary pink in dark mode.
+                color: AppTheme.buttonColor,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryPink.withValues(
+                    color: AppTheme.buttonColor.withValues(
                       alpha: 0.45 + 0.3 * t,
                     ),
                     blurRadius: 10 * t,
