@@ -32,7 +32,9 @@ class _InvestmentListState extends State<InvestmentList> {
         title: const Text("Sell investment?"),
         content: Text(
           "Sell your position in ${investment.name}"
-          "${investment.symbol != null ? ' (${investment.symbol})' : ''}?",
+          "${investment.symbol != null ? ' (${investment.symbol})' : ''} for "
+          "${formatMoney((investment.quantity.toAmount() * investment.currentPrice.toAmount()).toStringAsFixed(2), symbol: '${investment.currencyCode} ')}? "
+          "The money goes back into your wallet.",
         ),
         actions: [
           TextButton(
@@ -55,7 +57,7 @@ class _InvestmentListState extends State<InvestmentList> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("Failed to sell: $e")));
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _sellingId = null);

@@ -15,7 +15,11 @@ class CustomInputDialog extends StatefulWidget {
     super.key,
     required this.type,
     required this.currencies,
+    this.initialCurrencyCode,
   });
+
+  /// Currency to preselect (e.g. the one a converter needs), when it is in [currencies].
+  final String? initialCurrencyCode;
 
   /// List of supported currencies fetched directly from the backend API.
   final List<SupportedCurrencies> currencies;
@@ -40,7 +44,10 @@ class _CustomInputDialogState extends State<CustomInputDialog> {
     super.initState();
     // Initialize default selected currency if available in the passed list
     if (widget.currencies.isNotEmpty) {
-      _selectedCurrency = widget.currencies.first;
+      _selectedCurrency = widget.currencies.firstWhere(
+        (c) => c.currencyCode == widget.initialCurrencyCode,
+        orElse: () => widget.currencies.first,
+      );
     }
   }
 

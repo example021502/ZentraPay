@@ -111,10 +111,15 @@ class RemittanceService {
   static Future<RemittanceQuote> getQuote({
     required String source,
     required String destination,
+    String? amount,
   }) async {
     final response = await _dio.get(
       '/api/remittance/rates',
-      queryParameters: {'source': source, 'destination': destination},
+      queryParameters: {
+        'source': source,
+        'destination': destination,
+        'amount': ?amount,
+      },
     );
     return RemittanceQuote.fromJson(response.data['data']);
   }
@@ -137,6 +142,10 @@ class RemittanceService {
     String? accountNumber,
     String? mobileMoneyProviderId,
     String? mobileMoneyProviderCode,
+    // From POST /api/payments/verify-account (bank / mobile money): the token for the verified
+    // account, and the id of the gateway that verified it (tried first for the payout).
+    String? verificationToken,
+    String? gatewayId,
   }) async {
     final response = await _dio.post(
       '/api/remittance/send',
@@ -157,6 +166,9 @@ class RemittanceService {
         'accountNumber': ?accountNumber,
         'mobileMoneyProviderId': ?mobileMoneyProviderId,
         'mobileMoneyProviderCode': ?mobileMoneyProviderCode,
+        if (verificationToken != null && verificationToken.isNotEmpty)
+          'verificationToken': verificationToken,
+        if (gatewayId != null && gatewayId.isNotEmpty) 'gatewayId': gatewayId,
       },
     );
     final data = response.data['data'] ?? {};

@@ -58,16 +58,13 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     super.dispose();
   }
 
-  /// Handle NFC Pay action
-  /// @description Initiates NFC payment flow
+  /// Handle NFC Pay action. Tap-to-pay needs a card-issuing partner and the phone's
+  /// secure element (HCE); neither is connected yet, so say so plainly instead of
+  /// starting a flow that cannot finish.
   void _onNFCAction(BuildContext context) {
-    // No NFC hardware integration in this pass — nothing to wire to a
-    // backend endpoint yet.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('NFC Pay - Coming Soon!'),
-        backgroundColor: AppColors.main,
-      ),
+    ZentraNotifier.notice(
+      "NFC Pay isn't available yet. You can pay with a QR code from Send.",
+      icon: Icons.nfc,
     );
   }
 
@@ -204,6 +201,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
             'billerName': p.billerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
+            'countryCode': p.countryCode ?? '',
           },
         )
         .toList();
@@ -220,6 +218,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
             'providerName': p.providerName,
             'logoUrl': p.logoUrl ?? '',
             'category': p.categoryCode,
+            'countryCode': p.countryCode ?? '',
           },
         )
         .toList();
@@ -298,7 +297,10 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
                       Navigator.pop(context);
                       switch (option["id"]) {
                         case "Cards":
-                          _createVirtualCard(context);
+                          ZentraNotifier.notice(
+                            "Card issuing isn't available yet. We'll let you know when it is.",
+                            icon: Icons.credit_card,
+                          );
                           return;
                         case "ZVoice AI":
                           Navigator.push(
@@ -327,7 +329,9 @@ class _HomeQuickActionsState extends State<HomeQuickActions>
     );
   }
 
-  Future<void> _createVirtualCard(BuildContext context) async {
+  // Kept for when a card-issuing partner is connected (POST /api/cards/virtual does not exist yet)
+  // ignore: unused_element
+  Future<void> _createVirtualCardViaApi(BuildContext context) async {
     final brand = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(

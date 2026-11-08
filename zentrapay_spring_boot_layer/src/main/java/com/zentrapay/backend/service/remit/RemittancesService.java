@@ -58,6 +58,7 @@ public class RemittancesService {
     private final BankTransferServices bankTransferServices;
     private final TransactionRepository transactionRepository;
     private final TransactionRecorder transactionRecorder;
+    private final DestinationTokenService destinationTokenService;
 
     // Flat percentage fee on the source amount - overridable per environment
     @Value("${app.remit.fee-percent:1.0}")
@@ -127,6 +128,18 @@ public class RemittancesService {
             draft.setReceiverId(req.recipientUserId());
             if (!"USER".equals(type)) {
                 String number = "MOBILE_MONEY".equals(type) ? normalise(req.recipientPhoneNumber()) : normalise(req.accountNumber());
+                if (!normalise(req.verificationToken()).isEmpty()) {
+                    // The app only sends the token: the number (and the holder's name) live inside it
+                    try {
+                        DestinationTokenService.Destination dest = destinationTokenService.open(sender.getUserId(), req.verificationToken());
+                        number = normalise(dest.accountNumber());
+                        if (!normalise(dest.accountName()).isEmpty()) {
+                            draft.setReceiverName(dest.accountName());
+                        }
+                    } catch (IllegalArgumentException ignored) {
+                        // expired / not this user's token: keep what the request carried
+                    }
+                }
                 draft.setDestinationIdentifier(DestinationTokenService.mask(number));
             }
             transactionRecorder.recordFailure(draft, cause.getMessage());
@@ -249,21 +262,36 @@ public class RemittancesService {
             throw new IllegalArgumentException("Insufficient balance. Please top up your " + sourceCurrency + " account first");
         }
 
-        // 1. Ask the providers who own the account - nothing is debited yet
+        // 1. Who owns the account - nothing is debited yet. Normally the app already verified it
+        //    (POST /api/payments/verify-account) and sends the token: the server then takes the account
+        //    from what the provider confirmed. Without a token the providers are asked here.
         String accountNumber;
         String accountName;
         UUID destinationId;
         String destinationCode;
-        if (mobileMoney) {
+        UUID verifyingGateway;
+        if (!normalise(req.verificationToken()).isEmpty()) {
+            DestinationTokenService.Destination dest = destinationTokenService.open(sender.getUserId(), req.verificationToken());
+            if (!recipientType.equals(dest.type()) || !country.equalsIgnoreCase(normalise(dest.countryCode()))) {
+                throw new IllegalArgumentException("Please verify the account again before sending");
+            }
+            accountNumber = normalise(dest.accountNumber());
+            destinationId = dest.destinationId();
+            destinationCode = dest.destinationCode();
+            // A wallet whose network shares no name: the sender typed it
+            accountName = normalise(dest.accountName()).isEmpty() ? normalise(req.recipientName()) : dest.accountName();
+            verifyingGateway = dest.gatewayId();
+        } else if (mobileMoney) {
             accountNumber = normalise(req.recipientPhoneNumber());
             if (accountNumber.isEmpty()) {
                 throw new IllegalArgumentException("Wallet phone number missing");
             }
             destinationId = req.mobileMoneyProviderId();
             destinationCode = req.mobileMoneyProviderCode();
-            accountName = accountVerificationService.verifyMobileMoney(destinationId, destinationCode, accountNumber, country)
-                    .map(AccountVerificationService.Verified::accountName)
-                    .orElseGet(() -> normalise(req.recipientName()));
+            Optional<AccountVerificationService.Verified> found =
+                    accountVerificationService.verifyMobileMoney(destinationId, destinationCode, accountNumber, country);
+            accountName = found.map(AccountVerificationService.Verified::accountName).orElseGet(() -> normalise(req.recipientName()));
+            verifyingGateway = found.map(AccountVerificationService.Verified::gatewayId).orElse(null);
         } else {
             accountNumber = normalise(req.accountNumber());
             if (accountNumber.isEmpty()) {
@@ -271,16 +299,23 @@ public class RemittancesService {
             }
             destinationId = req.bankId();
             destinationCode = req.bankCode();
-            accountName = accountVerificationService.verifyBank(destinationId, destinationCode, accountNumber, country).accountName();
+            AccountVerificationService.Verified verified =
+                    accountVerificationService.verifyBank(destinationId, destinationCode, accountNumber, country);
+            accountName = verified.accountName();
+            verifyingGateway = verified.gatewayId();
+        }
+        if (accountNumber.isEmpty() || accountName.isEmpty()) {
+            throw new IllegalArgumentException("Please verify the account again before sending");
         }
 
-        // 2. Find a provider that can take the recipient (still nothing debited)
+        // 2. Find a provider that can take the recipient (still nothing debited). The gateway that
+        //    verified the account is tried first (the app's gatewayId wins, the token's is the fallback);
+        //    if it does not serve this corridor the normal routing order applies.
         String purpose = Optional.ofNullable(req.purpose()).filter(p -> !p.isBlank()).orElse("Cross-border remittance");
         BankTransferServices.Payout payout = new BankTransferServices.Payout(recipientType, sender, true,
                 destinationId, destinationCode, country, destinationCurrency, accountNumber, accountName,
                 destinationAmount, purpose,
-                // Cross-border always goes through Onafriq, whichever provider confirmed the name
-                null);
+                req.gatewayId() != null ? req.gatewayId() : verifyingGateway);
         BankTransferServices.Prepared prepared = bankTransferServices.prepare(payout);
 
         // 3. Debit the sender (amount + fee) and call the provider; a refusal refunds the sender

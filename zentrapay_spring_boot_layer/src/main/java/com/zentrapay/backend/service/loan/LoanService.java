@@ -86,7 +86,9 @@ public class LoanService {
     @Value("${zentrapay.loans.auto-disburse:true}")
     private boolean autoDisburse;
 
-    /** The user's loans and applications, newest first. */
+    /**
+     * The user's loans and applications, newest first.
+     */
     @Transactional(readOnly = true)
     public List<LoanDTO> myLoans(UUID userId) {
         return loanRepository.findByUserIdOrderByAppliedAtDesc(userId).stream()
@@ -94,7 +96,9 @@ public class LoanService {
                 .toList();
     }
 
-    /** What the user may borrow right now, or exactly what stands in the way. */
+    /**
+     * What the user may borrow right now, or exactly what stands in the way.
+     */
     @Transactional(readOnly = true)
     public LoanEligibilityDTO eligibility(UUID userId) {
         return evaluate(loadUser(userId), userProfileRepository.getBtUserId(userId),
@@ -156,7 +160,9 @@ public class LoanService {
         return toDTO(saved);
     }
 
-    /** Approves the loan and pays the principal into the borrower's wallet (one all-or-nothing step with the application). */
+    /**
+     * Approves the loan and pays the principal into the borrower's wallet (one all-or-nothing step with the application).
+     */
     private void disburse(UserModel user, LoanModel loan) {
         FiatAccountModel account;
         try {
@@ -287,8 +293,8 @@ public class LoanService {
             if (kycStatus.equals("rejected") || kycStatus.equals("expired")) {
                 blockers.add("Your identity verification needs to be updated before you can borrow.");
             }
-            String aml = lower(profile.getAntiMoneyLaunderingStatus());
-            if (aml.equals("flagged") || aml.equals("pending_review")) {
+            Datatypes.AntiMoneyStatuses aml = profile.getAntiMoneyLaunderingStatus();
+            if (aml.equals(Datatypes.AntiMoneyStatuses.FLAGGED) || aml.equals(Datatypes.AntiMoneyStatuses.IN_REVIEW)) {
                 blockers.add("Your account is under review. Please contact support.");
             }
             if (lower(profile.getRiskScoreLevel()).equals("high")) {
@@ -367,7 +373,9 @@ public class LoanService {
 
     // --------------------------------------------------------------- helpers
 
-    /** Principal plus simple interest for the term, e.g. 1000 at 12% for 6 months = 1060. */
+    /**
+     * Principal plus simple interest for the term, e.g. 1000 at 12% for 6 months = 1060.
+     */
     private static BigDecimal totalRepayable(BigDecimal principal, BigDecimal annualRate, int termMonths) {
         BigDecimal interest = principal.multiply(annualRate)
                 .multiply(BigDecimal.valueOf(termMonths))
@@ -391,7 +399,7 @@ public class LoanService {
     private static LoanDTO toDTO(LoanModel l) {
         BigDecimal installment = l.getTermMonths() > 0
                 ? totalRepayable(l.getPrincipalAmount(), l.getInterestRate(), l.getTermMonths())
-                        .divide(BigDecimal.valueOf(l.getTermMonths()), 2, RoundingMode.HALF_UP)
+                .divide(BigDecimal.valueOf(l.getTermMonths()), 2, RoundingMode.HALF_UP)
                 : null;
         return new LoanDTO(l.getLoanId(), l.getCurrencyCode(), l.getPrincipalAmount(), l.getInterestRate(),
                 (int) l.getTermMonths(), l.getOutstandingBalance(), installment, l.getStatus(), l.getPurpose(),

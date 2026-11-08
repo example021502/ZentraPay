@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/models/bill_service_provider.dart';
+import 'package:zentrapay_application/features/home/bill_payment_sheet.dart';
+import 'package:zentrapay_application/features/home/provider_picker_sheet.dart';
+import 'package:zentrapay_application/core/models/user_service.dart';
+import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/home/repository/cache_user_services_data.dart';
 import 'package:zentrapay_application/core/utils/Common/provider_display.dart';
 
 class HomeServicesGrid extends StatefulWidget {
@@ -20,12 +25,14 @@ class HomeServicesGrid extends StatefulWidget {
 class _HomeServicesGridState extends State<HomeServicesGrid> {
   @override
   Widget build(BuildContext context) {
-    // Both catalogs are empty — the whole section is hidden by the parent
-    // (HomeWalletMain), but guard here too in case this widget is reused.
+    // Nothing added yet: the whole section is removed from Home. The first bill provider /
+    // service is added from the "More" overlay of the quick actions.
     if (widget.bills.isEmpty && widget.services.isEmpty) {
       return const SizedBox.shrink();
     }
 
+    // Once the user has added something, both rows show (even if one is empty) so each
+    // keeps its pinned "New" tile. Only what they added is listed.
     final isTablet = MediaQuery.of(context).size.width >= 600;
     final iconSize = isTablet ? 32.0 : 24.0;
 
@@ -36,7 +43,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.bills.isNotEmpty) ...[
+        ...[
           const SizedBox(height: AppTheme.spacingXl),
           Text("Bills", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingMd),
@@ -58,13 +65,21 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                           _buildItem(
                             item['logoUrl'] ?? "",
                             item['billerName'] ?? "N/A",
-                            () => showComingSoon(
+                            () => BillPaymentSheet.show(
                               context,
-                              item['billerName'] ?? "N/A",
+                              providerId: (item['providerId'] ?? '').toString(),
+                              providerName: (item['billerName'] ?? 'Provider')
+                                  .toString(),
                             ),
                             iconSize: iconSize,
                             categoryCode: item['category']?.toString(),
                             countryCode: item['countryCode']?.toString(),
+                            onLongPress: () => _confirmRemove(
+                              UserService.bill,
+                              (item['providerId'] ?? '').toString(),
+                              (item['billerName'] ?? 'this provider')
+                                  .toString(),
+                            ),
                           ),
                       ],
                     ),
@@ -75,15 +90,19 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                 // scroll area — always visible no matter how far the list
                 // has scrolled.
                 _buildNewTile(
-                  onTap: () {
-                    showComingSoon(context, "Linked new bill provider");
-                  },
+                  onTap: () => ProviderPickerSheet.show(
+                    context,
+                    title: "Bill Providers",
+                    loader: _loadBillProviders,
+                    nameKey: "billerName",
+                    id: "Bill Providers",
+                  ),
                 ),
               ],
             ),
           ),
         ],
-        if (widget.services.isNotEmpty) ...[
+        ...[
           const SizedBox(height: AppTheme.spacingXl),
           Text("Services", style: AppTheme.bodyMedium),
           const SizedBox(height: AppTheme.spacingMd),
@@ -102,13 +121,20 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                           _buildItem(
                             item['logoUrl'] ?? "",
                             item['providerName'] ?? "N/A",
-                            () => showComingSoon(
+                            () => showServiceProviderCard(
                               context,
-                              item['providerName'] ?? "N/A",
+                              item,
+                              (item['providerName'] ?? 'Provider').toString(),
                             ),
                             iconSize: iconSize,
                             categoryCode: item['category']?.toString(),
                             countryCode: item['countryCode']?.toString(),
+                            onLongPress: () => _confirmRemove(
+                              UserService.service,
+                              (item['providerId'] ?? '').toString(),
+                              (item['providerName'] ?? 'this service')
+                                  .toString(),
+                            ),
                           ),
                       ],
                     ),
@@ -116,9 +142,13 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
                 ),
                 const SizedBox(width: AppTheme.spacingSm),
                 _buildNewTile(
-                  onTap: () {
-                    showComingSoon(context, "Linked new service provider");
-                  },
+                  onTap: () => ProviderPickerSheet.show(
+                    context,
+                    title: "Service Providers",
+                    loader: _loadServiceProviders,
+                    nameKey: "providerName",
+                    id: "Service Providers",
+                  ),
                 ),
               ],
             ),
@@ -126,6 +156,76 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
         ],
       ],
     );
+  }
+
+  /// Long-press on a Home tile: take it off the user's Home screen (not out of the directory).
+  Future<void> _confirmRemove(
+    String kind,
+    String providerId,
+    String name,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove from Home?'),
+        content: Text(
+          '$name will no longer show here. You can add it again with New.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await UserServicesRepository.instance.remove(kind, providerId);
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not remove it. Try again.')),
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadBillProviders() async {
+    final providers =
+        await BillProvidersRepository.instance.ensureLoaded() ??
+        <BillProvider>[];
+    return providers
+        .map(
+          (p) => {
+            'providerId': p.providerId,
+            'billerName': p.billerName,
+            'logoUrl': p.logoUrl ?? '',
+            'category': p.categoryCode,
+            'countryCode': p.countryCode ?? '',
+          },
+        )
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadServiceProviders() async {
+    final providers =
+        await ServiceProvidersRepository.instance.ensureLoaded() ??
+        <ServiceProvider>[];
+    return providers
+        .map(
+          (p) => {
+            'providerId': p.providerId,
+            'providerName': p.providerName,
+            'logoUrl': p.logoUrl ?? '',
+            'category': p.categoryCode,
+            'countryCode': p.countryCode ?? '',
+          },
+        )
+        .toList();
   }
 
   Widget _buildNewTile({required VoidCallback onTap}) {
@@ -171,6 +271,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
     double iconSize = 24,
     String? categoryCode,
     String? countryCode,
+    VoidCallback? onLongPress,
   }) {
     // Fixed tile width so the horizontal rows keep a consistent rhythm
     // (icon chip + label) regardless of screen size.
@@ -210,6 +311,7 @@ class _HomeServicesGridState extends State<HomeServicesGrid> {
       width: itemWidth,
       child: GestureDetector(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.only(right: 5),
           child: Column(

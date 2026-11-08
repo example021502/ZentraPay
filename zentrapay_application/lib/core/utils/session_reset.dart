@@ -1,7 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
+import 'package:zentrapay_application/core/utils/tab_switch_notifier.dart';
 import 'package:zentrapay_application/features/Settings/repository/cache_settings_data.dart';
+import 'package:zentrapay_application/features/goals/repository/cache_goals_data.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/home/repository/cache_user_services_data.dart';
 import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/features/wallet_topup/saved_cards_repository.dart';
@@ -30,6 +34,10 @@ Future<void> resetUserSession() async {
     debugPrint('Could not clear saved customer data: $e');
   }
   clearUserCaches();
+  TabSwitchNotifier.instance.reset();
+  // The login / register screens are always light; the account's own dark
+  // mode choice stays saved for its next sign-in.
+  ThemeController.instance.forceLight();
 }
 
 /// Empties every user-scoped cache without touching the stored token.
@@ -44,6 +52,7 @@ void clearUserCaches() {
   BillPaymentHistoryRepository.instance.clear();
   ServiceProvidersRepository.instance.clear();
   BillProvidersRepository.instance.clear();
+  UserServicesRepository.instance.clear();
   CountriesRepository.instance.clear();
   CurrenciesRepository.instance.clear();
   ProviderCategoriesRepository.instance.clear();
@@ -61,7 +70,7 @@ void clearUserCaches() {
   zbanking.LoansRepository.instance.clear();
   zbanking.BudgetRepository.instance.clear();
   zbanking.BankingInsightsRepository.instance.clear();
-  zbanking.SavingsRepository.instance.clear();
+  GoalsRepository.instance.clear();
 
   zgrow.ChallengesRepository.instance.clear();
   zgrow.UserChallengesRepository.instance.clear();

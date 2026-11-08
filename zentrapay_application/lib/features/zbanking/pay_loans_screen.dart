@@ -24,7 +24,13 @@ class PayLoansScreen extends StatefulWidget {
 
 class _PayLoansScreenState extends State<PayLoansScreen> {
   static const _payable = {'ACTIVE', 'APPROVED'};
-  static const _closed = {'REPAID', 'CLOSED', 'REJECTED', 'DEFAULTED', 'CANCELLED'};
+  static const _closed = {
+    'REPAID',
+    'CLOSED',
+    'REJECTED',
+    'DEFAULTED',
+    'CANCELLED',
+  };
 
   @override
   void initState() {
@@ -58,7 +64,7 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const SectionAppBar(),
-      backgroundColor: AppTheme.gray50,
+      backgroundColor: AppTheme.headerPink,
       body: ListenableBuilder(
         listenable: LoansRepository.instance,
         builder: (context, _) {
@@ -81,12 +87,24 @@ class _PayLoansScreenState extends State<PayLoansScreen> {
                 sheetColor: AppTheme.gray50,
                 child: _summary(payable, currency),
               ),
+              // The sheet under the header: rounded top (radiusXxl) on the
+              // header colour, like every other section.
               Expanded(
-                child: RefreshIndicator(
-                  color: AppTheme.brand,
-                  backgroundColor: AppTheme.surface,
-                  onRefresh: _refresh,
-                  child: _body(repo, loans, payable, pending, history),
+                child: Container(
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppTheme.gray50,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(AppTheme.radiusXxl),
+                    ),
+                  ),
+                  child: RefreshIndicator(
+                    color: AppTheme.brand,
+                    backgroundColor: AppTheme.surface,
+                    onRefresh: _refresh,
+                    child: _body(repo, loans, payable, pending, history),
+                  ),
                 ),
               ),
             ],

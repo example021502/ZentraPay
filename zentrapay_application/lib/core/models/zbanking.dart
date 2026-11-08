@@ -404,39 +404,3 @@ class BankingInsights {
             .toList(),
       );
 }
-
-/// A ZBank Lite savings goal — mirrors API_CONTRACT.md §13
-/// (`GET /api/zbanking/savings` → {savingsId, savingsName, currencyCode,
-/// balance, targetAmount, targetDate, status}). `balance` is a decimal
-/// number on the wire (BigDecimal); `targetAmount`/`targetDate` are optional.
-class SavingsAccount {
-  final String savingsId;
-  final String savingsName;
-  final String currencyCode;
-  final double balance;
-  final double? targetAmount;
-  final DateTime? targetDate;
-  final String status;
-
-  SavingsAccount({
-    required this.savingsId,
-    required this.savingsName,
-    required this.currencyCode,
-    required this.balance,
-    this.targetAmount,
-    this.targetDate,
-    required this.status,
-  });
-
-  factory SavingsAccount.fromJson(Map<String, dynamic> json) => SavingsAccount(
-    savingsId: (json['savingsId'] ?? '').toString(),
-    savingsName: json['savingsName'] ?? '',
-    currencyCode: json['currencyCode'] ?? '',
-    balance: (json['balance'] as num?)?.toDouble() ?? 0.0,
-    targetAmount: (json['targetAmount'] as num?)?.toDouble(),
-    targetDate: json['targetDate'] != null
-        ? (DateTime.tryParse(json['targetDate'].toString()) ?? DateTime.now())
-        : null,
-    status: json['status'] ?? '',
-  );
-}

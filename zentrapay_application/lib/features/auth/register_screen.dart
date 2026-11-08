@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/Common/app_set_pin_sheet.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/session_reset.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
@@ -200,7 +201,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ServiceProvidersRepository.instance.ensureLoaded();
       // Fire-and-forget preload: must not block post-registration navigation.
       TransactionsRepository.instance.ensureLoaded().catchError((_) {});
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 2), () async {
+        // Register stays light; a new account starts in light mode.
+        await ThemeController.instance.applyForCurrentUser();
         if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,

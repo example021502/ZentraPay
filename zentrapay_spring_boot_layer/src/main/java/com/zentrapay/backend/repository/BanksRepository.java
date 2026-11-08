@@ -15,7 +15,7 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
 
     //    ================= GETTING THE BANK ACCOUNT FOR PAYMENT
     @Query("SELECT b FROM BanksModel b WHERE b.bankId = :bankId AND LOWER(b.bankName) = :bankName AND LOWER(b.code) = :bankCode")
-    Optional<BanksModel> getBankByIdNameAndCode(@Param("bankId") UUID bankId, @Param("bankName") String bankName, @Param("bankCode") String bankCode);
+    Optional<BanksModel> getByBankIdNameAndCode(@Param("bankId") UUID bankId, @Param("bankName") String bankName, @Param("bankCode") String bankCode);
 
     // Payouts: the picked bank, found by its code
     Optional<BanksModel> findFirstByCodeIgnoreCaseAndCountryCodeIgnoreCase(String code, String countryCode);
@@ -30,7 +30,7 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
     // every scheduled run.
     Optional<BanksModel> findByCodeAndGatewayAndCountryCode(String code, String gateway, String countryCode);
 
-    Optional<BanksModel> findByIdAndActive(@Param("bankId") UUID bankId, @Param("active") boolean active);
+    Optional<BanksModel> findByBankIdAndActive(@Param("bankId") UUID bankId, @Param("active") boolean active);
 
     // Searches funding sources by query while ensuring it only returns sources belonging to the user
     @Query("""

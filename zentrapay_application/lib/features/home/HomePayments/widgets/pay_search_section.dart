@@ -87,9 +87,10 @@ class PaySearchSection extends StatelessWidget {
                             // (no per-account zentag), so only show the
                             // zentag when present; otherwise lean on the
                             // contact's full name + phone.
-                            title: u.fullName,
-                            subtitle: u.fullName.isNotEmpty
-                                ? u.fullName
+                            title: u.fullName.isNotEmpty ? u.fullName : u.phoneNumber,
+                            // Tells two people with the same name apart
+                            subtitle: u.zentag.isNotEmpty
+                                ? '@${u.zentag}'
                                 : u.phoneNumber,
                             dimmed: false,
                             onTap: () => onSelectUser(u),
@@ -98,8 +99,8 @@ class PaySearchSection extends StatelessWidget {
                         ...searchResult.billProviders.map(
                           (b) => SearchResultTile(
                             title: b.billerName,
-                            subtitle: "${b.categoryCode} · Coming soon",
-                            dimmed: true,
+                            subtitle: "Bill · ${b.categoryCode}",
+                            dimmed: false,
                             onTap: () => onSelectBillProvider(b),
                           ),
                         ),
@@ -124,13 +125,18 @@ class PaySearchSection extends StatelessWidget {
                       ],
                     ),
                   )
-                : Center(
+                // Not a Center: inside this height-capped box a Center stretches to the cap
+                // (250px) while the scrolling page measured the row at one line, and the
+                // difference overflowed the bottom of the page as soon as the user typed.
+                : SizedBox(
+                    width: double.infinity,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12.0),
                       child: Text(
                         isSearching
                             ? "Searching system records..."
                             : "No matches found",
+                        textAlign: TextAlign.center,
                         style: AppTheme.bodyMedium.copyWith(
                           color: AppTheme.gray500,
                         ),

@@ -49,6 +49,9 @@ class _ResponsiveNavigationState extends State<ResponsiveNavigation> {
     // A screen that isn't the navigation shell (e.g. ZBank's "Home" quick
     // action) calls TabSwitchNotifier.select(); mirror it into _selectedIndex
     // so the bar highlights the new tab as well as the body swapping.
+    // Every fresh shell (app launch, login, register) starts on Home, no matter
+    // which tab the previous session left the singleton notifier on.
+    TabSwitchNotifier.instance.reset();
     TabSwitchNotifier.instance.addListener(_onExternalTabRequest);
     _selectedIndex = TabSwitchNotifier.instance.current.tabIndex;
   }

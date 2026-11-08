@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/core/utils/notifier.dart';
 
 import 'wallet_card_tile.dart';
 
@@ -30,7 +30,10 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
               const SizedBox(width: AppTheme.spacingSm),
               InkWell(
                 onTap: () {
-                  showComingSoon(context, "Cards Coming Son");
+                  ZentraNotifier.notice(
+                    "Card issuing isn't available yet. We'll let you know when it is.",
+                    icon: Icons.credit_card,
+                  );
                 },
                 child: Container(
                   decoration: BoxDecoration(

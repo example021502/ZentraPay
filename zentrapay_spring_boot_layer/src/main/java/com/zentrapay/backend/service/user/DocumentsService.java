@@ -2,34 +2,31 @@ package com.zentrapay.backend.service.user;
 
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.entity.UserProfileModel;
+import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.UserProfileRepository;
 import com.zentrapay.backend.repository.UserRepository;
-import com.zentrapay.backend.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Tier-2 KYC document storage — POST/GET {@code /api/users/me/documents/{type}}.
+ * KYC document images - POST/GET {@code /api/users/me/documents/{type}}.
  * <p>
- * Stored on local disk under {@code app.uploads.dir} (dev-appropriate;
- * swappable for S3/Cloudinary later without changing the controller's
- * shape, since it's already keyed by an opaque path string on
- * {@link UserProfileModel}, not a raw filesystem assumption elsewhere).
- * Every upload recomputes the caller's {@code kycTier} via
- * {@link UsersService#recomputeKycTier}.
+ * The image is NOT kept in our database or on our disk: it is posted to the
+ * external image host (see {@link ImageHostingService}, under the submitted
+ * file name with the document type appended) and the URL the host returns is
+ * what gets saved on the user's profile. After the save the profile is read back
+ * and checked for completeness, which queues it for a verification officer
+ * ({@link KycVerificationService}). Uploading never raises the tier - only the
+ * officer's approval does.
  */
 @Slf4j
 @Service
@@ -38,21 +35,25 @@ public class DocumentsService {
 
     public static final Set<String> VALID_TYPES = Set.of("id-front", "id-back", "selfie");
 
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "application/pdf");
+
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final UsersService usersService;
-    private final UploadImageToImgBBB imgBBUploader;
-
-    @Value("${app.uploads.dir}")
-    private String uploadsDir;
+    private final ImageHostingService imageHostingService;
+    private final KycVerificationService kycVerificationService;
 
     @Transactional
     public void upload(UUID userId, String type, MultipartFile file) {
-        // Validates the KYC document image, uploads it to ImgBB and saves its url on the user profile
         log.info("Uploading KYC document {} for user {}", type, userId);
-        requireValidType(type);
+        String documentType = requireValidType(type);
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("No file was uploaded");
+        }
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
+        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException("Please upload a photo (JPG, PNG, WEBP) or a PDF");
         }
 
         UserModel user = userRepository.getUserByUserId(userId)
@@ -62,30 +63,15 @@ public class DocumentsService {
         try {
             bytes = file.getBytes();
         } catch (IOException e) {
-            log.error("Failed to read uploaded {} document for user {}: {}", type, userId, e.getMessage());
+            log.error("Failed to read uploaded {} document for user {}: {}", documentType, userId, e.getMessage());
             throw new UncheckedIOException("Could not read the uploaded document, please try again", e);
         }
 
-        // Hosted copy first — if ImgBB rejects it, don't touch local disk or the DB.
-        UploadImageToImgBBB.ImgBBResult uploaded = imgBBUploader.upload(file.getOriginalFilename(), bytes);
-        if (uploaded == null) {
+        // Host first: if it refuses the image nothing is saved.
+        ImageHostingService.HostedImage hosted =
+                imageHostingService.upload(file.getOriginalFilename(), documentType, bytes);
+        if (hosted == null) {
             throw new IllegalStateException("File could not be uploaded, please try again later");
-        }
-
-        String relativePath;
-        try {
-            Path dir = Path.of(uploadsDir, "documents");
-            Files.createDirectories(dir);
-
-            String extension = extensionOf(file.getOriginalFilename());
-            String filename = userId + "_" + type + extension;
-            Path target = dir.resolve(filename);
-            Files.write(target, bytes);
-
-            relativePath = "documents/" + filename;
-        } catch (IOException e) {
-            log.error("Failed to store {} document for user {}: {}", type, userId, e.getMessage());
-            throw new UncheckedIOException("Could not save the uploaded document, please try again", e);
         }
 
         UserProfileModel profile = userProfileRepository.getBtUserId(userId);
@@ -93,45 +79,35 @@ public class DocumentsService {
             profile = new UserProfileModel();
             profile.setUserId(userId);
         }
-        applyPath(profile, type, relativePath);
-        applyImageUrl(profile, type, uploaded.url());
-
+        applyImageUrl(profile, documentType, hosted.url());
         profile = userProfileRepository.save(profile);
+
         usersService.recomputeKycTier(user, profile);
+        // Read the profile back and see whether all required documents are in.
+        kycVerificationService.checkSubmission(userId, true);
     }
 
-    /** Streams a previously-uploaded document back to its owner. */
-    public FileSystemResource retrieve(UUID userId, String type) {
-        requireValidType(type);
+    /** The hosted URL of a document the caller uploaded earlier. */
+    public String retrieveUrl(UUID userId, String type) {
+        String documentType = requireValidType(type);
         UserProfileModel profile = userProfileRepository.getBtUserId(userId);
-        String relativePath = profile == null ? null : pathFor(profile, type);
-        if (relativePath == null || relativePath.isBlank()) {
-            throw new ResourceNotFoundException("No " + type + " document has been uploaded yet");
+        String url = profile == null ? null : urlFor(profile, documentType);
+        if (url == null || url.isBlank()) {
+            throw new ResourceNotFoundException("No " + documentType + " document has been uploaded yet");
         }
-        Path resolved = Path.of(uploadsDir).resolve(relativePath);
-        if (!Files.exists(resolved)) {
-            throw new ResourceNotFoundException("Stored document is missing");
-        }
-        return new FileSystemResource(resolved);
+        return url;
     }
 
-    private void requireValidType(String type) {
-        if (type == null || !VALID_TYPES.contains(type.toLowerCase(Locale.ROOT))) {
+    private String requireValidType(String type) {
+        String normalised = type == null ? "" : type.toLowerCase(Locale.ROOT);
+        if (!VALID_TYPES.contains(normalised)) {
             throw new IllegalArgumentException("Unknown document type: " + type + " (expected one of " + VALID_TYPES + ")");
         }
-    }
-
-    private void applyPath(UserProfileModel profile, String type, String relativePath) {
-        switch (type.toLowerCase(Locale.ROOT)) {
-            case "id-front" -> profile.setIdDocumentFrontPath(relativePath);
-            case "id-back" -> profile.setIdDocumentBackPath(relativePath);
-            case "selfie" -> profile.setSelfiePath(relativePath);
-            default -> throw new IllegalArgumentException("Unknown document type: " + type);
-        }
+        return normalised;
     }
 
     private void applyImageUrl(UserProfileModel profile, String type, String imageUrl) {
-        switch (type.toLowerCase(Locale.ROOT)) {
+        switch (type) {
             case "id-front" -> profile.setIdDocumentFrontImageUrl(imageUrl);
             case "id-back" -> profile.setIdDocumentBackImageUrl(imageUrl);
             case "selfie" -> profile.setSelfieImageUrl(imageUrl);
@@ -139,22 +115,12 @@ public class DocumentsService {
         }
     }
 
-    private String pathFor(UserProfileModel profile, String type) {
-        return switch (type.toLowerCase(Locale.ROOT)) {
-            case "id-front" -> profile.getIdDocumentFrontPath();
-            case "id-back" -> profile.getIdDocumentBackPath();
-            case "selfie" -> profile.getSelfiePath();
+    private String urlFor(UserProfileModel profile, String type) {
+        return switch (type) {
+            case "id-front" -> profile.getIdDocumentFrontImageUrl();
+            case "id-back" -> profile.getIdDocumentBackImageUrl();
+            case "selfie" -> profile.getSelfieImageUrl();
             default -> null;
         };
-    }
-
-    private String extensionOf(String originalFilename) {
-        if (originalFilename == null) return "";
-        int dot = originalFilename.lastIndexOf('.');
-        // Comment: only keep a short, plausible image/pdf extension — never
-        // trust the raw client filename beyond that into a path.
-        if (dot < 0 || originalFilename.length() - dot > 6) return "";
-        String ext = originalFilename.substring(dot).toLowerCase(Locale.ROOT);
-        return ext.matches("\\.[a-z0-9]{1,5}") ? ext : "";
     }
 }

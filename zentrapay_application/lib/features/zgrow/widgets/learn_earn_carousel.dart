@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
+import 'package:zentrapay_application/features/zgrow/tutorial_player_screen.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_card.dart';
 
 class LearnEarnCarousel extends StatelessWidget {
@@ -49,9 +50,7 @@ class LearnEarnCarousel extends StatelessWidget {
         itemCount: tutorials.length,
         separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) => GestureDetector(
-          onTap: () {
-            showComingSoon(context, "Playing tutorials");
-          },
+          onTap: () => TutorialPlayerScreen.show(context, tutorials[index]),
           child: LearnEarnCard(content: tutorials[index]),
         ),
       ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/home/bouncing_logo.dart';
 import 'package:zentrapay_application/main.dart';
@@ -119,7 +120,10 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
       TransactionsRepository.instance.ensureLoaded().catchError((_) {});
-      Future.delayed(Duration(seconds: 3), () {
+      Future.delayed(Duration(seconds: 3), () async {
+        // The splash itself stays light; the returning user's own light /
+        // dark mode is applied just before entering the app.
+        await ThemeController.instance.applyForCurrentUser();
         if (!mounted) return;
 
         Navigator.pushReplacement(

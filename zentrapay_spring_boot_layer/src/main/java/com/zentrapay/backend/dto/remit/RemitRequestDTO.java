@@ -59,6 +59,19 @@ public record RemitRequestDTO(
         String accountNumber,
 
         UUID mobileMoneyProviderId,
-        String mobileMoneyProviderCode
+        String mobileMoneyProviderCode,
+
+        /**
+         * BANK / MOBILE_MONEY: the token from {@code POST /api/payments/verify-account}. When present the
+         * server takes the bank / network, number and account holder from it (nothing is re-posted and
+         * nothing is re-checked), so only an account somebody verified can be paid.
+         */
+        String verificationToken,
+
+        /**
+         * The gateway that verified the account (from verify-account). The payout tries it FIRST; the
+         * others only if it refuses. Falls back to the gateway inside the token.
+         */
+        UUID gatewayId
 ) {
 }

@@ -3,6 +3,7 @@ import 'package:zentrapay_application/core/models/zgrow.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/section_header.dart';
 import 'package:zentrapay_application/features/zgrow/repository/cache_zgrow_data.dart';
+import 'package:zentrapay_application/features/zgrow/tutorial_player_screen.dart';
 import 'package:zentrapay_application/features/zgrow/widgets/learn_earn_card.dart';
 
 /// Full-list screen opened by the Tutorials "See more" link. Shows every
@@ -64,9 +65,13 @@ class TutorialsAllScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 16.0),
                     child: SizedBox(
                       height: 170,
-                      child: LearnEarnCard(
-                        content: tutorials[i],
-                        width: double.infinity,
+                      child: GestureDetector(
+                        onTap: () =>
+                            TutorialPlayerScreen.show(context, tutorials[i]),
+                        child: LearnEarnCard(
+                          content: tutorials[i],
+                          width: double.infinity,
+                        ),
                       ),
                     ),
                   ),

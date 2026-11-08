@@ -48,7 +48,7 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
   void _openHelp() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusXxl),
         ),
@@ -61,7 +61,7 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Got it"),
           ),
         ],
@@ -78,9 +78,9 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppTheme.glassSurface,
+        color: AppTheme.gray100,
         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-        border: Border.all(color: AppTheme.glassBorder),
+        border: Border.all(color: AppTheme.dividerColor),
       ),
       child: Row(
         children: _VoiceTab.values.map((tab) {
@@ -94,7 +94,7 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white : Colors.transparent,
+                  color: selected ? AppTheme.primaryPink : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                 ),
                 child: Row(
@@ -103,15 +103,19 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
                     Icon(
                       icon,
                       size: 17,
-                      color: selected ? AppTheme.primaryPink : Colors.white,
+                      color: selected ? Colors.white : AppTheme.textBlack,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: AppTheme.labelLarge.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: selected ? AppTheme.primaryPink : Colors.white,
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTheme.labelLarge.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? Colors.white : AppTheme.textBlack,
+                        ),
                       ),
                     ),
                   ],
@@ -127,33 +131,125 @@ class _ZVoiceScreenState extends State<ZVoiceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SectionAppBar(),
-      backgroundColor: AppTheme.surface,
-      body: Column(
-        children: [
-          SectionHeader(
-            title: "ZVoice AI",
-            subtitle: "Speak or type. Every instruction is recorded.",
-            icon: Icons.graphic_eq_rounded,
-            showBack: true,
-            actions: [
-              SectionHeaderButton(
-                icon: Icons.help_outline_rounded,
-                onTap: _openHelp,
-                tooltip: "Help",
+      // Back, the title with the voice icon, and Help all live in the app bar.
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        toolbarHeight: 68,
+        titleSpacing: 0,
+        leading: IconButton(
+          tooltip: "Back",
+          onPressed: () => Navigator.maybePop(context),
+          icon: Icon(Icons.arrow_back, size: 22, color: AppTheme.primaryWhite),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.glassSurfaceStrong,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.glassBorder),
               ),
-            ],
-            child: _tabStrip(),
-          ),
-          Expanded(
-            child: IndexedStack(
-              index: _tab.index,
-              children: const [_TalkTab(), _ActivityTab(), _SafetyTab()],
+              child: Icon(
+                Icons.graphic_eq_rounded,
+                color: AppTheme.primaryWhite,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: AppTheme.spacingSm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "ZVoice AI",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.headlineSmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryWhite,
+                    ),
+                  ),
+                  Text(
+                    "Speak or type. Every instruction is recorded.",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.whiteBodySmall.copyWith(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppTheme.spacingMd),
+            child: SectionHeaderButton(
+              icon: Icons.help_outline_rounded,
+              onTap: _openHelp,
+              tooltip: "Help",
             ),
           ),
         ],
       ),
+      backgroundColor: AppTheme.surface,
+      // ONE scroll view for the whole body: the tab strip and the selected tab scroll together
+      // (pull down to refresh). The tabs are plain columns, not scrollables of their own.
+      body: RefreshIndicator(
+        color: AppTheme.primaryPink,
+        backgroundColor: AppTheme.surface,
+        onRefresh: _refreshAll,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(
+            AppTheme.spacingLg,
+            AppTheme.spacingMd,
+            AppTheme.spacingLg,
+            AppTheme.spacingXl,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _tabStrip(),
+              const SizedBox(height: AppTheme.spacingMd),
+              // Offstage (not removed) so what the user typed, or a running mic session, survives
+              // a switch of tab, while only the selected tab takes up space.
+              Offstage(
+                offstage: _tab != _VoiceTab.talk,
+                child: const _TalkTab(),
+              ),
+              Offstage(
+                offstage: _tab != _VoiceTab.activity,
+                child: const _ActivityTab(),
+              ),
+              Offstage(
+                offstage: _tab != _VoiceTab.safety,
+                child: const _SafetyTab(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      VoiceCommandHistoryRepository.instance
+          .ensureLoaded(forceRefresh: true)
+          .catchError((_) => null),
+      VoiceFraudAlertsRepository.instance
+          .ensureLoaded(forceRefresh: true)
+          .catchError((_) => null),
+      FraudAlertsRepository.instance
+          .ensureLoaded(forceRefresh: true)
+          .catchError((_) => null),
+    ]);
   }
 }
 
@@ -177,7 +273,7 @@ class _TalkTab extends StatefulWidget {
 }
 
 class _TalkTabState extends State<_TalkTab>
-    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with SingleTickerProviderStateMixin {
   static const _languages = [
     _VoiceLanguage('English', 'en', 'en_US'),
     _VoiceLanguage('French', 'fr', 'fr_FR'),
@@ -206,9 +302,6 @@ class _TalkTabState extends State<_TalkTab>
   DateTime? _startedAt;
   List<String> _deviceLocales = const [];
   VoiceCommandResult? _latest;
-
-  @override
-  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -513,15 +606,8 @@ class _TalkTabState extends State<_TalkTab>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.spacingLg,
-        AppTheme.spacingXs,
-        AppTheme.spacingLg,
-        AppTheme.spacingXl,
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacingXs),
       child: Column(
         children: [
           Row(
@@ -684,16 +770,6 @@ class _ActivityTabState extends State<_ActivityTab> {
     _ActivityFilter.flagged => "Flagged",
   };
 
-  Future<void> _refresh() async {
-    try {
-      await VoiceCommandHistoryRepository.instance.ensureLoaded(
-        forceRefresh: true,
-      );
-    } catch (_) {
-      // The error state is shown from the repository.
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -704,32 +780,21 @@ class _ActivityTabState extends State<_ActivityTab> {
         final items = all.where(_matches).toList();
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingLg,
-                ),
-                children: _ActivityFilter.values.map((f) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(_filterLabel(f)),
-                      selected: _filter == f,
-                      onSelected: (_) => setState(() => _filter = f),
-                    ),
-                  );
-                }).toList(),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _ActivityFilter.values.map((f) {
+                return ChoiceChip(
+                  label: Text(_filterLabel(f)),
+                  selected: _filter == f,
+                  onSelected: (_) => setState(() => _filter = f),
+                );
+              }).toList(),
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: _body(repo, all, items),
-              ),
-            ),
+            const SizedBox(height: AppTheme.spacingSm),
+            _body(repo, all, items),
           ],
         );
       },
@@ -742,7 +807,10 @@ class _ActivityTabState extends State<_ActivityTab> {
     List<VoiceCommandResult> items,
   ) {
     if (repo.isLoading && repo.data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
     if (repo.error != null && repo.data == null) {
       return _EmptyState(
@@ -760,17 +828,8 @@ class _ActivityTabState extends State<_ActivityTab> {
             : "Try another filter.",
       );
     }
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.spacingLg,
-        AppTheme.spacingSm,
-        AppTheme.spacingLg,
-        AppTheme.spacingXl,
-      ),
-      itemCount: items.length,
-      itemBuilder: (_, i) => _ActivityTile(command: items[i]),
-    );
+    // A plain column: the whole ZVoice body is one scroll view.
+    return Column(children: [for (final c in items) _ActivityTile(command: c)]);
   }
 }
 
@@ -815,56 +874,63 @@ class _ActivityTile extends StatelessWidget {
               : AppTheme.dividerColor,
         ),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          leading: CircleAvatar(
-            radius: 20,
-            backgroundColor: accent.withValues(alpha: 0.12),
-            child: Icon(
-              flagged
-                  ? Icons.gpp_maybe_outlined
-                  : command.isVoice
-                  ? Icons.mic_rounded
-                  : Icons.keyboard_alt_outlined,
-              color: accent,
-              size: 20,
+      // Transparent Material so the tile's ink isn't hidden by the decorated card.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 2,
             ),
-          ),
-          title: Text(
-            command.transcript,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppTheme.labelLarge,
-          ),
-          subtitle: Text(
-            meta,
-            style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
-          ),
-          children: [
-            if (_intentLabel().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  "${command.isVoice ? 'Spoken' : 'Typed'} · ${_intentLabel()}",
-                  style: AppTheme.labelSmall.copyWith(color: accent),
+            childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            leading: CircleAvatar(
+              radius: 20,
+              backgroundColor: accent.withValues(alpha: 0.12),
+              child: Icon(
+                flagged
+                    ? Icons.gpp_maybe_outlined
+                    : command.isVoice
+                    ? Icons.mic_rounded
+                    : Icons.keyboard_alt_outlined,
+                color: accent,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              command.transcript,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTheme.labelLarge,
+            ),
+            subtitle: Text(
+              meta,
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+            ),
+            children: [
+              if (_intentLabel().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    "${command.isVoice ? 'Spoken' : 'Typed'} · ${_intentLabel()}",
+                    style: AppTheme.labelSmall.copyWith(color: accent),
+                  ),
                 ),
-              ),
-            Text(
-              reply.isEmpty ? "No answer was recorded." : reply,
-              style: AppTheme.bodyMedium,
-            ),
-            if (flagged && (command.fraudReason ?? '').isNotEmpty) ...[
-              const SizedBox(height: 8),
               Text(
-                command.fraudReason!,
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.errorRed),
+                reply.isEmpty ? "No answer was recorded." : reply,
+                style: AppTheme.bodyMedium,
               ),
+              if (flagged && (command.fraudReason ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  command.fraudReason!,
+                  style: AppTheme.bodySmall.copyWith(color: AppTheme.errorRed),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -900,15 +966,6 @@ class _SafetyTab extends StatelessWidget {
               : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
         )
         .join(' ');
-  }
-
-  Future<void> _refresh() async {
-    await Future.wait([
-      VoiceFraudAlertsRepository.instance
-          .ensureLoaded(forceRefresh: true)
-          .catchError((_) => null),
-      FraudAlertsRepository.instance.ensureLoaded().catchError((_) => null),
-    ]);
   }
 
   Widget _section(String title, Widget child) => Padding(
@@ -969,105 +1026,92 @@ class _SafetyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          AppTheme.spacingLg,
-          AppTheme.spacingSm,
-          AppTheme.spacingLg,
-          AppTheme.spacingXl,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _section(
+          "Flagged instructions",
+          ListenableBuilder(
+            listenable: VoiceFraudAlertsRepository.instance,
+            builder: (context, _) {
+              final repo = VoiceFraudAlertsRepository.instance;
+              if (repo.isLoading && repo.data == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final flagged = repo.data ?? const <VoiceCommandResult>[];
+              if (flagged.isEmpty) {
+                return Text(
+                  repo.error != null
+                      ? "Couldn't load flagged instructions. Pull down to retry."
+                      : "Nothing suspicious. Your ZVoice activity looks normal.",
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+                );
+              }
+              return Column(
+                children: flagged
+                    .map(
+                      (c) => _row(
+                        icon: Icons.gpp_maybe_outlined,
+                        color: AppTheme.errorRed,
+                        title: c.fraudReason?.isNotEmpty == true
+                            ? c.fraudReason!
+                            : c.transcript,
+                        subtitle: formatDateTimeString(c.createdAt),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
         ),
-        children: [
-          _section(
-            "Flagged instructions",
-            ListenableBuilder(
-              listenable: VoiceFraudAlertsRepository.instance,
-              builder: (context, _) {
-                final repo = VoiceFraudAlertsRepository.instance;
-                if (repo.isLoading && repo.data == null) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final flagged = repo.data ?? const <VoiceCommandResult>[];
-                if (flagged.isEmpty) {
-                  return Text(
-                    repo.error != null
-                        ? "Couldn't load flagged instructions. Pull down to retry."
-                        : "Nothing suspicious. Your ZVoice activity looks normal.",
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.gray500,
-                    ),
-                  );
-                }
-                return Column(
-                  children: flagged
-                      .map(
-                        (c) => _row(
-                          icon: Icons.gpp_maybe_outlined,
-                          color: AppTheme.errorRed,
-                          title: c.fraudReason?.isNotEmpty == true
-                              ? c.fraudReason!
-                              : c.transcript,
-                          subtitle: formatDateTimeString(c.createdAt),
-                        ),
-                      )
-                      .toList(),
+        _section(
+          "Account alerts",
+          ListenableBuilder(
+            listenable: FraudAlertsRepository.instance,
+            builder: (context, _) {
+              final repo = FraudAlertsRepository.instance;
+              if (repo.isLoading && repo.data == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
                 );
-              },
-            ),
-          ),
-          _section(
-            "Account alerts",
-            ListenableBuilder(
-              listenable: FraudAlertsRepository.instance,
-              builder: (context, _) {
-                final repo = FraudAlertsRepository.instance;
-                if (repo.isLoading && repo.data == null) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final List<FraudAlert> alerts = repo.data ?? const [];
-                if (alerts.isEmpty) {
-                  return Text(
-                    "No fraud alerts. You're all clear.",
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.gray500,
-                    ),
-                  );
-                }
-                return Column(
-                  children: alerts
-                      .map(
-                        (a) => _row(
-                          icon: a.isResolved
-                              ? Icons.check_rounded
-                              : Icons.warning_rounded,
-                          color: a.isResolved
-                              ? AppTheme.successGreen
-                              : _severityColor(a.severity),
-                          title: _humanize(a.alertType),
-                          subtitle:
-                              "${a.isResolved ? 'Secure' : a.severity} · ${formatDateTimeString(a.createdAt)}",
-                        ),
-                      )
-                      .toList(),
+              }
+              final List<FraudAlert> alerts = repo.data ?? const [];
+              if (alerts.isEmpty) {
+                return Text(
+                  "No fraud alerts. You're all clear.",
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
                 );
-              },
-            ),
+              }
+              return Column(
+                children: alerts
+                    .map(
+                      (a) => _row(
+                        icon: a.isResolved
+                            ? Icons.check_rounded
+                            : Icons.warning_rounded,
+                        color: a.isResolved
+                            ? AppTheme.successGreen
+                            : _severityColor(a.severity),
+                        title: _humanize(a.alertType),
+                        subtitle:
+                            "${a.isResolved ? 'Secure' : a.severity} · ${formatDateTimeString(a.createdAt)}",
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, '/fraud_detection'),
-            icon: const Icon(Icons.shield_outlined),
-            label: const Text("Open Security Alerts"),
-          ),
-        ],
-      ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.pushNamed(context, '/fraud_detection'),
+          icon: const Icon(Icons.shield_outlined),
+          label: const Text("Open Security Alerts"),
+        ),
+      ],
     );
   }
 }
@@ -1085,8 +1129,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
+    return Column(
       children: [
         const SizedBox(height: 60),
         Icon(icon, size: 52, color: AppTheme.textBlack),

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/models/transaction.dart';
-import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/common_widgets.dart';
-import 'package:zentrapay_application/core/utils/Common/app_confirm_sheet.dart';
 import 'package:zentrapay_application/core/utils/Common/provider_display.dart';
-import 'package:zentrapay_application/core/utils/notifier.dart';
-import 'package:zentrapay_application/core/utils/interceptor.dart';
+import 'package:zentrapay_application/core/models/user_service.dart';
+import 'package:zentrapay_application/features/home/bill_payment_sheet.dart';
+import 'package:zentrapay_application/features/home/repository/cache_user_services_data.dart';
 import 'package:zentrapay_application/main.dart';
 
 /// Searchable bottom sheet listing providers fetched from [loader].
@@ -69,7 +67,11 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // After the first frame: loading notifies repository listeners (the Home grid), which
+    // must not happen while this sheet is being built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -78,7 +80,14 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
       _error = null;
     });
     try {
+      // Which ones are already on Home (the toggle's state); a failure here only
+      // means the toggles start unchecked.
+      final mine = UserServicesRepository.instance.ensureLoaded().then<void>(
+        (_) {},
+        onError: (_) {},
+      );
       final providers = await widget.loader();
+      await mine;
       if (!mounted) return;
       setState(() {
         _providers = providers;
@@ -100,188 +109,78 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
     }).toList();
   }
 
-  // Bill providers have a real pay-a-biller endpoint (/api/bill-providers/pay)
-  // to submit against, so selecting one opens the actual payment form.
-  // Service providers don't have an equivalent backend endpoint yet, so
-  // that path still falls back to "coming soon" rather than pretending.
+  // Bill providers open the real payment form (/api/bill-providers/pay). Service
+  // providers are a directory only - the backend has no payment contract for them
+  // yet - so they open a detail card that says so instead of a dead "coming soon".
   void _showProviderDetails(Map<String, dynamic> provider) {
-    final name = provider[widget.nameKey] ?? 'Provider';
-    if (widget.id == "Bill Providers") {
-      // Shown on top of this still-open picker sheet (stacked modal routes
-      // are fine) rather than popping first — that would leave us without
-      // a reliably-mounted context to open the next sheet from.
-      _showBillPaymentForm(provider);
-      return;
-    }
-    Navigator.pop(context);
-    showComingSoon(context, name.toString());
-  }
-
-  void _showBillPaymentForm(Map<String, dynamic> provider) {
-    final providerId = (provider['providerId'] ?? '').toString();
     final name = (provider[widget.nameKey] ?? 'Provider').toString();
-    if (providerId.isEmpty) {
-      ZentraNotifier.error(
-        "Missing Provider",
-        "This provider can't be paid right now — try again later.",
-      );
+    if (widget.id == "Bill Providers") {
+      // Shown on top of this still-open picker sheet; closes both once paid
+      BillPaymentSheet.show(
+        context,
+        providerId: (provider['providerId'] ?? '').toString(),
+        providerName: name,
+      ).then((paid) {
+        if (paid && mounted) Navigator.pop(context);
+      });
       return;
     }
+    showServiceProviderCard(context, provider, name);
+  }
 
-    final referenceController = TextEditingController();
-    final amountController = TextEditingController();
-    bool submitting = false;
+  String get _kind =>
+      widget.id == "Bill Providers" ? UserService.bill : UserService.service;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+  final Set<String> _busy = {};
+
+  Widget _buildHomeToggle(Map<String, dynamic> provider, String name) {
+    final providerId = (provider['providerId'] ?? '').toString();
+    final added = UserServicesRepository.instance.has(_kind, providerId);
+    if (_busy.contains(providerId)) {
+      return const SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.main),
+      );
+    }
+    return IconButton(
+      key: ValueKey('home-toggle-$providerId'),
+      tooltip: added ? 'Remove from Home' : 'Add to Home',
+      icon: Icon(
+        added ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+        color: added ? AppColors.main : AppTheme.textBlack,
       ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-            left: AppTheme.spacingLg,
-            right: AppTheme.spacingLg,
-            top: AppTheme.spacingLg,
-          ),
-          child: StatefulBuilder(
-            builder: (sheetContext, setSheetState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Pay $name", style: AppTheme.headlineSmall),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  AppTextField(
-                    controller: referenceController,
-                    labelText: 'Customer reference',
-                    hintText: 'e.g. meter or account number',
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  AppTextField(
-                    controller: amountController,
-                    labelText: 'Amount (GHS)',
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: submitting
-                          ? null
-                          : () async {
-                              final reference = referenceController.text.trim();
-                              final amount = amountController.text.trim();
-                              final parsedAmount = double.tryParse(amount);
-                              if (reference.isEmpty) {
-                                ZentraNotifier.error(
-                                  'Missing Reference',
-                                  'Enter your customer reference for $name.',
-                                );
-                                return;
-                              }
-                              if (parsedAmount == null || parsedAmount <= 0) {
-                                ZentraNotifier.error(
-                                  'Invalid Amount',
-                                  'Enter a valid amount greater than zero.',
-                                );
-                                return;
-                              }
-
-                              final pin = await showModalBottomSheet<String>(
-                                context: sheetContext,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => AppConfirmPinSheet(
-                                  name: 'Placeholder',
-                                  currencyCode: 'Placeholder',
-                                  amount: 'Placeholder',
-                                ),
-                              );
-                              if (pin == null || pin.isEmpty) return;
-
-                              setSheetState(() => submitting = true);
-                              try {
-                                await _payBillProvider(
-                                  pin: pin,
-                                  providerId: providerId,
-                                  customerReference: reference,
-                                  amount: amount,
-                                  currencyCode: 'GHS',
-                                );
-                                if (sheetContext.mounted) {
-                                  // Close the payment form...
-                                  Navigator.pop(sheetContext);
-                                }
-                                if (mounted) {
-                                  // ...and the provider picker underneath it.
-                                  Navigator.pop(context);
-                                }
-                                ZentraNotifier.success(
-                                  'Payment Successful',
-                                  'Paid GHS $amount to $name.',
-                                );
-                              } catch (e) {
-                                setSheetState(() => submitting = false);
-                                ZentraNotifier.error(
-                                  'Payment Failed',
-                                  'Could not complete this bill payment. Try again.',
-                                );
-                              }
-                            },
-                      child: submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text('Pay Now'),
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingLg),
-                ],
-              );
-            },
-          ),
-        );
-      },
+      onPressed: () => _toggle(providerId, name, added),
     );
   }
 
-  Future<void> _payBillProvider({
-    required String pin,
-    required String providerId,
-    required String customerReference,
-    required String amount,
-    required String currencyCode,
-  }) async {
-    final dio = ApiClient().dio;
-    final response = await dio.post(
-      '/api/bill-providers/pay',
-      data: {
-        'pin': pin,
-        'providerId': providerId,
-        'customerReference': customerReference,
-        'amount': amount,
-        'currencyCode': currencyCode,
-      },
-    );
-    final data = response.data['data'];
-    final transactionJson = data?['transaction'];
-    if (transactionJson != null) {
-      TransactionsRepository.instance.prepend(
-        AppTransaction.fromJson(transactionJson),
+  Future<void> _toggle(String providerId, String name, bool added) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy.add(providerId));
+    try {
+      if (added) {
+        await UserServicesRepository.instance.remove(_kind, providerId);
+      } else {
+        await UserServicesRepository.instance.add(_kind, providerId);
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            added ? '$name removed from Home' : '$name added to Home',
+          ),
+        ),
       );
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not ${added ? 'remove' : 'add'} $name. Try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy.remove(providerId));
     }
-    WalletsRepository.instance.ensureLoaded();
   }
 
   @override
@@ -373,25 +272,79 @@ class _ProviderPickerSheetState extends State<ProviderPickerSheet> {
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             boxShadow: AppTheme.cardShadow,
           ),
-          child: ListTile(
-            leading: logoUrl.isNotEmpty
-                ? CircleAvatar(backgroundImage: NetworkImage(logoUrl))
-                : CircleAvatar(
-                    backgroundColor: AppColors.main.withAlpha(25),
-                    child: flag.isNotEmpty
-                        ? Text(flag, style: const TextStyle(fontSize: 20))
-                        : Icon(
-                            providerCategoryIcon(category),
-                            color: AppTheme.textBlack,
-                          ),
-                  ),
-            title: Text(name, style: AppTheme.titleLarge),
-            subtitle: category.isNotEmpty ? Text(category) : null,
-            trailing: Icon(Icons.chevron_right, color: AppTheme.textBlack),
-            onTap: () => _showProviderDetails(provider),
+          // Transparent Material so the tile's ink isn't hidden by the decorated card.
+          child: Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              leading: logoUrl.isNotEmpty
+                  ? CircleAvatar(backgroundImage: NetworkImage(logoUrl))
+                  : CircleAvatar(
+                      backgroundColor: AppColors.main.withAlpha(25),
+                      child: flag.isNotEmpty
+                          ? Text(flag, style: const TextStyle(fontSize: 20))
+                          : Icon(
+                              providerCategoryIcon(category),
+                              color: AppTheme.textBlack,
+                            ),
+                    ),
+              title: Text(name, style: AppTheme.titleLarge),
+              subtitle: category.isNotEmpty ? Text(category) : null,
+              // Add to / remove from the user's Home screen (user_services).
+              trailing: _buildHomeToggle(provider, name),
+              onTap: () => _showProviderDetails(provider),
+            ),
           ),
         );
       },
     );
   }
+}
+
+/// Detail card for a service provider (a directory entry; no payment contract yet).
+void showServiceProviderCard(
+  BuildContext context,
+  Map<String, dynamic> provider,
+  String name,
+) {
+  final category = (provider['category'] ?? '').toString();
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppTheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+    ),
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, style: AppTheme.headlineSmall),
+            if (category.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                category,
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.gray500),
+              ),
+            ],
+            const SizedBox(height: AppTheme.spacingMd),
+            Text(
+              "Paying a service provider straight from ZentraPay isn't switched on yet. "
+              "You can still pay people and businesses from Send, and utilities from Bill Providers.",
+              style: AppTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppTheme.spacingLg),
+            SizedBox(
+              width: double.infinity,
+              child: PrimaryButton(
+                label: 'Close',
+                onPressed: () => Navigator.pop(sheetContext),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

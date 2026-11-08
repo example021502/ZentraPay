@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:zentrapay_application/core/theme/theme_controller.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/session_reset.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
@@ -105,7 +106,9 @@ class _LoginFormState extends State<LoginForm> {
       // navigation. ensureLoaded rethrows, so it needs an explicit swallow.
       TransactionsRepository.instance.ensureLoaded().catchError((_) {});
       CardsRepository.instance.ensureLoaded();
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 2), () async {
+        // Login stays light; this account's own mode is applied on entry.
+        await ThemeController.instance.applyForCurrentUser();
         if (!mounted) return;
 
         // ========================================================
@@ -167,7 +170,7 @@ class _LoginFormState extends State<LoginForm> {
               style: TextStyle(
                 fontSize: isTablet ? 35 : 30,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.buttonColor,
+                color: AppTheme.textBlack,
                 letterSpacing: 0.5,
               ),
             ),
@@ -181,7 +184,7 @@ class _LoginFormState extends State<LoginForm> {
                   style: TextStyle(
                     fontSize: isTablet ? 35 : 30,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.main,
+                    color: AppTheme.buttonColor,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -192,7 +195,7 @@ class _LoginFormState extends State<LoginForm> {
                   style: TextStyle(
                     fontSize: isTablet ? 35 : 30,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.buttonColor,
+                    color: AppTheme.textBlack,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -202,52 +205,46 @@ class _LoginFormState extends State<LoginForm> {
         ),
 
         // Elegant toggle for login method
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha(90),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            runAlignment: WrapAlignment.center,
-            children: [
-              Text(
-                "Login using:",
-                style: TextStyle(
-                  fontSize: 13,
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          runAlignment: WrapAlignment.center,
+          children: [
+            Text(
+              "Login using:",
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textBlack,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  useEmail
+                      ? _emailController.text = ""
+                      : _contactController.text = "";
+                  useEmail = !useEmail;
+                });
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
                   color: AppTheme.buttonColor,
-                  fontWeight: FontWeight.w600,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ),
-              SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    useEmail
-                        ? _emailController.text = ""
-                        : _contactController.text = "";
-                    useEmail = !useEmail;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.buttonColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    useEmail ? "Contact Number" : "Email",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                child: Text(
+                  useEmail ? "Contact Number" : "Email",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         Column(
           spacing: 10,

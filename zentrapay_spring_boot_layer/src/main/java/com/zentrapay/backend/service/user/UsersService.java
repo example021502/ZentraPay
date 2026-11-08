@@ -42,6 +42,7 @@ public class UsersService {
     private final UserProfileRepository userProfileRepository;
     private final PinService pinService;
     private final SupportedRegionService supportedRegionService;
+    private final KycVerificationService kycVerificationService;
 
     @Value("${app.password.pepper}")
     private String passwordPepper;
@@ -347,40 +348,33 @@ public class UsersService {
         if (req.postalCode() != null) profile.setPostalCode(req.postalCode());
         if (req.occupationTitle() != null) profile.setOccupationTitle(req.occupationTitle());
 
-        profile = userProfileRepository.save(profile);
+        userProfileRepository.save(profile);
         recomputeKycTier(user, profile);
-        return toProfileDTO(profile);
+        // The information is now in the table. Read it back and check whether
+        // everything the reviewer needs (fields + the three document images) is
+        // there; if so the profile is queued for a verification officer.
+        return toProfileDTO(kycVerificationService.checkSubmission(userId, false));
     }
 
     /**
-     * Tier 2 (unlocks sending/receiving money, see PaymentsService) requires
-     * a complete profile — DOB, address, occupation, ID document type+number
-     * — AND all three Tier-2 documents uploaded (front, back, selfie; see
-     * DocumentsService). This is a deliberately generic bar, the same for
-     * every country, rather than an attempt to encode real per-country KYC
-     * regulation. Anything short of that but with at least one field filled
-     * in is tier 1 ("started"); an untouched profile stays tier 0.
+     * Tiers 0 and 1 follow the profile: an untouched profile is tier 0 and
+     * anything filled in is tier 1 ("started").
+     * <p>
+     * Tier 2 (unlocks sending/receiving money, see PaymentsService) is NEVER
+     * granted here, however complete the profile is: uploading documents only
+     * submits them for review. A verification officer checks the images and then
+     * raises the tier (see {@link KycVerificationService#approve}). Likewise a
+     * tier-2 user is never lowered by an edit - only an officer's decision can.
      */
     void recomputeKycTier(UserModel user, UserProfileModel profile) {
-        short newTier;
-        if (profile == null) {
-            newTier = 0;
-        } else {
-            boolean complete = profile.getDateOfBirth() != null
-                    && notBlank(profile.getAddressLine1())
-                    && notBlank(profile.getCityName())
-                    && notBlank(profile.getOccupationTitle())
-                    && notBlank(profile.getIdentityDocumentType())
-                    && notBlank(profile.getIdentityDocumentNumber())
-                    && notBlank(profile.getIdDocumentFrontPath())
-                    && notBlank(profile.getIdDocumentBackPath())
-                    && notBlank(profile.getSelfiePath());
-            boolean started = profile.getDateOfBirth() != null
-                    || notBlank(profile.getAddressLine1())
-                    || notBlank(profile.getIdentityDocumentType())
-                    || notBlank(profile.getIdDocumentFrontPath());
-            newTier = complete ? (short) 2 : started ? (short) 1 : (short) 0;
+        if (user.getKycTier() >= 2) {
+            return;
         }
+        boolean started = profile != null && (profile.getDateOfBirth() != null
+                || notBlank(profile.getAddressLine1())
+                || notBlank(profile.getIdentityDocumentType())
+                || notBlank(profile.getIdDocumentFrontImageUrl()));
+        short newTier = started ? (short) 1 : (short) 0;
         if (user.getKycTier() != newTier) {
             user.setKycTier(newTier);
             userRepository.save(user);
@@ -427,9 +421,11 @@ public class UsersService {
                 up.isPoliticallyExposedPerson(),
                 up.getRiskScoreLevel(),
                 up.getKYCStatus(),
-                notBlank(up.getIdDocumentFrontPath()),
-                notBlank(up.getIdDocumentBackPath()),
-                notBlank(up.getSelfiePath()),
+                notBlank(up.getIdDocumentFrontImageUrl()),
+                notBlank(up.getIdDocumentBackImageUrl()),
+                notBlank(up.getSelfieImageUrl()),
+                kycVerificationService.missingRequirements(up),
+                up.getKycReviewNote(),
                 up.getCreatedAt(),
                 up.getUpdatedAt()
         );

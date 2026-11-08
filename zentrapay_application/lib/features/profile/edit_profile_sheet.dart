@@ -357,10 +357,22 @@ class _TierChecklist extends StatelessWidget {
   Widget build(BuildContext context) {
     final tier = user?.kycTier ?? 0;
     final complete = profile?.isComplete ?? false;
+    // Everything is in: a verification officer now checks the documents and
+    // only their approval raises the tier.
+    final verified = complete && tier >= 2;
+    final rejected = (profile?.kycStatus ?? '') == 'rejected';
+    final note = profile?.kycReviewNote ?? '';
+    final message = verified
+        ? "You're Tier $tier — verified for sending & receiving money"
+        : rejected
+        ? "Verification needs attention${note.isEmpty ? '' : ': $note'}"
+        : complete
+        ? "Submitted — our verification team is checking your documents"
+        : "Fill in every field below and upload all 3 documents to be verified for Tier 2";
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: BoxDecoration(
-        color: complete
+        color: verified
             ? AppTheme.successGreen.withValues(alpha: 0.1)
             : AppTheme.warningOrange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -368,15 +380,17 @@ class _TierChecklist extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            complete ? Icons.verified : Icons.info_outline,
-            color: complete ? AppTheme.successGreen : AppTheme.warningOrange,
+            verified
+                ? Icons.verified
+                : (complete && !rejected)
+                ? Icons.hourglass_top_rounded
+                : Icons.info_outline,
+            color: verified ? AppTheme.successGreen : AppTheme.warningOrange,
           ),
           const SizedBox(width: AppTheme.spacingSm),
           Expanded(
             child: Text(
-              complete
-                  ? "You're Tier $tier — verified for sending & receiving money"
-                  : "Fill in every field below and upload all 3 documents to reach Tier 2",
+              message,
               style: AppTheme.bodySmall,
             ),
           ),

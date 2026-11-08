@@ -31,7 +31,7 @@ public class BankCatalogService {
      */
     public Optional<BanksModel> findBank(UUID bankId, String code, String countryCode) {
         if (bankId != null) {
-            Optional<BanksModel> byId = banksRepository.findByIdAndActive(bankId, true);
+            Optional<BanksModel> byId = banksRepository.findByBankIdAndActive(bankId, true);
             if (byId.isPresent()) {
                 return byId;
             }

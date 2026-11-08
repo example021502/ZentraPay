@@ -75,7 +75,7 @@ class _EmergencyVaultScreenState extends State<EmergencyVaultScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const SectionAppBar(),
-      backgroundColor: AppTheme.gray50,
+      backgroundColor: AppTheme.headerPink,
       body: ListenableBuilder(
         listenable: _vault,
         builder: (context, _) {
@@ -89,45 +89,57 @@ class _EmergencyVaultScreenState extends State<EmergencyVaultScreen> {
                 sheetColor: AppTheme.gray50,
                 child: _balanceCard(),
               ),
+              // The sheet under the header: rounded top (radiusXxl) on the
+              // header colour, like every other section.
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppTheme.spacingMd,
-                    AppTheme.spacingSm,
-                    AppTheme.spacingMd,
-                    AppTheme.spacingXl,
-                  ),
-                  children: [
-                    _switchCard(),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    _howItWorks(),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    _withdrawCard(),
-                    const SizedBox(height: AppTheme.spacingLg),
-                    _historySection(
-                      'Round-ups',
-                      _vault.roundUps.take(10).toList(),
-                      'Nothing saved yet. Switch the vault on and make a payment with cents.',
+                child: Container(
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: AppTheme.gray50,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(AppTheme.radiusXxl),
                     ),
-                    if (_vault.withdrawals.isNotEmpty) ...[
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTheme.spacingMd,
+                      AppTheme.spacingMd,
+                      AppTheme.spacingMd,
+                      AppTheme.spacingXl,
+                    ),
+                    children: [
+                      _switchCard(),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      _howItWorks(),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      _withdrawCard(),
                       const SizedBox(height: AppTheme.spacingLg),
                       _historySection(
-                        'Withdrawals',
-                        _vault.withdrawals.take(10).toList(),
-                        '',
+                        'Round-ups',
+                        _vault.roundUps.take(10).toList(),
+                        'Nothing saved yet. Switch the vault on and make a payment with cents.',
                       ),
+                      if (_vault.withdrawals.isNotEmpty) ...[
+                        const SizedBox(height: AppTheme.spacingLg),
+                        _historySection(
+                          'Withdrawals',
+                          _vault.withdrawals.take(10).toList(),
+                          '',
+                        ),
+                      ],
+                      const SizedBox(height: AppTheme.spacingLg),
+                      Text(
+                        'Your vault balance and PIN are kept on this phone for '
+                        'now. Round-ups are recorded here and are not yet held '
+                        'in a separate bank account.',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppTheme.gray500,
+                        ),
+                      ),
+                      const SizedBox(height: 100),
                     ],
-                    const SizedBox(height: AppTheme.spacingLg),
-                    Text(
-                      'Your vault balance and PIN are kept on this phone for '
-                      'now. Round-ups are recorded here and are not yet held '
-                      'in a separate bank account.',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.gray500,
-                      ),
-                    ),
-                    const SizedBox(height: 100),
-                  ],
+                  ),
                 ),
               ),
             ],

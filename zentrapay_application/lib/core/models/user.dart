@@ -79,6 +79,8 @@ class UserProfile {
   bool hasIdDocumentFront;
   bool hasIdDocumentBack;
   bool hasSelfie;
+  // The verification officer's reason when the last review was rejected.
+  String kycReviewNote;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -102,6 +104,7 @@ class UserProfile {
     this.hasIdDocumentFront = false,
     this.hasIdDocumentBack = false,
     this.hasSelfie = false,
+    this.kycReviewNote = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -143,6 +146,7 @@ class UserProfile {
     hasIdDocumentFront: json['hasIdDocumentFront'] ?? false,
     hasIdDocumentBack: json['hasIdDocumentBack'] ?? false,
     hasSelfie: json['hasSelfie'] ?? false,
+    kycReviewNote: json['kycReviewNote'] ?? '',
     createdAt: _parseDate(json['createdAt']),
     updatedAt: _parseDate(json['updatedAt']),
   );

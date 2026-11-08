@@ -224,7 +224,7 @@ void main() {
     await tester.tap(rewardsSeeMore);
     await tester.pumpAndSettle();
     expect(find.byType(RewardsAllScreen), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
+    await tester.tap(find.byIcon(Icons.arrow_back).first);
     await tester.pumpAndSettle();
 
     // Same contract for tutorials (5 seeded, 4 inline).

@@ -489,9 +489,16 @@ Future<T?> showAppOverlaySheet<T>({
               ),
             );
 
+      // The keyboard is accounted for ONCE, by the padding above. The inset is then removed from
+      // MediaQuery so a Scaffold (or anything else that reacts to viewInsets) inside the sheet does
+      // not shrink a second time - that left a blank block from the focused field to the bottom.
       return Padding(
         padding: EdgeInsets.only(bottom: keyboardInset),
-        child: sized,
+        child: MediaQuery.removeViewInsets(
+          context: context,
+          removeBottom: true,
+          child: sized,
+        ),
       );
     },
   );

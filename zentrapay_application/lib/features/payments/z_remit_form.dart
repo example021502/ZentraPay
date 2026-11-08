@@ -13,7 +13,6 @@ import 'package:zentrapay_application/core/utils/payment_currency.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/pay_search_section.dart';
 import 'package:zentrapay_application/features/home/HomePayments/widgets/verify_payee_sheet.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
-import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/features/zgrow/emergency/emergency_vault.dart';
 import 'package:zentrapay_application/features/zremit/repository/cache_zremit_data.dart';
@@ -33,11 +32,24 @@ class _RemitRecipient {
   final String? momoProviderId;
   final String? momoProviderCode;
 
+  /// True when [name] came from a record (the ZentraPay profile, or the bank / network that owns the
+  /// verified account) and so cannot be edited. False only for a mobile-money wallet whose network
+  /// does not share the owner's name: the sender then types it.
+  final bool nameConfirmed;
+
+  /// From `POST /api/payments/verify-account`: the token for the verified account and the id of the
+  /// gateway that verified it (tried first for the payout). Empty for a ZentraPay user.
+  final String verificationToken;
+  final String gatewayId;
+
   const _RemitRecipient({
     required this.type,
     required this.name,
     required this.detail,
     required this.countryCode,
+    this.nameConfirmed = true,
+    this.verificationToken = '',
+    this.gatewayId = '',
     this.userId,
     this.phoneNumber,
     this.bankId,
@@ -109,20 +121,25 @@ class ZRemitFormState extends State<ZRemitForm> {
   @override
   void initState() {
     super.initState();
-    WalletsRepository.instance.ensureLoaded().catchError((_) => null);
-    CountriesRepository.instance.ensureLoaded().catchError((_) => null);
     WalletsRepository.instance.addListener(_onWalletsChanged);
-    UserProfileRepository.instance
-        .ensureLoaded()
-        .then((snapshot) {
-          if (!mounted || snapshot == null) return;
-          setState(() => _senderCountryCode = snapshot.user.countryCode);
-        })
-        .catchError((_) {});
-    PaymentCurrency.ofSender().then((code) {
-      if (!mounted || code.isEmpty) return;
-      setState(() => _homeCurrency = code);
-      _schedulePreview();
+    // After the first frame: these loads notify their listeners straight away, and the header (which
+    // listens to the same repositories) must not be told to rebuild while the page is still building.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      WalletsRepository.instance.ensureLoaded().catchError((_) => null);
+      CountriesRepository.instance.ensureLoaded().catchError((_) => null);
+      UserProfileRepository.instance
+          .ensureLoaded()
+          .then((snapshot) {
+            if (!mounted || snapshot == null) return;
+            setState(() => _senderCountryCode = snapshot.user.countryCode);
+          })
+          .catchError((_) {});
+      PaymentCurrency.ofSender().then((code) {
+        if (!mounted || code.isEmpty) return;
+        setState(() => _homeCurrency = code);
+        _schedulePreview();
+      });
     });
   }
 
@@ -201,11 +218,10 @@ class ZRemitFormState extends State<ZRemitForm> {
       _recipient = recipient;
       _results = ContactSearchResult.empty();
       _searchController.clear();
-      // The receiver name defaults to the verified name; the user can still
-      // correct it.
-      if (_receiverController.text.trim().isEmpty) {
-        _receiverController.text = recipient.name;
-      }
+      // The receiver name is never typed over a known one: it is the ZentraPay user's name, or
+      // the name the bank / network gave when the account was verified. Empty (and editable)
+      // only when a mobile-money network does not share it.
+      _receiverController.text = recipient.nameConfirmed ? recipient.name : '';
     });
     _schedulePreview();
   }
@@ -270,6 +286,9 @@ class ZRemitFormState extends State<ZRemitForm> {
         name: payee.displayName,
         detail: "${payee.destinationName} · ${payee.accountNumber}",
         countryCode: payee.countryCode,
+        nameConfirmed: payee.nameConfirmed,
+        verificationToken: (payee.recipient['verificationToken'] ?? '').toString(),
+        gatewayId: payee.gatewayId,
         bankId: bank.bankId,
         bankCode: bank.bankCode,
         accountNumber: payee.accountNumber,
@@ -289,6 +308,9 @@ class ZRemitFormState extends State<ZRemitForm> {
         name: payee.displayName,
         detail: "${payee.destinationName} · ${payee.accountNumber}",
         countryCode: payee.countryCode,
+        nameConfirmed: payee.nameConfirmed,
+        verificationToken: (payee.recipient['verificationToken'] ?? '').toString(),
+        gatewayId: payee.gatewayId,
         phoneNumber: payee.accountNumber,
         momoProviderId: momo.providerId,
         momoProviderCode: momo.providerCode,
@@ -341,17 +363,19 @@ class ZRemitFormState extends State<ZRemitForm> {
     }
     setState(() => _previewLoading = true);
     try {
-      final result = await ConverterService.convert(
-        from: from,
-        to: to,
+      // The remittance rate preview: it needs no wallet in the destination currency and is not
+      // written to the converter history (which a conversion of the Smart Converter is).
+      final quote = await RemittanceService.getQuote(
+        source: from,
+        destination: to,
         amount: amount,
       );
       if (!mounted) return;
       setState(() {
         _previewLoading = false;
         _previewError = null;
-        _previewRate = result.rate;
-        _receiveController.text = formatMoney(result.convertedAmount);
+        _previewRate = quote.exchangeRate;
+        _receiveController.text = formatMoney(quote.destinationAmount);
       });
     } catch (_) {
       if (!mounted) return;
@@ -426,6 +450,10 @@ class ZRemitFormState extends State<ZRemitForm> {
           accountNumber: recipient.accountNumber,
           mobileMoneyProviderId: recipient.momoProviderId,
           mobileMoneyProviderCode: recipient.momoProviderCode,
+          // What the verification returned: the server takes the account from the token and tries
+          // the gateway that verified it first.
+          verificationToken: recipient.verificationToken,
+          gatewayId: recipient.gatewayId,
         ),
         message: "Sending your money…",
       );
@@ -580,7 +608,10 @@ class ZRemitFormState extends State<ZRemitForm> {
             ),
           ),
           TextButton(
-            onPressed: () => setState(() => _recipient = null),
+            onPressed: () => setState(() {
+              _recipient = null;
+              _receiverController.clear();
+            }),
             child: const Text("Change"),
           ),
         ],
@@ -601,6 +632,7 @@ class ZRemitFormState extends State<ZRemitForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: AppTheme.spacingMd),
           Text("Send money abroad", style: AppTheme.headlineSmall),
           const SizedBox(height: 4),
           Text(
@@ -649,17 +681,6 @@ class ZRemitFormState extends State<ZRemitForm> {
             ),
           ),
           const SizedBox(height: AppTheme.spacingMd),
-          _label("Receiver name"),
-          TextFormField(
-            controller: _receiverController,
-            textCapitalization: TextCapitalization.words,
-            cursorColor: AppTheme.textBlack,
-            decoration: _decoration(hint: "Full name of the person receiving"),
-            validator: (val) => val == null || val.trim().length < 2
-                ? "Enter the receiver's name"
-                : null,
-          ),
-          const SizedBox(height: AppTheme.spacingMd),
           _label("Send to"),
           if (_country == null)
             Text(
@@ -680,6 +701,38 @@ class ZRemitFormState extends State<ZRemitForm> {
             )
           else
             _recipientCard(recipient),
+          // The receiver name only exists once a recipient has been chosen, and it fills itself:
+          // a ZentraPay user's name, or the name on the bank / mobile-money account once verified.
+          if (recipient != null) ...[
+            const SizedBox(height: AppTheme.spacingMd),
+            _label("Receiver name"),
+            TextFormField(
+              key: const ValueKey('remit-receiver-name'),
+              controller: _receiverController,
+              readOnly: recipient.nameConfirmed,
+              textCapitalization: TextCapitalization.words,
+              cursorColor: AppTheme.textBlack,
+              decoration: _decoration(
+                hint: "Full name on the wallet",
+                suffix: recipient.nameConfirmed
+                    ? const Icon(Icons.verified, color: AppTheme.successGreen, size: 20)
+                    : null,
+              ),
+              validator: (val) => val == null || val.trim().length < 2
+                  ? "Enter the receiver's name"
+                  : null,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              switch (recipient.type) {
+                'USER' => "Taken from their ZentraPay profile.",
+                _ when recipient.nameConfirmed =>
+                  "Taken from the account when it was verified with the bank / network.",
+                _ => "This network did not share the owner's name - type it exactly as on the wallet.",
+              },
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
+            ),
+          ],
           const SizedBox(height: AppTheme.spacingLg),
           _label("You send"),
           TextFormField(
@@ -873,7 +926,10 @@ class _CountrySheetState extends State<_CountrySheet> {
             ),
           ),
           Expanded(
-            child: shown.isEmpty
+            // ListTile paints on the nearest Material; the decorated Container above would hide it
+            child: Material(
+              type: MaterialType.transparency,
+              child: shown.isEmpty
                 ? Center(
                     child: Text(
                       widget.countries.isEmpty
@@ -905,6 +961,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

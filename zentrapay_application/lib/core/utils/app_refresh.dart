@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:zentrapay_application/features/Settings/repository/cache_settings_data.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
+import 'package:zentrapay_application/features/home/repository/cache_user_services_data.dart';
 import 'package:zentrapay_application/features/payments/repository/cache_payments_data.dart';
 import 'package:zentrapay_application/features/profile/repository/cache_profile_data.dart';
 import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';
@@ -29,6 +30,8 @@ Future<void> refreshWholeApp() async {
         ServiceProvidersRepository.instance.ensureLoaded(forceRefresh: true),
     'billProviders': () =>
         BillProvidersRepository.instance.ensureLoaded(forceRefresh: true),
+    'userServices': () =>
+        UserServicesRepository.instance.ensureLoaded(forceRefresh: true),
     'countries': () =>
         CountriesRepository.instance.ensureLoaded(forceRefresh: true),
     'currencies': () =>
