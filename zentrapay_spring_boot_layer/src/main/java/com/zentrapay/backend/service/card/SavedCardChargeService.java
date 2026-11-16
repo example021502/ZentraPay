@@ -2,16 +2,12 @@ package com.zentrapay.backend.service.card;
 
 import com.zentrapay.backend.dto.payment.GatewayChargeStatus;
 import com.zentrapay.backend.dto.payment.TopupVerifyDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
-import com.zentrapay.backend.entity.FiatWalletModel;
 import com.zentrapay.backend.entity.GatewayModel;
 import com.zentrapay.backend.entity.SavedCardModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
-import com.zentrapay.backend.repository.FiatAccountRepository;
-import com.zentrapay.backend.repository.FiatWalletRepository;
 import com.zentrapay.backend.repository.UserRepository;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.gateway.FlutterwaveServices;

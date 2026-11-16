@@ -1,6 +1,11 @@
 package com.zentrapay.backend.service.wallet;
 
+import com.zentrapay.backend.dto.gateway.FincraNewAccountResponse;
 import com.zentrapay.backend.entity.*;
+import com.zentrapay.backend.service.common.Utils;
+import com.zentrapay.backend.service.gateway.FincraServices;
+import com.zentrapay.backend.service.user.UserProfileServices;
+import com.zentrapay.backend.service.user.UsersService;
 import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.dto.wallet.*;
@@ -12,67 +17,75 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WalletsAccountsServices {
+public class VirtualAccountServices {
 
-    private final FiatAccountRepository fiatAccountRepository;
     private final UserRepository userRepository;
-    private final FiatWalletRepository fiatWalletRepository;
+    private final VirtualAccountRepository accounts;
     private final CryptoAccountRepository cryptoAccountRepository;
     private final CryptoWalletRepository cryptoWalletRepository;
     private final SupportedRegionService supportedRegionService;
+    private final FincraServices fincraServices;
+    private final UsersService usersService;
+    private final UserProfileServices userProfileServices;
 
     // Fetches the authenticated user's fiat wallets (wallets table) and crypto
     // wallets (crypto_wallets table) in the exact shape the frontend expects.
     @Transactional(readOnly = true)
     public AccountsBalancesResponseDTO getUserBalances(UUID userId) {
         // Collects the fiat and crypto accounts with their balances for the home screen
-        log.info("Loading wallet balances for user {}", userId);
-        final FiatWalletModel wallet = fiatWalletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
-
-        List<FiatAccountDTO> fiatAccounts = fiatAccountRepository.findByWalletId(wallet.getWalletId()).stream()
-                .map(account -> new FiatAccountDTO(
-                        account.getAccountId(),
-                        account.getAccountName(),
-                        account.getCurrencyCode(),
-                        account.getZentag(),
-                        account.getBalance(),
-                        account.isDefault(),
-                        account.getStatus(),
-                        account.getCreatedAt()
-                ))
-                .toList();
+        log.info("Loading account balances for user {}", userId);
+        final List<VirtualAccountDTO> fiatAccounts = accounts.getAccountByUserId(userId).stream()
+                .map(v -> new VirtualAccountDTO(
+                        v.getId(),
+                        v.getMerchantReference(),
+                        v.getCurrency(),
+                        v.getStatus(),
+                        v.getAccountNumber(),
+                        v.getAccountType(),
+                        v.getBalance(),
+                        v.isActive(),
+                        v.isDefault(),
+                        v.getCreatedAt()
+                )).toList();
 
         final CryptoWalletModel crypto_wallet = cryptoWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
         List<CryptoAccountDTO> cryptoAccounts = cryptoAccountRepository.findByWalletId(crypto_wallet.getWalletId()).stream()
-                .map(account -> new CryptoAccountDTO(
-                        account.getCryptoAccountId(),
-                        account.getCurrencyCode(),
-                        account.getNetwork(),
-                        account.getWalletAddress(),
-                        account.getIsDefault(),
-                        account.getBalance().toPlainString(),
-                        account.getStatus(),
-                        account.getCreatedAt()
+                .map(c -> new CryptoAccountDTO(
+                        c.getCryptoAccountId(),
+                        c.getCurrencyCode(),
+                        c.getNetwork(),
+                        c.getWalletAddress(),
+                        c.getIsDefault(),
+                        c.getBalance().toPlainString(),
+                        c.getStatus(),
+                        c.getCreatedAt()
                 ))
                 .toList();
         return new AccountsBalancesResponseDTO(fiatAccounts, cryptoAccounts);
     }
 
     @Transactional
-    public FiatAccountDTO createFiatAccount(UUID userId, CreateFiatAccountRequest req) {
+    public VirtualAccountDTO createFiatAccount(UUID userId, CreateFiatAccountRequest req) {
         // Opens a new currency account in the user's wallet (one account per currency)
         log.info("Creating a {} account for user {}", req.currencyCode(), userId);
 
         // Only a currency some supported country uses as its default can be opened
         final String currencyCode = supportedRegionService.requireSupportedCurrency(req.currencyCode());
+        UserModel user = usersService.getUser(userId);
+        UserProfileModel p = userProfileServices.getUserProfile(userId);
+        if (p.getIdentityDocumentNumber().isEmpty() || p.getIdDocumentFrontPath().isEmpty() || p.getIdDocumentBackPath().isEmpty()) {
+            throw new RuntimeException("Critical profile information is missing. Upload you kyc documents to continue.");
+        }
+        String zentag = Utils.getZentag(currencyCode, user.getPhoneNumber());
+        FincraNewAccountResponse account = fincraServices.createNewAccount(user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), currencyCode, p.getIdentityDocumentNumber(), p.getIdentityDocumentType(), "individual", zentag);
 
         final FiatWalletModel wallet = fiatWalletRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Something went wrong. Wallet missing!"));
@@ -87,7 +100,7 @@ public class WalletsAccountsServices {
         FiatAccountModel account = createAccount(req, currencyCode, wallet, user);
         fiatAccountRepository.save(account);
 
-        return new FiatAccountDTO(
+        return new VirtualAccountDTO(
                 account.getAccountId(),
                 account.getAccountName(),
                 account.getCurrencyCode(),

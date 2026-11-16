@@ -80,7 +80,7 @@ class _NewGoalSheetState extends State<NewGoalSheet> {
       firstDate: now.add(const Duration(days: 1)),
       lastDate: now.add(const Duration(days: 365 * 20)),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null && mounted) setState(() => _date = picked);
   }
 
   Future<void> _create() async {

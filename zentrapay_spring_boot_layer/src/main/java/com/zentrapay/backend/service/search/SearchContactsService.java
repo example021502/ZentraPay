@@ -33,17 +33,21 @@ public class SearchContactsService {
     private final UserRepository userRepository;
     private final BillProviderRepository billProviderRepository;
     private final BanksRepository banksRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final FiatAccountRepository fiatAccountRepository;
     private final MobileMoneyRepository mobileMoneyRepository;
     private final SupportedRegionService supportedRegionService;
 
 
-    /** Which people / places a search looks in, relative to the country of the person searching. */
+    /**
+     * Which people / places a search looks in, relative to the country of the person searching.
+     */
     public enum Scope {
-        /** The searcher own country - the Pay section. */
+        /**
+         * The searcher own country - the Pay section.
+         */
         DOMESTIC,
-        /** Every OTHER supported country - ZRemit. */
+        /**
+         * Every OTHER supported country - ZRemit.
+         */
         INTERNATIONAL;
 
         public static Scope parse(String value) {
@@ -182,6 +186,7 @@ public class SearchContactsService {
                 b.getType()
         );
     }
+
     //    SEARCHING FOR A SINGLE CONTACT
     public ContactResponseDTO getContact(UUID userId, String query) {
         // Finds ONE contact (app user, bank or bill provider) from a scanned QR / pasted id
@@ -192,7 +197,8 @@ public class SearchContactsService {
 
         log.info("=========== GETTING THE RECEIVER ID AND THE USER TYPE FROM THE QUERY... ===========");
         String[] queryParts = StringUtils.split(query, "+");
-        if (queryParts == null) throw new RuntimeException("Query missing or invalid!");
+        if (queryParts == null || queryParts.length < 2)
+            throw new IllegalArgumentException("Query missing or invalid!");
         UUID receiverId = UUID.fromString(queryParts[0]);
         Datatypes.TransactionType transactionType = Datatypes.TransactionType.valueOf(queryParts[1]);
 

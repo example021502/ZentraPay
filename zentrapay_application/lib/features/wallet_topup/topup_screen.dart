@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:zentrapay_application/core/afrilink_bank_connect_screen/AfriLinkBankConnectScreen.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/afrilink_bank_connect_screen.dart';
 import 'package:zentrapay_application/core/models/wallet.dart';
 import 'package:zentrapay_application/core/models/saved_card.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
@@ -11,7 +11,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/home/repository/cache_home_data.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/features/wallet_topup/gateway_checkout.dart';
-import 'package:zentrapay_application/features/wallet_topup/models/responseEntities.dart';
+import 'package:zentrapay_application/features/wallet_topup/models/response_entities.dart';
 import 'package:zentrapay_application/features/wallet_topup/saved_cards_repository.dart';
 import 'package:zentrapay_application/features/wallet_topup/saved_cards_screen.dart';
 import 'package:zentrapay_application/features/wallet_topup/topup_service.dart';
@@ -407,12 +407,6 @@ class _TopupScreenState extends State<TopupScreen> {
             SavedCardsRepository.instance.usable.any(
               (c) => c.id == _selectedCardId,
             );
-        bool saveCard = false;
-        valueChanged(value) => {
-          setState(() {
-            saveCard = value;
-          }),
-        };
         return Form(
           key: _formKey,
           child: Column(
@@ -525,8 +519,6 @@ class _TopupScreenState extends State<TopupScreen> {
   }
 
   Widget _saveCardSwitch() {
-    bool saveCard = false;
-
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       value: _saveCard,
@@ -534,18 +526,12 @@ class _TopupScreenState extends State<TopupScreen> {
       inactiveTrackColor: AppTheme.primaryPink,
       activeTrackColor: AppTheme.secondaryNavy,
       trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-      onChanged: (v) => setState(() {
-        setState(() {
-          saveCard = v;
-        });
-        _saveCard = v;
-      }),
+      onChanged: (v) => setState(() => _saveCard = v),
       title: Text('Save my card for next time', style: AppTheme.labelLarge),
       subtitle: Text(
         'If you pay by card, the payment provider keeps it so you can top up with just your PIN. We never see the card number.',
         style: AppTheme.bodySmall.copyWith(color: AppTheme.gray500),
       ),
-      
     );
   }
 

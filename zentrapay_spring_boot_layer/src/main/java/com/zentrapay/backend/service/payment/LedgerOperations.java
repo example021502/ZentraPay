@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.payment;
 
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.LedgerEntryModel;
 import com.zentrapay.backend.entity.NotificationModel;
 import com.zentrapay.backend.entity.TransactionModel;
@@ -328,7 +327,9 @@ public class LedgerOperations {
         return txn;
     }
 
-    /** The user's wallet account in this currency (public so product services can find it). */
+    /**
+     * The user's wallet account in this currency (public so product services can find it).
+     */
     public FiatAccountModel walletAccount(UUID userId, String currencyCode) {
         return accountFor(userId, currencyCode.toUpperCase());
     }

@@ -2,7 +2,6 @@ package com.zentrapay.backend.service.payment;
 
 import com.zentrapay.backend.dto.payment.RetryDTOs.RetryCheckDTO;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:zentrapay_application/core/afrilink_bank_connect_screen/AfriLinkBankConnectScreen.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/afrilink_bank_connect_screen.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/features/zbanking/repository/cache_zbanking_data.dart';

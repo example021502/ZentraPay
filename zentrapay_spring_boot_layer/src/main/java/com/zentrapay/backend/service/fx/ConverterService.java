@@ -3,8 +3,6 @@ package com.zentrapay.backend.service.fx;
 import com.zentrapay.backend.dto.converter.ConverterDTOs.*;
 import com.zentrapay.backend.entity.ConversionModel;
 import com.zentrapay.backend.repository.ConversionRepository;
-import com.zentrapay.backend.repository.FiatAccountRepository;
-import com.zentrapay.backend.repository.FiatWalletRepository;
 import com.zentrapay.backend.service.region.SupportedRegionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +32,9 @@ public class ConverterService {
     private final FiatWalletRepository fiatWalletRepository;
     private final FiatAccountRepository fiatAccountRepository;
 
-    /** The rate from {@code base} to every supported currency that has a rate. */
+    /**
+     * The rate from {@code base} to every supported currency that has a rate.
+     */
     public RatesDTO rates(String base) {
         String baseCode = base.trim().toUpperCase();
         Map<String, String> rates = new LinkedHashMap<>();
@@ -52,7 +52,9 @@ public class ConverterService {
         return new RatesDTO(baseCode, rates);
     }
 
-    /** Converts an amount and saves it in the user's history. Both currencies need a wallet account. */
+    /**
+     * Converts an amount and saves it in the user's history. Both currencies need a wallet account.
+     */
     public ConvertResponseDTO convert(UUID userId, ConvertRequestDTO request) {
         String from = request.from().trim().toUpperCase();
         String to = request.to().trim().toUpperCase();
@@ -88,7 +90,9 @@ public class ConverterService {
         }
     }
 
-    /** The latest conversions of a user, newest first. */
+    /**
+     * The latest conversions of a user, newest first.
+     */
     public List<ConversionHistoryDTO> history(UUID userId) {
         return conversionRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(c -> new ConversionHistoryDTO(c.getFromCurrencyCode(), c.getToCurrencyCode(),

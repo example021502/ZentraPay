@@ -2,7 +2,6 @@ package com.zentrapay.backend.service.invest;
 
 import com.zentrapay.backend.dto.invest.InvestmentDTOs.InvestRequest;
 import com.zentrapay.backend.dto.invest.InvestmentDTOs.InvestmentDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.InvestmentModel;
 import com.zentrapay.backend.entity.InvestmentPriceSnapshotModel;
 import com.zentrapay.backend.entity.TransactionModel;
@@ -56,7 +55,9 @@ public class InvestmentService {
 
     // ------------------------------------------------------------------ reads
 
-    /** The user's positions, newest first, each with its current price. */
+    /**
+     * The user's positions, newest first, each with its current price.
+     */
     @Transactional(readOnly = true)
     public List<InvestmentDTO> portfolio(UUID userId) {
         return investmentRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toDto).toList();
@@ -64,7 +65,9 @@ public class InvestmentService {
 
     // ----------------------------------------------------------------- writes
 
-    /** Opens a position and takes its cost from the wallet account in the same currency. */
+    /**
+     * Opens a position and takes its cost from the wallet account in the same currency.
+     */
     public InvestmentDTO invest(UUID userId, InvestRequest req) {
         UserModel user = activeUser(userId);
         String type = req.investmentType().trim().toUpperCase();
@@ -132,7 +135,9 @@ public class InvestmentService {
         }
     }
 
-    /** Sells a position: its value at the current price goes back into the wallet, the position is closed. */
+    /**
+     * Sells a position: its value at the current price goes back into the wallet, the position is closed.
+     */
     public InvestmentDTO sell(UUID userId, UUID investmentId) {
         UserModel user = activeUser(userId);
         InvestmentModel peek = investmentRepository.findById(investmentId).filter(i -> i.getUserId().equals(userId))

@@ -126,20 +126,24 @@ class _ChangeCredentialBodyState extends State<_ChangeCredentialBody> {
   Future<void> _submit() async {
     final kind = widget.kind;
     final noun = _noun(kind);
-    if (_current.text.isEmpty) {
+    // Sign-in trims the password, so what is saved here must be trimmed too
+    final current = _current.text.trim();
+    final next = _next.text.trim();
+    final confirm = _confirm.text.trim();
+    if (current.isEmpty) {
       setState(() => _error = 'Enter your current $noun');
       return;
     }
-    final problem = _validateNew(kind, _next.text);
+    final problem = _validateNew(kind, next);
     if (problem != null) {
       setState(() => _error = problem);
       return;
     }
-    if (_next.text != _confirm.text) {
+    if (next != confirm) {
       setState(() => _error = 'The new $noun and its confirmation differ');
       return;
     }
-    if (_next.text == _current.text) {
+    if (next == current) {
       setState(() => _error = 'Choose a $noun different from the current one');
       return;
     }
@@ -151,8 +155,8 @@ class _ChangeCredentialBodyState extends State<_ChangeCredentialBody> {
     try {
       await CredentialService.change(
         kind,
-        current: _current.text,
-        next: _next.text,
+        current: current,
+        next: next,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -395,12 +399,14 @@ class _ForgotCredentialCardState extends State<_ForgotCredentialCard> {
   Future<void> _reset() async {
     final kind = widget.kind;
     final noun = _noun(kind);
-    final problem = _validateNew(kind, _next.text);
+    final next = _next.text.trim();
+    final confirm = _confirm.text.trim();
+    final problem = _validateNew(kind, next);
     if (problem != null) {
       setState(() => _error = problem);
       return;
     }
-    if (_next.text != _confirm.text) {
+    if (next != confirm) {
       setState(() => _error = 'The new $noun and its confirmation differ');
       return;
     }
@@ -413,7 +419,7 @@ class _ForgotCredentialCardState extends State<_ForgotCredentialCard> {
       await CredentialService.reset(
         kind,
         resetToken: _resetToken!,
-        next: _next.text,
+        next: next,
       );
       if (!mounted) return;
       setState(() {

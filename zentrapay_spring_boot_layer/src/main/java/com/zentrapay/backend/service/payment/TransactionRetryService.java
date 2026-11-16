@@ -3,7 +3,6 @@ package com.zentrapay.backend.service.payment;
 import com.zentrapay.backend.dto.payment.RetryDTOs.RetryCheckDTO;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
 import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
@@ -43,12 +42,16 @@ public class TransactionRetryService {
     private final PaymentServices paymentServices;
     private final PinService pinService;
 
-    /** Looks at both parties of a failed payment again. */
+    /**
+     * Looks at both parties of a failed payment again.
+     */
     public RetryCheckDTO check(UUID userId, UUID transactionId) {
         return evaluate(userId, transactionId).check();
     }
 
-    /** Re-checks both parties, verifies the PIN and makes the payment again. */
+    /**
+     * Re-checks both parties, verifies the PIN and makes the payment again.
+     */
     public TransactionTransactionDTO retry(UUID userId, UUID transactionId, String pin) {
         Evaluation e = evaluate(userId, transactionId);
         if (!e.check().retryable()) {

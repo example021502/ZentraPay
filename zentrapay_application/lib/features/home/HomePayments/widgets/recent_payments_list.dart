@@ -37,9 +37,7 @@ class RecentPaymentsList extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: AppTheme.brand.withValues(
-                            alpha: 0.1,
-                          ),
+                          backgroundColor: AppTheme.secondaryNavy.withAlpha(20),
                           child: Icon(
                             Icons.person,
                             size: 30,

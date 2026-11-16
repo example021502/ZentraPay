@@ -17,6 +17,12 @@ class _HomeCardsCarouselState extends State<HomeCardsCarousel> {
   final PageController _controller = PageController(viewportFraction: 0.72);
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

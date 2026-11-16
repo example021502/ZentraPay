@@ -85,10 +85,15 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
   // Comment: Check stored token validity asynchronously
   Future<Map<String, dynamic>?> _checkLoginStatus() async {
     try {
-      final token = SecureStorageService.getToken();
+      var token = SecureStorageService.getToken();
       if (token != null && token.isNotEmpty) {
-        bool isExpired = JwtDecoder.isExpired(token);
-        if (!isExpired) {
+        // An expired token can still be renewed (the server accepts it for 30 days),
+        // so a returning user is not asked to sign in again every day
+        if (JwtDecoder.isExpired(token) &&
+            await SecureStorageService.refreshToken() == true) {
+          token = SecureStorageService.getToken();
+        }
+        if (token != null && !JwtDecoder.isExpired(token)) {
           return JwtDecoder.decode(token);
         }
       }
@@ -120,20 +125,18 @@ class _ZentrapaySplashScreenMainState extends State<ZentrapaySplashScreenMain>
       BillProvidersRepository.instance.ensureLoaded();
       ServiceProvidersRepository.instance.ensureLoaded();
       TransactionsRepository.instance.ensureLoaded().catchError((_) {});
-      Future.delayed(Duration(seconds: 3), () async {
-        // The splash itself stays light; the returning user's own light /
-        // dark mode is applied just before entering the app.
-        await ThemeController.instance.applyForCurrentUser();
-        if (!mounted) return;
+      // The splash itself stays light; the returning user's own light /
+      // dark mode is applied just before entering the app.
+      await ThemeController.instance.applyForCurrentUser();
+      if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            // Comment: Passes decoded user claims payload directly to destination layout wrapper
-            builder: (context) => ResponsiveNavigation(userData: userData),
-          ),
-        );
-      });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          // Comment: Passes decoded user claims payload directly to destination layout wrapper
+          builder: (context) => ResponsiveNavigation(userData: userData),
+        ),
+      );
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }

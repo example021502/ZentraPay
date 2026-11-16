@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:zentrapay_application/core/afrilink_bank_connect_screen/BankLinkRequestDto.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/bank_link_request_dto.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/utils/loading_overlay.dart';

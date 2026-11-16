@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:zentrapay_application/core/afrilink_bank_connect_screen/BankLinkRequestDto.dart';
+import 'package:zentrapay_application/core/afrilink_bank_connect_screen/bank_link_request_dto.dart';
 import 'package:zentrapay_application/core/models/zbanking.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 

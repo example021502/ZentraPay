@@ -74,29 +74,14 @@ public class UserProfileModel {
 
     // LEGACY local-disk paths from before documents moved to the image host.
     // No longer written or read; kept only so the existing columns still map.
-    @Column(name = "id_document_front_path", length = 255)
+    @Column(name = "id_document_front_path")
     private String idDocumentFrontPath;
 
-    @Column(name = "id_document_back_path", length = 255)
+    @Column(name = "id_document_back_path")
     private String idDocumentBackPath;
 
-    @Column(name = "selfie_path", length = 255)
+    @Column(name = "selfie_path")
     private String selfiePath;
-
-    // Tier-2 document images live on the external image host; only the URL it
-    // returned is saved here (see DocumentsService / ImageHostingService).
-    // nullable until each is uploaded. All three plus the identity / address /
-    // occupation fields above must be present before the profile is submitted
-    // for review; a verification officer then grants tier 2
-    // (see KycVerificationService).
-    @Column(name = "id_document_front_image_url", length = 500)
-    private String idDocumentFrontImageUrl;
-
-    @Column(name = "id_document_back_image_url", length = 500)
-    private String idDocumentBackImageUrl;
-
-    @Column(name = "selfie_image_url", length = 500)
-    private String selfieImageUrl;
 
     // KYC review trail: when the complete profile was submitted, and who
     // decided on it, when, and why (see KycVerificationService).

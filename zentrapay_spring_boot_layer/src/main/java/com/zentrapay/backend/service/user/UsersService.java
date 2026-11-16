@@ -1,13 +1,17 @@
 package com.zentrapay.backend.service.user;
 
+import com.zentrapay.backend.dto.gateway.FincraNewAccountResponse;
 import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.repository.*;
+import com.zentrapay.backend.security.AttemptLimiter;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.dto.user.*;
 import com.zentrapay.backend.entity.LoginHistoryModel;
 import com.zentrapay.backend.repository.LoginHistoryRepository;
 import com.zentrapay.backend.security.JwtService;
+import com.zentrapay.backend.service.common.Utils;
+import com.zentrapay.backend.service.gateway.FincraServices;
 import com.zentrapay.backend.service.region.SupportedRegionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -21,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -32,17 +37,20 @@ public class UsersService {
 
     private final UserRepository userRepository;
     private final CryptoWalletRepository cryptoWalletRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final GatewayCountriesRepository gatewayCountriesRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginHistoryRepository loginHistoryRepository;
-    private final FiatAccountRepository fiatAccountRepository;
+    private final VirtualAccountRepository accounts;
     private final CryptoAccountRepository cryptoAccountRepository;
     private final UserProfileRepository userProfileRepository;
     private final PinService pinService;
+    private final AttemptLimiter attemptLimiter;
     private final SupportedRegionService supportedRegionService;
     private final KycVerificationService kycVerificationService;
+
+    private final FincraServices fincraServices;
+    private final SupportedIdentitiesServices supportedIdentitiesServices;
+    private final UserProfileServices userProfileServices;
 
     @Value("${app.password.pepper}")
     private String passwordPepper;
@@ -57,26 +65,22 @@ public class UsersService {
     public usersAuthResponse register(@Valid RegisterRequestDTO req, String ipAddress) {
         // Creates the user, their fiat + crypto wallets and default account, then returns a login token
         log.info("Registering a new user with email {}", req.email());
-        // Log the incoming registration form payload
-        System.out.println("THE REGISTER FORM DATA:: data=" + req);
 
         // Check for existing uniqueness constraints before performing any database writes
         if (userRepository.existsByEmail(req.email())) {
-            throw new RuntimeException("Email already taken");
+            throw new IllegalArgumentException("Email already taken");
         }
         if (userRepository.existsByPhoneNumber(req.phoneNumber())) {
-            throw new RuntimeException("Phone number already taken");
+            throw new IllegalArgumentException("Phone number already taken");
         }
 
-        if (req.termsConsent() == false) {
-            throw new RuntimeException("Please accept the Terms of use to continue");
+        if (!Boolean.TRUE.equals(req.termsConsent())) {
+            throw new IllegalArgumentException("Please accept the Terms of use to continue");
         }
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
         // The country must be one of the payment providers support AND that is switched on right now
         GatewayCountryModel country = supportedRegionService.requireCountry(req.countryCode());
-
-        System.out.println("Found country: " + country.getCountryCode());
 
         // Initialize and populate the new User entity
         UserModel user = new UserModel();
@@ -92,55 +96,35 @@ public class UsersService {
 
         // Save the user record to the database
         user = userRepository.save(user);
+        Map<String, Object> newProfile = userProfileServices.populateUserProfile(
+                user.getUserId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
 
-
-//        FIAT WALLET CREATION
-        if (!fiatWalletRepository.existsByUserId(user.getUserId()) && !cryptoWalletRepository.existsByUserId(user.getUserId())) {
-            FiatWalletModel fiatWallet = new FiatWalletModel();
-            fiatWallet.setUserId(user.getUserId());
-            fiatWallet.setCountryCode(country.getCountryCode());
-            fiatWallet.setWalletName("Zentrapay_Wallet");
-            fiatWallet = fiatWalletRepository.save(fiatWallet);
-//            CRYPTO WALLET CREATION
-            CryptoWalletModel cryptoWallet = new CryptoWalletModel();
-            cryptoWallet.setUserId(user.getUserId());
-            cryptoWallet.setStatus("ACTIVE");
-            cryptoWallet = cryptoWalletRepository.save(cryptoWallet);
-
-            // The first account is opened in the country's default currency - the one this user can pay in
-            final String currencyCode = supportedRegionService.defaultCurrencyOf(country);
-            FiatAccountModel fiatAccount = getFiatAccount(req, currencyCode, fiatWallet);
-            fiatAccountRepository.save(fiatAccount);
-
-            CryptoAccountModel cryptoAccount = new CryptoAccountModel();
-            cryptoAccount.setWalletId(cryptoWallet.getWalletId());
-            cryptoAccount.setNetwork("unknown");
-            cryptoAccount.setCurrencyCode("Unknown");
-            cryptoAccount.setWalletAddress("pending-" + user.getUserId());
-            cryptoAccount.setBalance(BigDecimal.ZERO);
-            cryptoAccount.setIsDefault(true);
-            cryptoAccount.setStatus("ACTIVE");
-            cryptoAccountRepository.save(cryptoAccount);
-        } else {
-            throw new RuntimeException("Something went wrong. Fiat wallet and Crypto wallet for this user already exist!");
-        }
 
         // Generate the authentication token and return the response DTO
         String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
         return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
-    }
-
-    private static @NonNull FiatAccountModel getFiatAccount(RegisterRequestDTO req, String currencyCode, FiatWalletModel fiatWallet) {
-        final String zentag = req.phoneNumber() + "_" + currencyCode + "@zentrapay";
-        FiatAccountModel fiatAccount = new FiatAccountModel();
-        fiatAccount.setWalletId(fiatWallet.getWalletId());
-        fiatAccount.setAccountName("Default Account");
-        fiatAccount.setCurrencyCode(currencyCode);
-        fiatAccount.setZentag(zentag);
-        fiatAccount.setBalance(BigDecimal.ZERO);
-        fiatAccount.setDefault(true);
-        fiatAccount.setStatus("ACTIVE");
-        return fiatAccount;
     }
 
     // ========================================================================
@@ -148,19 +132,30 @@ public class UsersService {
     // (Not one big @Transactional: the "failed attempt" row must survive the exception we throw.)
     // ========================================================================
     public usersAuthResponse login(@Valid LoginRequestDTO req, HttpServletRequest httpRequest) {
-        log.info("==================== ATTEMPTING TO LOG IN ==================");
-        UserModel user = userRepository.findByEmailOrPhoneNumber(req.email(), req.phoneNumber()).orElse(null);
+        // Guess protection is keyed on what the caller typed (not on whether the account exists),
+        // so the lock looks the same for real and made-up accounts
+        // The email wins when both are sent: email and phone are each unique, but together they could
+        // point at two different accounts, which would make the lookup ambiguous
+        boolean byEmail = req.email() != null && !req.email().isBlank();
+        String identifier = (byEmail ? req.email() : req.phoneNumber() == null ? "" : req.phoneNumber()).trim();
+        String limitKey = "login:" + identifier.toLowerCase();
+        attemptLimiter.requireNotLocked(limitKey);
+
+        UserModel user = userRepository.findByEmailOrPhoneNumber(byEmail ? identifier : null, byEmail ? null : identifier).orElse(null);
 
         // Same message for "no such user" and "wrong password" so nobody can probe which accounts exist
         if (user == null) {
-            log.warn("[USERS] Login attempt for unknown identifier email={}, phone={}", req.email(), req.phoneNumber());
+            attemptLimiter.recordFailure(limitKey);
+            log.warn("[USERS] Login attempt for an unknown account");
             throw new IllegalArgumentException("Invalid credentials");
         }
         if (!passwordEncoder.matches(req.password() + passwordPepper, user.getPasswordHash())) {
+            attemptLimiter.recordFailure(limitKey);
             recordLogin(user.getUserId(), httpRequest, false);
-            log.info("==================== LOG IN FAILED - INVALID CREDENTIALS ==================");
+            log.info("[USERS] Login failed - invalid credentials for user {}", user.getUserId());
             throw new IllegalArgumentException("Invalid credentials");
         }
+        attemptLimiter.recordSuccess(limitKey);
         if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
             recordLogin(user.getUserId(), httpRequest, false);
             throw new IllegalArgumentException("Your account is " + user.getStatus() + ". Please contact support.");
@@ -269,10 +264,7 @@ public class UsersService {
      * {@code phoneNumber + "_" + currencyCode + "@zentrapay"}).
      */
     private String resolveDefaultZentag(UUID userId) {
-        return fiatWalletRepository.getWalletIdByUserId(userId)
-                .flatMap(walletId -> fiatAccountRepository.getDefaultAccountByWalletId(walletId))
-                .map(FiatAccountModel::getZentag)
-                .orElse("");
+        return accounts.getMerchantReferenceByUserId(userId);
     }
 
     //    GETTING USER INFROMATION
@@ -284,9 +276,17 @@ public class UsersService {
         // Retrieve profile if present. The profile is optional — a row is only
         // created once the user submits their KYC details — so a missing row must
         // NOT null out the whole response. Always return the user; profile may be null.
-        UserProfileModel up = userProfileRepository.getBtUserId(userId);
+        UserProfileModel up = userProfileRepository.getByUserId(userId);
         UserProfileDTO profile = toProfileDTO(up);
         return new UserInformation(toUserDTO(user), profile);
+    }
+
+    @Transactional
+    public UserModel getUser(UUID userId) {
+        return userRepository.getUserByUserId(userId)
+                .orElseThrow(
+                        () -> new RuntimeException("User now found.")
+                );
     }
 
     // ========================================================================
@@ -312,7 +312,7 @@ public class UsersService {
     // ========================================================================
     @Transactional(readOnly = true)
     public UserProfileDTO getKycProfile(UUID userId) {
-        return toProfileDTO(userProfileRepository.getBtUserId(userId));
+        return toProfileDTO(userProfileRepository.getByUserId(userId));
     }
 
     // ========================================================================
@@ -327,7 +327,7 @@ public class UsersService {
         UserModel user = userRepository.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        UserProfileModel profile = userProfileRepository.getByUserId(userId);
         if (profile == null) {
             profile = new UserProfileModel();
             profile.setUserId(userId);
@@ -363,7 +363,7 @@ public class UsersService {
      * Tier 2 (unlocks sending/receiving money, see PaymentsService) is NEVER
      * granted here, however complete the profile is: uploading documents only
      * submits them for review. A verification officer checks the images and then
-     * raises the tier (see {@link KycVerificationService#approve}). Likewise a
+     * raises the tier (see {@link KycVerificationService#approve}), Likewise a
      * tier-2 user is never lowered by an edit - only an officer's decision can.
      */
     void recomputeKycTier(UserModel user, UserProfileModel profile) {
@@ -373,7 +373,10 @@ public class UsersService {
         boolean started = profile != null && (profile.getDateOfBirth() != null
                 || notBlank(profile.getAddressLine1())
                 || notBlank(profile.getIdentityDocumentType())
-                || notBlank(profile.getIdDocumentFrontImageUrl()));
+                || notBlank(profile.getIdentityDocumentNumber())
+                || notBlank(profile.getIdDocumentFrontPath())
+                || notBlank(profile.getIdDocumentBackPath())
+        );
         short newTier = started ? (short) 1 : (short) 0;
         if (user.getKycTier() != newTier) {
             user.setKycTier(newTier);
@@ -421,9 +424,9 @@ public class UsersService {
                 up.isPoliticallyExposedPerson(),
                 up.getRiskScoreLevel(),
                 up.getKYCStatus(),
-                notBlank(up.getIdDocumentFrontImageUrl()),
-                notBlank(up.getIdDocumentBackImageUrl()),
-                notBlank(up.getSelfieImageUrl()),
+                notBlank(up.getIdDocumentFrontPath()),
+                notBlank(up.getIdDocumentBackPath()),
+                notBlank(up.getSelfiePath()),
                 kycVerificationService.missingRequirements(up),
                 up.getKycReviewNote(),
                 up.getCreatedAt(),

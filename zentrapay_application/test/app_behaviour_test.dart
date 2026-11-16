@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/theme_controller.dart';
 import 'package:zentrapay_application/core/utils/notifier.dart';
 import 'package:zentrapay_application/core/utils/double_back_to_exit.dart';
+import 'package:zentrapay_application/core/utils/storage_service.dart';
 
 DioException _dioError({int? status, Object? body}) {
   final request = RequestOptions(path: '/x');
@@ -151,7 +154,23 @@ void main() {
   });
 
   group('ThemeController', () {
-    tearDown(() => AppTheme.isDark = false);
+    // Dark mode belongs to the signed-in account, so a user has to be signed in
+    // (any token whose `sub` claim is a user id will do) for the switch to apply.
+    final claims = base64Url.encode(utf8.encode('{"sub":"user-1"}'));
+    setUp(() => SecureStorageService.saveToken('header.$claims.signature'));
+    tearDown(() async {
+      AppTheme.isDark = false;
+      await SecureStorageService.deleteToken();
+    });
+
+    testWidgets('does nothing when nobody is signed in', (tester) async {
+      await SecureStorageService.deleteToken();
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+
+      ThemeController.instance.setDark(true);
+
+      expect(AppTheme.isDark, isFalse);
+    });
 
     testWidgets('switches the palette to dark and back', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));

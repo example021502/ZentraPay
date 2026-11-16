@@ -9,14 +9,16 @@ import java.util.UUID;
  * {@code balance} is a decimal {@link String} so no floating-point rounding
  * ever crosses the wire (API_CONTRACT.md conventions).
  */
-public record FiatAccountDTO(
-        UUID accountId,
-        String accountName,
-        String currencyCode,
-        String zentag,
-        BigDecimal balance,
-        boolean isDefault,
+public record VirtualAccountDTO(
+        UUID id,
+        String merchantReference,
+        String currency,
         String status,
+        String accountNumber,
+        String accountType,
+        BigDecimal balance,
+        boolean isActive,
+        boolean isDefault,
         LocalDateTime createdAt
 ) {
 }

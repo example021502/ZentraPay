@@ -637,6 +637,7 @@ class TransactionListItem extends StatelessWidget {
   final String subtitle;
   final String amount;
   final VoidCallback? onTap;
+  final bool success;
 
   const TransactionListItem({
     super.key,
@@ -644,13 +645,20 @@ class TransactionListItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.amount,
+    required this.success,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isCredit = amount.trim().startsWith('+');
-    final chipColor = isCredit ? AppTheme.successGreen : AppTheme.primaryPink;
+    final isCredit = amount.trim().startsWith('+') && success;
+    final isDebit = amount.trim().startsWith('-') && success;
+
+    final chipColor = isCredit
+        ? AppTheme.successGreen
+        : isDebit
+        ? AppTheme.secondaryNavy
+        : AppTheme.primaryPink;
 
     return GestureDetector(
       onTap: onTap,
@@ -673,10 +681,10 @@ class TransactionListItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingSm),
+                    padding: EdgeInsets.all(AppTheme.spacingSm),
                     decoration: BoxDecoration(
-                      color: chipColor.withAlpha(25),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      color: chipColor.withAlpha(20),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXxl),
                     ),
                     child: Icon(icon, color: chipColor, size: 22),
                   ),

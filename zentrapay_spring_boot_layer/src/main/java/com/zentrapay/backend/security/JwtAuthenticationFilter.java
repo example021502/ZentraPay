@@ -54,47 +54,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authHeader.substring(7);
-
+        AuthenticatedUser authenticatedUser;
         try {
-            Claims claims = jwtService.parseAndValidate(token);
-            UUID userId = UUID.fromString(claims.getSubject());
-            String email = claims.get("email", String.class);
-            String phoneNumber = claims.get("phoneNumber", String.class);
-            String countryCode = claims.get("countryCode", String.class);
-            String firstName = claims.get("firstName", String.class);
-            String lastName = claims.get("lastName", String.class);
-            String zentag = claims.get("zentag", String.class);
-            // The role is stored under the "userType" claim (see
-            // JwtService#generateToken). Tokens without it (retired Node.js
-            // layer's tokens, malformed claims) must not blow up the filter —
-            // fall back to APP_USER instead of throwing an NPE that used to
-            // escape this catch block and 500 every authenticated request.
-            String userTypeClaim = claims.get("userType", String.class);
-            Datatypes.UserType userType = userTypeClaim == null
-                    ? Datatypes.UserType.APP_USER
-                    : Datatypes.UserType.valueOf(userTypeClaim);
-
-            AuthenticatedUser authenticatedUser = new AuthenticatedUser(
-                    userId, email, phoneNumber, countryCode, firstName, lastName, zentag, userType
-
-            );
-
-            request.setAttribute("authenticatedUser", authenticatedUser);
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(authenticatedUser, null, Collections.emptyList());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            filterChain.doFilter(request, response);
+            authenticatedUser = authenticate(authHeader.substring(7));
         } catch (ExpiredJwtException e) {
             writeUnauthorized(response, "Token expired");
+            return;
         } catch (JwtException | IllegalArgumentException | NullPointerException e) {
             // A null/malformed claim must degrade to 401, never to a 500 that
             // aborts the filter chain (a 500 here blocked every authenticated
             // endpoint, i.e. no data could load at all).
             writeUnauthorized(response, "Invalid token");
+            return;
         }
+
+        request.setAttribute("authenticatedUser", authenticatedUser);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(authenticatedUser, null, Collections.emptyList()));
+
+        // Outside the try on purpose: an error thrown by the endpoint itself must never be
+        // reported to the client as an "Invalid token"
+        filterChain.doFilter(request, response);
+    }
+
+    private AuthenticatedUser authenticate(String token) {
+        Claims claims = jwtService.parseAndValidate(token);
+        // The role is stored under the "userType" claim (see JwtService#generateToken). Tokens
+        // without it (the retired Node.js layer's tokens) fall back to APP_USER.
+        String userTypeClaim = claims.get("userType", String.class);
+        Datatypes.UserType userType = userTypeClaim == null
+                ? Datatypes.UserType.APP_USER
+                : Datatypes.UserType.valueOf(userTypeClaim);
+        return new AuthenticatedUser(
+                UUID.fromString(claims.getSubject()),
+                claims.get("email", String.class),
+                claims.get("phoneNumber", String.class),
+                claims.get("countryCode", String.class),
+                claims.get("firstName", String.class),
+                claims.get("lastName", String.class),
+                claims.get("zentag", String.class),
+                userType);
     }
 
     // 401 in the standard {success, message, data} envelope so the app can parse it like any other response

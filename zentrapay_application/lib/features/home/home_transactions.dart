@@ -46,12 +46,15 @@ class HomeTransactions extends StatelessWidget {
             // final String date = "$dateOnly • $timeOnly";
             final amount = item["amount"] ?? "Unknown";
             final icon = item["icon"] ?? Icons.receipt_long;
+            final success =
+                item['success'].toString().toLowerCase() == "success";
 
             return TransactionListItem(
               icon: icon,
               title: title,
               subtitle: date,
               amount: amount,
+              success: success,
               onTap: () => _showTransactionDetails(context, item),
             );
           }).toList(),

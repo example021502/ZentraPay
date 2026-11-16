@@ -122,7 +122,6 @@ class PaymentController {
         () => PaymentsService.payment(payload: payload),
         message: "Processing payment…",
       );
-      debugPrint("============= THE TRANSACTION RESULT:: $transaction");
       _syncAfterAttempt();
       if (!context.mounted) return;
       // payment() hands back {'data': AppTransaction, 'message': String}; a

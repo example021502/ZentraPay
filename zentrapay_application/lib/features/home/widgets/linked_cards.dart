@@ -222,6 +222,7 @@ class _LinkedCardsState extends State with TickerProviderStateMixin {
           ),
         );
       },
-    );
+      // A controller handed to the sheet is not disposed by the route
+    ).whenComplete(customAnimationController.dispose);
   }
 }

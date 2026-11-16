@@ -58,7 +58,9 @@ public class KycVerificationService {
     // User side: has everything required been provided?
     // ====================================================================
 
-    /** What is still missing from the profile; empty means it can be reviewed. */
+    /**
+     * What is still missing from the profile; empty means it can be reviewed.
+     */
     public List<String> missingRequirements(UserProfileModel p) {
         List<String> missing = new ArrayList<>();
         if (p == null) {
@@ -91,7 +93,7 @@ public class KycVerificationService {
      */
     @Transactional
     public UserProfileModel checkSubmission(UUID userId, boolean documentsChanged) {
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        UserProfileModel profile = userProfileRepository.getByUserId(userId);
         if (profile == null) {
             return null;
         }
@@ -183,7 +185,9 @@ public class KycVerificationService {
         return toSubmission(user, profile);
     }
 
-    /** The documents do not check out: the user is told why and can resubmit. */
+    /**
+     * The documents do not check out: the user is told why and can resubmit.
+     */
     @Transactional
     public KycReviewDTOs.Submission reject(Datatypes.UserType callerType, UUID officerId, UUID userId, String reason) {
         requireOfficer(callerType);
@@ -234,7 +238,7 @@ public class KycVerificationService {
     }
 
     private UserProfileModel requireProfile(UUID userId) {
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        UserProfileModel profile = userProfileRepository.getByUserId(userId);
         if (profile == null) {
             throw new ResourceNotFoundException("This user has not submitted a profile");
         }

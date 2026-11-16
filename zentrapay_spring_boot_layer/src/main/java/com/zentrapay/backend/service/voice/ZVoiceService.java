@@ -2,14 +2,12 @@ package com.zentrapay.backend.service.voice;
 
 import com.zentrapay.backend.dto.voice.VoiceDTOs.VoiceCommandRequestDTO;
 import com.zentrapay.backend.dto.voice.VoiceDTOs.VoiceCommandResponseDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.FraudAlert;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.VoiceCommandModel;
-import com.zentrapay.backend.repository.FiatAccountRepository;
-import com.zentrapay.backend.repository.FiatWalletRepository;
 import com.zentrapay.backend.repository.FraudAlertRepository;
 import com.zentrapay.backend.repository.TransactionRepository;
+import com.zentrapay.backend.repository.VirtualAccountRepository;
 import com.zentrapay.backend.repository.VoiceCommandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,10 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -47,11 +43,9 @@ public class ZVoiceService {
             "(tell|read|say|show|give|what'?s|what is|repeat|reveal|share|send)\\b.{0,30}\\b(pin|password|passcode|otp|cvv|one[- ]time|secret)");
 
     private final VoiceCommandRepository voiceCommandRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final FiatAccountRepository fiatAccountRepository;
     private final TransactionRepository transactionRepository;
     private final FraudAlertRepository fraudAlertRepository;
-
+    private final VirtualAccountRepository accounts;
     // ------------------------------------------------------------------
     // Record an instruction
     // ------------------------------------------------------------------
@@ -157,37 +151,30 @@ public class ZVoiceService {
         return switch (intent) {
             case "BALANCE" -> balanceReply(userId);
             case "HISTORY" -> historyReply(userId);
-            case "SEND_MONEY" -> "I have noted that you want to send money. For your security I cannot move money by voice: "
-                    + "open Send Money, pick who to pay and confirm with your PIN. Use ZRemit for people in another country.";
-            case "PAY_BILL" -> "I have noted that you want to pay a bill. Open Pay, search the provider and confirm with your PIN.";
-            case "SECURITY" -> "Your account is protected by your PIN and fraud monitoring. Never share your PIN, password or codes with anyone. "
-                    + "Open Settings, then Security, to review recent activity and alerts.";
-            case "HELP" -> "I can tell you your balance and latest activity, and guide you to send money, pay bills or check security. "
-                    + "Just ask, for example: What is my balance?";
+            case "SEND_MONEY" ->
+                    "I have noted that you want to send money. For your security I cannot move money by voice: "
+                            + "open Send Money, pick who to pay and confirm with your PIN. Use ZRemit for people in another country.";
+            case "PAY_BILL" ->
+                    "I have noted that you want to pay a bill. Open Pay, search the provider and confirm with your PIN.";
+            case "SECURITY" ->
+                    "Your account is protected by your PIN and fraud monitoring. Never share your PIN, password or codes with anyone. "
+                            + "Open Settings, then Security, to review recent activity and alerts.";
+            case "HELP" ->
+                    "I can tell you your balance and latest activity, and guide you to send money, pay bills or check security. "
+                            + "Just ask, for example: What is my balance?";
             case "GREETING" -> "Hello! How can I help you today? You can ask about your balance or recent activity.";
-            default -> "I have saved that. I can help with your balance, recent activity, sending money, bills and security. "
-                    + "Try asking: What is my balance?";
+            default ->
+                    "I have saved that. I can help with your balance, recent activity, sending money, bills and security. "
+                            + "Try asking: What is my balance?";
         };
     }
 
     private String balanceReply(UUID userId) {
-        return fiatWalletRepository.getWalletByUserId(userId)
-                .map(wallet -> {
-                    List<FiatAccountModel> accounts = fiatAccountRepository.findByWalletId(wallet.getWalletId());
-                    if (accounts.isEmpty()) {
-                        return "You do not have any account yet.";
-                    }
-                    StringBuilder reply = new StringBuilder("Your balance is ");
-                    for (int i = 0; i < accounts.size(); i++) {
-                        FiatAccountModel a = accounts.get(i);
-                        if (i > 0) {
-                            reply.append(i == accounts.size() - 1 ? " and " : ", ");
-                        }
-                        reply.append(a.getCurrencyCode()).append(' ').append(a.getBalance().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
-                    }
-                    return reply.append('.').toString();
-                })
-                .orElse("I could not find your wallet.");
+        Optional<BigDecimal> balance = accounts.getBalanceByUserId(userId);
+        if (balance.isEmpty()) {
+            return "Could not load your current balance";
+        }
+        return balance.toString();
     }
 
     private String historyReply(UUID userId) {

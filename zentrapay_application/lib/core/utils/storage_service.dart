@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:zentrapay_application/core/utils/notifier.dart';
+import 'package:zentrapay_application/core/utils/http_adapter.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
 
 class SecureStorageService {
@@ -167,145 +167,57 @@ class SecureStorageService {
   }
 
   // ============================================================================
-  // Customer Data Storage (for Paystack/Flutterwave failover persistence)
+  // Leftover gateway-customer keys
   // ============================================================================
 
-  static const String _customerGatewayKey = 'customer_gateway';
-  static const String _customerCustomerIdKey = 'customer_customer_id';
-  static const String _customerEmailKey = 'customer_email';
-  static const String _customerDisplayNameKey = 'customer_display_name';
-  static const String _customerPhoneKey = 'customer_phone';
-  static const String _customerMetadataKey = 'customer_metadata';
+  // The app no longer stores a gateway customer; these keys only exist on devices
+  // that ran an older build, and are wiped on logout so nothing stays behind.
+  static const List<String> _legacyCustomerKeys = [
+    'customer_gateway',
+    'customer_customer_id',
+    'customer_email',
+    'customer_display_name',
+    'customer_phone',
+    'customer_metadata',
+  ];
 
-  /// Saves the gateway customer result to secure storage after successful
-  /// customer creation (either primary Paystack or failover Flutterwave).
-  ///
-  /// [metadata] is JSON-encoded before being written, so any value that
-  /// isn't natively JSON-encodable (model objects, for instance) is coerced
-  /// to its `toString()` form first — `json.encode` would otherwise throw
-  /// and abort the whole save.
-  static Future<void> saveCustomer({
-    required String gateway,
-    required String customerId,
-    required String email,
-    required String displayName,
-    required String phone,
-    required Map<String, dynamic> metadata,
-  }) async {
-    try {
-      await _secureStorage.write(key: _customerGatewayKey, value: gateway);
-      await _secureStorage.write(
-        key: _customerCustomerIdKey,
-        value: customerId,
-      );
-      await _secureStorage.write(key: _customerEmailKey, value: email);
-      await _secureStorage.write(
-        key: _customerDisplayNameKey,
-        value: displayName,
-      );
-      await _secureStorage.write(key: _customerPhoneKey, value: phone);
-      await _secureStorage.write(
-        key: _customerMetadataKey,
-        value: json.encode(_jsonSafeMap(metadata)),
-      );
-      debugPrint('Customer data saved to secure storage successfully');
-    } catch (e) {
-      debugPrint('Failed to save customer data: $e');
-      rethrow;
-    }
-  }
-
-  /// Recursively coerces [value] into something `json.encode` accepts.
-  ///
-  /// Maps and lists are walked; primitives pass through; anything else
-  /// (custom model instances, for example) falls back to `toString()`.
-  static Object? _jsonSafeValue(Object? value) {
-    if (value == null || value is num || value is bool || value is String) {
-      return value;
-    }
-    if (value is Map) {
-      return _jsonSafeMap(Map<String, dynamic>.from(value));
-    }
-    if (value is Iterable) {
-      return value.map(_jsonSafeValue).toList();
-    }
-    return value.toString();
-  }
-
-  /// Applies [_jsonSafeValue] to every entry of [map].
-  static Map<String, dynamic> _jsonSafeMap(Map<String, dynamic> map) {
-    return map.map((key, value) => MapEntry(key, _jsonSafeValue(value)));
-  }
-
-  /// Retrieves the gateway customer result from secure storage.
-  ///
-  /// [FlutterSecureStorage.read] is asynchronous, so this returns a Future.
-  /// Returns `null` when nothing has been persisted yet.
-  static Future<Map<String, String>?> getCustomer() async {
-    try {
-      final Map<String, String?> data = {
-        'gateway': await _secureStorage.read(key: _customerGatewayKey),
-        'customerId': await _secureStorage.read(key: _customerCustomerIdKey),
-        'email': await _secureStorage.read(key: _customerEmailKey),
-        'displayName': await _secureStorage.read(key: _customerDisplayNameKey),
-        'phone': await _secureStorage.read(key: _customerPhoneKey),
-        'metadata': await _secureStorage.read(key: _customerMetadataKey),
-      };
-
-      // Filter out null values and return only meaningful data
-      final Map<String, String> result = {};
-      for (final entry in data.entries) {
-        if (entry.value != null) {
-          result[entry.key] = entry.value!;
-        }
-      }
-      return result.isNotEmpty ? result : null;
-    } catch (e) {
-      debugPrint('Failed to get customer data: $e');
-      return null;
-    }
-  }
-
-  /// Clears the saved customer data from secure storage.
+  /// Removes the leftover gateway-customer keys of older builds.
   static Future<void> clearCustomer() async {
-    try {
-      await _secureStorage.delete(key: _customerGatewayKey);
-      await _secureStorage.delete(key: _customerCustomerIdKey);
-      await _secureStorage.delete(key: _customerEmailKey);
-      await _secureStorage.delete(key: _customerDisplayNameKey);
-      await _secureStorage.delete(key: _customerPhoneKey);
-      await _secureStorage.delete(key: _customerMetadataKey);
-      debugPrint('Customer data cleared from secure storage');
-    } catch (e) {
-      debugPrint('Failed to clear customer data: $e');
-      rethrow;
+    for (final key in _legacyCustomerKeys) {
+      await _secureStorage.delete(key: key);
     }
   }
 
-  static Future<void> refreshToken() async {
-    final dio = ApiClient().dio;
+  static Future<bool?>? _refreshing;
 
-    Future<void> refresh() async {
-      try {
-        final result = await dio.post(
-          '/api/users/refresh',
-          options: Options(headers: {"Authorization": "Bearer ${getToken()}"}),
-        );
+  /// Swaps the saved token for a fresh one (`POST /api/users/refresh` accepts a token that
+  /// expired up to 30 days ago). Callers that arrive while a refresh is running share it.
+  ///
+  /// `true`  - a new token is saved; `false` - the server refused (session really over);
+  /// `null`  - the server could not be reached, so nothing is known: do NOT sign the user out.
+  static Future<bool?> refreshToken() =>
+      _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
 
-        debugPrint("REFRESH TOKEN:: $result");
-        if (!result.data['success']) {
-          return debugPrint("ERROR:: ${result.data['message']}");
-        }
-        final newToken = result.data["data"]["token"];
-        await deleteToken();
-        await saveToken(newToken);
-        ZentraNotifier.success("Success", "Token refreshed!");
-      } on DioException catch (e) {
-        debugPrint("ERROR:: $e");
-        rethrow;
-      }
+  static Future<bool?> _refresh() async {
+    final token = getToken();
+    if (token == null || token.isEmpty) return false;
+    try {
+      // A bare client: this call must not go through the interceptor that triggers refreshes
+      final bare = Dio(ApiClient().dio.options)
+        ..httpClientAdapter = createHttpAdapter();
+      final result = await bare.post(
+        '/api/users/refresh',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final newToken = result.data?['data']?['token'];
+      if (result.data?['success'] != true || newToken is! String) return false;
+      // Only the token changes; the saved identity (name, userId...) stays valid
+      await saveToken(newToken);
+      return true;
+    } on DioException catch (e) {
+      return e.response == null ? null : false;
+    } catch (_) {
+      return false;
     }
-
-    await refresh();
   }
 }

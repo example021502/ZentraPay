@@ -2,7 +2,7 @@ package com.zentrapay.backend.controller;
 
 import com.zentrapay.backend.dto.common.ApiResponse;
 import com.zentrapay.backend.dto.wallet.*;
-import com.zentrapay.backend.service.wallet.WalletsAccountsServices;
+import com.zentrapay.backend.service.wallet.VirtualAccountServices;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -27,19 +27,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WalletsAccountsController {
 
-    private final WalletsAccountsServices walletsServices;
+    private final VirtualAccountServices virtualAccountServices;
 
     @GetMapping("/balances")
     public ResponseEntity<ApiResponse<AccountsBalancesResponseDTO>> getUserWallets(@CurrentUser AuthenticatedUser user) {
-        AccountsBalancesResponseDTO balances = walletsServices.getUserBalances(user.getUserId());
+        AccountsBalancesResponseDTO balances = virtualAccountServices.getUserBalances(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(balances, "Wallets retrieved"));
     }
 
     @PostMapping("/newFiat")
-    public ResponseEntity<ApiResponse<FiatAccountDTO>> createFiatWallet(
+    public ResponseEntity<ApiResponse<VirtualAccountDTO>> createFiatWallet(
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody CreateFiatAccountRequest request) {
-        FiatAccountDTO account = walletsServices.createFiatAccount(user.getUserId(), request);
+        VirtualAccountDTO account = virtualAccountServices.createFiatAccount(user.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success(account, "Account created!"));
     }
 
@@ -47,7 +47,7 @@ public class WalletsAccountsController {
     public ResponseEntity<ApiResponse<List<SupportedCurrencyDTO>>> getSupportedCurrencies(
             @CurrentUser AuthenticatedUser user
     ) {
-        List<SupportedCurrencyDTO> currencies = walletsServices.getSupportedCurrencies(user.getUserId());
+        List<SupportedCurrencyDTO> currencies = virtualAccountServices.getSupportedCurrencies(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(currencies, "Supported currencies retrieved"));
     }
 }

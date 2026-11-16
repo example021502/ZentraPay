@@ -152,6 +152,7 @@ class _HomeWalletMainState extends State<HomeWalletMain> {
                             ? Icons.call_received_rounded
                             : Icons.call_made_rounded,
                         'type': t.transactionType,
+                        'success': t.status,
                         // Full record so the details sheet can offer
                         // "Send Again" and show the real status/reference.
                         'transaction': t,
