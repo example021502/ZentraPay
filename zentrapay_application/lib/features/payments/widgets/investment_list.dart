@@ -48,7 +48,7 @@ class _InvestmentListState extends State<InvestmentList> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() => _sellingId = investment.investmentId);
     try {

@@ -7,7 +7,7 @@ import java.util.List;
  * WalletsSnapshot / API_CONTRACT.md se3: {fiatWallets:[...], cryptoWallets:[...]}.
  */
 public record AccountsBalancesResponseDTO(
-        List<FiatAccountDTO> fiatBalances,
+        List<VirtualAccountDTO> fiatBalances,
         List<CryptoAccountDTO> cryptoBalances
 ) {
 }

@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "This record conflicts with an existing one");
     }
 
-    // 400 - business-rule failures thrown as IllegalArgumentException / RuntimeException
+    // 400 - business-rule failures thrown as IllegalArgumentException / IllegalStateException
     // with a user-facing message (e.g. "Invalid PIN", "Insufficient balance")
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ApiResponse<Object>> handleBusiness(RuntimeException ex) {
@@ -112,10 +112,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, userSafe(ex.getMessage()));
     }
 
+    // Anything else that escapes is a bug on our side (a null, a failed cast, a broken query), not a
+    // mistake by the user: log it with the stack trace and answer 500 instead of blaming the request
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex) {
-        log.warn("Request failed: {}", ex.getMessage(), ex);
-        return build(HttpStatus.BAD_REQUEST, userSafe(ex.getMessage()));
+        log.error("Unexpected error", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, GENERIC_MESSAGE);
     }
 
     // Safety net - log the real cause, never leak it to the client

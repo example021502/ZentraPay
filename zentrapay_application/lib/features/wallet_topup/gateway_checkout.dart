@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:paystack_flutter_sdk/paystack_flutter_sdk.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:zentrapay_application/core/theme/app_theme.dart';
-import 'package:zentrapay_application/features/wallet_topup/models/responseEntities.dart';
+import 'package:zentrapay_application/features/wallet_topup/models/response_entities.dart';
 import 'package:zentrapay_application/features/wallet_topup/topup_service.dart';
 
 /// How a wallet top-up ended, as the BACKEND sees it (never as the gateway SDK claims).

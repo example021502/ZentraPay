@@ -88,7 +88,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-    if (picked != null) setState(() => _dateOfBirth = picked);
+    if (picked != null && mounted) setState(() => _dateOfBirth = picked);
   }
 
   Future<void> _save() async {
@@ -155,7 +155,7 @@ class _EditProfileContentState extends State<_EditProfileContent> {
       source: source,
       imageQuality: 85,
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
 
     setState(() => _uploading[type] = true);
     try {

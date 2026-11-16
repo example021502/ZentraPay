@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.common;
 
-import com.zentrapay.backend.repository.FiatAccountRepository;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.dto.payment.AccountDetailsDTO;
 import io.nayuki.qrcodegen.QrCode; // Added missing Nayuki import

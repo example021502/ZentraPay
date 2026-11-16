@@ -92,9 +92,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         hasFieldError = true;
       });
     }
-    if (_passwordController.text.trim().length < 6) {
+    if (_passwordController.text.trim().isNotEmpty &&
+        (_passwordController.text.trim().length < 8 ||
+            _passwordController.text.trim().length > 32)) {
       setState(() {
-        passwordError = "password too short! Atleast 6 characters!";
+        passwordError = "Your password needs 8 to 32 characters";
         hasFieldError = true;
       });
     }

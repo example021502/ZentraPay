@@ -42,8 +42,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
     _loadRates();
     WalletsRepository.instance.addListener(_onWallets);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted)
+      if (mounted) {
         WalletsRepository.instance.ensureLoaded().catchError((_) => null);
+      }
     });
   }
 

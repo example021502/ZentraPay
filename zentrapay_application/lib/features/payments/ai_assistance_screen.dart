@@ -81,6 +81,12 @@ class _AIAssistanceScreenState extends State<AIAssistanceScreen> {
   }
 
   @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.gray50,

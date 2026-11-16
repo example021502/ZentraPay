@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.savings;
 
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.SavingsGoalModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;

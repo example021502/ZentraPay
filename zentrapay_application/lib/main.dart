@@ -10,6 +10,7 @@ import 'package:zentrapay_application/core/theme/app_theme.dart';
 import 'package:zentrapay_application/core/theme/material_theme.dart';
 import 'package:zentrapay_application/core/theme/navigation_bar/responsive_navigation.dart';
 import 'package:zentrapay_application/core/theme/theme_controller.dart';
+import 'package:zentrapay_application/core/utils/app_navigator.dart';
 import 'package:zentrapay_application/core/utils/loading_overlay.dart';
 import 'package:zentrapay_application/core/utils/storage_service.dart';
 import 'package:zentrapay_application/features/auth/login_screen.dart';
@@ -128,6 +129,7 @@ class MainApp extends StatelessWidget {
           child: ListenableBuilder(
             listenable: ThemeController.instance,
             builder: (context, _) => MaterialApp(
+              navigatorKey: appNavigatorKey,
               debugShowCheckedModeBanner: false,
               theme: buildAppTheme(),
               // Mounts the app's one global "processing, please wait" barrier

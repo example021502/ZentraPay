@@ -16,7 +16,7 @@ library;
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
-import 'package:zentrapay_application/features/wallet_topup/models/responseEntities.dart';
+import 'package:zentrapay_application/features/wallet_topup/models/response_entities.dart';
 
 // ---------------------------------------------------------------------------
 // Endpoints — align these with your Spring Boot controller that hosts fundWallet

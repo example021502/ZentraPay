@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:zentrapay_application/core/models/saved_card.dart';
 import 'package:zentrapay_application/core/utils/interceptor.dart';
-import 'package:zentrapay_application/features/wallet_topup/models/responseEntities.dart';
+import 'package:zentrapay_application/features/wallet_topup/models/response_entities.dart';
 
 /// The user's saved (tokenized) cards: `GET/DELETE /api/cards/saved`, and charging one with
 /// `POST /api/topup/card`. The server holds the gateway token; the app only ever sees display details.

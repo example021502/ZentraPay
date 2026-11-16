@@ -5,6 +5,7 @@ import com.zentrapay.backend.dto.user.CredentialDTOs.ResetTokenDTO;
 import com.zentrapay.backend.entity.CredentialResetModel;
 import com.zentrapay.backend.entity.NotificationModel;
 import com.zentrapay.backend.entity.UserModel;
+import com.zentrapay.backend.security.AttemptLimiter;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.CredentialResetRepository;
 import com.zentrapay.backend.repository.NotificationRepository;
@@ -60,6 +61,8 @@ public class CredentialService {
     private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final PinService pinService;
+    private final AttemptLimiter attemptLimiter;
 
     @Value("${app.password.pepper}")
     private String passwordPepper;
@@ -76,9 +79,13 @@ public class CredentialService {
     @Transactional
     public void changePassword(UUID userId, String currentPassword, String newPassword) {
         UserModel user = requireUser(userId);
+        String limitKey = "pwd:" + userId;
+        attemptLimiter.requireNotLocked(limitKey);
         if (!passwordEncoder.matches(currentPassword + passwordPepper, user.getPasswordHash())) {
+            attemptLimiter.recordFailure(limitKey);
             throw new IllegalArgumentException("Your current password is not correct");
         }
+        attemptLimiter.recordSuccess(limitKey);
         requireValidPassword(newPassword);
         if (newPassword.equals(currentPassword)) {
             throw new IllegalArgumentException("Your new password must be different from the current one");
@@ -89,7 +96,8 @@ public class CredentialService {
     @Transactional
     public void changePin(UUID userId, String currentPin, String newPin) {
         UserModel user = requireUser(userId);
-        if (!passwordEncoder.matches(currentPin + pinPepper, user.getTransactionPinHash())) {
+        // PinService counts wrong guesses, so this endpoint cannot be used to brute-force the PIN
+        if (!pinService.matches(user, currentPin)) {
             throw new IllegalArgumentException("Your current PIN is not correct");
         }
         requireValidPin(newPin);

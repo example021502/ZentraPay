@@ -7,9 +7,7 @@ final dio = ApiClient().dio;
 // Logging in with proper backend error message extraction
 Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
   try {
-    debugPrint('LOGIN PAYLOAD: $form');
     final response = await dio.post('/api/users/login', data: form);
-    debugPrint('LOGIN RESPONSE DATA: ${response.data}');
 
     if (response.data is Map) {
       return Map<String, dynamic>.from(response.data);
@@ -32,8 +30,7 @@ Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
     // Fallback only if it's a true network/connection failure
     return {
       "success": false,
-      "message":
-          "Registration failed. Check your internet connection and try again.",
+      "message": "Login failed. Check your internet connection and try again.",
     };
   }
 }
@@ -41,9 +38,7 @@ Future<Map<String, dynamic>?> loginUser(Map<String, dynamic> form) async {
 // Registering new user with proper backend error message extraction
 Future<Map<String, dynamic>?> registerUser(Map<String, dynamic> form) async {
   try {
-    debugPrint('REGISTER PAYLOAD: $form');
     final response = await dio.post('/api/users/register', data: form);
-    debugPrint('REGISTER RESPONSE: ${response.data}');
 
     if (response.data is Map) {
       return Map<String, dynamic>.from(response.data);

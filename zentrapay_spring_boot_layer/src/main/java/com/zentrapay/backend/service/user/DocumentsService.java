@@ -74,7 +74,7 @@ public class DocumentsService {
             throw new IllegalStateException("File could not be uploaded, please try again later");
         }
 
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        UserProfileModel profile = userProfileRepository.getByUserId(userId);
         if (profile == null) {
             profile = new UserProfileModel();
             profile.setUserId(userId);
@@ -87,10 +87,12 @@ public class DocumentsService {
         kycVerificationService.checkSubmission(userId, true);
     }
 
-    /** The hosted URL of a document the caller uploaded earlier. */
+    /**
+     * The hosted URL of a document the caller uploaded earlier.
+     */
     public String retrieveUrl(UUID userId, String type) {
         String documentType = requireValidType(type);
-        UserProfileModel profile = userProfileRepository.getBtUserId(userId);
+        UserProfileModel profile = userProfileRepository.getByUserId(userId);
         String url = profile == null ? null : urlFor(profile, documentType);
         if (url == null || url.isBlank()) {
             throw new ResourceNotFoundException("No " + documentType + " document has been uploaded yet");

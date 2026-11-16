@@ -1,7 +1,6 @@
 package com.zentrapay.backend.service.loan;
 
 import com.zentrapay.backend.dto.loan.LoanDTOs.*;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.LoanModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
@@ -101,7 +100,7 @@ public class LoanService {
      */
     @Transactional(readOnly = true)
     public LoanEligibilityDTO eligibility(UUID userId) {
-        return evaluate(loadUser(userId), userProfileRepository.getBtUserId(userId),
+        return evaluate(loadUser(userId), userProfileRepository.getByUserId(userId),
                 loanRepository.findByUserIdOrderByAppliedAtDesc(userId));
     }
 
@@ -109,7 +108,7 @@ public class LoanService {
     public LoanDTO apply(UUID userId, LoanApplicationRequestDTO request) {
         log.info("Loan application from user {}", userId);
         UserModel user = loadUser(userId);
-        LoanEligibilityDTO eligibility = evaluate(user, userProfileRepository.getBtUserId(userId),
+        LoanEligibilityDTO eligibility = evaluate(user, userProfileRepository.getByUserId(userId),
                 loanRepository.findByUserIdOrderByAppliedAtDesc(userId));
         if (!eligibility.eligible()) {
             throw new IllegalArgumentException(eligibility.requirements().get(0));

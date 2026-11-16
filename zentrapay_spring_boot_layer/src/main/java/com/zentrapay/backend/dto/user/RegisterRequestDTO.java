@@ -2,20 +2,27 @@ package com.zentrapay.backend.dto.user;
 
 import jakarta.validation.constraints.*;
 
-import java.util.UUID;
-
 public record RegisterRequestDTO(
         @AssertTrue(message = "User consent to the terms of use is required") Boolean termsConsent,
-//        UUID privacyPolicyId,
-//        UUID termsOfUseId,
         @NotBlank(message = "First name is required") String firstName,
         @NotBlank(message = "Last name is required") String lastName,
-        @Email(message = "Invalid email format") String email,
+        @NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email,
         @NotBlank(message = "Phone number is required") String phoneNumber,
         @NotBlank(message = "Country code is required") String countryCode,
+        // Same rules as change / reset password (CredentialService), so a user is never
+        // allowed to register with a password they could not later set
         @NotBlank(message = "Password is required")
-        @Size(min = 6, message = "password has to be at least 6 characters long.")
+        @Size(min = 8, max = 32, message = "Your password must be 8 to 32 characters long")
         String password,
-        @NotBlank(message = "PIN is required") String pin
+        @NotBlank(message = "PIN is required")
+        @Pattern(regexp = "\\d{4}", message = "Your PIN must be exactly 4 digits")
+        String pin
 ) {
+    /**
+     * Never print the password or PIN: a record's default toString would put both in the logs.
+     */
+    @Override
+    public String toString() {
+        return "RegisterRequestDTO[email=" + email + ", phoneNumber=" + phoneNumber + ", countryCode=" + countryCode + "]";
+    }
 }

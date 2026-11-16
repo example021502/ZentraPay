@@ -326,7 +326,6 @@ class RewardsRepository extends ChangeNotifier {
   /// The actual network call.
   Future<RewardsList> fetch() async {
     final response = await _dio.get('/api/zgrow/rewards');
-    debugPrint("REWARDS ARE:: ${response.data['data']}");
     return RewardsList.fromJson(response.data['data']);
   }
 
@@ -390,7 +389,6 @@ class TutorialsRepository extends ChangeNotifier {
   /// The actual network call.
   Future<TutorialsList> fetch() async {
     final response = await _dio.get('/api/zgrow/tutorials');
-    debugPrint("TUTORIALS ARE:: ${response.data['data']}");
     final raw = response.data['data'];
     final List<dynamic> list = raw is List ? raw : const [];
     return TutorialsList.fromJson(list);
@@ -596,7 +594,6 @@ class FundingSourcesRepository extends ChangeNotifier {
   /// The actual network call.
   Future<FundingSources> fetch() async {
     final response = await _dio.get('/api/zgrow/sources');
-    print("SOURCES ARE:: ${response.data['data']}");
     return FundingSources.fromJson(response.data['data']);
   }
 

@@ -5,8 +5,6 @@ import com.zentrapay.backend.dto.payment.GatewayCustomerDTO;
 import com.zentrapay.backend.dto.payment.CheckoutResponseDTO;
 import com.zentrapay.backend.dto.payment.GatewayChargeStatus;
 import com.zentrapay.backend.dto.payment.TopupVerifyDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
-import com.zentrapay.backend.entity.FiatWalletModel;
 import com.zentrapay.backend.entity.GatewayCustomerModel;
 import com.zentrapay.backend.entity.GatewayModel;
 import com.zentrapay.backend.entity.BanksModel;
@@ -16,9 +14,7 @@ import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.BanksRepository;
-import com.zentrapay.backend.repository.FiatAccountRepository;
 import com.zentrapay.backend.repository.UserBankRepository;
-import com.zentrapay.backend.repository.FiatWalletRepository;
 import com.zentrapay.backend.repository.TransactionRepository;
 import com.zentrapay.backend.repository.UserRepository;
 import com.zentrapay.backend.service.common.Datatypes;
@@ -152,7 +148,8 @@ public class WalletFundingService {
                     case PAYSTACK -> paystackServices.initializeCheckout(user.getEmail(), money, currency, reference);
                     case FLUTTERWAVE -> flutterwaveServices.initializeCheckout(user.getEmail(),
                             user.getFirstName() + " " + user.getLastName(), user.getPhoneNumber(), money, currency, reference);
-                    default -> throw new PaymentGatewayException("Checkout is not available on " + gateway.getProviderName());
+                    default ->
+                            throw new PaymentGatewayException("Checkout is not available on " + gateway.getProviderName());
                 };
                 return new CheckoutResponseDTO(checkout.accessCode(), reference, checkout.checkoutUrl(), gateway.getProviderName());
             } catch (PaymentGatewayException e) {

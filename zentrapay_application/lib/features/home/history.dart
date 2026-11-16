@@ -145,7 +145,6 @@ class _PaymentHistoryState extends State<PaymentHistory> {
 
                     if (displayed.isEmpty) {
                       final err = repo.error;
-                      print("FAILED TO LOAD THE HISTORY:: $err");
                       return Container(
                         alignment: Alignment.center,
                         height: 100,

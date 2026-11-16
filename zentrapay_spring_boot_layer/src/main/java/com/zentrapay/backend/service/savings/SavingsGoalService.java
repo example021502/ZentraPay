@@ -4,7 +4,6 @@ import com.zentrapay.backend.dto.savings.SavingsGoalDTOs.ActivityDTO;
 import com.zentrapay.backend.dto.savings.SavingsGoalDTOs.CreateGoalRequest;
 import com.zentrapay.backend.dto.savings.SavingsGoalDTOs.DeletedGoalDTO;
 import com.zentrapay.backend.dto.savings.SavingsGoalDTOs.GoalDTO;
-import com.zentrapay.backend.entity.FiatAccountModel;
 import com.zentrapay.backend.entity.SavingsGoalModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
@@ -68,7 +67,9 @@ public class SavingsGoalService {
 
     // ----------------------------------------------------------------- writes
 
-    /** Creates a goal and, when {@code initialDeposit} is given, funds it from the wallet right away. */
+    /**
+     * Creates a goal and, when {@code initialDeposit} is given, funds it from the wallet right away.
+     */
     public GoalDTO create(UUID userId, CreateGoalRequest req) {
         UserModel user = activeUser(userId);
         String name = req.savingsName() == null ? "" : req.savingsName().trim();
@@ -112,12 +113,16 @@ public class SavingsGoalService {
         return toDto(saved);
     }
 
-    /** Moves {@code amount} from the user's wallet account into the goal. */
+    /**
+     * Moves {@code amount} from the user's wallet account into the goal.
+     */
     public GoalDTO deposit(UUID userId, UUID goalId, BigDecimal rawAmount) {
         return deposit(userId, goalId, rawAmount, false);
     }
 
-    /** {@code auto} = the scheduled save (shown as "Auto-save" in the activity list), not a tap by the user. */
+    /**
+     * {@code auto} = the scheduled save (shown as "Auto-save" in the activity list), not a tap by the user.
+     */
     private GoalDTO deposit(UUID userId, UUID goalId, BigDecimal rawAmount, boolean auto) {
         UserModel user = activeUser(userId);
         BigDecimal amount = positive(rawAmount);
@@ -163,7 +168,9 @@ public class SavingsGoalService {
         }
     }
 
-    /** Moves {@code amount} from the goal back to the user's wallet account. */
+    /**
+     * Moves {@code amount} from the goal back to the user's wallet account.
+     */
     public GoalDTO withdraw(UUID userId, UUID goalId, BigDecimal rawAmount) {
         UserModel user = activeUser(userId);
         BigDecimal amount = positive(rawAmount);
@@ -201,7 +208,9 @@ public class SavingsGoalService {
 
     // ------------------------------------------------------------ freeze / auto-save / delete
 
-    /** Stops all saving into the goal (manual and automatic) for 1 to 7 days. Withdrawing stays possible. */
+    /**
+     * Stops all saving into the goal (manual and automatic) for 1 to 7 days. Withdrawing stays possible.
+     */
     public GoalDTO freeze(UUID userId, UUID goalId, int days) {
         if (days < 1 || days > MAX_FREEZE_DAYS) {
             throw new IllegalArgumentException("A goal can be frozen for 1 to " + MAX_FREEZE_DAYS + " days");
@@ -224,7 +233,9 @@ public class SavingsGoalService {
         }));
     }
 
-    /** Ends a freeze early. Unfreezing a goal that is not frozen changes nothing. */
+    /**
+     * Ends a freeze early. Unfreezing a goal that is not frozen changes nothing.
+     */
     public GoalDTO unfreeze(UUID userId, UUID goalId) {
         ownedGoal(userId, goalId);
         return toDto(tx.execute(status -> {
@@ -235,7 +246,9 @@ public class SavingsGoalService {
         }));
     }
 
-    /** Turns on (or changes) the automatic save: {@code amount} every day / week / month, first one a full period from now. */
+    /**
+     * Turns on (or changes) the automatic save: {@code amount} every day / week / month, first one a full period from now.
+     */
     public GoalDTO setAutoSave(UUID userId, UUID goalId, BigDecimal rawAmount, String rawFrequency) {
         BigDecimal amount = positive(rawAmount);
         Frequency frequency = Frequency.parse(rawFrequency);
@@ -255,7 +268,9 @@ public class SavingsGoalService {
         }));
     }
 
-    /** Turns the automatic save off. The amount and period are kept so turning it back on is one tap. */
+    /**
+     * Turns the automatic save off. The amount and period are kept so turning it back on is one tap.
+     */
     public GoalDTO disableAutoSave(UUID userId, UUID goalId) {
         ownedGoal(userId, goalId);
         return toDto(tx.execute(status -> {
@@ -316,7 +331,9 @@ public class SavingsGoalService {
 
     // --------------------------------------------------------------- activity
 
-    /** The user's most recent goal deposits, withdrawals and automatic saves (refused ones included), newest first. */
+    /**
+     * The user's most recent goal deposits, withdrawals and automatic saves (refused ones included), newest first.
+     */
     @Transactional(readOnly = true)
     public List<ActivityDTO> recentActivity(UUID userId, int limit) {
         int size = Math.min(Math.max(limit, 1), 100);
@@ -389,7 +406,9 @@ public class SavingsGoalService {
     private static final int MAX_FREEZE_DAYS = 7;
     private static final DateTimeFormatter FROZEN_FORMAT = DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm");
 
-    /** How often the automatic save runs. */
+    /**
+     * How often the automatic save runs.
+     */
     enum Frequency {
         DAILY, WEEKLY, MONTHLY;
 
