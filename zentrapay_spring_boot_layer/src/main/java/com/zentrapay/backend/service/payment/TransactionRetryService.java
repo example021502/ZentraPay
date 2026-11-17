@@ -2,7 +2,7 @@ package com.zentrapay.backend.service.payment;
 
 import com.zentrapay.backend.dto.payment.RetryDTOs.RetryCheckDTO;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
-import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
+import com.zentrapay.backend.dto.transaction.TransactionDTO;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
@@ -52,7 +52,7 @@ public class TransactionRetryService {
     /**
      * Re-checks both parties, verifies the PIN and makes the payment again.
      */
-    public TransactionTransactionDTO retry(UUID userId, UUID transactionId, String pin) {
+    public TransactionDTO retry(UUID userId, UUID transactionId, String pin) {
         Evaluation e = evaluate(userId, transactionId);
         if (!e.check().retryable()) {
             throw new IllegalArgumentException(e.check().message());

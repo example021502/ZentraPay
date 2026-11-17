@@ -2,7 +2,7 @@ package com.zentrapay.backend.service.transaction;
 
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.repository.TransactionRepository;
-import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
+import com.zentrapay.backend.dto.transaction.TransactionDTO;
 import com.zentrapay.backend.dto.transaction.TransactionPageDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -46,10 +46,10 @@ public class TransactionsQueryService {
      * One transaction as the app shows it. Also used as the response of a payment,
      * so the payment result and the history row always have the same shape.
      */
-    public TransactionTransactionDTO toDto(TransactionModel t, UUID userId) {
+    public TransactionDTO toDto(TransactionModel t, UUID userId) {
         // On money coming IN the "other party" is the sender, not the user themselves
         boolean credit = _isCredit(t, userId);
-        return new TransactionTransactionDTO(
+        return new TransactionDTO(
                 t.getTransactionId(),
                 t.getReceiverId(),
                 // The client shows/quotes internalReferenceId as TXN_Ref.
@@ -94,5 +94,23 @@ public class TransactionsQueryService {
     // True when the user is the receiver of this transaction
     private boolean _isCredit(TransactionModel t, UUID userId) {
         return t.getReceiverId() != null && userId.equals(t.getReceiverId());
+    }
+
+    public TransactionDTO getTransactionByIdempotencyKeyAndSenderId(String key, UUID userId) {
+        return transactionRepository.getByIdempotencyKeyAndSenderId(key, userId)
+                .stream().(t -> new TransactionDTO(
+                t.getTransactionId(),
+                t.getReceiverId(),
+                t.getInternalReferenceId(),
+                t.getDestinationIdentifier(),
+                _resolveSignedAmount(t, userId),
+                t.getStatus(),
+                t.getReceiverName(),
+                t.getReceiverPhoneNumber(),
+                t.getCreatedAt(),
+                t.getTransactionType(),
+                t.getFailureReason(),
+                t.getPurpose()
+        ));
     }
 }

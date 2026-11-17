@@ -7,7 +7,6 @@ import com.zentrapay.backend.entity.MobileMoneyGatewayMappingsModel;
 import com.zentrapay.backend.entity.MobileMoneyProvidersModel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.BillProviderRepository;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.MobileMoneyGatewayMappingsRepository;
 import com.zentrapay.backend.repository.MobileMoneyRepository;
 import com.zentrapay.backend.dto.schedules.FlutterwaveBankResponseDTO;
@@ -27,7 +26,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashSet;
@@ -178,7 +176,9 @@ public class ProviderSyncService {
             "RW", "rwanda",
             "EG", "egypt");
 
-    /** The name Paystack uses for this country, or null when Paystack does not operate there. */
+    /**
+     * The name Paystack uses for this country, or null when Paystack does not operate there.
+     */
     static String paystackCountryName(String countryCode) {
         return countryCode == null ? null : PAYSTACK_COUNTRIES.get(countryCode.trim().toUpperCase());
     }

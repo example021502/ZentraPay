@@ -31,8 +31,8 @@ import java.util.UUID;
 public record TransactionRequest(
         @NotBlank(message = "PIN missing!")
         String pin,
-        @NotBlank(message = "Transaction reference missing!")
-        String TXN_Ref,
+        @NotBlank(message = "Idempotency key missing!")
+        String idempotencyKey,
         @NotNull(message = "Transfer details missing!")
         @Valid
         TransferDetails transfer,

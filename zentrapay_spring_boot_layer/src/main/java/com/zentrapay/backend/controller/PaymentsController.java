@@ -8,7 +8,7 @@ import com.zentrapay.backend.dto.payment.TransactionRequest;
 import com.zentrapay.backend.service.payment.TransactionRetryService;
 import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
 import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
-import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
+import com.zentrapay.backend.dto.transaction.TransactionDTO;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
 import com.zentrapay.backend.service.common.Datatypes;
@@ -52,10 +52,10 @@ public class PaymentsController {
      * Sends money. The signed-in user is the sender.
      */
     @PostMapping({"/initialize", "/pay"})
-    public ResponseEntity<ApiResponse<TransactionTransactionDTO>> initialize(
+    public ResponseEntity<ApiResponse<TransactionDTO>> initialize(
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody TransactionRequest request) {
-        TransactionTransactionDTO transaction = paymentServices.initialize(user.getUserId(), request);
+        TransactionDTO transaction = paymentServices.initialize(user.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
     }
 
@@ -73,10 +73,10 @@ public class PaymentsController {
      * Retry, step 2: with the PIN, checks again and makes the payment again.
      */
     @PostMapping("/retry/{transactionId}")
-    public ResponseEntity<ApiResponse<TransactionTransactionDTO>> retry(
+    public ResponseEntity<ApiResponse<TransactionDTO>> retry(
             @CurrentUser AuthenticatedUser user, @PathVariable UUID transactionId,
             @Valid @RequestBody RetryDTOs.RetryRequest request) {
-        TransactionTransactionDTO transaction = transactionRetryService.retry(user.getUserId(), transactionId, request.pin());
+        TransactionDTO transaction = transactionRetryService.retry(user.getUserId(), transactionId, request.pin());
         return ResponseEntity.ok(ApiResponse.success(transaction, messageFor(transaction)));
     }
 
@@ -130,7 +130,7 @@ public class PaymentsController {
     }
 
     // Message shown to the user: instant payments are done, bank payouts are still on their way
-    private String messageFor(TransactionTransactionDTO transaction) {
+    private String messageFor(TransactionDTO transaction) {
         return transaction.status() == Datatypes.TransactionStatus.SUCCESS
                 ? "Payment successful"
                 : "Payment submitted. We will notify you once it is complete.";

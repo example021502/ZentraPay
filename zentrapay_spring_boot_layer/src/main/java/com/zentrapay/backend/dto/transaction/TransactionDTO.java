@@ -18,7 +18,7 @@ import java.util.UUID;
  * with the currency code folded in. The client keys its credit/debit colors,
  * icons and "Send Again" visibility off that leading sign.
  */
-public record TransactionTransactionDTO(
+public record TransactionDTO(
         UUID transactionId,
         UUID receiverId,
         // Ledger's unique, human-quotable reference (internalReferenceId on

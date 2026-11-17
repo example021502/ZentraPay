@@ -7,9 +7,10 @@ public class NanoIdGenerator {
     private static final String DEFAULT_ALPHABET = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    public static String generate(String prefix) {
-        return prefix + randomNanoId(DEFAULT_ALPHABET, 21);
+    public static String generate(String prefix, int size) {
+        return prefix + randomNanoId(DEFAULT_ALPHABET, size);
     }
+
     // Comment: Custom alphabet and length generator
     public static String randomNanoId(String alphabet, int size) {
         StringBuilder builder = new StringBuilder(size);

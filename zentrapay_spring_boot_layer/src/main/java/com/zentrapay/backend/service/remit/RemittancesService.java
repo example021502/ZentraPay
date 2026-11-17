@@ -469,9 +469,9 @@ public class RemittancesService {
     }
 
     // The destination country must be present AND active in the gateway directory
-    private GatewayCountryModel requireActiveCountry(String countryCode) {
+    private CountriesModel requireActiveCountry(String countryCode) {
         return gatewayCountriesRepository.findFirstByCountryCode(countryCode.toUpperCase())
-                .filter(GatewayCountryModel::isActive)
+                .filter(CountriesModel::isActive)
                 .orElseThrow(() -> new IllegalArgumentException("We currently don't support remittances to "
                         + countryCode.toUpperCase() + ". Please choose another destination country"));
     }

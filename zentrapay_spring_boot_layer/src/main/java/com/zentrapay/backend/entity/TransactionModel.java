@@ -57,6 +57,9 @@ public class TransactionModel {
     @Column(name = "external_reference_id")
     private String externalReferenceId;
 
+    @Column(name = "idempotency_key", nullable = false, unique = true)
+    private String idempotencyKey;
+
     // Financial Metrics
     @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;

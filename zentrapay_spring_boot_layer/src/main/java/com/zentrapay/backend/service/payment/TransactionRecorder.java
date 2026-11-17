@@ -56,7 +56,7 @@ public class TransactionRecorder {
             if (draft.getPurpose() == null || draft.getPurpose().isBlank()) {
                 draft.setPurpose("Payment");
             }
-            draft.setEntryId(NanoIdGenerator.generate("ENT_"));
+            draft.setEntryId(NanoIdGenerator.generate("ENT_", 21));
             draft.setStatus(Datatypes.TransactionStatus.FAILED);
             draft.setFailureReason(truncate(reason == null || reason.isBlank() ? "The payment could not be completed" : reason));
             transactionRepository.save(draft);

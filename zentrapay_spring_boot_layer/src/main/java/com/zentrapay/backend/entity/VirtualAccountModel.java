@@ -33,8 +33,8 @@ public class VirtualAccountModel {
     @Column(name = "merchant_reference", nullable = false, unique = true)
     private String merchantReference;
 
-    @Column(name = "currency", nullable = false, length = 3)
-    private String currency;
+    @Column(name = "currency_code", nullable = false, length = 3)
+    private String currencyCode;
 
     @Column(name = "status", nullable = false)
     private String status;

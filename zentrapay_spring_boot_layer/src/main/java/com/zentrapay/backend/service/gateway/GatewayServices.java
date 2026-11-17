@@ -6,7 +6,6 @@ import com.zentrapay.backend.entity.GatewayRecipientsModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.GatewayCustomerRepository;
 import com.zentrapay.backend.repository.GatewayRecipientsRepository;
 import com.zentrapay.backend.repository.GatewayRepository;

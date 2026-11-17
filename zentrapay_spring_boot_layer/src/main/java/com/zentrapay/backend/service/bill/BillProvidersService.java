@@ -38,8 +38,7 @@ public class BillProvidersService {
     private final BillProviderRepository billProviderRepository;
     private final BillPaymentRepository billPaymentRepository;
     private final UserRepository userRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final FiatAccountRepository fiatAccountRepository;
+    private final VirtualAccountRepository virtualAccountRepository;
     private final TransactionRepository transactionRepository;
     private final com.zentrapay.backend.service.payment.TransactionRecorder transactionRecorder;
     private final LedgerOperations ledgerOperations;
@@ -129,7 +128,7 @@ public class BillProvidersService {
             flutterwave = gatewayServices.gatewayByName(Datatypes.PaymentGateway.FLUTTERWAVE);
             draft.setGatewayId(flutterwave.getProviderId());
 
-            FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(userId)
+            FiatWalletModel wallet = virtualAccountRepository.getWalletByUserId(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("No wallet found"));
             account = fiatAccountRepository.findByWalletIdAndCurrencyCode(wallet.getWalletId(), currency)
                     .orElseThrow(() -> new IllegalArgumentException("You do not have a " + currency + " account yet. Please create one first."));
@@ -188,7 +187,9 @@ public class BillProvidersService {
     // History
     // ==================================================================
 
-    /** The user's latest bill payments; the status is read from the linked transaction so it is always current. */
+    /**
+     * The user's latest bill payments; the status is read from the linked transaction so it is always current.
+     */
     @Transactional(readOnly = true)
     public List<BillPaymentHistoryDTO> history(UUID userId) {
         List<BillPaymentModel> payments = billPaymentRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
@@ -248,7 +249,9 @@ public class BillProvidersService {
         return value == null ? "" : value.trim().toLowerCase();
     }
 
-    /** True when [candidate] should replace [current] for the same biller. */
+    /**
+     * True when [candidate] should replace [current] for the same biller.
+     */
     private static boolean prefers(BillProviderModel candidate, BillProviderModel current) {
         return hasLogo(candidate) && !hasLogo(current);
     }

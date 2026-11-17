@@ -1,8 +1,10 @@
 package com.zentrapay.backend.service.region;
 
-import com.zentrapay.backend.entity.GatewayCountryModel;
+import com.zentrapay.backend.entity.CountriesModel;
+import com.zentrapay.backend.entity.CurrenciesModel;
 import com.zentrapay.backend.entity.UserModel;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
+import com.zentrapay.backend.repository.CurrenciesRepository;
+import com.zentrapay.backend.service.Countries.CountriesServices;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,8 @@ import java.util.Locale;
 public class SupportedRegionService {
 
     private final GatewayCountriesRepository gatewayCountriesRepository;
+    private final CurrenciesRepository currenciesRepository;
+    private final CountriesServices countriesServices;
 
     /**
      * The currencies a payment is made in for one send: what the sender is debited in and what arrives.
@@ -51,15 +55,15 @@ public class SupportedRegionService {
      */
     public List<String> activeCountryCodes() {
         return gatewayCountriesRepository.findByActive(true).stream()
-                .map(c -> c.getCountryCode().toUpperCase(Locale.ROOT))
+                .map(c -> c.getCode().toUpperCase(Locale.ROOT))
                 .toList();
     }
 
     /**
      * The active country row, or an error naming the country that is not supported.
      */
-    public GatewayCountryModel requireCountry(String countryCode) {
-        GatewayCountryModel country = findActiveCountry(countryCode);
+    public CountriesModel requireCountry(String countryCode) {
+        CountriesModel country = findActiveCountry(countryCode);
         if (country == null) {
             throw new IllegalArgumentException("ZentraPay is not available in "
                     + (countryCode == null || countryCode.isBlank() ? "that country" : countryCode.trim().toUpperCase(Locale.ROOT))
@@ -92,12 +96,10 @@ public class SupportedRegionService {
     /**
      * The default currency (upper case) of a country row.
      */
-    public String defaultCurrencyOf(GatewayCountryModel country) {
-        String currency = country.getDefaultCurrency();
-        if (currency == null || currency.isBlank()) {
-            throw new IllegalArgumentException("No currency has been set up for " + country.getCountryName() + " yet.");
-        }
-        return currency.trim().toUpperCase(Locale.ROOT);
+    public String defaultCurrencyOf(CountriesModel country) {
+        CurrenciesModel currency = currenciesRepository.getCurrencyByCountryCode(country.getCode())
+                .orElseThrow(() -> new RuntimeException("Currency not found."));
+        return currency.getCode();
     }
 
     /**
@@ -116,10 +118,7 @@ public class SupportedRegionService {
      * The country codes that use this currency as their default (XOF is shared by several).
      */
     public List<String> countriesUsing(String currencyCode) {
-        return gatewayCountriesRepository.findActiveByDefaultCurrency(currencyCode).stream()
-                .map(c -> c.getCountryCode().toUpperCase(Locale.ROOT))
-                .sorted()
-                .toList();
+        return countriesServices.getCountriesByCurrencyCode(currencyCode);
     }
 
     /**
@@ -149,7 +148,7 @@ public class SupportedRegionService {
     public PaymentCurrencies currenciesFor(UserModel sender, String destinationCountryCode,
                                            String requestedSource, String requestedDestination) {
         requireUserCountry(sender);
-        GatewayCountryModel home = requireCountry(sender.getCountryCode());
+        CountriesModel home = requireCountry(sender.getCountryCode());
         String source = defaultCurrencyOf(home);
 
         if (isGiven(requestedSource) && !source.equalsIgnoreCase(requestedSource.trim())) {
@@ -158,7 +157,7 @@ public class SupportedRegionService {
         }
 
         boolean domestic = !isGiven(destinationCountryCode) || home.getCountryCode().equalsIgnoreCase(destinationCountryCode.trim());
-        GatewayCountryModel destinationCountry = domestic ? home : requireCountry(destinationCountryCode);
+        CountriesModel destinationCountry = domestic ? home : requireCountry(destinationCountryCode);
         String destination = defaultCurrencyOf(destinationCountry);
 
         if (isGiven(requestedDestination) && !destination.equalsIgnoreCase(requestedDestination.trim())) {
@@ -174,12 +173,12 @@ public class SupportedRegionService {
         return value != null && !value.isBlank();
     }
 
-    private GatewayCountryModel findActiveCountry(String countryCode) {
+    private CountriesModel findActiveCountry(String countryCode) {
         if (countryCode == null || countryCode.isBlank()) {
             return null;
         }
         return gatewayCountriesRepository.findFirstByCountryCode(countryCode.trim().toUpperCase(Locale.ROOT))
-                .filter(GatewayCountryModel::isActive)
+                .filter(CountriesModel::isActive)
                 .orElse(null);
     }
 }

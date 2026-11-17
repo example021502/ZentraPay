@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.user;
 
-import com.zentrapay.backend.dto.gateway.FincraNewAccountResponse;
 import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.security.AttemptLimiter;
@@ -10,13 +9,11 @@ import com.zentrapay.backend.dto.user.*;
 import com.zentrapay.backend.entity.LoginHistoryModel;
 import com.zentrapay.backend.repository.LoginHistoryRepository;
 import com.zentrapay.backend.security.JwtService;
-import com.zentrapay.backend.service.common.Utils;
 import com.zentrapay.backend.service.gateway.FincraServices;
 import com.zentrapay.backend.service.region.SupportedRegionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +21,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -62,7 +58,7 @@ public class UsersService {
     // REGISTER
     // ========================================================================
     @Transactional
-    public usersAuthResponse register(@Valid RegisterRequestDTO req, String ipAddress) {
+    public usersAuthResponse register(@Valid RegisterRequestDTO req, HttpServletRequest httpRequest) {
         // Creates the user, their fiat + crypto wallets and default account, then returns a login token
         log.info("Registering a new user with email {}", req.email());
 
@@ -80,7 +76,7 @@ public class UsersService {
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
         // The country must be one of the payment providers support AND that is switched on right now
-        GatewayCountryModel country = supportedRegionService.requireCountry(req.countryCode());
+        CountriesModel country = supportedRegionService.requireCountry(req.countryCode());
 
         // Initialize and populate the new User entity
         UserModel user = new UserModel();
@@ -88,7 +84,7 @@ public class UsersService {
         user.setLastName(req.lastName());
         user.setEmail(req.email());
         user.setPhoneNumber(req.phoneNumber());
-        user.setCountryCode(country.getCountryCode());
+        user.setCountryCode(country.getCode());
         user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
         user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
         user.setUserType(Datatypes.UserType.APP_USER);
@@ -124,6 +120,7 @@ public class UsersService {
 
         // Generate the authentication token and return the response DTO
         String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
+        recordLogin(user.getUserId(), httpRequest, true);
         return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
     }
 

@@ -3,7 +3,6 @@ package com.zentrapay.backend.service.reference;
 import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.repository.BanksRepository;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.ProviderCategoryRepository;
 import com.zentrapay.backend.service.region.CurrencyCatalog;
 import com.zentrapay.backend.service.region.SupportedRegionService;
@@ -71,8 +70,8 @@ public class ReferenceService {
     /**
      * Bank catalog for the ZBank "link a bank" sheet.
      *
-     * @param query    optional case-insensitive filter on name/code/country/gateway.
-     * @param country  optional ISO country filter (e.g. {@code "GH"}).
+     * @param query   optional case-insensitive filter on name/code/country/gateway.
+     * @param country optional ISO country filter (e.g. {@code "GH"}).
      * @return only active banks, ordered by name so the picker is stable.
      */
     public List<BankDTO> getBanks(String query, String country) {
