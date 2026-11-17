@@ -16,6 +16,8 @@ public record VirtualAccountDTO(
         String status,
         String accountNumber,
         String accountType,
+        String bankName,
+        String label,
         BigDecimal balance,
         boolean isActive,
         boolean isDefault,

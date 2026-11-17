@@ -1,11 +1,11 @@
 package com.zentrapay.backend.service.gateway;
 
-import com.zentrapay.backend.controller.wehooks.FincranNewAccountWebhook;
 import com.zentrapay.backend.dto.gateway.FincraNewAccountResponse;
 import com.zentrapay.backend.dto.gateway.FincranAccountConfirmResponse;
 import com.zentrapay.backend.dto.payment.*;
 import com.zentrapay.backend.entity.VirtualAccountModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
+import com.zentrapay.backend.repository.VirtualAccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +34,7 @@ public class FincraServices {
     private static final String GATEWAY = "FINCRAN";
 
     private final GatewayHttp http;
+    private final VirtualAccountRepository accounts;
 
     @Value("${fincra.secret-key}")
     private String secretKey;
@@ -87,7 +88,7 @@ public class FincraServices {
     }
 
     // ------------------------------------------------------------------
-    // Transfer recipients
+    // CONFIRM ACCOUNT EXISTENCE
     // ------------------------------------------------------------------
 
     /**
@@ -96,21 +97,19 @@ public class FincraServices {
     public void confirmAccount(String accountReference, String currency) {
         log.info("====== CHECKING IF THE VIRTUAL ACCOUNT ALREADY EXISTS =====");
 
-        FincranAccountConfirmResponse response = http.get(GATEWAY, baseUrl + "/profile/virtual-accounts?merchantReference=" + accountReference + "?currency=" + currency, secretKey, FincranAccountConfirmResponse.class);
-        if (response == null || !Boolean.TRUE.equals(response.success()) || response.data() == null || !Boolean.TRUE.equals(response.data().isActive())) {
-            throw new PaymentGatewayException("Fincran failed to confirm if the account exist or not: " + (response == null ? "no response" : response.message()));
+        if (accounts.existsByMerchantReferenceAndCurrencyCode(accountReference, currency)) {
+            throw new RuntimeException("Account of type " + currency + "already exists.");
         }
-        if ("approved".equalsIgnoreCase(response.data().status()) && response.data().isActive()) {
-            throw new RuntimeException("Account already exist");
-        }
+
     }
 
     @Transactional
     public VirtualAccountModel saveAccount(FincraNewAccountResponse a, UUID userId) {
+        log.info("====== SAVING BANK ACCOUNT TO DATABASE =====");
         VirtualAccountModel b = new VirtualAccountModel();
         b.setUserId(userId);
         b.setMerchantReference(a.data().merchantReference());
-        b.setCurrency(a.data().currency());
+        b.setCurrencyCode(a.data().currency());
         b.setStatus(a.data().status());
         b.setLabel("Default Account");
         b.setAccountType(a.data().accountType());

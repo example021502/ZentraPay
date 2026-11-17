@@ -1,60 +1,38 @@
 package com.zentrapay.backend.service.payment;
 
-import com.zentrapay.backend.dto.payment.GatewayCheckoutResult;
 import com.zentrapay.backend.dto.payment.TransactionRequest;
 import com.zentrapay.backend.dto.payment.VerifiedAccountDTO;
 import com.zentrapay.backend.dto.payment.VerifyAccountRequestDTO;
-import com.zentrapay.backend.dto.transaction.TransactionTransactionDTO;
+import com.zentrapay.backend.dto.transaction.TransactionDTO;
 import com.zentrapay.backend.entity.*;
-import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.service.common.Datatypes;
-import com.zentrapay.backend.service.common.NanoIdGenerator;
+import com.zentrapay.backend.service.common.Utils;
 import com.zentrapay.backend.service.fx.ExchangeRateService;
-import com.zentrapay.backend.service.gateway.FlutterwaveServices;
-import com.zentrapay.backend.service.gateway.PaystackServices;
 import com.zentrapay.backend.service.region.SupportedRegionService;
 import com.zentrapay.backend.service.transaction.TransactionsQueryService;
 import com.zentrapay.backend.service.user.PinService;
+import com.zentrapay.backend.service.wallet.VirtualAccountServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Transaction;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Sending money out of a user's wallet. Two kinds of payment:
- * <ul>
- *   <li><b>P2P_TRANSFER</b>  - to another ZentraPay user (same currency or cross currency).
- *       Stays inside our own ledger, so it is one all-or-nothing database transaction.</li>
- *   <li><b>CASH_OUT_BANK</b> - to a bank account through a payment gateway (same currency or
- *       cross currency). Money is debited first, then the gateway is called; if the gateway
- *       refuses, the money is refunded. See BankTransferServices.</li>
- *   <li><b>CASH_OUT_MOMO</b> - to a mobile-money wallet, same engine as the bank payout.</li>
- * </ul>
- *
- * <p>Every payment here is DOMESTIC: the sender, the bank / network and the receiver are in the
- * same, supported country. Cross-border sends belong to ZRemit. Before a bank or mobile-money
- * payment is debited, the providers are asked who owns the account (AccountVerificationService).
- *
- * <p>This class is deliberately NOT one big database transaction: the slow gateway calls must
- * not hold a database connection open, and the debit has to be committed before the gateway
- * is called. Each step that moves money is its own transaction inside LedgerOperations.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentServices {
 
     private final UserRepository userRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final FiatAccountRepository fiatAccountRepository;
+    private final VirtualAccountServices virtualAccountServices;
     private final TransactionRepository transactionRepository;
     private final LedgerOperations ledgerOperations;
     private final BankTransferServices bankTransferServices;
@@ -62,11 +40,10 @@ public class PaymentServices {
     private final TransactionsQueryService transactionsQueryService;
     private final PinService pinService;
     private final SupportedRegionService supportedRegionService;
-    private final PaystackServices paystackServices;
-    private final FlutterwaveServices flutterwaveServices;
     private final AccountVerificationService accountVerificationService;
     private final DestinationTokenService destinationTokenService;
     private final TransactionRecorder transactionRecorder;
+
 
     @Value("${zentrapay.limits.send.tier1}")
     private BigDecimal tier1SendLimit;
@@ -85,12 +62,16 @@ public class PaymentServices {
      * Validates a payment request and routes it to the P2P or the bank flow.
      * The signed-in user is always the sender.
      */
-    public TransactionTransactionDTO initialize(UUID userId, TransactionRequest req) {
-        log.info("========== PAYMENT START: ref={} sender={} ==========", req.TXN_Ref(), userId);
+    @Transactional
+    public TransactionDTO initialize(UUID userId, TransactionRequest req) {
+        String txnRef = Utils.getTxnRef();
+        log.info("========== PAYMENT START: ref={} sender={} ==========", txnRef, userId);
         Datatypes.TransactionType type = req.resolvedType();
-
-        // Same TXN_Ref again = the app retrying: return the first result, never pay twice
-        Optional<TransactionModel> existing = transactionRepository.findByInternalReferenceId(req.TXN_Ref());
+        if (transactionRepository.existsByIdempotency(req.idempotencyKey())) {
+            return transactionsQueryService.getTransactionByIdempotencyKeyAndSenderId(req.idempotencyKey(), userId);
+        }
+        // Same txnRef again = the app retrying: return the first result, never pay twice
+        Optional<TransactionModel> existing = transactionRepository.findByInternalReferenceId(txnRef);
         if (existing.isPresent()) {
             return replay(existing.get(), userId);
         }
@@ -119,7 +100,7 @@ public class PaymentServices {
         } catch (RuntimeException e) {
             // Whatever stopped the payment, the attempt is kept in the user's history as FAILED
             // (a no-op when the payment already has its own transaction row, e.g. a gateway failure after the debit)
-            recordFailedSend(sender, req, type, e);
+            recordFailedSend(sender, req, type, e, txnRef);
             throw e;
         }
     }
@@ -128,7 +109,7 @@ public class PaymentServices {
      * Saves a refused / failed send as a FAILED transaction (no money moved, so no ledger entries).
      * Everything is the best effort: reading the destination or the receiver must never hide the real error.
      */
-    private void recordFailedSend(UserModel sender, TransactionRequest req, Datatypes.TransactionType type, RuntimeException cause) {
+    private void recordFailedSend(UserModel sender, TransactionRequest req, Datatypes.TransactionType type, RuntimeException cause, String txnRef) {
         try {
             TransactionRequest.TransferDetails transfer = req.transfer();
             String sourceCurrency = transfer.currencyCode() == null ? null : transfer.currencyCode().toUpperCase();
@@ -151,7 +132,7 @@ public class PaymentServices {
             }
             transactionRecorder.recordFailure(draft, cause.getMessage());
         } catch (RuntimeException e) {
-            log.warn("Could not prepare the failed-attempt record for {}: {}", req.TXN_Ref(), e.getMessage());
+            log.warn("Could not prepare the failed-attempt record for {}: {}", txnRef, e.getMessage());
         }
     }
 
@@ -166,8 +147,8 @@ public class PaymentServices {
         }
     }
 
-    // The app sent the same TXN_Ref twice: hand back the original transaction (only to its own sender)
-    private TransactionTransactionDTO replay(TransactionModel existing, UUID userId) {
+    // The app sent the same txnRef twice: hand back the original transaction (only to its own sender)
+    private TransactionDTO replay(TransactionModel existing, UUID userId) {
         if (!userId.equals(existing.getSenderId())) {
             throw new IllegalArgumentException("This transaction reference has already been used");
         }
@@ -178,8 +159,8 @@ public class PaymentServices {
     // ==================================================================
     // P2P: ZentraPay wallet -> ZentraPay wallet
     // ==================================================================
-
-    private TransactionTransactionDTO sendToWallet(UserModel sender, TransactionRequest req) {
+    @Transactional
+    private TransactionDTO sendToWallet(UserModel sender, TransactionRequest req) {
         log.info("STAGE 1: resolving the receiver wallet");
         if (req.appUser() == null) {
             throw new IllegalArgumentException("Recipient information missing");
@@ -187,7 +168,7 @@ public class PaymentServices {
         TransactionRequest.TransferDetails transfer = req.transfer();
         BigDecimal amount = money(transfer.amount());
         String sourceCurrency = transfer.currencyCode().toUpperCase();
-
+        String destinationCurrency = transfer.destinationCurrencyCode();
         UserModel receiver = userRepository.findById(req.appUser().userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Recipient not found"));
         if (receiver.getUserId().equals(sender.getUserId())) {
@@ -199,23 +180,25 @@ public class PaymentServices {
         if (isCrossBorder(sender.getCountryCode(), receiver.getCountryCode())) {
             throw new IllegalArgumentException("The recipient is in another country. Please use ZRemit for cross-border transfers.");
         }
-
-        // Same country: the recipient receives the default currency of that country, nothing else
-        SupportedRegionService.PaymentCurrencies currencies = supportedRegionService.currenciesFor(
-                sender, receiver.getCountryCode(), sourceCurrency, transfer.destinationCurrencyCode());
-        FiatAccountModel receiverAccount = resolveReceiverAccount(receiver.getUserId(), req.appUser().zentag(), currencies.destination(), true);
-        String destinationCurrency = receiverAccount.getCurrencyCode();
-        if (!destinationCurrency.equalsIgnoreCase(currencies.destination())) {
-            throw new IllegalArgumentException("The recipient has no " + currencies.destination() + " account to receive this payment");
+        if (!virtualAccountServices.accountExists(receiver.getUserId(), destinationCurrency)) {
+            throw new RuntimeException("Receiver does not have an account of type " + destinationCurrency);
         }
+
         BigDecimal destinationAmount = convertIfNeeded(amount, sourceCurrency, destinationCurrency, transfer.rateId());
 
+        // ==========================================================
+        // CHECKING THE SENDER BALANCE
+        // ==========================================================
         log.info("STAGE 2: checking the sender account, balance and limits");
-        FiatAccountModel senderAccount = requireSenderAccount(sender, sourceCurrency, amount, true);
+        VirtualAccountModel senderAccount = virtualAccountServices.checkBalance(sender.getUserId(), sourceCurrency, amount);
         checkSendLimit(sender, amount);
         checkReceiveLimit(receiver, sender.getUserId(), req);
 
+        // ==========================================================
+        // MOVING THE MONEY
+        // ==========================================================
         log.info("STAGE 3: moving the money (one database transaction)");
+        virtualAccountServices.debit();
         TransactionModel draft = newDraft(sender, req, Datatypes.TransactionType.P2P_TRANSFER, amount, sourceCurrency, destinationCurrency, destinationAmount);
         draft.setReceiverId(receiver.getUserId());
         draft.setReceiverName(receiver.getFirstName() + " " + receiver.getLastName());
@@ -260,7 +243,7 @@ public class PaymentServices {
     // CASH_OUT_BANK: ZentraPay wallet -> bank account (through a gateway)
     // ==================================================================
 
-    private TransactionTransactionDTO sendToBank(UserModel sender, TransactionRequest req) {
+    private TransactionDTO sendToBank(UserModel sender, TransactionRequest req) {
         log.info("STAGE 1: reading the verified bank destination");
         TransactionRequest.BankDetails bank = req.bank();
         if (bank == null) {
@@ -312,7 +295,7 @@ public class PaymentServices {
     // CASH_OUT_MOMO: ZentraPay wallet -> mobile-money wallet (through a gateway)
     // ==================================================================
 
-    private TransactionTransactionDTO sendToMobileMoney(UserModel sender, TransactionRequest req) {
+    private TransactionDTO sendToMobileMoney(UserModel sender, TransactionRequest req) {
         log.info("STAGE 1: reading the verified mobile money destination");
         TransactionRequest.MobileMoneyDetails momo = req.mobileMoney();
         if (momo == null) {
@@ -472,7 +455,7 @@ public class PaymentServices {
     private TransactionModel newDraft(UserModel sender, TransactionRequest req, Datatypes.TransactionType type,
                                       BigDecimal amount, String sourceCurrency, String destinationCurrency, BigDecimal destinationAmount) {
         TransactionModel draft = new TransactionModel();
-        draft.setInternalReferenceId(req.TXN_Ref());
+        draft.setInternalReferenceId(req.txnRef());
         draft.setTransactionType(type);
         draft.setAmount(amount);
         draft.setSourceCurrencyCode(sourceCurrency);

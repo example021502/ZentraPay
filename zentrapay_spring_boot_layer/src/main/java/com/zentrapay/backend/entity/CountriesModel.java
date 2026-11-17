@@ -13,40 +13,22 @@ import java.time.LocalDateTime;
  * It contains the countries the connected gateways (Paystack / Flutterwave / Onafriq) support, kept
  * fresh by the scheduled {@code GatewayDirectorySyncService}. ISO 3166-1 alpha-2 country code is the
  * natural key.
- *
- * <p>{@link #defaultCurrency} is what restricts payments: a user registered in this country pays in this
+ * <p>
  * currency, and a cross-border payment to this country arrives in it. There is no separate currencies table.
  */
 @Entity
 @Data
-@Table(name = "gateway_countries")
-public class GatewayCountryModel {
+@Table(name = "countries")
+public class CountriesModel {
     @Id
-    @Column(name = "country_code", nullable = false, length = 3)
-    private String countryCode;
+    @Column(name = "code", nullable = false, length = 3)
+    private String code;
 
     @Column(name = "country_name", nullable = false, length = 80)
     private String countryName;
 
-    @Column(name = "iso3_code", length = 3)
-    private String iso3Code;
-
     @Column(name = "dial_code", length = 6)
     private String dialCode;
-
-    @Column(name = "region", length = 40)
-    private String region;
-
-    /** The currency (ISO 4217 code) people registered in this country pay in, and cross-border payments arrive in. */
-    @Column(name = "default_currency", nullable = false, length = 8)
-    private String defaultCurrency;
-
-    /** Comma-separated gateways supporting this country, e.g. "paystack,flutterwave". */
-    @Column(name = "gateways", nullable = false)
-    private String gateways;
-
-    @Column(name = "is_default", nullable = false)
-    private boolean isDefault;
 
     @Column(name = "active", nullable = false)
     private boolean active;

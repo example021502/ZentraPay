@@ -17,5 +17,16 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccountMo
     @Query("SELECT v.balance FROM VirtualAccountsModel v WHERE v.userId = :userId")
     Optional<BigDecimal> getBalanceByUserId(@Param("userId") UUID userID);
 
-    List<VirtualAccountModel> getAccountByUserId(@Param("userId") UUID userID);
+    List<VirtualAccountModel> getAccountsByUserId(@Param("userId") UUID userID);
+
+    @Query("SELECT a.currencyCode FROM VirtualAccountsModel a WHERE a.userId =:userId")
+    List<String> getCurrencyCodesByUserId(@Param("userId") UUID userId);
+
+    // Spring Data automatically generates an optimized EXISTS query from the method name
+    boolean existsByMerchantReferenceAndCurrencyCode(String merchantReference, String currencyCode);
+
+    boolean existsByUserIdAndCurrencyCode(UUID userId, String currencyCode);
+
+    @Query("SELECT a FROM VirtualAccountModel a WHERE a.userId =:userId AND (a.currencyCode =:currencyCode OR a.merchantReference =:merchantReference)")
+    Optional<VirtualAccountModel> getAccountByUserIdAndCurrencyCodeOrMerchantReference(UUID userId, String currencyCode, String merchantReference);
 }

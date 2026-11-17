@@ -73,7 +73,7 @@ public class LedgerOperations {
             debit(sender.getAccountId(), draft.getAmount());
         }
 
-        String entryId = NanoIdGenerator.generate("ENT_");
+        String entryId = NanoIdGenerator.generate("ENT_", 10);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
         TransactionModel txn = transactionRepository.save(draft);
@@ -107,7 +107,7 @@ public class LedgerOperations {
         log.info("Ledger: payout debit {} {} from account {}", draft.getAmount(), draft.getSourceCurrencyCode(), sender.getAccountId());
         debit(sender.getAccountId(), draft.getAmount());
 
-        String entryId = NanoIdGenerator.generate("ENT_");
+        String entryId = NanoIdGenerator.generate("ENT_", 21);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.INITIATED);
         TransactionModel txn = transactionRepository.save(draft);
@@ -225,7 +225,7 @@ public class LedgerOperations {
      */
     @Transactional
     public TransactionModel recordFundingAttempt(TransactionModel draft) {
-        draft.setEntryId(NanoIdGenerator.generate("ENT_"));
+        draft.setEntryId(NanoIdGenerator.generate("ENT_", 21));
         draft.setStatus(Datatypes.TransactionStatus.PENDING);
         TransactionModel txn = transactionRepository.save(draft);
         txn.setExternalReferenceId(gatewayReference(txn));
@@ -300,7 +300,7 @@ public class LedgerOperations {
     @Transactional
     public TransactionModel debitInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
         debit(account.getAccountId(), draft.getAmount());
-        String entryId = NanoIdGenerator.generate("ENT_");
+        String entryId = NanoIdGenerator.generate("ENT_", 21);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
         TransactionModel txn = transactionRepository.save(draft);
@@ -317,7 +317,7 @@ public class LedgerOperations {
     @Transactional
     public TransactionModel creditInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
         credit(account.getAccountId(), draft.getDestinationAmount());
-        String entryId = NanoIdGenerator.generate("ENT_");
+        String entryId = NanoIdGenerator.generate("ENT_", 21);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
         TransactionModel txn = transactionRepository.save(draft);

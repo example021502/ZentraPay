@@ -7,7 +7,7 @@ import java.util.List;
  * {content, page, size, totalElements, totalPages}.
  */
 public record TransactionPageDTO(
-        List<TransactionTransactionDTO> content,
+        List<TransactionDTO> content,
         int page,
         int size,
         long totalElements,

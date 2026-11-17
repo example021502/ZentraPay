@@ -1,7 +1,6 @@
 package com.zentrapay.backend.service.schedule.sync;
 
-import com.zentrapay.backend.entity.GatewayCountryModel;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
+import com.zentrapay.backend.entity.CountriesModel;
 import com.zentrapay.backend.dto.schedules.FlutterwaveBankResponseDTO;
 import com.zentrapay.backend.dto.schedules.OnafriqBankResponseDTO;
 import com.zentrapay.backend.dto.schedules.PaystackBankResponseDTO;
@@ -58,7 +57,9 @@ public class GatewayDirectorySyncService {
     @Value("${onafriq.secret-key}")
     String onafriqSk;
 
-    /** Countries to probe; configurable so coverage can grow without a redeploy. */
+    /**
+     * Countries to probe; configurable so coverage can grow without a redeploy.
+     */
     @Value("${app.gateway.countries:GH,NG,KE,TZ,UG,RW,ZA,CI,SN,CM}")
     String configuredCountries;
 
@@ -186,9 +187,9 @@ public class GatewayDirectorySyncService {
     // ------------------------------------------------------------------
 
     private void upsertCountry(String countryCode, String gateways, LocalDateTime now) {
-        GatewayCountryModel row = gatewayCountriesRepository.findById(countryCode)
+        CountriesModel row = gatewayCountriesRepository.findById(countryCode)
                 .orElseGet(() -> {
-                    GatewayCountryModel fresh = new GatewayCountryModel();
+                    CountriesModel fresh = new CountriesModel();
                     fresh.setCountryCode(countryCode);
                     fresh.setCreatedAt(now);
                     return fresh;
@@ -214,5 +215,6 @@ public class GatewayDirectorySyncService {
     // Static reference metadata records
     // ------------------------------------------------------------------
 
-    private record CountryMeta(String name, String iso3, String dial, String region, String defaultCurrency) {}
+    private record CountryMeta(String name, String iso3, String dial, String region, String defaultCurrency) {
+    }
 }

@@ -1,11 +1,16 @@
 package com.zentrapay.backend.service.common;
 
-import java.util.Currency;
-import java.util.Locale;
+import com.fasterxml.jackson.annotation.ObjectIdGenerator;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import org.hibernate.id.uuid.UuidGenerator;
 
 public class Utils {
 
     public static String getZentag(String currencyCode, String phoneNumber) {
         return phoneNumber + "_" + currencyCode + "@zentrapay";
+    }
+
+    public static String getTxnRef() {
+        return NanoIdGenerator.generate("ZENREF_", 10);
     }
 }

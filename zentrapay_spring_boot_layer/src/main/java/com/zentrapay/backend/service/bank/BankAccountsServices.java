@@ -1,13 +1,9 @@
 package com.zentrapay.backend.service.bank;
 
+import com.zentrapay.backend.entity.*;
 import lombok.extern.slf4j.Slf4j;
-import com.zentrapay.backend.entity.BanksModel;
-import com.zentrapay.backend.entity.UserBankModel;
 import com.zentrapay.backend.repository.BanksRepository;
-import com.zentrapay.backend.repository.GatewayCountriesRepository;
 import com.zentrapay.backend.repository.UserRepository;
-import com.zentrapay.backend.entity.GatewayCountryModel;
-import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.repository.UserBankRepository;
 import com.zentrapay.backend.dto.bank.AccountsDTO;
 import com.zentrapay.backend.dto.bank.AccountsResponseDTO;
@@ -94,7 +90,7 @@ public class BankAccountsServices {
      * AfriLink's linking endpoint with the public key) or the id of an account the widget already
      * completed (read back from AfriLink). Either way AfriLink must confirm the link, so a made-up value
      * is rejected. Accounts already linked to anyone are refused, and one row is saved holding AfriLink's
-     * account id, the institution, currency and the last digits - never an account number or
+     * account id, the institution, currency and the last digits - never an account number
      * credentials. The first bank a user links becomes primary.
      */
     @Transactional
@@ -149,7 +145,7 @@ public class BankAccountsServices {
         row.setCurrencyCode(firstNonBlank(account.currencyCode(),
                 catalogBank.map(BanksModel::getCurrencyCode).orElse(null),
                 linkCountry == null ? null : gatewayCountriesRepository.findFirstByCountryCode(linkCountry)
-                        .map(GatewayCountryModel::getDefaultCurrency).orElse(null)));
+                        .map(CountriesModel::getCurrencyCode).orElse(null)));
         if (row.getCurrencyCode() != null) {
             row.setCurrencyCode(row.getCurrencyCode().toUpperCase());
         }
