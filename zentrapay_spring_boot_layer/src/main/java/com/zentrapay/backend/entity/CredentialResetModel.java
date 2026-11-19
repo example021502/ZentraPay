@@ -22,27 +22,33 @@ import java.util.UUID;
 public class CredentialResetModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "request_id", nullable = false)
-    private UUID requestId;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    /** PASSWORD or PIN. */
+    /**
+     * PASSWORD or PIN.
+     */
     @Column(name = "purpose", nullable = false, length = 10)
     private String purpose;
 
     @Column(name = "code_hash", nullable = false, length = 128)
     private String codeHash;
 
-    /** Wrong codes tried so far; the request is dead after too many. */
+    /**
+     * Wrong codes tried so far; the request is dead after too many.
+     */
     @Column(name = "attempts", nullable = false)
     private int attempts;
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    /** Set when the emailed code was entered correctly. */
+    /**
+     * Set when the emailed code was entered correctly.
+     */
     @Column(name = "verified_at")
     private LocalDateTime verifiedAt;
 
@@ -52,7 +58,9 @@ public class CredentialResetModel {
     @Column(name = "reset_token_expires_at")
     private LocalDateTime resetTokenExpiresAt;
 
-    /** Set when the new password / PIN was saved, or the request was replaced by a newer one. */
+    /**
+     * Set when the new password / PIN was saved, or the request was replaced by a newer one.
+     */
     @Column(name = "used_at")
     private LocalDateTime usedAt;
 

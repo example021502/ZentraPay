@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.mobilemoney;
 
-import com.zentrapay.backend.entity.MobileMoneyGatewayMappingsModel;
 import com.zentrapay.backend.entity.MobileMoneyProvidersModel;
 import com.zentrapay.backend.repository.MobileMoneyGatewayMappingsRepository;
 import com.zentrapay.backend.repository.MobileMoneyRepository;
@@ -21,7 +20,9 @@ public class MobileMoneyCatalogService {
     private final MobileMoneyRepository mobileMoneyRepository;
     private final MobileMoneyGatewayMappingsRepository mappingsRepository;
 
-    /** The network the app picked: by id, else by code + country. */
+    /**
+     * The network the app picked: by id, else by code + country.
+     */
     public Optional<MobileMoneyProvidersModel> findProvider(UUID providerId, String code, String countryCode) {
         if (providerId != null) {
             Optional<MobileMoneyProvidersModel> byId = mobileMoneyRepository.findById(providerId);
@@ -35,7 +36,9 @@ public class MobileMoneyCatalogService {
         return mobileMoneyRepository.findByGlobalCodeAndCountryCode(code.trim(), countryCode.trim().toUpperCase());
     }
 
-    /** The code of this network on the given gateway, or null when that gateway does not list it. */
+    /**
+     * The code of this network on the given gateway, or null when that gateway does not list it.
+     */
     public String codeOnGateway(MobileMoneyProvidersModel provider, String gatewayName) {
         return mappingsRepository.findByProviderIdAndGateway(provider.getProviderId(), gatewayName.toLowerCase())
                 .map(MobileMoneyGatewayMappingsModel::getGatewayCode)

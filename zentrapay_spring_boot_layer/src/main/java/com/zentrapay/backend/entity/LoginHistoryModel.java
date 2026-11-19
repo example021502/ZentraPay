@@ -17,8 +17,8 @@ import java.util.UUID;
 public class LoginHistoryModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "login_id", nullable = false)
-    private UUID loginId;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -29,10 +29,10 @@ public class LoginHistoryModel {
     @Column(name = "device_info", length = 200)
     private String deviceInfo;
 
-    @Column(length = 120)
+    @Column(name = "location", length = 120)
     private String location;
 
-    @Column(nullable = false)
+    @Column(name = "success", nullable = false)
     private boolean success = true;
 
     @CreationTimestamp

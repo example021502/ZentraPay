@@ -145,7 +145,7 @@ public class InvestmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Investment not found"));
         BigDecimal proceeds = valueOf(peek);
         TransactionModel attempt = draft(user, Datatypes.TransactionType.INVESTMENT_SELL, proceeds, peek.getCurrencyCode(),
-                "Sold " + peek.getName(), peek.getInvestmentId());
+                "Sold " + peek.getName(), peek.getId());
         try {
             InvestmentModel result = tx.execute(status -> {
                 InvestmentModel position = investmentRepository.findOwnedForUpdate(investmentId, userId)
@@ -236,7 +236,7 @@ public class InvestmentService {
     }
 
     private InvestmentDTO toDto(InvestmentModel i) {
-        return new InvestmentDTO(i.getInvestmentId(), i.getName(), i.getInvestmentType(), i.getSymbol(), i.getQuantity(),
+        return new InvestmentDTO(i.getId(), i.getName(), i.getType(), i.getSymbol(), i.getQuantity(),
                 i.getBuyPrice(), currentPrice(i), i.getCurrencyCode(), i.getStatus());
     }
 }

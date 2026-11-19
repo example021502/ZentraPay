@@ -7,11 +7,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
-// Master entity defining available challenges in ZGrow
 @Entity
 @Table(name = "challenges")
 @Getter
@@ -23,38 +20,38 @@ public class ChallengesModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(nullable = false, length = 150)
+    @Column(name = "title", nullable = false, length = 150)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
+    @Column(name = "category", nullable = false, length = 50)
     private Datatypes.ChallengeCategory category;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "challenge_type", nullable = false, length = 50)
     private Datatypes.ChallengeType challengeType;
 
+    @Column(name = "reward", nullable = false)
+    private Datatypes.RewardType reward;
+
     @Column(name = "duration_days", nullable = false)
     private Integer durationDays;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
 
     @Column(name = "start_date")
     private LocalDateTime startDate;
 
     @Column(name = "end_date")
     private LocalDateTime endDate;
-
-    @Builder.Default
-    @OneToMany(mappedBy = "challenge", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ChallengesTargetModel> targets = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

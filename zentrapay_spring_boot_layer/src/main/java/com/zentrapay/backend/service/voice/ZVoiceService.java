@@ -2,7 +2,7 @@ package com.zentrapay.backend.service.voice;
 
 import com.zentrapay.backend.dto.voice.VoiceDTOs.VoiceCommandRequestDTO;
 import com.zentrapay.backend.dto.voice.VoiceDTOs.VoiceCommandResponseDTO;
-import com.zentrapay.backend.entity.FraudAlert;
+import com.zentrapay.backend.entity.AlertsModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.VoiceCommandModel;
 import com.zentrapay.backend.repository.FraudAlertRepository;
@@ -87,7 +87,7 @@ public class ZVoiceService {
         command = voiceCommandRepository.save(command);
 
         if (fraud) {
-            FraudAlert alert = new FraudAlert();
+            AlertsModel alert = new AlertsModel();
             alert.setUserId(userId);
             alert.setAlertType("VOICE_SENSITIVE_REQUEST");
             alert.setMessage(fraudReason == null || fraudReason.isBlank() ? "A suspicious voice instruction was flagged." : fraudReason);

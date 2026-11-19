@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -18,17 +19,17 @@ import java.util.UUID;
 public class CardsModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "card_id", nullable = false)
-    private UUID cardId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "brand", nullable=false)
+    @Column(name = "brand", nullable = false)
     private String brand;
 
     @Column(name = "card_type", nullable = false, length = 20)
-    private String cardType = "VIRTUAL"; // VIRTUAL, PHYSICAL
+    private Datatypes.CardType cardType = Datatypes.CardType.VIRTUAL_CARD; // VIRTUAL, PHYSICAL
 
     @Column(name = "description")
     private String description;

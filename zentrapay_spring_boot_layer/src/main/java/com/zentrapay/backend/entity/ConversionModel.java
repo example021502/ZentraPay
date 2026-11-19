@@ -18,8 +18,8 @@ public class ConversionModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "conversion_id", nullable = false)
-    private UUID conversionId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -30,11 +30,11 @@ public class ConversionModel {
     @Column(name = "to_currency_code", nullable = false, length = 3)
     private String toCurrencyCode;
 
-    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
-    private BigDecimal amount;
+    @Column(name = "from_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal fromAmount;
 
-    @Column(name = "converted_amount", nullable = false, precision = 19, scale = 4)
-    private BigDecimal convertedAmount;
+    @Column(name = "to_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal toAmount;
 
     @Column(name = "rate", nullable = false, precision = 24, scale = 10)
     private BigDecimal rate;

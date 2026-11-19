@@ -1,26 +1,13 @@
 package com.zentrapay.backend.service.wallet;
 
 import com.zentrapay.backend.dto.wallet.*;
-import com.zentrapay.backend.entity.CryptoWalletModel;
-import com.zentrapay.backend.entity.UserModel;
-import com.zentrapay.backend.entity.UserProfileModel;
-import com.zentrapay.backend.entity.VirtualAccountModel;
-import com.zentrapay.backend.repository.CryptoAccountRepository;
-import com.zentrapay.backend.repository.CryptoWalletRepository;
 import com.zentrapay.backend.repository.CurrenciesRepository;
-import com.zentrapay.backend.repository.VirtualAccountRepository;
-import com.zentrapay.backend.service.common.Utils;
-import com.zentrapay.backend.service.gateway.FincraServices;
-import com.zentrapay.backend.service.region.SupportedRegionService;
-import com.zentrapay.backend.service.user.UserProfileServices;
-import com.zentrapay.backend.service.user.UsersService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service

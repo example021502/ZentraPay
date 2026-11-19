@@ -13,20 +13,20 @@ import java.util.UUID;
 @Table(name = "merchant_profiles")
 public class MerchantProfile {
     @Id
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
-    @Column(name = "business_name", nullable = false, length = 120)
-    private String businessName;
+    @Column(name = "name", nullable = false, length = 120)
+    private String name;
 
-    @Column(name = "business_registration_number", length = 60)
-    private String businessRegistrationNumber;
+    @Column(name = "reg._no.", length = 60)
+    private String regNumber;
 
-    @Column(name = "tax_identification_number", length = 60)
-    private String taxIdentificationNumber;
+    @Column(name = "tax_number", length = 60)
+    private String taxNumber;
 
-    @Column(name = "business_category_code", length = 30)
-    private String businessCategoryCode;
+    @Column(name = "categoryCode", length = 30)
+    private String categoryCode;
 
     @Column(name = "business_country_code", nullable = false, length = 2)
     private String businessCountryCode;

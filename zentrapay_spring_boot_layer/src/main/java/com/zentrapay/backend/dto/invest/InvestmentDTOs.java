@@ -1,5 +1,6 @@
 package com.zentrapay.backend.dto.invest;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +16,9 @@ public final class InvestmentDTOs {
     private InvestmentDTOs() {
     }
 
-    /** POST /api/zinvest/invest - open a position; quantity x buyPrice is taken from the wallet. */
+    /**
+     * POST /api/zinvest/invest - open a position; quantity x buyPrice is taken from the wallet.
+     */
     public record InvestRequest(
             @NotBlank(message = "Give the investment a name")
             String name,
@@ -33,11 +36,13 @@ public final class InvestmentDTOs {
     ) {
     }
 
-    /** One position as the app shows it (matches the app's Investment model). */
+    /**
+     * One position as the app shows it (matches the app's Investment model).
+     */
     public record InvestmentDTO(
             UUID investmentId,
             String name,
-            String investmentType,
+            Datatypes.InvestmentType investmentType,
             String symbol,
             BigDecimal quantity,
             BigDecimal buyPrice,

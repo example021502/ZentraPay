@@ -78,7 +78,7 @@ public class LedgerOperations {
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
         TransactionModel txn = transactionRepository.save(draft);
 
-        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
+        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getId(), Datatypes.LedgerEntryType.DEBIT,
                 draft.getAmount(), draft.getSourceCurrencyCode(),
                 "Sent to " + draft.getReceiverName());
         writeEntry(txn.getTransactionId(), entryId + "_CREDIT", receiver.getAccountId(), Datatypes.LedgerEntryType.CREDIT,

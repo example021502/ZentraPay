@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -13,7 +14,7 @@ import java.util.UUID;
  * Canonical crypto wallet — consolidates the old currencyAccounts.CryptoAccountModel
  * and walletBalances.CryptoBalancesModel (both mapped "crypto_currencies" with
  * incompatible columns, one even typing balance as a String).
- *
+ * <p>
  * Table/entity only — balance-affecting service logic is intentionally left
  * as TODO in this pass (crypto wallet logic ships in a later iteration).
  */
@@ -23,24 +24,17 @@ import java.util.UUID;
 public class CryptoAccountModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "account_id", nullable = false, unique = true)
-    private UUID cryptoAccountId;
+    @Column(name = "id", nullable = false, unique = true)
+    private UUID id;
 
-    @Column(name = "wallet_id", nullable = false)
-    private UUID walletId;
-
-    // NOTE: was length=3, but UsersService seeds this column with the
-    // placeholder "Unknown" (crypto wallets aren't wired up yet) — that
-    // doesn't fit in 3 chars, and made every Hibernate ddl-auto=update run
-    // fail trying to narrow the real (varchar(20)) column back down.
-    @Column(name = "currency_code", nullable = false, length = 20)
-    private String currencyCode;
+    @Column(name = "code", nullable = false, length = 20)
+    private String code;
 
     @Column(name = "network", length = 30)
     private String network;
 
-    @Column(name = "wallet_address", nullable = false, unique = true, length = 120)
-    private String walletAddress;
+    @Column(name = "address", nullable = false, unique = true, length = 120)
+    private String address;
 
     @Column(name = "balance", nullable = false, precision = 28, scale = 10)
     private BigDecimal balance;
@@ -49,7 +43,7 @@ public class CryptoAccountModel {
     private Boolean isDefault;
 
     @Column(name = "status", nullable = false)
-    private String status = "ACTIVE";
+    private Datatypes.AccountStatus status = Datatypes.AccountStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

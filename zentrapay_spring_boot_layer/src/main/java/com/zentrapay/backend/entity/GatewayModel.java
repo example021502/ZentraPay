@@ -14,23 +14,27 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "gateway_providers")
+@Table(name = "gateways")
 public class GatewayModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "provider_id", nullable = false)
-    private UUID providerId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
-    // Upper case name, e.g. PAYSTACK (matches Datatypes.PaymentGateway)
-    @Column(name = "provider_name", nullable = false, unique = true)
-    private String providerName;
+    // PAYSTACK, FLUTTERWAVE, ONAFRIQ, FINCRA
+    @Column(name = "code", nullable = false, unique = true)
+    private String code;
 
-    @Column(name = "description", nullable = false)
+    // Paystack, flutterwave, onafriq, fincra
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Column(name = "description")
     private String description;
 
-    @Column(name = "is_active", nullable = false)
-    private Boolean active;
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
 
     @CreationTimestamp
     @Column(name = "created_at")

@@ -3,75 +3,106 @@ package com.zentrapay.backend.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+// Stores bank and mobile-money channel metadata synced from payment gateways per currency/corridor.
 @Entity
 @Data
-@Table(name = "banks")
+@Table(
+        name = "banks",
+        uniqueConstraints = @UniqueConstraint(
+                // Prevents duplicate bank codes within the same gateway and currency scope.
+                name = "uk_banks_gateway_code_currency",
+                columnNames = {"gateway_id", "code", "currency_code"}
+        )
+)
 public class BanksModel {
+
+    // Primary identifier for the synced bank/channel record.
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "bank_id", nullable = false)
-    private UUID bankId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
-    @Column(name = "code", nullable = false, unique = true)
+    // Gateway-specific bank or channel code (matches GatewayRecipientsModel.channelCode).
+    @Column(name = "code", nullable = false, length = 32)
     private String code;
 
-    @Column(name = "bank_name", nullable = false)
-    private String bankName;
+    // Display name of the bank or mobile-money institution.
+    @Column(name = "name", nullable = false)
+    private String name;
 
-    @Column(name = "gateway", nullable = false)
-    private String gateway;
+    // Reference ID of the gateway (gateways.id) that provided this bank entry.
+    @Column(name = "gateway_id", nullable = false)
+    private UUID gatewayId;
 
+    // Optional IBAN when supported by the institution or corridor.
     @Column(name = "iban")
     private String iban;
 
+    // ISO currency code such as KES, NGN, or GHS.
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
+    // Indicates whether direct bank/account payment is supported for this entry.
     @Column(name = "pay_with_bank")
     private Boolean payWithBank;
 
+    // Optional SWIFT/BIC identifier where applicable.
     @Column(name = "swift_bic")
     private String swiftBic;
 
+    // Optional country code (e.g., KE, NG, GH).
     @Column(name = "country_code", length = 3)
     private String countryCode;
 
+    // Optional human-readable country name.
     @Column(name = "country")
     private String country;
 
-    @Column(name = "routing_number", unique=true)
+    // Optional routing number (kept non-unique to avoid collisions across entries).
+    @Column(name = "routing_number")
     private String routingNumber;
 
-    @Column(name = "type")
+    // Institution or channel classification (e.g., bank, mobile_money).
+    @Column(name = "type", length = 32)
     private String type;
 
+    // Controls whether this bank/channel is currently available for selection and payouts.
     @Column(name = "active", nullable = false)
-    private Boolean active;
+    private boolean active = true;
 
+    // Timestamp when the record was first created.
     @CreationTimestamp
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @CreationTimestamp
-    @Column(name = "updated_at")
+    // Timestamp automatically updated whenever the record changes.
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "max_daily_value")
-    private String maxDailyValue;
+    // Maximum cumulative daily amount allowed for this bank/channel.
+    @Column(name = "max_daily_value", precision = 19, scale = 4)
+    private BigDecimal maxDailyValue;
 
-    @Column(name = "max_monthly_value")
-    private String maxMonthlyValue;
+    // Maximum cumulative weekly amount allowed for this bank/channel.
+    @Column(name = "max_weekly_value", precision = 19, scale = 4)
+    private BigDecimal maxWeeklyValue;
 
-    @Column(name = "min_txn_limit")
-    private String minTxnLimit;
+    // Maximum cumulative monthly amount allowed for this bank/channel.
+    @Column(name = "max_monthly_value", precision = 19, scale = 4)
+    private BigDecimal maxMonthlyValue;
 
-    @Column(name = "max_txn_limit")
-    private String maxTxnLimit;
+    // Minimum single-transaction amount allowed.
+    @Column(name = "min_txn_limit", precision = 19, scale = 4)
+    private BigDecimal minTxnLimit;
 
-    @Column(name = "max_weekly_value")
-    private String maxWeeklyValue;
-
+    // Maximum single-transaction amount allowed.
+    @Column(name = "max_txn_limit", precision = 19, scale = 4)
+    private BigDecimal maxTxnLimit;
 }

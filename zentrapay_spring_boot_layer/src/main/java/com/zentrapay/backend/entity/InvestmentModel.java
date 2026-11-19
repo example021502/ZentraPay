@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -20,8 +21,8 @@ public class InvestmentModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "investment_id", nullable = false, updatable = false)
-    private UUID investmentId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
@@ -29,9 +30,8 @@ public class InvestmentModel {
     @Column(name = "name", nullable = false, length = 120)
     private String name;
 
-    // STOCK, ETF, COMMODITY, CRYPTO, OTHER (CRYPTO is refused by the service for now)
-    @Column(name = "investment_type", nullable = false, length = 20)
-    private String investmentType;
+    @Column(name = "type", nullable = false, length = 20)
+    private Datatypes.InvestmentType type = Datatypes.InvestmentType.OTHERS;
 
     @Column(name = "symbol", length = 20)
     private String symbol;
@@ -42,12 +42,17 @@ public class InvestmentModel {
     @Column(name = "buy_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal buyPrice;
 
+    @Column(name = "sell_price", precision = 19, scale = 4)
+    private BigDecimal sellPrice;
+
     @Column(name = "currency_code", nullable = false, length = 8, updatable = false)
     private String currencyCode;
 
-    // ACTIVE while held, CLOSED once sold
+    @Column(name = "sell_currency_code", nullable = false, length = 8, updatable = false)
+    private String sellCurrencyCode;
+
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE";
+    private Datatypes.InvestmentStatus status = Datatypes.InvestmentStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

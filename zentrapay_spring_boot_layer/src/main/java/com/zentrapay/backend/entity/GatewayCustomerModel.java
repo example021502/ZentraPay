@@ -3,7 +3,10 @@ package com.zentrapay.backend.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JavaType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,15 +18,18 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "gateway_customers")
+@Table(name = "gateway_customers",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_gateway_customers_user_gateway",
+                columnNames = {"user_id", "gateway_id"}
+        ))
 public class GatewayCustomerModel {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false, updatable = false)
-    private Integer id;
+    private UUID id;
 
-    // Our user (users.user_id)
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
@@ -31,12 +37,22 @@ public class GatewayCustomerModel {
     @Column(name = "gateway_id", nullable = false)
     private UUID gatewayId;
 
-    @Column(name = "email", length = 100)
+    // The code/id the gateway gave us for this customer
+    @Column(name = "gateway_customer_code", nullable = false, length = 128)
+    private String gatewayCustomerCode;
+
+    @Column(name = "email", nullable = false)
     private String email;
 
-    // The code/id the gateway gave us for this customer
-    @Column(name = "gateway_customer_id", nullable = false, length = 128)
-    private String gatewayCustomerId;
+    @Column(name = "status", nullable = false)
+    private boolean status;
+
+    @Column(name = "currency_code", nullable = false)
+    private String currencyCode;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private String metadata;
 
     @CreationTimestamp
     @Column(name = "created_at")

@@ -3,7 +3,6 @@ package com.zentrapay.backend.service.schedule.sync;
 import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.entity.BillProviderModel;
-import com.zentrapay.backend.entity.MobileMoneyGatewayMappingsModel;
 import com.zentrapay.backend.entity.MobileMoneyProvidersModel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.BillProviderRepository;

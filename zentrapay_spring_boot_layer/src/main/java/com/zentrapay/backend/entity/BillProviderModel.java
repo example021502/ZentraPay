@@ -24,18 +24,14 @@ import java.util.UUID;
 public class BillProviderModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "provider_id", nullable = false)
-    private UUID providerId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
-    // NOT unique: the same biller can be offered by more than one gateway
-    // provider (one row per gateway) — the list API dedupes to a single
-    // record before sending the directory to the client (V23 dropped the
-    // original UNIQUE constraint for the same reason).
-    @Column(name = "biller_code", nullable = false)
-    private String billerCode;
+    @Column(name = "code", nullable = false)
+    private String code;
 
-    @Column(name = "biller_name", nullable = false)
-    private String billerName;
+    @Column(name = "name", nullable = false)
+    private String name;
 
     @Column(name = "category_code", nullable = false)
     private String categoryCode;
@@ -64,15 +60,7 @@ public class BillProviderModel {
 
     @Column(name = "gateway", nullable = false)
     private String gateway;
-
-    /**
-     * Biller classification reported to the client. Not persisted —
-     * {@code bill_providers} has no {@code user_type} column — the value is
-     * derived per-biller and defaults to {@link Datatypes.UserType#OTHERS}.
-     */
-    @Transient
-    private Datatypes.UserType userType = Datatypes.UserType.OTHERS;
-
+    
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

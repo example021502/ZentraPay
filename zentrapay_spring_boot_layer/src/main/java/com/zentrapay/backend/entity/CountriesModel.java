@@ -24,8 +24,8 @@ public class CountriesModel {
     @Column(name = "code", nullable = false, length = 3)
     private String code;
 
-    @Column(name = "country_name", nullable = false, length = 80)
-    private String countryName;
+    @Column(name = "name", nullable = false, length = 80)
+    private String name;
 
     @Column(name = "dial_code", length = 6)
     private String dialCode;

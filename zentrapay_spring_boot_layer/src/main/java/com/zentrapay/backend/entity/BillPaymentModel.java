@@ -1,8 +1,10 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,8 +21,8 @@ import java.util.UUID;
 public class BillPaymentModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "payment_id", nullable = false)
-    private UUID paymentId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -34,16 +36,20 @@ public class BillPaymentModel {
     @Column(name = "customer_reference", nullable = false, length = 60)
     private String customerReference;
 
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
     @Column(nullable = false, length = 20)
-    private String status = "PENDING";
+    private Datatypes.TransactionStatus status = Datatypes.TransactionStatus.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -14,27 +15,27 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "fraud_alerts")
-public class FraudAlert {
+@Table(name = "alerts")
+public class AlertsModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "alert_id", nullable = false)
-    private UUID alertId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "alert_type", nullable = false, length = 40)
-    private String alertType;
+    @Column(name = "name", nullable = false, length = 40)
+    private String name;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "message", nullable = false)
     private String message;
 
     @Column(nullable = false, length = 20)
-    private String severity = "LOW"; // LOW, MEDIUM, HIGH, CRITICAL
+    private Datatypes.AlertLevel severity = Datatypes.AlertLevel.LOW; // LOW, MEDIUM, HIGH, CRITICAL
 
     @Column(name = "is_resolved", nullable = false)
-    private boolean isResolved;
+    private boolean isResolved = false;
 
     @Column(name = "related_transaction_id")
     private UUID relatedTransactionId;

@@ -3,6 +3,8 @@ package com.zentrapay.backend.entity;
 import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,6 +29,7 @@ public class UserChallengesModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     @Column(name = "user_id", nullable = false)
@@ -37,7 +40,7 @@ public class UserChallengesModel {
     private ChallengesModel challenge;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="status", nullable = false, length = 30)
+    @Column(name = "status", nullable = false, length = 30)
     private Datatypes.ChallengeStatus status;
 
     @Builder.Default
@@ -56,7 +59,11 @@ public class UserChallengesModel {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    @Builder.Default
-    @OneToMany(mappedBy = "userChallenge", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ChallengesProgressModel> progressLogs = new ArrayList<>();
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updatedAt", nullable = false, updatable = false)
+    private LocalDateTime updatedAt;
 }

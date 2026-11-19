@@ -24,8 +24,8 @@ import java.util.UUID;
 public class ExchangeRateModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "rate_id", nullable = false)
-    private UUID rateId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "base_currency_code", nullable = false, length = 3)
     private String baseCurrencyCode;
@@ -35,9 +35,6 @@ public class ExchangeRateModel {
 
     @Column(name = "rate", nullable = false, precision = 24, scale = 10)
     private BigDecimal rate;
-
-    @Column(name = "source", length = 30)
-    private String source;
 
     @Column(name = "effective_at", nullable = false)
     private LocalDateTime effectiveAt;

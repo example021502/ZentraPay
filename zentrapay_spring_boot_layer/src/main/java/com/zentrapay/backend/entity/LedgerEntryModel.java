@@ -30,8 +30,8 @@ public class LedgerEntryModel {
     // Primary Key
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "ledger_id", nullable = false, updatable = false)
-    private UUID ledgerId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     // Direct reference to the parent transaction ID
     @Column(name = "transaction_id", nullable = false, updatable = false)

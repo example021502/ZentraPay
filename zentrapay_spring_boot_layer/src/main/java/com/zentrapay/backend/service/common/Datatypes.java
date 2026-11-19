@@ -43,11 +43,19 @@ public class Datatypes {
         ABANDONED
     }
 
-    //CHALLENGES DIFFICULTY LEVELS
-    public enum ChallengeDifficulty {
-        EASY,
-        MEDIUM,
-        HARD,
+    public enum CardType {
+        VIRTUAL_CARD("virtual_card"),
+        PHYSICAL_CARD("physical_card");
+
+        private final String type;
+
+        CardType(String type) {
+            this.type = type;
+        }
+
+        public String getCardType() {
+            return type;
+        }
     }
 
     //TRANSACTIONS STATUS
@@ -64,13 +72,20 @@ public class Datatypes {
     }
 
     //    RECIPIENT TYPES
-    public enum RecipientType {
-        INTERNAL_WALLET,
-        BANK_ACCOUNT,
-        MOBILE_MONEY,
-        MERCHANT_ACCOUNT,
-        BILL_SERVICE_PROVIDER,
-        SELF_OWNED_WALLET
+    public enum AccountStatus {
+        ACTIVE("active"),
+        FROZEN("frozen"),
+        SUSPENDED("suspended");
+
+        private final String status;
+
+        AccountStatus(String status) {
+            this.status = status;
+        }
+
+        public String getAccountStatus() {
+            return status;
+        }
     }
 
     //USER TYPE
@@ -91,9 +106,21 @@ public class Datatypes {
     }
 
     //WALLET TYPES
-    public enum WalletTypes {
-        FIAT_DIGITAL_CURRENCY,
-        CRYPTO_CURRENCY,
+    public enum AlertLevel {
+        LOW("low"),
+        MEDIUM("medium"),
+        HIGH("high");
+
+        private final String level;
+
+        AlertLevel(String level) {
+            this.level = level;
+        }
+
+        public String getAlertType() {
+            return level;
+        }
+
     }
 
     //PAYMENT GATEWAYS
@@ -140,8 +167,18 @@ public class Datatypes {
 
     // LEDGER ENTRY TYPES
     public enum LedgerEntryType {
-        DEBIT,
-        CREDIT
+        DEBIT("debit"),
+        CREDIT("credit");
+
+        private final String type;
+
+        LedgerEntryType(String type) {
+            this.type = type;
+        }
+
+        public String getLedgerEntryType() {
+            return type;
+        }
     }
 
     // BILL / SERVICE PROVIDER CATEGORIES
@@ -195,10 +232,20 @@ public class Datatypes {
     // SAVINGS LEDGER SOURCES — shared vocabulary for the user_savings ledger
     // (V24).
     public enum SavingsSource {
-        MILESTONE,
-        CHALLENGE,
-        MANUAL,
-        DEPOSIT
+        MILESTONE("milestone"),
+        CHALLENGE("challenge"),
+        MANUAL("manual"),
+        DEPOSIT("deposit");
+
+        private final String source;
+
+        SavingsSource(String source) {
+            this.source = source;
+        }
+
+        public String getSavingsSource() {
+            return source;
+        }
     }
 
     public enum PaymentMethod {
@@ -231,6 +278,90 @@ public class Datatypes {
 
         public final String getMethod() {
             return method;
+        }
+    }
+
+    public enum PayoutType {
+        BANK("bank"),
+        MOBILE_MONEY("mobile_money");
+
+        private final String type;
+
+        PayoutType(String type) {
+            this.type = type;
+        }
+
+        public String getPayoutType() {
+            return type;
+        }
+    }
+
+    public enum FundingType {
+        BANK_TRANSFER("bank_transfer"),
+        MOBILE_MONEY("mobile_money"),
+        CARD("card"),
+        USSD("ussd");
+
+        private final String type;
+
+        FundingType(String type) {
+            this.type = type;
+        }
+
+        public String getFundingType() {
+            return type;
+        }
+    }
+
+    public enum InvestmentType {
+        STOCK("STOCK"),
+        ETF("etf"),
+        COMMODITY("commodity"),
+        CRYPTO("crypto"),
+        OTHERS("others");
+
+        private final String type;
+
+        InvestmentType(String type) {
+            this.type = type;
+        }
+
+        public String getInvestmentType() {
+            return type;
+        }
+    }
+
+    public enum InvestmentStatus {
+        ACTIVE("active"),
+        CLOSED("closed");
+
+        private final String type;
+
+        InvestmentStatus(String type) {
+            this.type = type;
+        }
+
+        public String getInvestmentStatus() {
+            return type;
+        }
+    }
+
+    public enum LoanStatus {
+        PENDING("pending"),
+        APPROVED("approved"),
+        REJECTED("rejected"),
+        ACTIVE("active"),
+        CLOSED("closed"),
+        DEFAULT("default");
+
+        private final String status;
+
+        LoanStatus(String status) {
+            this.status = status;
+        }
+
+        public String getLoanStatus() {
+            return status;
         }
     }
 

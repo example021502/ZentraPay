@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -24,18 +26,17 @@ public class CurrenciesModel {
     @Column(name = "code", nullable = false, length = 3)
     private String code;
 
-    @Column(name = "currency_name", nullable = false, length = 80)
+    @Column(name = "name", nullable = false, length = 80)
     private String currencyName;
-
-    @Column(name = "currency_code", nullable = false, length = 3)
-    private String currencyCode;
 
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }
