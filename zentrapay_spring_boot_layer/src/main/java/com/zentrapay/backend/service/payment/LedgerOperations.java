@@ -1,12 +1,17 @@
+// Updated LedgerOperations class aligned with TransactionsServices and AccountsServices
 package com.zentrapay.backend.service.payment;
 
+import com.zentrapay.backend.entity.AccountsModel;
 import com.zentrapay.backend.entity.LedgerEntryModel;
 import com.zentrapay.backend.entity.NotificationModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
-import com.zentrapay.backend.repository.*;
+import com.zentrapay.backend.repository.LedgerEntryRepository;
+import com.zentrapay.backend.repository.NotificationRepository;
+import com.zentrapay.backend.service.DigitalAccounts.AccountsServices;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.common.NanoIdGenerator;
+import com.zentrapay.backend.service.transaction.TransactionsServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,17 +22,12 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Every balance change in the app goes through this class.
+ * Coordinates balance movements via {@link TransactionsServices}, account lookups/locks
+ * via {@link AccountsServices}, and append-only ledger entries via {@link LedgerEntryRepository}.
  *
  * <p>Golden rule: a balance change, its {@code transactions} row and its
  * {@code ledger_entries} rows are written in ONE database transaction. If anything
  * fails, all of it rolls back, so money can never be debited without a record.
- *
- * <p>The methods that move money after a transaction exists ({@link #markSubmitted},
- * {@link #complete}, {@link #refund}, {@link #creditFunding}, {@link #failFunding})
- * first LOCK the transaction row. That makes them safe to call twice (webhook
- * redelivery, webhook racing the reconciliation job): the second call sees the
- * final status and does nothing.
  */
 @Slf4j
 @Service
@@ -38,11 +38,70 @@ public class LedgerOperations {
     private static final Set<Datatypes.TransactionStatus> OPEN_STATUSES =
             Set.of(Datatypes.TransactionStatus.INITIATED, Datatypes.TransactionStatus.PENDING);
 
-    private final FiatAccountRepository fiatAccountRepository;
-    private final FiatWalletRepository fiatWalletRepository;
-    private final TransactionRepository transactionRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final NotificationRepository notificationRepository;
+    private final AccountsServices accountsServices;
+    private final TransactionsServices transactionsServices;
+
+    // ==================================================================
+    // Ledger entry helpers (DEBIT / CREDIT rows in ledger_entries)
+    // ==================================================================
+
+    /**
+     * Records a DEBIT entry in the ledger table with its post-operation running balance.
+     */
+    @Transactional
+    public void debit(
+            UUID transactionId,
+            String entryId,
+            String accountReference,
+            BigDecimal amount,
+            BigDecimal balance,
+            String currencyCode,
+            String narration
+    ) {
+        // Persist a DEBIT ledger entry for the affected account
+        log.info("===== LEDGER DEBIT LEG... =====");
+
+        LedgerEntryModel l = new LedgerEntryModel();
+        l.setTransactionId(transactionId);
+        l.setEntryId("DEBIT_" + entryId);
+        l.setAccountReference(accountReference);
+        l.setType(Datatypes.LedgerEntryType.DEBIT);
+        l.setAmount(amount);
+        l.setRunningBalance(balance);
+        l.setCurrencyCode(currencyCode);
+        l.setNarration(truncate(narration));
+        ledgerEntryRepository.save(l);
+    }
+
+    /**
+     * Records a CREDIT entry in the ledger table with its post-operation running balance.
+     */
+    @Transactional
+    public void credit(
+            UUID transactionId,
+            String entryId,
+            String accountReference,
+            BigDecimal amount,
+            BigDecimal balance,
+            String currencyCode,
+            String narration
+    ) {
+        // Persist a CREDIT ledger entry for the affected account
+        log.info("===== LEDGER CREDIT LEG... =====");
+
+        LedgerEntryModel l = new LedgerEntryModel();
+        l.setTransactionId(transactionId);
+        l.setEntryId("CREDIT_" + entryId);
+        l.setAccountReference(accountReference);
+        l.setType(Datatypes.LedgerEntryType.CREDIT);
+        l.setAmount(amount);
+        l.setRunningBalance(balance);
+        l.setCurrencyCode(currencyCode);
+        l.setNarration(truncate(narration));
+        ledgerEntryRepository.save(l);
+    }
 
     // ==================================================================
     // 1. Wallet -> wallet (P2P), fully inside our own ledger
@@ -52,78 +111,42 @@ public class LedgerOperations {
      * Moves money from one wallet account to another and records everything.
      * Debit, credit, transaction row, 2 ledger entries and 2 notifications are
      * all-or-nothing.
-     *
-     * @param draft    the transaction with sender/receiver details filled in (not saved yet)
-     * @param sender   the account to debit (in {@code draft.amount}, source currency)
-     * @param receiver the account to credit (in {@code draft.destinationAmount}, destination currency)
      */
     @Transactional
-    public TransactionModel transferBetweenWallets(TransactionModel draft, FiatAccountModel sender, FiatAccountModel receiver) {
+    public TransactionModel transferBetweenWallets(TransactionModel draft, AccountsModel sender, AccountsModel receiver) {
         log.info("Ledger: P2P {} {} -> {} {}", draft.getAmount(), draft.getSourceCurrencyCode(),
                 draft.getDestinationAmount(), draft.getDestinationCurrencyCode());
 
-        // Always touch the two account rows in the same order (smaller id first), so two
-        // people paying each other at the same moment cannot deadlock the database.
-        boolean debitFirst = sender.getAccountId().compareTo(receiver.getAccountId()) < 0;
+        // Lock and move balances in deterministic UUID order to prevent deadlocks
+        boolean debitFirst = sender.getId().compareTo(receiver.getId()) < 0;
+        BigDecimal senderBalance;
+        BigDecimal receiverBalance;
+
         if (debitFirst) {
-            debit(sender.getAccountId(), draft.getAmount());
-            credit(receiver.getAccountId(), draft.getDestinationAmount());
+            senderBalance = moveDebit(sender.getId(), draft.getAmount(), draft.getSourceCurrencyCode());
+            receiverBalance = moveCredit(receiver.getId(), draft.getDestinationAmount(), draft.getDestinationCurrencyCode());
         } else {
-            credit(receiver.getAccountId(), draft.getDestinationAmount());
-            debit(sender.getAccountId(), draft.getAmount());
+            receiverBalance = moveCredit(receiver.getId(), draft.getDestinationAmount(), draft.getDestinationCurrencyCode());
+            senderBalance = moveDebit(sender.getId(), draft.getAmount(), draft.getSourceCurrencyCode());
         }
 
         String entryId = NanoIdGenerator.generate("ENT_", 10);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
-        TransactionModel txn = transactionRepository.save(draft);
+        TransactionModel txn = transactionsServices.save(draft);
 
-        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getId(), Datatypes.LedgerEntryType.DEBIT,
-                draft.getAmount(), draft.getSourceCurrencyCode(),
+        debit(txn.getId(), entryId + "_W2W", sender.getZentag(),
+                draft.getAmount(), senderBalance, draft.getSourceCurrencyCode(),
                 "Sent to " + draft.getReceiverName());
-        writeEntry(txn.getTransactionId(), entryId + "_CREDIT", receiver.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
-                draft.getDestinationAmount(), draft.getDestinationCurrencyCode(),
-                "Received from " + draft.getSenderName());
+        credit(txn.getId(), entryId + "_W2W", receiver.getZentag(),
+                draft.getDestinationAmount(), receiverBalance, draft.getDestinationCurrencyCode(),
+                "Received from " + txn.getSenderName());
 
         notify(txn.getSenderId(), txn, "Money Sent",
                 "You sent " + txn.getSourceCurrencyCode() + " " + txn.getAmount().toPlainString() + " to " + txn.getReceiverName());
         notify(txn.getReceiverId(), txn, "Money Received",
                 "You received " + txn.getDestinationCurrencyCode() + " " + txn.getDestinationAmount().toPlainString() + " from " + txn.getSenderName());
         return txn;
-    }
-
-    // ==================================================================
-    // 2. Payout to the outside world (bank / mobile money)
-    // ==================================================================
-
-    /**
-     * Step 1 of a payout: take the money from the sender and record the payment as
-     * INITIATED (money is held, the gateway has not been called yet). The gateway
-     * reference ({@code zp-<transactionId>}) is stored right away so webhooks can
-     * always find the row.
-     */
-    @Transactional
-    public TransactionModel debitForPayout(TransactionModel draft, FiatAccountModel sender) {
-        log.info("Ledger: payout debit {} {} from account {}", draft.getAmount(), draft.getSourceCurrencyCode(), sender.getAccountId());
-        debit(sender.getAccountId(), draft.getAmount());
-
-        String entryId = NanoIdGenerator.generate("ENT_", 21);
-        draft.setEntryId(entryId);
-        draft.setStatus(Datatypes.TransactionStatus.INITIATED);
-        TransactionModel txn = transactionRepository.save(draft);
-        txn.setExternalReferenceId(gatewayReference(txn));
-
-        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", sender.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
-                draft.getAmount(), draft.getSourceCurrencyCode(),
-                "Transfer to " + draft.getReceiverName());
-        return txn;
-    }
-
-    /**
-     * The reference we send to every gateway for this transaction (valid for Paystack: lowercase, 16+ chars).
-     */
-    public static String gatewayReference(TransactionModel txn) {
-        return "zp-" + txn.getTransactionId();
     }
 
     /**
@@ -142,8 +165,7 @@ public class LedgerOperations {
 
     /**
      * Step 2 of a payout: the gateway accepted the transfer. INITIATED becomes PENDING
-     * (or SUCCESS if the gateway already says delivered). If a webhook was faster and
-     * already moved the status on, the status is left alone.
+     * (or SUCCESS if the gateway already says delivered).
      */
     @Transactional
     public TransactionModel markSubmitted(UUID transactionId, UUID gatewayId, boolean settled) {
@@ -155,7 +177,7 @@ public class LedgerOperations {
                 notify(txn.getSenderId(), txn, "Transfer Successful", successMessage(txn));
             }
         }
-        return transactionRepository.save(txn);
+        return transactionsServices.save(txn);
     }
 
     /**
@@ -165,30 +187,25 @@ public class LedgerOperations {
     public void assignGateway(UUID transactionId, UUID gatewayId) {
         TransactionModel txn = lock(transactionId);
         txn.setGatewayId(gatewayId);
-        transactionRepository.save(txn);
+        transactionsServices.save(txn);
     }
 
     /**
      * The gateway confirmed delivery. Does nothing if the payment is already final. Returns true if it changed.
      */
     @Transactional
-    public boolean complete(UUID transactionId) {
+    public void complete(UUID transactionId) {
         TransactionModel txn = lock(transactionId);
         if (!OPEN_STATUSES.contains(txn.getStatus())) {
             log.info("Ledger: {} already {} - ignoring confirmation", txn.getInternalReferenceId(), txn.getStatus());
-            return false;
         }
         txn.setStatus(Datatypes.TransactionStatus.SUCCESS);
-        transactionRepository.save(txn);
+        transactionsServices.save(txn);
         notify(txn.getSenderId(), txn, "Transfer Successful", successMessage(txn));
-        return true;
     }
 
     /**
-     * Gives the sender their money back and closes the payment as FAILED.
-     * Also used when the gateway REVERSES a payout it had already settled
-     * ({@code reversal = true}), which closes it as REVERSED instead.
-     * Does nothing if the money was already returned. Returns true if it changed.
+     * Gives the sender their money back and closes the payment as FAILED (or REVERSED when reversal = true).
      */
     @Transactional
     public boolean refund(UUID transactionId, boolean reversal, String reason) {
@@ -200,19 +217,134 @@ public class LedgerOperations {
             return false;
         }
 
-        FiatAccountModel account = senderAccount(txn);
-        credit(account.getAccountId(), txn.getAmount());
-        writeEntry(txn.getTransactionId(), txn.getEntryId() + "_REFUND", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
-                txn.getAmount(), txn.getSourceCurrencyCode(), "Refund: " + txn.getInternalReferenceId());
+        AccountsModel account = senderAccount(txn);
+        BigDecimal newBalance = moveCredit(account.getId(), txn.getAmount(), txn.getSourceCurrencyCode());
+        credit(txn.getId(), txn.getEntryId() + "_REFUND", account.getZentag(),
+                txn.getAmount(), newBalance, txn.getSourceCurrencyCode(), "Refund: " + txn.getInternalReferenceId());
 
         txn.setStatus(settledThenReversed ? Datatypes.TransactionStatus.REVERSED : Datatypes.TransactionStatus.FAILED);
         txn.setFailureReason(reason == null ? "Transfer failed at the payment gateway" : truncate(reason));
-        transactionRepository.save(txn);
+        transactionsServices.save(txn);
 
         notify(txn.getSenderId(), txn, "Transfer Failed",
                 "Your transfer of " + txn.getSourceCurrencyCode() + " " + txn.getAmount().toPlainString()
                         + " to " + txn.getReceiverName() + " did not go through. The money was returned to your wallet.");
         log.info("Ledger: refunded {} {} for {}", txn.getAmount(), txn.getSourceCurrencyCode(), txn.getInternalReferenceId());
+        return true;
+    }
+
+    // ==================================================================
+    // 2b. Bill payment settlement & reversal
+    // ==================================================================
+
+    /**
+     * Settles a confirmed bill payment by moving funds from the pending bills clearing
+     * account to the provider float account and writing balanced debit/credit ledger entries.
+     */
+    @Transactional
+    public boolean settleBillSuccess(
+            UUID transactionId,
+            String entryId,
+            UUID pendingBillsClearingAccountId,
+            UUID providerFloatAccountId,
+            BigDecimal amount,
+            String currencyCode
+    ) {
+        // Lock transaction first so concurrent webhook/poller invocations are idempotent
+        TransactionModel txn = lock(transactionId);
+        if (!OPEN_STATUSES.contains(txn.getStatus())) {
+            log.info("Ledger: bill {} already {} - ignoring settlement", txn.getInternalReferenceId(), txn.getStatus());
+            return false;
+        }
+
+        // Lock both internal accounts in deterministic UUID order to prevent deadlocks
+        UUID firstId = pendingBillsClearingAccountId.compareTo(providerFloatAccountId) < 0
+                ? pendingBillsClearingAccountId : providerFloatAccountId;
+        UUID secondId = firstId.equals(pendingBillsClearingAccountId)
+                ? providerFloatAccountId : pendingBillsClearingAccountId;
+
+        lockAccountById(firstId);
+        lockAccountById(secondId);
+
+        // Move funds out of pending bills clearing and into provider float via TransactionsServices
+        BigDecimal clearingBalance = moveDebit(pendingBillsClearingAccountId, amount, currencyCode);
+        BigDecimal floatBalance = moveCredit(providerFloatAccountId, amount, currencyCode);
+
+        String clearingRef = accountsServices.getAccount(pendingBillsClearingAccountId).getZentag();
+        String floatRef = accountsServices.getAccount(providerFloatAccountId).getZentag();
+
+        String baseEntryId = (entryId != null && !entryId.isBlank())
+                ? entryId
+                : (txn.getEntryId() != null ? txn.getEntryId() : NanoIdGenerator.generate("ENT_", 12));
+
+        debit(txn.getId(), baseEntryId + "_BILL_CLEARING", clearingRef,
+                amount, clearingBalance, currencyCode,
+                "Settled bill payment from pending clearing: " + txn.getInternalReferenceId());
+        credit(txn.getId(), baseEntryId + "_BILL_FLOAT", floatRef,
+                amount, floatBalance, currencyCode,
+                "Bill payment settled into provider float: " + txn.getInternalReferenceId());
+
+        txn.setStatus(Datatypes.TransactionStatus.SUCCESS);
+        transactionsServices.save(txn);
+        notify(txn.getSenderId(), txn, "Bill Payment Successful",
+                "Your bill payment of " + currencyCode + " " + amount.toPlainString()
+                        + " to " + txn.getReceiverName() + " was completed.");
+        return true;
+    }
+
+    /**
+     * Refunds a failed or rejected bill payment by debiting the pending bills clearing
+     * account and crediting the customer's wallet account back.
+     */
+    @Transactional
+    public boolean refundFailedBill(
+            UUID transactionId,
+            String entryId,
+            UUID pendingBillsClearingAccountId,
+            UUID userWalletAccountId,
+            BigDecimal amount,
+            String currencyCode
+    ) {
+        // Lock transaction first so duplicate failure callbacks cannot double-refund
+        TransactionModel txn = lock(transactionId);
+        if (!OPEN_STATUSES.contains(txn.getStatus())) {
+            log.info("Ledger: bill {} already {} - ignoring refund", txn.getInternalReferenceId(), txn.getStatus());
+            return false;
+        }
+
+        // Lock both accounts in deterministic UUID order to prevent deadlocks
+        UUID firstId = pendingBillsClearingAccountId.compareTo(userWalletAccountId) < 0
+                ? pendingBillsClearingAccountId : userWalletAccountId;
+        UUID secondId = firstId.equals(pendingBillsClearingAccountId)
+                ? userWalletAccountId : pendingBillsClearingAccountId;
+
+        lockAccountById(firstId);
+        lockAccountById(secondId);
+
+        // Release pending bills clearing hold and credit user wallet account via TransactionsServices
+        BigDecimal clearingBalance = moveDebit(pendingBillsClearingAccountId, amount, currencyCode);
+        BigDecimal walletBalance = moveCredit(userWalletAccountId, amount, currencyCode);
+
+        String clearingRef = accountsServices.getAccount(pendingBillsClearingAccountId).getZentag();
+        String walletRef = accountsServices.getAccount(userWalletAccountId).getZentag();
+
+        String baseEntryId = (entryId != null && !entryId.isBlank())
+                ? entryId
+                : (txn.getEntryId() != null ? txn.getEntryId() : NanoIdGenerator.generate("ENT_", 12));
+
+        debit(txn.getId(), baseEntryId + "_BILL_CLEARING_REFUND", clearingRef,
+                amount, clearingBalance, currencyCode,
+                "Released pending bills clearing on failed bill: " + txn.getInternalReferenceId());
+        credit(txn.getId(), baseEntryId + "_BILL_REFUND", walletRef,
+                amount, walletBalance, currencyCode,
+                "Refunded failed bill payment: " + txn.getInternalReferenceId());
+
+        txn.setStatus(Datatypes.TransactionStatus.FAILED);
+        txn.setFailureReason("Bill payment failed at gateway");
+        transactionsServices.save(txn);
+        notify(txn.getSenderId(), txn, "Bill Payment Failed",
+                "Your bill payment of " + currencyCode + " " + amount.toPlainString()
+                        + " to " + txn.getReceiverName() + " failed. The money was returned to your wallet.");
         return true;
     }
 
@@ -227,18 +359,13 @@ public class LedgerOperations {
     public TransactionModel recordFundingAttempt(TransactionModel draft) {
         draft.setEntryId(NanoIdGenerator.generate("ENT_", 21));
         draft.setStatus(Datatypes.TransactionStatus.PENDING);
-        TransactionModel txn = transactionRepository.save(draft);
+        TransactionModel txn = transactionsServices.save(draft);
         txn.setExternalReferenceId(gatewayReference(txn));
         return txn;
     }
 
     /**
      * The gateway confirmed the customer paid: credit their wallet.
-     * The amount and currency the gateway reports must match what we asked for,
-     * otherwise nothing is credited and the payment is flagged as failed for review.
-     *
-     * @param paidAmount   what the gateway says was paid (major units)
-     * @param paidCurrency what the gateway says was paid in
      */
     @Transactional
     public boolean creditFunding(UUID transactionId, BigDecimal paidAmount, String paidCurrency) {
@@ -255,17 +382,17 @@ public class LedgerOperations {
                     txn.getInternalReferenceId(), txn.getAmount(), txn.getDestinationCurrencyCode(), paidAmount, paidCurrency);
             txn.setStatus(Datatypes.TransactionStatus.FAILED);
             txn.setFailureReason("Paid amount did not match the request - needs manual review");
-            transactionRepository.save(txn);
+            transactionsServices.save(txn);
             return true;
         }
 
-        FiatAccountModel account = receiverAccount(txn);
-        credit(account.getAccountId(), txn.getAmount());
-        writeEntry(txn.getTransactionId(), txn.getEntryId() + "_CREDIT", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
-                txn.getAmount(), txn.getDestinationCurrencyCode(), "Wallet funding: " + txn.getInternalReferenceId());
+        AccountsModel account = receiverAccount(txn);
+        BigDecimal newBalance = moveCredit(account.getId(), txn.getAmount(), txn.getDestinationCurrencyCode());
+        credit(txn.getId(), txn.getEntryId() + "_FUNDING", account.getZentag(),
+                txn.getAmount(), newBalance, txn.getDestinationCurrencyCode(), "Wallet funding: " + txn.getInternalReferenceId());
 
         txn.setStatus(Datatypes.TransactionStatus.SUCCESS);
-        transactionRepository.save(txn);
+        transactionsServices.save(txn);
         notify(txn.getReceiverId(), txn, "Wallet Funded",
                 "Your wallet was topped up with " + txn.getDestinationCurrencyCode() + " " + txn.getAmount().toPlainString() + ".");
         return true;
@@ -282,7 +409,7 @@ public class LedgerOperations {
         }
         txn.setStatus(Datatypes.TransactionStatus.FAILED);
         txn.setFailureReason(truncate(reason == null ? "Checkout failed at the payment gateway" : reason));
-        transactionRepository.save(txn);
+        transactionsServices.save(txn);
         notify(txn.getReceiverId(), txn, "Wallet Funding Failed",
                 "Your attempt to fund your wallet with " + txn.getDestinationCurrencyCode() + " " + txn.getAmount().toPlainString() + " did not go through.");
         return true;
@@ -293,36 +420,33 @@ public class LedgerOperations {
     // ==================================================================
 
     /**
-     * Takes money out of one of the user's wallet accounts for a ZentraPay product (a savings goal,
-     * a loan repayment). Debit, SUCCESS transaction row and ledger entry are one all-or-nothing step;
-     * "Insufficient balance" is thrown (and nothing is written) when the account cannot cover it.
+     * Takes money out of one of the user's wallet accounts for a ZentraPay product.
      */
     @Transactional
-    public TransactionModel debitInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
-        debit(account.getAccountId(), draft.getAmount());
+    public TransactionModel debitInternal(TransactionModel draft, AccountsModel account, String narration, String notifyTitle, String notifyMessage) {
+        BigDecimal newBalance = moveDebit(account.getId(), draft.getAmount(), draft.getSourceCurrencyCode());
         String entryId = NanoIdGenerator.generate("ENT_", 21);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
-        TransactionModel txn = transactionRepository.save(draft);
-        writeEntry(txn.getTransactionId(), entryId + "_DEBIT", account.getAccountId(), Datatypes.LedgerEntryType.DEBIT,
-                draft.getAmount(), draft.getSourceCurrencyCode(), narration);
+        TransactionModel txn = transactionsServices.save(draft);
+        debit(txn.getId(), entryId + "_INTERNAL", account.getZentag(),
+                draft.getAmount(), newBalance, draft.getSourceCurrencyCode(), narration);
         notify(txn.getSenderId(), txn, notifyTitle, notifyMessage);
         return txn;
     }
 
     /**
-     * Puts money into one of the user's wallet accounts from a ZentraPay product (a savings goal
-     * withdrawal, a loan paid out). Same all-or-nothing rule as {@link #debitInternal}.
+     * Puts money into one of the user's wallet accounts from a ZentraPay product.
      */
     @Transactional
-    public TransactionModel creditInternal(TransactionModel draft, FiatAccountModel account, String narration, String notifyTitle, String notifyMessage) {
-        credit(account.getAccountId(), draft.getDestinationAmount());
+    public TransactionModel creditInternal(TransactionModel draft, AccountsModel account, String narration, String notifyTitle, String notifyMessage) {
+        BigDecimal newBalance = moveCredit(account.getId(), draft.getDestinationAmount(), draft.getDestinationCurrencyCode());
         String entryId = NanoIdGenerator.generate("ENT_", 21);
         draft.setEntryId(entryId);
         draft.setStatus(Datatypes.TransactionStatus.SUCCESS);
-        TransactionModel txn = transactionRepository.save(draft);
-        writeEntry(txn.getTransactionId(), entryId + "_CREDIT", account.getAccountId(), Datatypes.LedgerEntryType.CREDIT,
-                draft.getDestinationAmount(), draft.getDestinationCurrencyCode(), narration);
+        TransactionModel txn = transactionsServices.save(draft);
+        credit(txn.getId(), entryId + "_INTERNAL", account.getZentag(),
+                draft.getDestinationAmount(), newBalance, draft.getDestinationCurrencyCode(), narration);
         notify(txn.getReceiverId(), txn, notifyTitle, notifyMessage);
         return txn;
     }
@@ -330,7 +454,7 @@ public class LedgerOperations {
     /**
      * The user's wallet account in this currency (public so product services can find it).
      */
-    public FiatAccountModel walletAccount(UUID userId, String currencyCode) {
+    public AccountsModel walletAccount(UUID userId, String currencyCode) {
         return accountFor(userId, currencyCode.toUpperCase());
     }
 
@@ -338,55 +462,42 @@ public class LedgerOperations {
     // Helpers
     // ==================================================================
 
-    // Reads the transaction row with a database lock (see class comment)
+    // Reads the transaction row with a database lock via TransactionsServices
     private TransactionModel lock(UUID transactionId) {
-        return transactionRepository.findByIdForUpdate(transactionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
+        return transactionsServices.getAndLockTransaction(transactionId);
     }
 
-    // Takes money out of an account; the UPDATE only succeeds when the balance is enough
-    private void debit(UUID accountId, BigDecimal amount) {
-        if (fiatAccountRepository.debit(accountId, amount) != 1) {
-            throw new IllegalArgumentException("Insufficient balance");
-        }
+    // Locks an account row by ID via AccountsServices
+    private AccountsModel lockAccountById(UUID accountId) {
+        return accountsServices.getAndLockAccountForUpdate(accountId);
     }
 
-    private void credit(UUID accountId, BigDecimal amount) {
-        if (fiatAccountRepository.credit(accountId, amount) != 1) {
-            throw new IllegalStateException("Could not credit account " + accountId);
-        }
+    // Moves money out of an account via TransactionsServices and returns the updated balance
+    private BigDecimal moveDebit(UUID accountId, BigDecimal amount, String currencyCode) {
+        return accountsServices.debit(amount, currencyCode, accountId);
     }
 
-    // Writes one ledger line; the running balance is read AFTER the balance update in this same transaction
-    public void writeEntry(UUID txnId, String entryId, UUID accountId,
-                           Datatypes.LedgerEntryType type, BigDecimal amount, String currency, String narration) {
-        LedgerEntryModel entry = new LedgerEntryModel();
-        entry.setTransactionId(txnId);
-        entry.setEntryId(entryId);
-        entry.setAccountId(accountId);
-        entry.setType(type);
-        entry.setAmount(amount);
-        entry.setRunningBalance(fiatAccountRepository.getBalanceByAccountId(accountId).orElse(BigDecimal.ZERO));
-        entry.setCurrencyCode(currency);
-        entry.setNarration(truncate(narration));
-        ledgerEntryRepository.save(entry);
+    // Moves money into an account via TransactionsServices and returns the updated balance
+    private BigDecimal moveCredit(UUID accountId, BigDecimal amount, String currencyCode) {
+        return accountsServices.credit(amount, currencyCode, accountId);
     }
 
     // The sender's account in the currency that was debited
-    private FiatAccountModel senderAccount(TransactionModel txn) {
+    private AccountsModel senderAccount(TransactionModel txn) {
         return accountFor(txn.getSenderId(), txn.getSourceCurrencyCode());
     }
 
     // The receiver's account in the currency that is credited
-    private FiatAccountModel receiverAccount(TransactionModel txn) {
+    private AccountsModel receiverAccount(TransactionModel txn) {
         return accountFor(txn.getReceiverId(), txn.getDestinationCurrencyCode());
     }
 
-    private FiatAccountModel accountFor(UUID userId, String currencyCode) {
-        UUID walletId = fiatWalletRepository.getWalletIdByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
-        return fiatAccountRepository.findByWalletIdAndCurrencyCode(walletId, currencyCode)
-                .orElseThrow(() -> new ResourceNotFoundException("No " + currencyCode + " account found"));
+    // Resolves a user's currency account through AccountsServices
+    private AccountsModel accountFor(UUID userId, String currencyCode) {
+        if (userId == null) {
+            throw new ResourceNotFoundException("User not found");
+        }
+        return accountsServices.getAccount(userId, currencyCode.toUpperCase(), null);
     }
 
     private void notify(UUID userId, TransactionModel txn, String title, String message) {
@@ -408,8 +519,16 @@ public class LedgerOperations {
                 + " to " + txn.getReceiverName() + " was successful.";
     }
 
+    // Generates a gateway reference from the persisted transaction ID
+    private String gatewayReference(TransactionModel txn) {
+        return "zp-" + txn.getId();
+    }
+
     // Column limits are 255 (narration, failure reason) and 500 (notification message)
     private String truncate(String text) {
+        if (text == null) {
+            return null;
+        }
         return text.length() > 250 ? text.substring(0, 250) : text;
     }
 }

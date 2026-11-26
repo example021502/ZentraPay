@@ -251,7 +251,7 @@ public class CredentialService {
     // An in-app notice and an email, so a change the user did not make does not go unnoticed
     private void announce(UserModel user, String title, String message) {
         NotificationModel notification = new NotificationModel();
-        notification.setUserId(user.getUserId());
+        notification.setUserId(user.getId());
         notification.setTitle(title);
         notification.setMessage(message);
         notification.setType("SECURITY");

@@ -1,6 +1,7 @@
 package com.zentrapay.backend.service.gateway;
 
-import com.zentrapay.backend.dto.payment.GatewayTransferResult;
+import com.zentrapay.backend.dto.gateway.OnAfriqBillPaymentResponseDTO;
+import com.zentrapay.backend.dto.gateway.OnAfriqTransferResponseDTO;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,8 @@ public class OnafriqServices {
     private String recipientsPath;
     @Value("${onafriq.paths.transfers:/transfers}")
     private String transfersPath;
+    @Value("${onafriq.webhooks-url}")
+    String webhookUrl;
 
     /**
      * True once real partner credentials are configured. The shipped placeholders
@@ -65,7 +68,9 @@ public class OnafriqServices {
         }
     }
 
-    /** Registers the sender with Onafriq and returns its customer id. */
+    /**
+     * Registers the sender with Onafriq and returns its customer id.
+     */
     public String createCustomer(String email, String firstName, String lastName, String phoneNumber) {
         requireConfigured();
         log.info("Onafriq: creating customer for {}", email);
@@ -80,7 +85,9 @@ public class OnafriqServices {
         return idFrom(http.post(GATEWAY, baseUrl + customersPath, secretKey, body, JsonNode.class), "customer");
     }
 
-    /** Registers the receiving bank account / mobile-money wallet and returns its recipient id. */
+    /**
+     * Registers the receiving bank account / mobile-money wallet and returns its recipient id.
+     */
     public String createRecipient(String checkoutType, String countryCode, String accountName,
                                   String accountNumber, String channelCode, String currency) {
         requireConfigured();
@@ -96,9 +103,11 @@ public class OnafriqServices {
         return idFrom(http.post(GATEWAY, baseUrl + recipientsPath, secretKey, body, JsonNode.class), "recipient");
     }
 
-    /** Sends a cross-border payout. The reference is our idempotency key. */
-    public GatewayTransferResult sendTransfer(BigDecimal amount, String recipientId, String currency,
-                                              String narration, String reference) {
+    /**
+     * Sends a cross-border payout. The reference is our idempotency key.
+     */
+    public OnAfriqTransferResponseDTO sendTransfer(BigDecimal amount, String recipientId, String currency,
+                                                   String narration, String reference) {
         requireConfigured();
         log.info("Onafriq: transfer ref={} amount={} {} recipient={}", reference, amount, currency, recipientId);
         Map<String, Object> body = new LinkedHashMap<>();
@@ -111,12 +120,33 @@ public class OnafriqServices {
             body.put("narration", narration);
         }
 
-        JsonNode response = http.post(GATEWAY, baseUrl + transfersPath, secretKey, body, JsonNode.class);
-        String status = response == null ? "" : response.path("data").path("status").asString("").toUpperCase();
-        if ("FAILED".equals(status) || "REVERSED".equals(status)) {
-            throw new PaymentGatewayException("Onafriq transfer not accepted (status " + status + ")");
-        }
-        return new GatewayTransferResult(idFrom(response, "transfer"), "SUCCESSFUL".equals(status) || "SUCCESS".equals(status));
+        return http.post(GATEWAY, baseUrl + transfersPath, secretKey, body, OnAfriqTransferResponseDTO.class);
+    }
+
+    /**
+     * Making a bill payment via Onafriq
+     */
+    public OnAfriqBillPaymentResponseDTO payBill(
+            String transactionRef,
+            BigDecimal amount,
+            String currencyCode,
+            String countryCode,
+            String billerCode,
+            String accountNumber,
+            String recipientPhone
+    ) {
+        requireConfigured();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("transaction_reference", transactionRef);
+        body.put("amount", amount);
+        body.put("currency", currencyCode);
+        body.put("countryCode", countryCode);
+        body.put("billerCode", billerCode);
+        body.put("accountNumber", accountNumber);
+        body.put("recipient_phone", recipientPhone);
+        body.put("callback_url", webhookUrl);
+
+        return http.post(GATEWAY, baseUrl + transfersPath, secretKey, body, OnAfriqBillPaymentResponseDTO.class);
     }
 
     // Reads data.id from the common {status, message, data} envelope, or fails with the gateway's message

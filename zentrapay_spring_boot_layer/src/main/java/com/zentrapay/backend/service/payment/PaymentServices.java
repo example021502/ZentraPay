@@ -7,22 +7,20 @@ import com.zentrapay.backend.dto.transaction.TransactionDTO;
 import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.*;
+import com.zentrapay.backend.service.DigitalAccounts.AccountsServices;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.common.Utils;
 import com.zentrapay.backend.service.fx.ExchangeRateService;
-import com.zentrapay.backend.service.region.SupportedRegionService;
-import com.zentrapay.backend.service.transaction.TransactionsQueryService;
+import com.zentrapay.backend.service.CountriesServices;
+import com.zentrapay.backend.service.transaction.TransactionsServices;
 import com.zentrapay.backend.service.user.PinService;
-import com.zentrapay.backend.service.wallet.VirtualAccountServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Transaction;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,14 +30,14 @@ import java.util.UUID;
 public class PaymentServices {
 
     private final UserRepository userRepository;
-    private final VirtualAccountServices virtualAccountServices;
+    private final AccountsServices accountsServices;
     private final TransactionRepository transactionRepository;
     private final LedgerOperations ledgerOperations;
     private final BankTransferServices bankTransferServices;
     private final ExchangeRateService exchangeRateService;
-    private final TransactionsQueryService transactionsQueryService;
+    private final TransactionsServices transactionsServices;
     private final PinService pinService;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
     private final AccountVerificationService accountVerificationService;
     private final DestinationTokenService destinationTokenService;
     private final TransactionRecorder transactionRecorder;
@@ -64,11 +62,11 @@ public class PaymentServices {
      */
     @Transactional
     public TransactionDTO initialize(UUID userId, TransactionRequest req) {
-        String txnRef = Utils.getTxnRef();
+        String txnRef = Utils.getRandomId("ZENREF_");
         log.info("========== PAYMENT START: ref={} sender={} ==========", txnRef, userId);
         Datatypes.TransactionType type = req.resolvedType();
         if (transactionRepository.existsByIdempotency(req.idempotencyKey())) {
-            return transactionsQueryService.getTransactionByIdempotencyKeyAndSenderId(req.idempotencyKey(), userId);
+            return transactionsServices.getTransactionByIdempotencyKeyAndSenderId(req.idempotencyKey(), userId);
         }
         // Same txnRef again = the app retrying: return the first result, never pay twice
         Optional<TransactionModel> existing = transactionRepository.findByInternalReferenceId(txnRef);
@@ -83,9 +81,7 @@ public class PaymentServices {
                 throw new IllegalArgumentException("Your account is " + sender.getStatus() + " at the moment");
             }
             pinService.requireValid(sender, req.pin());
-            supportedRegionService.requireUserCountry(sender);
-            // The sender can only pay in the default currency of the country they registered in
-            supportedRegionService.currenciesFor(sender, null, req.transfer().currencyCode(), null);
+            countriesServices.requireSupportCountry(sender.getCountryCode());
             if (req.transfer().currencyType() != null && "crypto".equalsIgnoreCase(req.transfer().currencyType())) {
                 throw new IllegalArgumentException("Crypto currencies are not supported at the moment!");
             }
@@ -119,7 +115,7 @@ public class PaymentServices {
                     sourceCurrency, destinationCurrency, null);
             if (type == Datatypes.TransactionType.P2P_TRANSFER && req.appUser() != null && req.appUser().userId() != null) {
                 userRepository.findById(req.appUser().userId()).ifPresent(r -> {
-                    draft.setReceiverId(r.getUserId());
+                    draft.setReceiverId(r.getId());
                     draft.setReceiverName(r.getFirstName() + " " + r.getLastName());
                     draft.setReceiverEmail(r.getEmail());
                     draft.setReceiverPhoneNumber(r.getPhoneNumber());
@@ -139,7 +135,7 @@ public class PaymentServices {
     // Name and masked number of the verified destination, when the token is still readable
     private void applyDestinationForRecord(TransactionModel draft, UserModel sender, String token) {
         try {
-            DestinationTokenService.Destination dest = destinationTokenService.open(sender.getUserId(), token);
+            DestinationTokenService.Destination dest = destinationTokenService.open(sender.getId(), token);
             draft.setReceiverName(dest.accountName() == null || dest.accountName().isBlank() ? dest.destinationName() : dest.accountName());
             draft.setDestinationIdentifier(DestinationTokenService.mask(dest.accountNumber()));
         } catch (RuntimeException ignored) {
@@ -153,7 +149,7 @@ public class PaymentServices {
             throw new IllegalArgumentException("This transaction reference has already been used");
         }
         log.info("Payment {} already exists ({}) - returning it instead of paying again", existing.getInternalReferenceId(), existing.getStatus());
-        return transactionsQueryService.toDto(existing, userId);
+        return transactionsServices.toDto(existing, userId);
     }
 
     // ==================================================================
@@ -171,7 +167,7 @@ public class PaymentServices {
         String destinationCurrency = transfer.destinationCurrencyCode();
         UserModel receiver = userRepository.findById(req.appUser().userId())
                 .orElseThrow(() -> new ResourceNotFoundException("Recipient not found"));
-        if (receiver.getUserId().equals(sender.getUserId())) {
+        if (receiver.getId().equals(sender.getId())) {
             throw new IllegalArgumentException("You cannot send money to yourself");
         }
         if (receiver.getStatus() != Datatypes.UserStatus.ACTIVE) {
@@ -180,7 +176,7 @@ public class PaymentServices {
         if (isCrossBorder(sender.getCountryCode(), receiver.getCountryCode())) {
             throw new IllegalArgumentException("The recipient is in another country. Please use ZRemit for cross-border transfers.");
         }
-        if (!virtualAccountServices.accountExists(receiver.getUserId(), destinationCurrency)) {
+        if (!accountsServices.accountExists(receiver.getId(), destinationCurrency)) {
             throw new RuntimeException("Receiver does not have an account of type " + destinationCurrency);
         }
 
@@ -190,17 +186,17 @@ public class PaymentServices {
         // CHECKING THE SENDER BALANCE
         // ==========================================================
         log.info("STAGE 2: checking the sender account, balance and limits");
-        VirtualAccountModel senderAccount = virtualAccountServices.checkBalance(sender.getUserId(), sourceCurrency, amount);
+        AccountsModel senderAccount = accountsServices.checkBalance(sender.getId(), sourceCurrency, amount);
         checkSendLimit(sender, amount);
-        checkReceiveLimit(receiver, sender.getUserId(), req);
+        checkReceiveLimit(receiver, sender.getId(), req);
 
         // ==========================================================
         // MOVING THE MONEY
         // ==========================================================
         log.info("STAGE 3: moving the money (one database transaction)");
-        virtualAccountServices.debit();
+        accountsServices.debit(amount, req.transfer().currencyCode(), senderAccount.getId());
         TransactionModel draft = newDraft(sender, req, Datatypes.TransactionType.P2P_TRANSFER, amount, sourceCurrency, destinationCurrency, destinationAmount);
-        draft.setReceiverId(receiver.getUserId());
+        draft.setReceiverId(receiver.getId());
         draft.setReceiverName(receiver.getFirstName() + " " + receiver.getLastName());
         draft.setReceiverEmail(receiver.getEmail());
         draft.setReceiverPhoneNumber(receiver.getPhoneNumber());
@@ -208,7 +204,7 @@ public class PaymentServices {
 
         TransactionModel saved = ledgerOperations.transferBetweenWallets(draft, senderAccount, receiverAccount);
         log.info("========== PAYMENT DONE: {} SUCCESS ==========", saved.getInternalReferenceId());
-        return transactionsQueryService.toDto(saved, sender.getUserId());
+        return transactionsServices.toDto(saved, sender.getId());
     }
 
     /**
@@ -250,7 +246,7 @@ public class PaymentServices {
             throw new IllegalArgumentException("Bank information missing");
         }
         // The destination comes from what the provider confirmed (encrypted token), never from the request body
-        DestinationTokenService.Destination dest = destinationTokenService.open(sender.getUserId(), bank.verificationToken());
+        DestinationTokenService.Destination dest = destinationTokenService.open(sender.getId(), bank.verificationToken());
         if (!"BANK".equals(dest.type())) {
             throw new IllegalArgumentException("Please verify the account again before sending");
         }
@@ -259,7 +255,7 @@ public class PaymentServices {
         String sourceCurrency = transfer.currencyCode().toUpperCase();
         String bankCountry = (dest.countryCode() == null || dest.countryCode().isBlank() ? sender.getCountryCode() : dest.countryCode()).toUpperCase();
         requireDomestic(sender, bankCountry, "bank");
-        String destinationCurrency = supportedRegionService
+        String destinationCurrency = countriesServices
                 .currenciesFor(sender, bankCountry, sourceCurrency, transfer.destinationCurrencyCode()).destination();
         BigDecimal destinationAmount = convertIfNeeded(amount, sourceCurrency, destinationCurrency, transfer.rateId());
         String purpose = purposeOf(transfer);
@@ -288,7 +284,7 @@ public class PaymentServices {
         log.info("STAGE 5: calling the gateway");
         TransactionModel result = bankTransferServices.send(debited, payout, prepared);
         log.info("========== PAYMENT DONE: {} {} ==========", result.getInternalReferenceId(), result.getStatus());
-        return transactionsQueryService.toDto(result, sender.getUserId());
+        return transactionsServices.toDto(result, sender.getId());
     }
 
     // ==================================================================
@@ -301,7 +297,7 @@ public class PaymentServices {
         if (momo == null) {
             throw new IllegalArgumentException("Mobile money information missing");
         }
-        DestinationTokenService.Destination dest = destinationTokenService.open(sender.getUserId(), momo.verificationToken());
+        DestinationTokenService.Destination dest = destinationTokenService.open(sender.getId(), momo.verificationToken());
         if (!"MOBILE_MONEY".equals(dest.type())) {
             throw new IllegalArgumentException("Please verify the wallet again before sending");
         }
@@ -310,7 +306,7 @@ public class PaymentServices {
         String sourceCurrency = transfer.currencyCode().toUpperCase();
         String country = (dest.countryCode() == null || dest.countryCode().isBlank() ? sender.getCountryCode() : dest.countryCode()).toUpperCase();
         requireDomestic(sender, country, "mobile money network");
-        String destinationCurrency = supportedRegionService
+        String destinationCurrency = countriesServices
                 .currenciesFor(sender, country, sourceCurrency, transfer.destinationCurrencyCode()).destination();
         BigDecimal destinationAmount = convertIfNeeded(amount, sourceCurrency, destinationCurrency, transfer.rateId());
         String phone = dest.accountNumber();
@@ -338,7 +334,7 @@ public class PaymentServices {
         log.info("STAGE 5: calling the provider");
         TransactionModel result = bankTransferServices.send(debited, payout, prepared);
         log.info("========== PAYMENT DONE: {} {} ==========", result.getInternalReferenceId(), result.getStatus());
-        return transactionsQueryService.toDto(result, sender.getUserId());
+        return transactionsServices.toDto(result, sender.getId());
     }
 
     // ==================================================================
@@ -351,9 +347,9 @@ public class PaymentServices {
     public VerifiedAccountDTO verifyAccount(UUID userId, VerifyAccountRequestDTO req) {
         UserModel sender = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        supportedRegionService.requireUserCountry(sender);
+        countriesServices.requireUserCountry(sender);
         String country = (req.countryCode() == null || req.countryCode().isBlank() ? sender.getCountryCode() : req.countryCode()).toUpperCase();
-        supportedRegionService.requireCountry(country);
+        countriesServices.requireCountry(country);
         String number = req.accountNumber().trim();
 
         if ("MOBILE_MONEY".equalsIgnoreCase(req.destinationType())) {
@@ -382,7 +378,7 @@ public class PaymentServices {
         if (isCrossBorder(sender.getCountryCode(), destinationCountry)) {
             throw new IllegalArgumentException("That " + what + " is in another country. Please use ZRemit for cross-border transfers.");
         }
-        supportedRegionService.requireCountry(destinationCountry);
+        countriesServices.requireCountry(destinationCountry);
     }
 
     // ==================================================================
@@ -391,7 +387,7 @@ public class PaymentServices {
 
     // The sender's ACTIVE account in this currency, with enough money (the real guard is the debit itself)
     private FiatAccountModel requireSenderAccount(UserModel sender, String currency, BigDecimal amount, boolean checkBalance) {
-        FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(sender.getUserId())
+        FiatWalletModel wallet = fiatWalletRepository.getWalletByUserId(sender.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("No wallet found"));
         FiatAccountModel account = fiatAccountRepository.findByWalletIdAndCurrencyCode(wallet.getWalletId(), currency)
                 .orElseThrow(() -> new IllegalArgumentException("You do not have a " + currency + " account yet. Please create one first."));
@@ -462,7 +458,7 @@ public class PaymentServices {
         draft.setDestinationCurrencyCode(destinationCurrency);
         draft.setDestinationAmount(destinationAmount);
         draft.setPurpose(purposeOf(req.transfer()));
-        draft.setSenderId(sender.getUserId());
+        draft.setSenderId(sender.getId());
         draft.setSenderName(sender.getFirstName() + " " + sender.getLastName());
         draft.setSenderEmail(sender.getEmail());
         draft.setSenderPhoneNumber(sender.getPhoneNumber());

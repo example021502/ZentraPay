@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -20,19 +21,21 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "voice_commands")
+@Table(name = "voice_ai_commands")
 public class VoiceCommandModel {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "command_id", nullable = false)
-    private UUID commandId;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    /** VOICE (spoken) or CHAT (typed). */
+    /**
+     * VOICE (spoken) or CHAT (typed).
+     */
     @Column(name = "command_type", nullable = false, length = 20)
-    private String commandType;
+    private Datatypes.CommandType commandType;
 
     @Column(name = "language", nullable = false, length = 10)
     private String language = "en";
@@ -43,9 +46,11 @@ public class VoiceCommandModel {
     @Column(name = "response_text", columnDefinition = "TEXT")
     private String responseText;
 
-    /** PROCESSED, or FLAGGED when the instruction looked like fraud. */
+    /**
+     * PROCESSED, or FLAGGED when the instruction looked like fraud.
+     */
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "PROCESSED";
+    private Datatypes.CommandStatus status = Datatypes.CommandStatus.PROCESSED;
 
     @Column(name = "fraud_alert", nullable = false)
     private boolean fraudAlert;
@@ -53,15 +58,21 @@ public class VoiceCommandModel {
     @Column(name = "fraud_reason", columnDefinition = "TEXT")
     private String fraudReason;
 
-    /** What the instruction was about: BALANCE, SEND_MONEY, PAY_BILL, HISTORY, SECURITY, HELP, GREETING, UNKNOWN. */
+    /**
+     * What the instruction was about: BALANCE, SEND_MONEY, PAY_BILL, HISTORY, SECURITY, HELP, GREETING, UNKNOWN.
+     */
     @Column(name = "intent", length = 40)
     private String intent;
 
-    /** How long the user spoke, in milliseconds (VOICE only). */
+    /**
+     * How long the user spoke, in milliseconds (VOICE only).
+     */
     @Column(name = "duration_ms")
     private Integer durationMs;
 
-    /** How sure the speech recogniser was, 0 to 1 (VOICE only). */
+    /**
+     * How sure the speech recognizer was, 0 to 1 (VOICE only).
+     */
     @Column(name = "confidence", precision = 4, scale = 3)
     private BigDecimal confidence;
 

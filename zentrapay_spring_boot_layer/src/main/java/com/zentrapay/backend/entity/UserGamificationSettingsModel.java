@@ -20,7 +20,10 @@ import java.util.UUID;
 public class UserGamificationSettingsModel {
 
     @Id
-    @Column(name = "user_id", nullable = false, updatable = false)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @Column(name = "user_id", nullable = false)
     private UUID userId;
 
     @Builder.Default

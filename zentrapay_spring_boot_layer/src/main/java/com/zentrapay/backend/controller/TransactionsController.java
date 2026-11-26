@@ -2,7 +2,7 @@ package com.zentrapay.backend.controller;
 
 import com.zentrapay.backend.dto.common.ApiResponse;
 import com.zentrapay.backend.dto.transaction.TransactionPageDTO;
-import com.zentrapay.backend.service.transaction.TransactionsQueryService;
+import com.zentrapay.backend.service.transaction.TransactionsServices;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class TransactionsController {
 
-    private final TransactionsQueryService transactionsQueryService;
+    private final TransactionsServices transactionsServices;
 
     @GetMapping
     public ResponseEntity<ApiResponse<TransactionPageDTO>> history(
             @CurrentUser AuthenticatedUser user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
-        TransactionPageDTO result = transactionsQueryService.getHistory(user.getUserId(), page, size);
+        TransactionPageDTO result = transactionsServices.getHistory(user.getUserId(), page, size);
         return ResponseEntity.ok(ApiResponse.success(result, "Transactions retrieved"));
     }
 }

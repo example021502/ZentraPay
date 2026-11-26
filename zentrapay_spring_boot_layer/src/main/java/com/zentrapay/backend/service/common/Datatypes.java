@@ -1,5 +1,8 @@
 package com.zentrapay.backend.service.common;
 
+
+import lombok.Getter;
+
 public class Datatypes {
 
     //    CHALLENGES REWARDS TYPES
@@ -43,18 +46,18 @@ public class Datatypes {
         ABANDONED
     }
 
-    public enum CardType {
+    public enum CardForm {
         VIRTUAL_CARD("virtual_card"),
         PHYSICAL_CARD("physical_card");
 
-        private final String type;
+        private final String form;
 
-        CardType(String type) {
-            this.type = type;
+        CardForm(String form) {
+            this.form = form;
         }
 
-        public String getCardType() {
-            return type;
+        public String getCardForm() {
+            return form;
         }
     }
 
@@ -363,6 +366,256 @@ public class Datatypes {
         public String getLoanStatus() {
             return status;
         }
+    }
+
+    public enum CardStatus {
+        ACTIVE("active"),
+        FROZEN("frozen"),
+        REMOVED("removed");
+
+        private final String status;
+
+        CardStatus(String status) {
+            this.status = status;
+        }
+
+        public String getCardStatus() {
+            return status;
+        }
+
+    }
+
+    public enum NotificationTypes {
+        CREDIT("credit"),
+        DEBIT("debit");
+
+        private final String type;
+
+        NotificationTypes(String type) {
+            this.type = type;
+        }
+
+        public String getNotificationTypes() {
+            return type;
+        }
+
+    }
+
+    public enum CardType {
+        CREDIT("credit"),
+        DEBIT("debit"),
+        PREPAID("prepaid");
+
+        private final String type;
+
+        CardType(String type) {
+            this.type = type;
+        }
+
+        public String getCardType() {
+            return type;
+        }
+
+    }
+
+    public enum AutoSaveFrequency {
+        DAILY("daily"),
+        WEEKLY("weekly"),
+        MONTHLY("monthly");
+
+        private final String f;
+
+        AutoSaveFrequency(String f) {
+            this.f = f;
+        }
+
+        public String getAutoSaveFrequency() {
+            return f;
+        }
+
+    }
+
+    public enum BiometricType {
+        FINGERPRINT("fingerprint"),
+        FACE("face"),
+        IRIS("iris"),
+        VOICE("voice"),
+        PASSKEY("passkey"),
+        DEVICE_BIOMETRIC("device_biometric");
+
+        private final String type;
+
+        BiometricType(String type) {
+            this.type = type;
+        }
+
+        public String getBiometricType() {
+            return type;
+        }
+
+    }
+
+    public enum ServiceCategory {
+        AIRTIME("airtime"),
+        DATA_BUNDLE("data_bundle"),
+        ELECTRICITY("electricity"),
+        CABLE_TV("cable_tv"),
+        INTERNET("internet"),
+        WATER("water"),
+        BETTING("betting");
+
+        private final String category;
+
+        ServiceCategory(String category) {
+            this.category = category;
+        }
+
+        public String getServiceCategory() {
+            return category;
+        }
+    }
+
+    public enum UserBankConnectionStatus {
+        ACTIVE("active"),
+        INACTIVE("inactive"),
+        RE_AUTH_REQUIRED("re_auth_required");
+
+        private final String status;
+
+        UserBankConnectionStatus(String status) {
+            this.status = status;
+        }
+
+        public String getUserBankConnectionStatus() {
+            return status;
+        }
+    }
+
+    // Supported spending limit reset/evaluation periods.
+    public enum BudgetPeriod {
+        DAILY("daily"),
+        WEEKLY("weekly"),
+        MONTHLY("monthly"),
+        YEARLY("yearly");
+
+        private final String period;
+
+        BudgetPeriod(String period) {
+            this.period = period;
+        }
+
+        public String getBudgetPeriod() {
+            return period;
+        }
+    }
+
+    public enum CommandType {
+        VOICE("voice"),
+        TEXT("text");
+
+        private final String type;
+
+        CommandType(String type) {
+            this.type = type;
+        }
+
+        public String getCommandType() {
+            return type;
+        }
+    }
+
+    public enum CommandStatus {
+        PROCESSED("processed"),
+        FLAGGED("flagged");
+
+        private final String status;
+
+        CommandStatus(String status) {
+            this.status = status;
+        }
+
+        public String getCommandStatus() {
+            return status;
+        }
+    }
+
+    public enum KYCDocumentVerificationStatus {
+        SUBMITTED("submitted"),
+        PENDING("pending"),
+        VERIFIED("verified"),
+        REJECTED("rejected");
+
+        private final String status;
+
+        KYCDocumentVerificationStatus(String status) {
+            this.status = status;
+        }
+
+        public String getKYCDocumentVerificationStatus() {
+            return status;
+        }
+    }
+
+    public enum KYCDocumentType {
+        PASSPORT("passport"),
+        NATIONAL_ID("national_id"),
+        DRIVER_LICENCE("driver_licence");
+
+        private final String type;
+
+        KYCDocumentType(String type) {
+            this.type = type;
+        }
+
+        public String getKYCDocumentType() {
+            return type;
+        }
+    }
+
+    public enum UserRiskScoreLevel {
+        LOW("low"),
+        MEDIUM("medium"),
+        HIGH("high");
+
+        private final String level;
+
+        UserRiskScoreLevel(String level) {
+            this.level = level;
+        }
+
+        public String getUserRiskScoreLevel() {
+            return level;
+        }
+    }
+
+    public enum AccountTypes {
+        USER("user"),
+        FLOAT("float"),
+        CLEARING("clearing");
+
+        private final String type;
+
+        AccountTypes(String type) {
+            this.type = type;
+        }
+
+        public String getAccountTypes() {
+            return type;
+        }
+    }
+
+    @Getter
+    public enum Gateway {
+        FLUTTERWAVE("flutterwave"),
+        PAYSTACK("paystack"),
+        ONAFRIQ("onafriq");
+
+        private final String gateway;
+
+        Gateway(String gateway) {
+            this.gateway = gateway;
+        }
+
     }
 
 }

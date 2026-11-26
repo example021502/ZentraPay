@@ -35,7 +35,7 @@ public class TransactionRecorder {
     public void recordFailure(TransactionModel draft, String reason) {
         try {
             // A draft that was saved and then rolled back still carries its old id; this is a brand new row
-            draft.setTransactionId(null);
+            draft.setId(null);
             if (draft.getInternalReferenceId() == null || draft.getInternalReferenceId().isBlank()) {
                 draft.setInternalReferenceId("FAIL-" + UUID.randomUUID());
             } else if (transactionRepository.findByInternalReferenceId(draft.getInternalReferenceId()).isPresent()) {

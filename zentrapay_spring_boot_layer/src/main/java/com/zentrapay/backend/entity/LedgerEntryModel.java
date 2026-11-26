@@ -41,9 +41,9 @@ public class LedgerEntryModel {
     @Column(name = "entry_id", nullable = false, unique = true, length = 64, updatable = false)
     private String entryId;
 
-    // Wallet or Account ID being affected
-    @Column(name = "account_id", nullable = false, updatable = false)
-    private UUID accountId;
+    // Account reference id being affected
+    @Column(name = "account_reference")
+    private String accountReference;
 
     // Enum representing DEBIT or CREDIT
     @Enumerated(EnumType.STRING)

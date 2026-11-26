@@ -1,3 +1,4 @@
+// Always add inline comments for code readability and maintenance
 package com.zentrapay.backend.entity;
 
 import com.zentrapay.backend.service.common.Datatypes;
@@ -10,98 +11,76 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+// Stores extended user profile attributes, residential address, occupation, and KYC/AML compliance state (1:1 with users).
 @Entity
 @Data
-@Table(name = "user_profiles")
+@Table(
+        name = "user_profiles",
+        indexes = {
+                // Speeds up querying profiles awaiting or completed in KYC review workflows.
+                @Index(name = "idx_user_profiles_kyc_status", columnList = "kyc_status"),
+                // Speeds up AML/sanctions screening queues and compliance audits.
+                @Index(name = "idx_user_profiles_aml_status", columnList = "anti_money_laundering_status")
+        }
+)
 public class UserProfileModel {
-    // Unique identifier for the user profile.
+
+    // Primary key referencing users.id (1:1 profile per user).
     @Id
-    @Column(name = "user_id", nullable = false, unique = true)
+    @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
+    // User's date of birth for age and KYC verification checks.
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
-    // ISO 3166-1 alpha-2 nationality code (essential for sanctions matching).
-    @Column(name = "nationality_country_code", length = 3)
-    private String nationalityCountryCode;
+    // Country code representing the user's nationality for sanctions and compliance screening.
+    @Column(name = "country_code", length = 3)
+    private String countryCode;
 
-    // Identity Document details expanded for clarity.
-    @Column(name = "identity_document_type", length = 30)
-    private String identityDocumentType;
-
-    @Column(name = "identity_document_number", length = 60)
-    private String identityDocumentNumber;
-
-    @Column(name = "identity_document_issuing_country_code")
-    private String identityDocumentIssuingCountryCode;
-
-    @Column(name = "identity_document_expiration_date")
-    private LocalDate identityDocumentExpirationDate;
-
-    // Residential address details expanded to full names.
+    // Primary street or residential address line.
     @Column(name = "address_1", length = 120)
     private String addressLine1;
 
+    // Secondary address line (apartment, suite, landmark, etc.).
     @Column(name = "address_2", length = 120)
     private String addressLine2;
 
+    // City or town of residence.
     @Column(name = "city_name", length = 60)
     private String cityName;
 
+    // State, county, or administrative region.
     @Column(name = "state_or_region", length = 60)
     private String stateOrRegion;
 
+    // Postal or ZIP code, when applicable.
     @Column(name = "postal_code", length = 20)
     private String postalCode;
 
+    // User's occupation or role title for compliance/risk profiling.
     @Column(name = "occupation_title", length = 80)
     private String occupationTitle;
 
-    // Comprehensive Compliance and Risk tracking fields.
+    // Anti-money laundering screening status for the user.
     @Convert(converter = AmlStatusConverter.class)
     @Column(name = "anti_money_laundering_status", nullable = false, length = 20)
     private Datatypes.AntiMoneyStatuses antiMoneyLaunderingStatus = Datatypes.AntiMoneyStatuses.IN_REVIEW;
 
+    // Indicates whether the user is flagged as a Politically Exposed Person (PEP).
     @Column(name = "politically_exposed_person", nullable = false)
     private boolean isPoliticallyExposedPerson;
 
+    // Assessed risk tier/level (e.g., LOW, MEDIUM, HIGH).
     @Column(name = "risk_score_level", length = 20)
-    private String riskScoreLevel;
+    private Datatypes.UserRiskScoreLevel riskScoreLevel = Datatypes.UserRiskScoreLevel.LOW;
 
-    @Column(name = "kyc_status", nullable = false, length = 20)
-    private String KYCStatus = "pending";
-
-    // LEGACY local-disk paths from before documents moved to the image host.
-    // No longer written or read; kept only so the existing columns still map.
-    @Column(name = "id_document_front_path")
-    private String idDocumentFrontPath;
-
-    @Column(name = "id_document_back_path")
-    private String idDocumentBackPath;
-
-    @Column(name = "selfie_path")
-    private String selfiePath;
-
-    // KYC review trail: when the complete profile was submitted, and who
-    // decided on it, when, and why (see KycVerificationService).
-    @Column(name = "kyc_submitted_at")
-    private LocalDateTime kycSubmittedAt;
-
-    @Column(name = "kyc_reviewed_at")
-    private LocalDateTime kycReviewedAt;
-
-    @Column(name = "kyc_reviewed_by")
-    private UUID kycReviewedBy;
-
-    @Column(name = "kyc_review_note", length = 500)
-    private String kycReviewNote;
-
-    // System audit timestamps.
+    // Timestamp when the profile record was created.
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // Timestamp automatically updated when profile or compliance fields change.
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;

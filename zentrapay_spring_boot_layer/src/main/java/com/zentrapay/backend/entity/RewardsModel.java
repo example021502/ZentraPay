@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Entity representing company-wide rewards available in the catalog.
@@ -19,8 +20,8 @@ public class RewardsModel {
 
     // Primary Key mapped to reward_id UUID
     @Id
-    @Column(name = "reward_id", nullable = false, unique = true, updatable = false)
-    private int rewardId;
+    @Column(name = "id", nullable = false, unique = true, updatable = false)
+    private UUID id;
 
     // Custom PostgreSQL Enum mapped as String in JPA
     @Enumerated(EnumType.STRING)

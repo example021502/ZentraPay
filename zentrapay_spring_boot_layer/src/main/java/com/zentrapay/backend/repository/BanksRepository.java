@@ -1,6 +1,7 @@
 package com.zentrapay.backend.repository;
 
 import com.zentrapay.backend.entity.BanksModel;
+import com.zentrapay.backend.service.common.Datatypes;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,7 +22,7 @@ public interface BanksRepository extends JpaRepository<BanksModel, UUID> {
     Optional<BanksModel> findFirstByCodeIgnoreCaseAndCountryCodeIgnoreCase(String code, String countryCode);
 
     // Payouts: the same bank in another gateway's catalogue, found by name
-    Optional<BanksModel> findFirstByGatewayIgnoreCaseAndCountryCodeIgnoreCaseAndBankNameIgnoreCase(String gateway, String countryCode, String bankName);
+    Optional<BanksModel> findFirstByGatewayIgnoreCaseAndCountryCodeIgnoreCaseAndBankNameIgnoreCase(Datatypes.Gateway gateway, String countryCode, String bankName);
 
     // ZBank link: best-effort match of an AfriLink institution name into the payout catalogue
     Optional<BanksModel> findFirstByBankNameIgnoreCase(String bankName);

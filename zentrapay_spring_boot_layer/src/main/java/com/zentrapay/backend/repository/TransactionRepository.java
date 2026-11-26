@@ -53,5 +53,7 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, U
 
     boolean existsByIdempotency(String key);
 
-    Optional<TransactionModel> getByIdempotencyKeyAndSenderId(String key, UUID userId);
+    Optional<TransactionModel> getByIdempotencyKeyAndSenderId(String key, UUID senderId);
+
+    Optional<TransactionModel> getTransactionByIdempotencyKey(String key);
 }

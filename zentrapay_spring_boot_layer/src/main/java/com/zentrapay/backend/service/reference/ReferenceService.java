@@ -5,7 +5,7 @@ import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.ProviderCategoryRepository;
 import com.zentrapay.backend.service.region.CurrencyCatalog;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
 import com.zentrapay.backend.dto.reference.BankDTO;
 import com.zentrapay.backend.dto.reference.CountryDTO;
 import com.zentrapay.backend.dto.reference.CurrencyDTO;
@@ -32,7 +32,7 @@ import java.util.List;
 public class ReferenceService {
 
     private final GatewayCountriesRepository gatewayCountriesRepository;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
     private final ProviderCategoryRepository providerCategoryRepository;
     private final BanksRepository banksRepository;
 
@@ -50,14 +50,14 @@ public class ReferenceService {
 
     // Currencies are the countries' default currencies - there is no separate currencies table
     public List<CurrencyDTO> getCurrencies() {
-        return supportedRegionService.supportedCurrencyCodes().stream()
+        return countriesServices.supportedCurrencyCodes().stream()
                 .map(code -> new CurrencyDTO(
                         code,
                         CurrencyCatalog.name(code),
                         CurrencyCatalog.symbol(code),
                         false,
                         CurrencyCatalog.decimals(code),
-                        supportedRegionService.countriesUsing(code)))
+                        countriesServices.countriesUsing(code)))
                 .toList();
     }
 

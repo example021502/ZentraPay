@@ -1,5 +1,6 @@
 package com.zentrapay.backend.dto.bank;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.Column;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -15,19 +16,20 @@ public record AccountsDTO(
         UUID bankId,
         String code,
         String bankName,
-        String gateway,
+        Datatypes.Gateway gateway,
         String iban,
         String currencyCode,
         Boolean payWithBank,
         String swiftBic,
         String countryCode,
         String country,
-        Boolean active,
+        Datatypes.AccountStatus active,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String maxDailyValue,
-        String maxMonthlyValue,
-        String minTxnLimit,
-        String maxTxnLimit,
-        String maxWeeklyValue
-){}
+        BigDecimal maxDailyValue,
+        BigDecimal maxMonthlyValue,
+        BigDecimal minTxnLimit,
+        BigDecimal maxTxnLimit,
+        BigDecimal maxWeeklyValue
+) {
+}

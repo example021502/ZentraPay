@@ -6,9 +6,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-public interface CountriesRepository extends JpaRepository<CountriesModel, String> {
-    @Query("SELECT c.currencyCode FROM CountriesModel c WHERE c.currencyCode = :currencyCode")
-    List<String> getCountryCodesByCurrencyCode(@Param("currencyCode") String currencyCode);
-    
+public interface CountriesRepository extends JpaRepository<CountriesModel, UUID> {
+    CountriesModel getCountryByCode(@Param("code") String code);
+
+    @Query("SELECT c.name FROM CountriesModel c WHERE c.code = :code")
+    String getCountryNameByCode(String code);
+
+    boolean existsCountryByCode(String countryCode);
+
 }

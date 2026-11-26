@@ -4,6 +4,7 @@ import com.zentrapay.backend.entity.NotificationModel;
 import com.zentrapay.backend.repository.NotificationRepository;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.dto.notifications.NotificationDTO;
+import com.zentrapay.backend.service.common.Datatypes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -54,7 +55,7 @@ public class NotificationsService {
 
     private NotificationDTO toDTO(NotificationModel n) {
         return new NotificationDTO(
-                n.getNotificationId(),
+                n.getId(),
                 n.getTitle(),
                 n.getMessage(),
                 n.getType(),
@@ -62,5 +63,22 @@ public class NotificationsService {
                 Boolean.TRUE.equals(n.getIsRead()),
                 n.getCreatedAt()
         );
+    }
+
+    @Transactional
+    public void pushNotification(
+            UUID userId,
+            String title,
+            String message,
+            Datatypes.NotificationTypes notificationType,
+            String referenceId
+    ) {
+        NotificationModel n = new NotificationModel();
+        n.setUserId(userId);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setType(notificationType);
+        n.setReferenceId(referenceId);
+        notificationRepository.save(n);
     }
 }

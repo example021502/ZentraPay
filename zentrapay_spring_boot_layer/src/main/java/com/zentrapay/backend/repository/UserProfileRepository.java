@@ -12,8 +12,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfileModel, U
     @Query("SELECT u FROM UserProfileModel u WHERE u.userId = :userId")
     UserProfileModel getByUserId(@Param("userId") UUID userId);
 
-    @Query("SELECT p.identityDocumentNumber FROM UserProfileModel p WHERE p.userId = :userId")
-    Optional<String> getUserIdNumberByUserId(@Param("userId") UUID userId);
+    boolean existsByUserId(UUID userId);
 
     /**
      * Profiles in the given review state, oldest submission first (the officer's work queue).

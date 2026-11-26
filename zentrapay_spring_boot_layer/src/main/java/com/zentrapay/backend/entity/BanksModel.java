@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -37,8 +38,8 @@ public class BanksModel {
     private String name;
 
     // Reference ID of the gateway (gateways.id) that provided this bank entry.
-    @Column(name = "gateway_id", nullable = false)
-    private UUID gatewayId;
+    @Column(name = "gateway", nullable = false)
+    private Datatypes.Gateway gateway;
 
     // Optional IBAN when supported by the institution or corridor.
     @Column(name = "iban")
@@ -74,7 +75,7 @@ public class BanksModel {
 
     // Controls whether this bank/channel is currently available for selection and payouts.
     @Column(name = "active", nullable = false)
-    private boolean active = true;
+    private Datatypes.AccountStatus active = Datatypes.AccountStatus.ACTIVE;
 
     // Timestamp when the record was first created.
     @CreationTimestamp

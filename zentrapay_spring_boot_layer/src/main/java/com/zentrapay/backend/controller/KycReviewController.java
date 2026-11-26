@@ -1,11 +1,17 @@
 package com.zentrapay.backend.controller;
 
+import com.zentrapay.backend.dto.ReviewOfficer.ApproveKycDocumentResponse;
+import com.zentrapay.backend.dto.ReviewOfficer.DetailedUserInformationDTO;
+import com.zentrapay.backend.dto.ReviewOfficer.Requests.ApproveKycDocumentsRequest;
+import com.zentrapay.backend.dto.ReviewOfficer.Requests.RejectKycDocumentsRequest;
 import com.zentrapay.backend.dto.common.ApiResponse;
-import com.zentrapay.backend.dto.kyc.KycReviewDTOs;
+import com.zentrapay.backend.entity.KYCDocumentModel;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
-import com.zentrapay.backend.service.user.KycVerificationService;
+import com.zentrapay.backend.service.common.Datatypes;
+import com.zentrapay.backend.service.user.KycDocumentsServices;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,44 +28,47 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class KycReviewController {
 
-    private final KycVerificationService kycVerificationService;
+    private final KycDocumentsServices kycDocumentsServices;
 
-    /** The work queue; {@code status} defaults to {@code submitted} (waiting for review). */
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<KycReviewDTOs.Summary>>> queue(
-            @CurrentUser AuthenticatedUser officer,
-            @RequestParam(required = false) String status,
+    /**
+     * The work queue; {@code status} defaults to {@code submitted} (waiting for review).
+     */
+    @GetMapping("/queuedDocuments")
+    public ResponseEntity<ApiResponse<List<KYCDocumentModel>>> queue(
+            @CurrentUser @NonNull AuthenticatedUser user,
+            @RequestParam(required = false) Datatypes.KYCDocumentVerificationStatus status,
             @RequestParam(defaultValue = "25") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
+            @RequestParam(defaultValue = "0") int offset) throws IllegalAccessException {
         return ResponseEntity.ok(ApiResponse.success(
-                kycVerificationService.queue(officer.getUserType(), status, limit, offset), "KYC queue"));
+                kycDocumentsServices.getQueue(user.getUserType(), status, limit, offset), "Documents retrieved."));
     }
 
-    /** One user's declared details plus the three hosted document images. */
+    /**
+     * One user's declared details plus the three hosted document images.
+     * getting user information, user profile information and identity information
+     */
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<KycReviewDTOs.Submission>> submission(
+    public ResponseEntity<ApiResponse<DetailedUserInformationDTO>> getUserInformation(
             @CurrentUser AuthenticatedUser officer, @PathVariable UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(
-                kycVerificationService.submission(officer.getUserType(), userId), "KYC submission"));
+                kycDocumentsServices.getUserInformation(officer.getUserType(), userId), "KYC submission"));
     }
 
+    //    KYC OFFICER APPROVING THE USER'S KYC DOCUMENTS AS VALID
     @PostMapping("/{userId}/approve")
-    public ResponseEntity<ApiResponse<KycReviewDTOs.Submission>> approve(
+    public ResponseEntity<ApiResponse<String>> approve(
             @CurrentUser AuthenticatedUser officer, @PathVariable UUID userId,
-            @RequestBody(required = false) KycReviewDTOs.Decision body) {
-        return ResponseEntity.ok(ApiResponse.success(
-                kycVerificationService.approve(officer.getUserType(), officer.getUserId(), userId,
-                        body == null ? null : body.note()),
-                "User verified"));
+            @RequestBody(required = false) ApproveKycDocumentsRequest body) {
+        kycDocumentsServices.approve(officer.getUserType(), officer.getUserId(), userId, body);
+        return ResponseEntity.ok(ApiResponse.success("User verified"));
     }
 
     @PostMapping("/{userId}/reject")
-    public ResponseEntity<ApiResponse<KycReviewDTOs.Submission>> reject(
+    public ResponseEntity<ApiResponse<String>> reject(
             @CurrentUser AuthenticatedUser officer, @PathVariable UUID userId,
-            @RequestBody KycReviewDTOs.Decision body) {
-        return ResponseEntity.ok(ApiResponse.success(
-                kycVerificationService.reject(officer.getUserType(), officer.getUserId(), userId,
-                        body == null ? null : body.note()),
-                "Verification rejected"));
+            @RequestBody RejectKycDocumentsRequest body) {
+        kycDocumentsServices.reject(officer.getUserType(), officer.getUserId(), userId,
+                body == null ? null : body.note());
+        return ResponseEntity.ok(ApiResponse.success("Verification rejected"));
     }
 }

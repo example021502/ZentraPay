@@ -3,7 +3,7 @@ package com.zentrapay.backend.dto.user;
 import jakarta.validation.constraints.*;
 
 public record RegisterRequestDTO(
-        @AssertTrue(message = "User consent to the terms of use is required") Boolean termsConsent,
+        @AssertTrue(message = "Please read, understand and accept our terms or privacy policy to continue") Boolean termsConsent,
         @NotBlank(message = "First name is required") String firstName,
         @NotBlank(message = "Last name is required") String lastName,
         @NotBlank(message = "Email is required") @Email(message = "Invalid email format") String email,

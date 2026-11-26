@@ -10,7 +10,7 @@ import com.zentrapay.backend.service.fx.ExchangeRateService;
 import com.zentrapay.backend.service.payment.AccountVerificationService;
 import com.zentrapay.backend.service.payment.BankTransferServices;
 import com.zentrapay.backend.service.payment.LedgerOperations;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,7 +53,7 @@ public class RemittancesService {
     private final ExchangeRateService exchangeRateService;
     private final LedgerOperations ledgerOperations;
     private final PinService pinService;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
     private final AccountVerificationService accountVerificationService;
     private final BankTransferServices bankTransferServices;
     private final TransactionRepository transactionRepository;
@@ -71,13 +71,13 @@ public class RemittancesService {
     @Transactional(readOnly = true)
     public RemitQuoteResponseDTO quote(UUID senderId, RemitQuoteRequestDTO req) {
         UserModel sender = requireUser(senderId);
-        supportedRegionService.requireUserCountry(sender);
+        countriesServices.requireUserCountry(sender);
         String destinationCountryCode = normalise(req.destinationCountryCode());
         assertCrossBorder(sender, destinationCountryCode);
 
         requireActiveCountry(destinationCountryCode);
         // Pay in the sender's own country currency; it arrives in the destination country's default currency
-        SupportedRegionService.PaymentCurrencies currencies = supportedRegionService.currenciesFor(
+        CountriesServices.PaymentCurrencies currencies = countriesServices.currenciesFor(
                 sender, destinationCountryCode, req.sourceCurrencyCode(), null);
         String source = currencies.source();
         String destination = currencies.destination();
@@ -150,7 +150,7 @@ public class RemittancesService {
 
     private RemitResponseDTO doSend(UserModel sender, RemitRequestDTO req) {
         pinService.requireValid(sender, req.pin());
-        supportedRegionService.requireUserCountry(sender);
+        countriesServices.requireUserCountry(sender);
 
         // Cross-border only, and only to supported countries / currencies
         String destinationCountryCode = normalise(req.recipientCountryCode());
@@ -159,7 +159,7 @@ public class RemittancesService {
 
         // The sender pays in the default currency of the country they registered in; the money arrives in the
         // destination country's default currency. Anything else the app asked for is refused.
-        SupportedRegionService.PaymentCurrencies currencies = supportedRegionService.currenciesFor(
+        CountriesServices.PaymentCurrencies currencies = countriesServices.currenciesFor(
                 sender, destinationCountryCode, req.sourceCurrencyCode(), req.destinationCurrencyCode());
         String sourceCurrency = currencies.source();
         String destinationCurrency = currencies.destination();
@@ -421,8 +421,8 @@ public class RemittancesService {
     @Transactional(readOnly = true)
     public RemitQuoteResponseDTO rates(String sourceCurrencyCode, String destinationCurrencyCode, BigDecimal amount) {
         BigDecimal safeAmount = amount == null || amount.signum() <= 0 ? BigDecimal.valueOf(100) : scale(amount);
-        String source = supportedRegionService.requireSupportedCurrency(sourceCurrencyCode);
-        String destination = supportedRegionService.requireSupportedCurrency(destinationCurrencyCode);
+        String source = countriesServices.requireSupportedCurrency(sourceCurrencyCode);
+        String destination = countriesServices.requireSupportedCurrency(destinationCurrencyCode);
 
         BigDecimal rate = exchangeRateService.rate(source, destination);
         BigDecimal fee = feeFor(safeAmount);

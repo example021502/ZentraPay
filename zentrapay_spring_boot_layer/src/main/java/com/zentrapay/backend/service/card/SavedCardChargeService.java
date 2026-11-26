@@ -3,7 +3,7 @@ package com.zentrapay.backend.service.card;
 import com.zentrapay.backend.dto.payment.GatewayChargeStatus;
 import com.zentrapay.backend.dto.payment.TopupVerifyDTO;
 import com.zentrapay.backend.entity.GatewayModel;
-import com.zentrapay.backend.entity.SavedCardModel;
+import com.zentrapay.backend.entity.UserCardModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
 import com.zentrapay.backend.exception.PaymentGatewayException;
@@ -77,7 +77,7 @@ public class SavedCardChargeService {
         draft.setReceiverEmail(user.getEmail());
         draft.setReceiverPhoneNumber(user.getPhoneNumber());
 
-        SavedCardModel card;
+        UserCardModel card;
         GatewayModel gateway;
         try {
             card = cardVaultService.activeCard(userId, cardId);

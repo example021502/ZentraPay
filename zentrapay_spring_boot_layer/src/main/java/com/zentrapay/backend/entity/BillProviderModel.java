@@ -59,8 +59,8 @@ public class BillProviderModel {
     private String customerParamsSchema;
 
     @Column(name = "gateway", nullable = false)
-    private String gateway;
-    
+    private Datatypes.Gateway gateway;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -68,6 +68,5 @@ public class BillProviderModel {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
 
 }

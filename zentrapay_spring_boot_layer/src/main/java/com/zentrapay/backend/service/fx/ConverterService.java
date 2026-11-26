@@ -3,7 +3,7 @@ package com.zentrapay.backend.service.fx;
 import com.zentrapay.backend.dto.converter.ConverterDTOs.*;
 import com.zentrapay.backend.entity.ConversionModel;
 import com.zentrapay.backend.repository.ConversionRepository;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,7 +27,7 @@ import java.util.UUID;
 public class ConverterService {
 
     private final ExchangeRateService exchangeRateService;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
     private final ConversionRepository conversionRepository;
     private final FiatWalletRepository fiatWalletRepository;
     private final FiatAccountRepository fiatAccountRepository;
@@ -38,7 +38,7 @@ public class ConverterService {
     public RatesDTO rates(String base) {
         String baseCode = base.trim().toUpperCase();
         Map<String, String> rates = new LinkedHashMap<>();
-        for (String currency : supportedRegionService.supportedCurrencyCodes()) {
+        for (String currency : countriesServices.supportedCurrencyCodes()) {
             if (currency.equalsIgnoreCase(baseCode)) {
                 continue;
             }

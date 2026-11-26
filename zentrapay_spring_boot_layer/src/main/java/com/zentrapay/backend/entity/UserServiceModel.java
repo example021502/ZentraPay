@@ -16,13 +16,10 @@ import java.util.UUID;
 @Table(name = "user_services")
 public class UserServiceModel {
 
-    public static final String BILL = "BILL";
-    public static final String SERVICE = "SERVICE";
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "user_service_id", nullable = false, updatable = false)
-    private UUID userServiceId;
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;

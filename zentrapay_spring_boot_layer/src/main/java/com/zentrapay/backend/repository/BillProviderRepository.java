@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public interface BillProviderRepository extends JpaRepository<BillProviderModel, UUID> {
 
-    List<BillProviderModel> getAllBillProvidersByCountryCode(@Param("countryCode") String countryCode);
+    List<BillProviderModel> getProvidersByCountryCode(@Param("countryCode") String countryCode);
 
     /**
      * Country-filtered directory used by GET /api/bill-providers — active
@@ -59,4 +59,7 @@ public interface BillProviderRepository extends JpaRepository<BillProviderModel,
 
     // Provider sync: every biller a gateway holds for a country
     List<BillProviderModel> findByGatewayIgnoreCaseAndCountryCodeIgnoreCase(String gateway, String countryCode);
+
+    @Query("SELECT * FROM BillProviderModel b WHERE b.userId =:userId AND b.currencyCode =:currencyCode AND b.customerReference =:customerReference")
+    BillProviderModel getAccountByUserIdAndCurrencyCodeAndCustomerReference(UUID userId, String currencyCode, String customerReference);
 }

@@ -4,6 +4,7 @@ import com.zentrapay.backend.entity.BanksModel;
 import com.zentrapay.backend.entity.PaymentChannel;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.PaymentChannelRepository;
+import com.zentrapay.backend.service.common.Datatypes;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -53,12 +54,12 @@ public class BankCatalogService {
      * gateway, otherwise the same bank (matched by name) in that gateway's catalogue.
      * Returns null when that gateway has no such bank.
      */
-    public String codeOnGateway(BanksModel bank, String gatewayName, String countryCode) {
-        if (gatewayName.equalsIgnoreCase(bank.getGateway())) {
+    public String codeOnGateway(BanksModel bank, Datatypes.Gateway gatewayName, String countryCode) {
+        if (gatewayName.equals(bank.getGateway())) {
             return bank.getCode();
         }
         return banksRepository
-                .findFirstByGatewayIgnoreCaseAndCountryCodeIgnoreCaseAndBankNameIgnoreCase(gatewayName, countryCode, bank.getBankName())
+                .findFirstByGatewayIgnoreCaseAndCountryCodeIgnoreCaseAndBankNameIgnoreCase(gatewayName, countryCode, bank.getName())
                 .map(BanksModel::getCode)
                 .orElse(null);
     }

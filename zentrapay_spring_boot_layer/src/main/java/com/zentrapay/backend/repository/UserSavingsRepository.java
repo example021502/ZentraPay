@@ -1,6 +1,5 @@
 package com.zentrapay.backend.repository;
 
-import com.zentrapay.backend.entity.UserSavingsModel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,11 +15,16 @@ import java.util.UUID;
  */
 public interface UserSavingsRepository extends JpaRepository<UserSavingsModel, UUID> {
 
-    /** Projection of one currency bucket of the user's savings total. */
+    /**
+     * Projection of one currency bucket of the user's savings total.
+     */
     interface CurrencyTotalProjection {
         String getCurrencyCode();
+
         BigDecimal getTotal();
+
         Long getEntryCount();
+
         LocalDateTime getLastSavedAt();
     }
 

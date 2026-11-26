@@ -1,5 +1,7 @@
 package com.zentrapay.backend.service.gateway;
 
+import com.zentrapay.backend.dto.gateway.FlutterwaveValidateBillAccountResponseDTO;
+import com.zentrapay.backend.dto.gateway.PaystackValidateBillAccountResponseDTO;
 import com.zentrapay.backend.dto.payment.*;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import lombok.RequiredArgsConstructor;
@@ -67,7 +69,9 @@ public class PaystackServices {
         }
     }
 
-    /** Finds an existing Paystack customer by email and returns its customer code. */
+    /**
+     * Finds an existing Paystack customer by email and returns its customer code.
+     */
     public String fetchCustomer(String email) {
         PaystackCustomerResponseDTO response = http.get(GATEWAY, baseUrl + "/customer/" + email, secretKey, PaystackCustomerResponseDTO.class);
         return customerCode(response);
@@ -84,7 +88,9 @@ public class PaystackServices {
     // Transfer recipients
     // ------------------------------------------------------------------
 
-    /** Registers a bank account / mobile-money wallet and returns its recipient code (RCP_xxx). */
+    /**
+     * Registers a bank account / mobile-money wallet and returns its recipient code (RCP_xxx).
+     */
     public String createRecipient(String checkoutType, String countryCode, String accountName,
                                   String accountNumber, String channelCode, String currency) {
         log.info("Paystack: creating {} recipient {} / {}", checkoutType, channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
@@ -114,7 +120,9 @@ public class PaystackServices {
     // Transfers (payouts)
     // ------------------------------------------------------------------
 
-    /** Sends money from our Paystack balance to a recipient. The reference is our idempotency key. */
+    /**
+     * Sends money from our Paystack balance to a recipient. The reference is our idempotency key.
+     */
     public GatewayTransferResult sendTransfer(BigDecimal amount, String recipientCode, String currency,
                                               String reason, String reference) {
         log.info("Paystack: transfer ref={} amount={} {} recipient={}", reference, amount, currency, recipientCode);
@@ -144,7 +152,9 @@ public class PaystackServices {
         return new GatewayTransferResult(response.data().transferCode(), "success".equals(status));
     }
 
-    /** Asks Paystack for the current status of a transfer (success / pending / failed / reversed). */
+    /**
+     * Asks Paystack for the current status of a transfer (success / pending / failed / reversed).
+     */
     public String transferStatus(String reference) {
         PaystackTransferResponseDTO response = http.get(GATEWAY, baseUrl + "/transfer/verify/" + reference, secretKey, PaystackTransferResponseDTO.class);
         return response == null || response.data() == null ? "unknown" : String.valueOf(response.data().status()).toLowerCase();
@@ -154,7 +164,9 @@ public class PaystackServices {
     // Checkout (wallet funding)
     // ------------------------------------------------------------------
 
-    /** Starts a hosted checkout the user pays on. Returns the pay-page url and the SDK access code. */
+    /**
+     * Starts a hosted checkout the user pays on. Returns the pay-page url and the SDK access code.
+     */
     public GatewayCheckoutResult initializeCheckout(String email, BigDecimal amount, String currency, String reference) {
         log.info("Paystack: checkout ref={} amount={} {}", reference, amount, currency);
         Map<String, Object> body = new LinkedHashMap<>();
@@ -255,7 +267,9 @@ public class PaystackServices {
     // Account name lookup
     // ------------------------------------------------------------------
 
-    /** Returns the account holder's name for a bank account number. */
+    /**
+     * Returns the account holder's name for a bank account number.
+     */
     public GatewayAccountResult resolveAccount(String accountNumber, String bankCode) {
         PaystackAccountResolveResponseDTO response = http.get(GATEWAY,
                 baseUrl + "/bank/resolve?account_number=" + accountNumber + "&bank_code=" + bankCode,
@@ -270,5 +284,15 @@ public class PaystackServices {
     static long toMinorUnits(BigDecimal amount) {
         // Round first: a converted amount can carry many decimals and longValueExact would throw on them
         return amount.setScale(2, java.math.RoundingMode.HALF_UP).movePointRight(2).longValueExact();
+    }
+
+    /**
+     * Checks that a meter / smartcard / phone number exists and returns the name on it.
+     */
+    public PaystackValidateBillAccountResponseDTO validateBillAccount(String billerCode, String itemCode, String customer) {
+        log.info("Paystack: validating bill customer for biller {}", billerCode);
+        return http.get(GATEWAY,
+                baseUrl + "/bills/" + itemCode + "/validate?code=" + billerCode + "&customer=" + customer,
+                secretKey, PaystackValidateBillAccountResponseDTO.class);
     }
 }

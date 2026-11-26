@@ -29,7 +29,7 @@ public class CardsModel {
     private String brand;
 
     @Column(name = "card_type", nullable = false, length = 20)
-    private Datatypes.CardType cardType = Datatypes.CardType.VIRTUAL_CARD; // VIRTUAL, PHYSICAL
+    private Datatypes.CardForm cardForm = Datatypes.CardForm.VIRTUAL_CARD; // VIRTUAL, PHYSICAL
 
     @Column(name = "description")
     private String description;

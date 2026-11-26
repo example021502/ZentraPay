@@ -10,4 +10,6 @@ public interface BillPaymentRepository extends JpaRepository<BillPaymentModel, U
 
     // The 50 most recent bill payments of a user, newest first
     List<BillPaymentModel> findTop50ByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    boolean existsByIdempotencyKey(String key);
 }

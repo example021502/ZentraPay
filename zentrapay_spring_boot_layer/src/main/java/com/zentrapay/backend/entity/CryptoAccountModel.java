@@ -27,8 +27,8 @@ public class CryptoAccountModel {
     @Column(name = "id", nullable = false, unique = true)
     private UUID id;
 
-    @Column(name = "code", nullable = false, length = 20)
-    private String code;
+    @Column(name = "user_id", nullable = false, length = 20)
+    private UUID userId;
 
     @Column(name = "network", length = 30)
     private String network;
@@ -38,6 +38,9 @@ public class CryptoAccountModel {
 
     @Column(name = "balance", nullable = false, precision = 28, scale = 10)
     private BigDecimal balance;
+
+    @Column(name = "currency_code", nullable = false, length = 20)
+    private String currencyCode;
 
     @Column(name = "is_default", nullable = false)
     private Boolean isDefault;

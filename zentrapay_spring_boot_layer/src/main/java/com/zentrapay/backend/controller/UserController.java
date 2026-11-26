@@ -1,6 +1,6 @@
 package com.zentrapay.backend.controller;
 
-import com.zentrapay.backend.service.common.Datatypes;
+import com.zentrapay.backend.dto.user.requests.UserProfileUpdateRequest;
 import com.zentrapay.backend.dto.common.ApiResponse;
 import com.zentrapay.backend.dto.user.*;
 import com.zentrapay.backend.service.user.UsersService;
@@ -9,12 +9,11 @@ import com.zentrapay.backend.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
@@ -29,11 +28,8 @@ public class UserController {
             @RequestBody @Valid RegisterRequestDTO request,
             HttpServletRequest req) {
 
-        // Comment: Extract the client IP address considering potential reverse proxies
-        String ipAddress = getClientIpAddress(req);
-
         // Comment: Register user and pass the captured IP address for consent tracking
-        usersAuthResponse userData = userService.register(request, ipAddress);
+        usersAuthResponse userData = userService.register(request, req);
 
         return ResponseEntity.ok(ApiResponse.success(userData, "Registered"));
     }
@@ -82,26 +78,27 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserInformation>> me(@CurrentUser AuthenticatedUser user) {
+    public ResponseEntity<ApiResponse<UserInformation>> me(@CurrentUser @NonNull AuthenticatedUser user) {
         UserInformation profile = userService.getMe(user.userId());
         return ResponseEntity.ok(ApiResponse.success(profile, "Profile retrieved"));
     }
-    @GetMapping("/qr_me")
-    public ResponseEntity<ApiResponse<UserQRInfo>> unwrapToken(@CurrentUser AuthenticatedUser user) {
+
+    @GetMapping("/qr_me/{currencyCode}")
+    public ResponseEntity<ApiResponse<UserQRInfo>> unwrapToken(@CurrentUser @NonNull AuthenticatedUser user, @PathVariable String currencyCode) {
         log.info("================ PROCESSING USER... ==================");
         // The whole QR bundle (identity + default-account zentag) is assembled
         // in the service: the zentag is NOT a JWT claim (JwtService only packs
         // identity fields), so it has to be read from the caller's default
         // fiat account rather than from AuthenticatedUser.
-        UserQRInfo info = userService.getQRInfo(user.getUserId());
+        UserQRInfo info = userService.getQRInfo(user.getUserId(), currencyCode);
 
         log.info("================ SENDING THE DATA BACK TO FRONTED... ==================");
         return ResponseEntity.ok(ApiResponse.success(info, "Profile retrieved"));
     }
 
-    @PatchMapping({"/update", "/me"})
+    @PatchMapping({"/update"})
     public ResponseEntity<ApiResponse<UserDTO>> updateMe(@CurrentUser AuthenticatedUser user,
-                                                                  @RequestBody UserMeUpdateDTO request) {
+                                                         @RequestBody UserProfileUpdateRequest request) {
         UserDTO updated = userService.updateMe(user.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated"));
     }
@@ -112,29 +109,4 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile retrieved"));
     }
 
-    @PutMapping("/me/profile")
-    public ResponseEntity<ApiResponse<UserProfileDTO>> upsertKycProfile(@CurrentUser AuthenticatedUser user,
-                                                                                 @RequestBody UserProfileUpdateDTO request) {
-        UserProfileDTO profile = userService.upsertKycProfile(user.getUserId(), request);
-        return ResponseEntity.ok(ApiResponse.success(profile, "KYC profile updated"));
-    }
-
-//    @GetMapping("/me/receive")
-//    public ResponseEntity<ApiResponse<ReceiveInfoDTO>> getReceiveInfo(@CurrentUser AuthenticatedUser user) {
-//        ReceiveInfoDTO info = userService.getReceiveInfo(user.userId());
-//        return ResponseEntity.ok(ApiResponse.success(info, "Receive info retrieved"));
-//    }
-//
-//    @GetMapping("/me/merchant-profile")
-//    public ResponseEntity<ApiResponse<MerchantProfileDTO>> getMerchantProfile(@CurrentUser AuthenticatedUser user) {
-//        MerchantProfileDTO profile = userService.getMerchantProfile(user.userId());
-//        return ResponseEntity.ok(ApiResponse.success(profile, "Merchant profile retrieved"));
-//    }
-//
-//    @PutMapping("/me/merchant-profile")
-//    public ResponseEntity<ApiResponse<MerchantProfileDTO>> upsertMerchantProfile(@CurrentUser AuthenticatedUser user,
-//                                                                                   @RequestBody MerchantProfileDTO request) {
-//        MerchantProfileDTO profile = userService.upsertMerchantProfile(user.userId(), request);
-//        return ResponseEntity.ok(ApiResponse.success(profile, "Merchant profile updated"));
-//    }
 }

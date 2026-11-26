@@ -11,11 +11,17 @@ public record PayRequestDTO(
         @NotBlank(message = "pin is required")
         String pin,
 
+        @NotNull(message = "Idempotency key is required")
+        String idempotencyKey,
+
         @NotNull(message = "providerId is required")
         UUID providerId,
 
         @NotBlank(message = "customerReference is required")
         String customerReference,
+
+        @NotBlank(message = "Account name is required")
+        String accountName,
 
         @NotNull(message = "amount is required")
         @DecimalMin(value = "0.01", message = "amount must be positive")

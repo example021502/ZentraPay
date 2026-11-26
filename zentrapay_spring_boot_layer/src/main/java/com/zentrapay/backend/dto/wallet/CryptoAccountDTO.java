@@ -1,5 +1,8 @@
 package com.zentrapay.backend.dto.wallet;
 
+import com.zentrapay.backend.service.common.Datatypes;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -8,13 +11,13 @@ import java.util.UUID;
  * model. {@code balance} is a decimal {@link String}.
  */
 public record CryptoAccountDTO(
-        UUID cryptoAccountId,
+        UUID id,
         String currencyCode,
         String network,
-        String walletAddress,
+        String address,
+        BigDecimal balance,
         boolean isDefault,
-        String balance,
-        String status,
+        Datatypes.AccountStatus status,
         LocalDateTime createdAt
 ) {
 }

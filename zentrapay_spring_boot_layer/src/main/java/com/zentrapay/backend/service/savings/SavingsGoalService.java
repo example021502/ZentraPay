@@ -7,7 +7,6 @@ import com.zentrapay.backend.dto.savings.SavingsGoalDTOs.GoalDTO;
 import com.zentrapay.backend.entity.SavingsGoalModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserModel;
-import com.zentrapay.backend.entity.UserSavingsModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.SavingsGoalRepository;
 import com.zentrapay.backend.repository.TransactionRepository;

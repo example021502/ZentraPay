@@ -1,6 +1,7 @@
 package com.zentrapay.backend.service.gateway;
 
-import com.zentrapay.backend.dto.bill.ValidateResponseDTO;
+import com.zentrapay.backend.dto.gateway.FlutterwaveBillPaymentResponseDTO;
+import com.zentrapay.backend.dto.gateway.FlutterwaveValidateBillAccountResponseDTO;
 import com.zentrapay.backend.dto.payment.*;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +31,14 @@ public class FlutterwaveServices {
     private final GatewayHttp http;
 
     @Value("${flutterwave.base-url}")
-    private String baseUrl;
+    String baseUrl;
     @Value("${flutterwave.secret-key}")
-    private String secretKey;
+    String secretKey;
     @Value("${flutterwave.redirect-url:}")
-    private String redirectUrl;
+    String redirectUrl;
+    @Value("${flutterwave.webhook-url}")
+    String webhookUrl;
+
 
     // ------------------------------------------------------------------
     // Customers
@@ -72,7 +76,9 @@ public class FlutterwaveServices {
     // Beneficiaries (recipients)
     // ------------------------------------------------------------------
 
-    /** Registers a bank account / mobile-money wallet and returns its beneficiary id. */
+    /**
+     * Registers a bank account / mobile-money wallet and returns its beneficiary id.
+     */
     public String createBeneficiary(String accountName, String accountNumber, String channelCode) {
         log.info("Flutterwave: creating beneficiary {} / {}", channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
@@ -95,8 +101,8 @@ public class FlutterwaveServices {
      * Sends money from our Flutterwave balance. Flutterwave takes the destination
      * inline, so the recipient's bank code / account number / name are sent directly.
      */
-    public GatewayTransferResult sendTransfer(BigDecimal amount, String channelCode, String accountNumber,
-                                              String accountName, String currency, String narration, String reference) {
+    public FlutterwaveTransferResponseDTO sendTransfer(BigDecimal amount, String channelCode, String accountNumber,
+                                                       String accountName, String currency, String narration, String reference) {
         log.info("Flutterwave: transfer ref={} amount={} {} to {} / {}", reference, amount, currency, channelCode, com.zentrapay.backend.service.payment.DestinationTokenService.mask(accountNumber));
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("account_bank", channelCode);
@@ -115,10 +121,12 @@ public class FlutterwaveServices {
         if ("FAILED".equals(status) || "REVERSED".equals(status)) {
             throw new PaymentGatewayException("Flutterwave transfer not accepted (status " + status + ")");
         }
-        return new GatewayTransferResult(String.valueOf(response.data().id()), "SUCCESSFUL".equals(status));
+        return response;
     }
 
-    /** Asks Flutterwave for the status of a transfer (SUCCESSFUL / PENDING / FAILED ...). */
+    /**
+     * Asks Flutterwave for the status of a transfer (SUCCESSFUL / PENDING / FAILED ...).
+     */
     public String transferStatus(String reference) {
         JsonNode response = http.get(GATEWAY, baseUrl + "/transfers?reference=" + reference, secretKey, JsonNode.class);
         JsonNode first = response == null ? null : response.path("data").path(0);
@@ -129,7 +137,9 @@ public class FlutterwaveServices {
     // Checkout (wallet funding)
     // ------------------------------------------------------------------
 
-    /** Starts a hosted checkout the user pays on. */
+    /**
+     * Starts a hosted checkout the user pays on.
+     */
     public GatewayCheckoutResult initializeCheckout(String email, String fullName, String phoneNumber,
                                                     BigDecimal amount, String currency, String reference) {
         log.info("Flutterwave: checkout ref={} amount={} {}", reference, amount, currency);
@@ -232,44 +242,42 @@ public class FlutterwaveServices {
     // NOTE: paths follow the Flutterwave v3 Bills API; confirm them with one sandbox call before go-live.
     // ------------------------------------------------------------------
 
-    /** Checks that a meter / smartcard / phone number exists and returns the name on it. */
-    public ValidateResponseDTO validateBillCustomer(String billerCode, String itemCode, String customer) {
+    /**
+     * Checks that a meter / smartcard / phone number exists and returns the name on it.
+     */
+    public FlutterwaveValidateBillAccountResponseDTO validateBillAccount(String billerCode, String itemCode, String customer) {
         log.info("Flutterwave: validating bill customer for biller {}", billerCode);
-        JsonNode response = http.get(GATEWAY,
+        return http.get(GATEWAY,
                 baseUrl + "/bills/" + itemCode + "/validate?code=" + billerCode + "&customer=" + customer,
-                secretKey, JsonNode.class);
-        boolean valid = response != null && "success".equalsIgnoreCase(response.path("status").asString(""));
-        String name = response == null ? null : response.path("data").path("name").asString(null);
-        return new ValidateResponseDTO(valid, name);
+                secretKey, FlutterwaveValidateBillAccountResponseDTO.class);
     }
 
-    /** Pays the bill from our Flutterwave balance. The reference is our idempotency key. */
-    public GatewayTransferResult payBill(String billerCode, String itemCode, String country, String customer,
-                                         BigDecimal amount, String reference) {
+    /**
+     * Pays the bill from our Flutterwave balance. The reference is our idempotency key.
+     */
+    public FlutterwaveBillPaymentResponseDTO payBill(String billerCode, String itemCode, String country, String customer,
+                                                     BigDecimal amount, String reference) {
         log.info("Flutterwave: paying bill ref={} biller={} amount={}", reference, billerCode, amount);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("country", country);
-        body.put("customer", customer);
+        body.put("customer_id", customer);
         body.put("amount", amount);
         body.put("recurrence", "ONCE");
         body.put("reference", reference);
+        body.put("callback_url", webhookUrl);
 
-        JsonNode response = http.post(GATEWAY, baseUrl + "/billers/" + billerCode + "/items/" + itemCode + "/payment",
-                secretKey, body, JsonNode.class);
-        if (response == null || !"success".equalsIgnoreCase(response.path("status").asString(""))) {
-            throw new PaymentGatewayException("Flutterwave bill payment rejected: "
-                    + (response == null ? "no response" : response.path("message").asString("unknown error")));
-        }
-        String status = response.path("data").path("status").asString("").toLowerCase();
-        return new GatewayTransferResult(response.path("data").path("flw_ref").asString(reference),
-                "success".equals(status) || "successful".equals(status));
+        return http.post(GATEWAY, baseUrl + "/billers/" + billerCode + "/items/" + itemCode + "/payment",
+                secretKey, body, FlutterwaveBillPaymentResponseDTO.class);
+
     }
 
     // ------------------------------------------------------------------
     // Account name lookup
     // ------------------------------------------------------------------
 
-    /** Returns the account holder's name for a bank account number. */
+    /**
+     * Returns the account holder's name for a bank account number.
+     */
     public GatewayAccountResult resolveAccount(String accountNumber, String bankCode) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("account_number", accountNumber);

@@ -41,7 +41,9 @@ public class PaymentWebhookService {
     // Paystack
     // ==================================================================
 
-    /** Paystack events: transfer.success / transfer.failed / transfer.reversed / charge.success. */
+    /**
+     * Paystack events: transfer.success / transfer.failed / transfer.reversed / charge.success.
+     */
     public void handlePaystackEvent(JsonNode payload) {
         String event = text(payload, "event");
         JsonNode data = payload.path("data");
@@ -63,7 +65,9 @@ public class PaymentWebhookService {
     // Flutterwave
     // ==================================================================
 
-    /** Flutterwave events: transfer.completed (payouts) and charge.completed (checkouts). */
+    /**
+     * Flutterwave events: transfer.completed (payouts) and charge.completed (checkouts).
+     */
     public void handleFlutterwaveEvent(JsonNode payload) {
         String event = text(payload, "event");
         JsonNode data = payload.path("data");
@@ -117,30 +121,38 @@ public class PaymentWebhookService {
     // Shared resolution (also used by the reconciliation job)
     // ==================================================================
 
-    /** The gateway says the payout was delivered. */
+    /**
+     * The gateway says the payout was delivered.
+     */
     public void payoutSucceeded(String reference) {
-        findTransaction(reference).ifPresent(txn -> ledgerOperations.complete(txn.getTransactionId()));
+        findTransaction(reference).ifPresent(txn -> ledgerOperations.complete(txn.getId()));
     }
 
-    /** The gateway says the payout failed (or took it back): refund the sender. */
+    /**
+     * The gateway says the payout failed (or took it back): refund the sender.
+     */
     public void payoutFailed(String reference, boolean reversal, String reason) {
-        findTransaction(reference).ifPresent(txn -> ledgerOperations.refund(txn.getTransactionId(), reversal, reason));
+        findTransaction(reference).ifPresent(txn -> ledgerOperations.refund(txn.getId(), reversal, reason));
     }
 
-    /** The gateway says the customer paid: credit their wallet (only if amount and currency match). */
+    /**
+     * The gateway says the customer paid: credit their wallet (only if amount and currency match).
+     */
     public void checkoutPaid(String reference, BigDecimal paidAmount, String paidCurrency) {
         findTransaction(reference).ifPresent(txn -> {
-            ledgerOperations.creditFunding(txn.getTransactionId(), paidAmount, paidCurrency);
+            ledgerOperations.creditFunding(txn.getId(), paidAmount, paidCurrency);
             // "Save this card": only once the money really arrived, and never at the cost of the top-up itself
-            transactionRepository.findById(txn.getTransactionId())
+            transactionRepository.findById(txn.getId())
                     .filter(com.zentrapay.backend.service.card.CardVaultService::paid)
                     .ifPresent(cardVaultService::captureAfterTopup);
         });
     }
 
-    /** The checkout failed or was abandoned: close it without crediting anything. */
+    /**
+     * The checkout failed or was abandoned: close it without crediting anything.
+     */
     public void checkoutFailed(String reference, String reason) {
-        findTransaction(reference).ifPresent(txn -> ledgerOperations.failFunding(txn.getTransactionId(), reason));
+        findTransaction(reference).ifPresent(txn -> ledgerOperations.failFunding(txn.getId(), reason));
     }
 
     // The reference we sent to the gateway is "zp-<transactionId>"; fall back to the stored references

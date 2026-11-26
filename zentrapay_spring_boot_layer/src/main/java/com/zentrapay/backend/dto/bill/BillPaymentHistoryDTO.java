@@ -1,5 +1,7 @@
 package com.zentrapay.backend.dto.bill;
 
+import com.zentrapay.backend.service.common.Datatypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,7 +12,7 @@ public record BillPaymentHistoryDTO(
         String customerReference,
         BigDecimal amount,
         String currencyCode,
-        String status,
+        Datatypes.TransactionStatus status,
         LocalDateTime createdAt
 ) {
 }

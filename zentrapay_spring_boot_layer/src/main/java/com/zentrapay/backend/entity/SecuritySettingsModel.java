@@ -1,5 +1,6 @@
 package com.zentrapay.backend.entity;
 
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -15,13 +16,13 @@ import java.util.UUID;
  */
 @Entity
 @Data
-@Table(name = "security_settings")
+@Table(name = "settings")
 public class SecuritySettingsModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "settings_id", nullable = false)
-    private UUID settingsId;
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
     @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
@@ -30,7 +31,7 @@ public class SecuritySettingsModel {
     private boolean biometricEnabled = false;
 
     @Column(name = "biometric_type", length = 20)
-    private String biometricType;
+    private Datatypes.BiometricType biometricType;
 
     @Column(name = "two_factor_enabled", nullable = false)
     private boolean twoFactorEnabled = false;

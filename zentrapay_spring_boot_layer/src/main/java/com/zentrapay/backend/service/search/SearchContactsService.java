@@ -8,7 +8,7 @@ import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.dto.search.*;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,7 +34,7 @@ public class SearchContactsService {
     private final BillProviderRepository billProviderRepository;
     private final BanksRepository banksRepository;
     private final MobileMoneyRepository mobileMoneyRepository;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
 
 
     /**
@@ -107,7 +107,7 @@ public class SearchContactsService {
     // ZRemit: everything abroad - but only in countries ZentraPay (through its gateways) supports
     private SearchResponseDTO searchAbroad(String query, UserModel sender, String senderCountry, int limit, String destinationCountry) {
         boolean oneCountry = destinationCountry != null && !destinationCountry.isBlank();
-        List<String> supported = supportedRegionService.activeCountryCodes().stream()
+        List<String> supported = countriesServices.activeCountryCodes().stream()
                 .filter(code -> !code.equalsIgnoreCase(senderCountry))
                 .filter(code -> !oneCountry || code.equalsIgnoreCase(destinationCountry.trim()))
                 .toList();

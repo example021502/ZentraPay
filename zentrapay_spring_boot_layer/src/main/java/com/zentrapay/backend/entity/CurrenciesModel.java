@@ -29,6 +29,9 @@ public class CurrenciesModel {
     @Column(name = "name", nullable = false, length = 80)
     private String currencyName;
 
+    @Column(name = "country_code", nullable = false, length = 80)
+    private String countryCode;
+
     @Column(name = "active", nullable = false)
     private boolean active;
 

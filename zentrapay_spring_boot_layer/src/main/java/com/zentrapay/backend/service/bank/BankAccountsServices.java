@@ -1,6 +1,9 @@
 package com.zentrapay.backend.service.bank;
 
 import com.zentrapay.backend.entity.*;
+import com.zentrapay.backend.service.CountriesServices;
+import com.zentrapay.backend.service.DigitalAccounts.CurrenciesServices;
+import com.zentrapay.backend.service.common.Datatypes;
 import lombok.extern.slf4j.Slf4j;
 import com.zentrapay.backend.repository.BanksRepository;
 import com.zentrapay.backend.repository.UserRepository;
@@ -35,8 +38,8 @@ public class BankAccountsServices {
     private final BanksRepository banksRepository;
     private final UserBankRepository userBankRepository;
     private final BankAccountLinkService bankAccountLinkService;
-    private final GatewayCountriesRepository gatewayCountriesRepository;
     private final UserRepository userRepository;
+    private final CurrenciesServices currenciesServices;
 
     /* ---------------------------------------------------------------- reads */
 
@@ -76,7 +79,7 @@ public class BankAccountsServices {
             }
         }
         if (primary == null && !accounts.isEmpty()) {
-            primary = accounts.get(0);
+            primary = accounts.getFirst();
         }
         return new UserAccountsResponseDTO(primary, accounts);
     }
@@ -126,10 +129,10 @@ public class BankAccountsServices {
 
         final UserBankModel row = new UserBankModel();
         row.setUserId(userId);
-        row.setBankId(catalogBank.map(BanksModel::getBankId).orElse(null));
+        row.setBankId(catalogBank.map(BanksModel::getId).orElse(null));
         row.setBalance(account.balance() == null ? BigDecimal.ZERO : account.balance());
         row.setLastDigits(account.lastDigits() == null ? "" : account.lastDigits());
-        row.setConnectionStatus("active");
+        row.setConnectionStatus(Datatypes.UserBankConnectionStatus.ACTIVE);
         row.setConnectionId(BankAccountLinkService.PROVIDER_AFRILINK + ":" + accountId);
         row.setProvider(BankAccountLinkService.PROVIDER_AFRILINK);
         row.setProviderAccountId(accountId);
@@ -144,8 +147,7 @@ public class BankAccountsServices {
         // bank's currency, else the currency of the bank's country
         row.setCurrencyCode(firstNonBlank(account.currencyCode(),
                 catalogBank.map(BanksModel::getCurrencyCode).orElse(null),
-                linkCountry == null ? null : gatewayCountriesRepository.findFirstByCountryCode(linkCountry)
-                        .map(CountriesModel::getCurrencyCode).orElse(null)));
+                linkCountry == null ? null : currenciesServices.getCurrency(linkCountry)));
         if (row.getCurrencyCode() != null) {
             row.setCurrencyCode(row.getCurrencyCode().toUpperCase());
         }
@@ -200,7 +202,7 @@ public class BankAccountsServices {
                 remaining.sort(Comparator.comparing(
                         UserBankModel::getLinkedAt,
                         Comparator.nullsLast(Comparator.naturalOrder())));
-                UserBankModel next = remaining.get(0);
+                UserBankModel next = remaining.getFirst();
                 next.setPrimary(true);
                 userBankRepository.save(next);
             }
@@ -211,9 +213,9 @@ public class BankAccountsServices {
 
     private static AccountsDTO toAccountsDTO(BanksModel b) {
         return new AccountsDTO(
-                b.getBankId(),
+                b.getId(),
                 b.getCode(),
-                b.getBankName(),
+                b.getName(),
                 b.getGateway(),
                 b.getIban(),
                 b.getCurrencyCode(),
@@ -253,7 +255,7 @@ public class BankAccountsServices {
 
     private static UserAccountsDTO toUserAccount(UserBankModel row, BanksModel bank) {
         return new UserAccountsDTO(
-                row.getUserBankId(),
+                row.getId(),
                 row.getUserId(),
                 row.getBalance(),
                 row.getBankId(),
@@ -262,7 +264,7 @@ public class BankAccountsServices {
                 row.getConnectionId(),
                 row.getLinkedAt(),
                 row.getUpdatedAt(),
-                firstNonBlank(row.getInstitutionName(), bank == null ? null : bank.getBankName(), null),
+                firstNonBlank(row.getInstitutionName(), bank == null ? null : bank.getName(), null),
                 bank == null ? row.getInstitutionId() : bank.getCode(),
                 firstNonBlank(row.getCountryCode(), bank == null ? null : bank.getCountryCode(), null),
                 firstNonBlank(row.getCurrencyCode(), bank == null ? null : bank.getCurrencyCode(), null),

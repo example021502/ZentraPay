@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,10 @@ import java.util.UUID;
  * {@code provider_id}) instead.
  */
 public interface UserBillProvidersRepository extends JpaRepository<UserBillProviderModel, UUID> {
-    @Query("SELECT DISTINCT b.providerId FROM UserBillProviderModel b WHERE b.userId = :userId")
-    List<UUID> getUserBillProvidersIdsByUserId(@Param("userId") UUID userId);
+    @Query("SELECT b FROM UserBillProviderModel b WHERE b.userId = :userId AND b.providerId =:billProviderId")
+    Optional<UserBillProviderModel> getByUserIdAndProviderId(@Param("userId") UUID userId, @Param("providerId") UUID providerId);
+
+    List<UserBillProviderModel> getAllByUserId(@Param("userId") UUID userId);
+
+    Optional<UserBillProviderModel> getAccountByUserIdAndProviderId(UUID userId, UUID providerId);
 }

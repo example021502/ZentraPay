@@ -7,12 +7,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface CurrenciesRepository extends JpaRepository<CurrenciesModel, String> {
+public interface CurrenciesRepository extends JpaRepository<CurrenciesModel, UUID> {
 
-    @Query("SELECT c FROM CurrenciesModel WHERE c.code IN (:codes)")
+    @Query("SELECT c FROM CurrenciesModel WHERE c.code NOT IN (:codes)")
     List<CurrenciesModel> getCurrenciesByCodes(@Param("codes") List<String> codes);
 
-    Optional<CurrenciesModel> getCurrencyByCountryCode(@Param("countryCode") String countryCode);
+    boolean existsByCurrencyCode(@Param("currencyCode") String currencyCode);
 
+    @Query("SELECT c.code FROM CurrenciesModel c WHERE c.countryCode =:countryCode")
+    String getCurrencyCodeByCountryCode(String countryCode);
 }

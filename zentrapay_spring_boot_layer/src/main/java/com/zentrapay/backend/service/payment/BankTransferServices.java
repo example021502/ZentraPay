@@ -1,6 +1,5 @@
 package com.zentrapay.backend.service.payment;
 
-import com.zentrapay.backend.dto.payment.GatewayTransferResult;
 import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.exception.PaymentGatewayException;
 import com.zentrapay.backend.service.bank.BankCatalogService;

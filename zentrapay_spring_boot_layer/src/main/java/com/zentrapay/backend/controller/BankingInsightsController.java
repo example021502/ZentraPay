@@ -7,8 +7,10 @@ import com.zentrapay.backend.dto.common.ApiResponse;
 import com.zentrapay.backend.security.AuthenticatedUser;
 import com.zentrapay.backend.security.CurrentUser;
 import com.zentrapay.backend.service.bank.BankingInsightsService;
+import com.zentrapay.backend.service.common.Datatypes;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,19 +29,19 @@ public class BankingInsightsController {
 
     private final BankingInsightsService insightsService;
 
-    @GetMapping("/insights")
-    public ResponseEntity<ApiResponse<InsightsDTO>> insights(@CurrentUser AuthenticatedUser user) {
-        return ResponseEntity.ok(ApiResponse.success(insightsService.insights(user.getUserId()), "Insights retrieved"));
+    @GetMapping("/insights/{period}")
+    public ResponseEntity<ApiResponse<InsightsDTO>> insights(@NonNull @CurrentUser AuthenticatedUser user, @PathVariable() Datatypes.BudgetPeriod period) {
+        return ResponseEntity.ok(ApiResponse.success(insightsService.insights(user.getUserId(), period), "Insights retrieved"));
     }
 
-    @GetMapping("/budget")
-    public ResponseEntity<ApiResponse<BudgetDTO>> budget(@CurrentUser AuthenticatedUser user) {
-        return ResponseEntity.ok(ApiResponse.success(insightsService.budget(user.getUserId()), "Budget retrieved"));
+    @GetMapping("/budget/{currencyCode}/{period}")
+    public ResponseEntity<ApiResponse<BudgetDTO>> budget(@NonNull @CurrentUser AuthenticatedUser user, @PathVariable String currencyCode, @PathVariable Datatypes.BudgetPeriod period) {
+        return ResponseEntity.ok(ApiResponse.success(insightsService.budget(user.getUserId(), currencyCode, period), "Budget retrieved"));
     }
 
-    @PutMapping("/budget")
-    public ResponseEntity<ApiResponse<BudgetDTO>> setBudget(@CurrentUser AuthenticatedUser user,
-                                                            @Valid @RequestBody SetBudgetRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(insightsService.setBudget(user.getUserId(), request.monthlyLimit()), "Budget saved"));
+    @PutMapping("/budget/set")
+    public ResponseEntity<ApiResponse<BudgetDTO>> setBudget(@CurrentUser @NonNull AuthenticatedUser user,
+                                                            @Valid @RequestBody @NonNull SetBudgetRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(insightsService.setBudget(user.getUserId(), request.limit(), request.currencyCode(), request.period()), "Budget saved"));
     }
 }

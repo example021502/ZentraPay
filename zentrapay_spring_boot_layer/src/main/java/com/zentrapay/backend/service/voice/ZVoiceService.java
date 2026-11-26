@@ -7,7 +7,7 @@ import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.VoiceCommandModel;
 import com.zentrapay.backend.repository.FraudAlertRepository;
 import com.zentrapay.backend.repository.TransactionRepository;
-import com.zentrapay.backend.repository.VirtualAccountRepository;
+import com.zentrapay.backend.repository.AccountsRepository;
 import com.zentrapay.backend.repository.VoiceCommandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,7 @@ public class ZVoiceService {
     private final VoiceCommandRepository voiceCommandRepository;
     private final TransactionRepository transactionRepository;
     private final FraudAlertRepository fraudAlertRepository;
-    private final VirtualAccountRepository accounts;
+    private final AccountsRepository accounts;
     // ------------------------------------------------------------------
     // Record an instruction
     // ------------------------------------------------------------------
@@ -147,9 +147,9 @@ public class ZVoiceService {
         return "UNKNOWN";
     }
 
-    private String answerFor(UUID userId, String intent) {
+    private String answerFor(UUID userId, String intent, String currencyCode) {
         return switch (intent) {
-            case "BALANCE" -> balanceReply(userId);
+            case "BALANCE" -> balanceReply(userId, currencyCode);
             case "HISTORY" -> historyReply(userId);
             case "SEND_MONEY" ->
                     "I have noted that you want to send money. For your security I cannot move money by voice: "
@@ -169,7 +169,7 @@ public class ZVoiceService {
         };
     }
 
-    private String balanceReply(UUID userId) {
+    private String balanceReply(UUID userId, String currencyCode) {
         Optional<BigDecimal> balance = accounts.getBalanceByUserId(userId);
         if (balance.isEmpty()) {
             return "Could not load your current balance";
@@ -209,7 +209,7 @@ public class ZVoiceService {
     }
 
     private static VoiceCommandResponseDTO toDTO(VoiceCommandModel c) {
-        return new VoiceCommandResponseDTO(c.getCommandId(), c.getCommandType(), c.getLanguage(), c.getTranscript(),
+        return new VoiceCommandResponseDTO(c.getId(), c.getCommandType(), c.getLanguage(), c.getTranscript(),
                 c.getResponseText(), c.getIntent(), c.getStatus(), c.isFraudAlert(), c.getFraudReason(),
                 c.getDurationMs(), c.getConfidence(), c.getCreatedAt());
     }

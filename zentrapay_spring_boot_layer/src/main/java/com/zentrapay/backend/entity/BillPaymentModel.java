@@ -30,6 +30,9 @@ public class BillPaymentModel {
     @Column(name = "provider_id", nullable = false)
     private UUID providerId;
 
+    @Column(name = "idempotency_key", nullable = false, unique = true)
+    private String idempotencyKey;
+
     @Column(name = "transaction_id", nullable = false, unique = true)
     private UUID transactionId;
 
@@ -42,7 +45,10 @@ public class BillPaymentModel {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(nullable = false, length = 20)
+    @Column(name = "token")
+    private String token;
+
+    @Column(name = "status", nullable = false, length = 20)
     private Datatypes.TransactionStatus status = Datatypes.TransactionStatus.PENDING;
 
     @CreationTimestamp

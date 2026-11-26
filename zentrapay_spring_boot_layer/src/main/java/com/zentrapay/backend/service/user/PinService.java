@@ -25,9 +25,11 @@ public class PinService {
     @Value("${app.pin.pepper}")
     private String pinPepper;
 
-    /** True when the PIN is the user's transaction PIN. Throws while the PIN is locked after too many wrong guesses. */
+    /**
+     * True when the PIN is the user's transaction PIN. Throws while the PIN is locked after too many wrong guesses.
+     */
     public boolean matches(UserModel user, String pin) {
-        String key = "pin:" + user.getUserId();
+        String key = "pin:" + user.getId();
         attemptLimiter.requireNotLocked(key);
         boolean ok = pin != null && passwordEncoder.matches(pin + pinPepper, user.getTransactionPinHash());
         if (ok) {
@@ -38,7 +40,9 @@ public class PinService {
         return ok;
     }
 
-    /** Throws "Invalid PIN" (HTTP 400) when the PIN is wrong. */
+    /**
+     * Throws "Invalid PIN" (HTTP 400) when the PIN is wrong.
+     */
     public void requireValid(UserModel user, String pin) {
         if (!matches(user, pin)) {
             throw new IllegalArgumentException("Invalid PIN");

@@ -1,16 +1,19 @@
 package com.zentrapay.backend.service.user;
 
+import com.zentrapay.backend.dto.user.requests.UserProfileUpdateRequest;
 import com.zentrapay.backend.entity.*;
 import com.zentrapay.backend.repository.*;
 import com.zentrapay.backend.security.AttemptLimiter;
+import com.zentrapay.backend.service.DigitalAccounts.AccountsServices;
+import com.zentrapay.backend.service.DigitalAccounts.CurrenciesServices;
 import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.dto.user.*;
 import com.zentrapay.backend.entity.LoginHistoryModel;
 import com.zentrapay.backend.repository.LoginHistoryRepository;
 import com.zentrapay.backend.security.JwtService;
-import com.zentrapay.backend.service.gateway.FincraServices;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
+import com.zentrapay.backend.service.common.Utils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
 
 
@@ -31,21 +34,19 @@ public class UsersService {
 
     private static final Logger log = LoggerFactory.getLogger(UsersService.class);
 
-    private final UserRepository userRepository;
-    private final CryptoWalletRepository cryptoWalletRepository;
+    private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginHistoryRepository loginHistoryRepository;
-    private final VirtualAccountRepository accounts;
-    private final CryptoAccountRepository cryptoAccountRepository;
+    private final AccountsServices accountServices;
     private final UserProfileRepository userProfileRepository;
     private final PinService pinService;
     private final AttemptLimiter attemptLimiter;
-    private final SupportedRegionService supportedRegionService;
-    private final KycVerificationService kycVerificationService;
+    private final CountriesServices countriesServices;
+    private final CurrenciesServices currenciesServices;
+    private final KycDocumentsServices kycDocumentsServices;
 
-    private final FincraServices fincraServices;
-    private final SupportedIdentitiesServices supportedIdentitiesServices;
+
     private final UserProfileServices userProfileServices;
 
     @Value("${app.password.pepper}")
@@ -63,10 +64,10 @@ public class UsersService {
         log.info("Registering a new user with email {}", req.email());
 
         // Check for existing uniqueness constraints before performing any database writes
-        if (userRepository.existsByEmail(req.email())) {
+        if (users.existsByEmail(req.email())) {
             throw new IllegalArgumentException("Email already taken");
         }
-        if (userRepository.existsByPhoneNumber(req.phoneNumber())) {
+        if (users.existsByPhoneNumber(req.phoneNumber())) {
             throw new IllegalArgumentException("Phone number already taken");
         }
 
@@ -76,7 +77,7 @@ public class UsersService {
 
         // Validate and fetch the country BEFORE saving the user to avoid unnecessary DB inserts
         // The country must be one of the payment providers support AND that is switched on right now
-        CountriesModel country = supportedRegionService.requireCountry(req.countryCode());
+        countriesServices.isCountrySupported(req.countryCode());
 
         // Initialize and populate the new User entity
         UserModel user = new UserModel();
@@ -84,44 +85,30 @@ public class UsersService {
         user.setLastName(req.lastName());
         user.setEmail(req.email());
         user.setPhoneNumber(req.phoneNumber());
-        user.setCountryCode(country.getCode());
+        user.setCountryCode(req.countryCode());
         user.setPasswordHash(passwordEncoder.encode(req.password() + passwordPepper));
         user.setTransactionPinHash(passwordEncoder.encode(req.pin() + pinPepper));
         user.setUserType(Datatypes.UserType.APP_USER);
         user.setStatus(Datatypes.UserStatus.ACTIVE);
 
         // Save the user record to the database
-        user = userRepository.save(user);
-        Map<String, Object> newProfile = userProfileServices.populateUserProfile(
-                user.getUserId(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
+        user = users.save(user);
+        userProfileServices.initializeProfile(user.getId());
+        String currencyCode = currenciesServices.getCurrency(user.getCountryCode());
+        accountServices.createDefaultFiatAccount(
+                "Default Account",
+                user.getId(),
+                user.getEmail(),
+                currencyCode,
+                Utils.getZentag(currencyCode, user.getPhoneNumber()),
+                user.getPhoneNumber()
+        );
 
 
         // Generate the authentication token and return the response DTO
-        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
-        recordLogin(user.getUserId(), httpRequest, true);
-        return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+//        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getPhoneNumber(), user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
+        recordLogin(user.getId(), httpRequest, true);
+        return authResponse(user);
     }
 
     // ========================================================================
@@ -133,32 +120,29 @@ public class UsersService {
         // so the lock looks the same for real and made-up accounts
         // The email wins when both are sent: email and phone are each unique, but together they could
         // point at two different accounts, which would make the lookup ambiguous
-        boolean byEmail = req.email() != null && !req.email().isBlank();
-        String identifier = (byEmail ? req.email() : req.phoneNumber() == null ? "" : req.phoneNumber()).trim();
-        String limitKey = "login:" + identifier.toLowerCase();
+        String limitKey = "login:" + (req.email().isBlank() ? req.phoneNumber() : req.email().toLowerCase(Locale.ROOT));
         attemptLimiter.requireNotLocked(limitKey);
 
-        UserModel user = userRepository.findByEmailOrPhoneNumber(byEmail ? identifier : null, byEmail ? null : identifier).orElse(null);
+        UserModel user = users.findByEmailOrPhoneNumber(req.email(), req.phoneNumber())
+                .orElseGet(() -> {
+                    attemptLimiter.recordFailure(limitKey);
+                    log.warn("[USERS] Login attempt for an unknown account");
+                    throw new IllegalArgumentException("Invalid credentials");
+                });
 
-        // Same message for "no such user" and "wrong password" so nobody can probe which accounts exist
-        if (user == null) {
-            attemptLimiter.recordFailure(limitKey);
-            log.warn("[USERS] Login attempt for an unknown account");
-            throw new IllegalArgumentException("Invalid credentials");
-        }
         if (!passwordEncoder.matches(req.password() + passwordPepper, user.getPasswordHash())) {
             attemptLimiter.recordFailure(limitKey);
-            recordLogin(user.getUserId(), httpRequest, false);
-            log.info("[USERS] Login failed - invalid credentials for user {}", user.getUserId());
+            recordLogin(user.getId(), httpRequest, false);
+            log.info("[USERS] Login failed - invalid credentials for user {}", user.getId());
             throw new IllegalArgumentException("Invalid credentials");
         }
         attemptLimiter.recordSuccess(limitKey);
         if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
-            recordLogin(user.getUserId(), httpRequest, false);
+            recordLogin(user.getId(), httpRequest, false);
             throw new IllegalArgumentException("Your account is " + user.getStatus() + ". Please contact support.");
         }
 
-        recordLogin(user.getUserId(), httpRequest, true);
+        recordLogin(user.getId(), httpRequest, true);
         return authResponse(user);
     }
 
@@ -180,7 +164,7 @@ public class UsersService {
                 && claims.getExpiration().toInstant().isBefore(java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS))) {
             throw new IllegalArgumentException("Session expired, please log in again");
         }
-        UserModel user = userRepository.findById(UUID.fromString(claims.getSubject()))
+        UserModel user = users.findById(UUID.fromString(claims.getSubject()))
                 .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
         if (user.getStatus() != Datatypes.UserStatus.ACTIVE) {
             throw new IllegalArgumentException("Your account is " + user.getStatus() + ". Please contact support.");
@@ -193,16 +177,16 @@ public class UsersService {
     // ========================================================================
     @Transactional(readOnly = true)
     public boolean verifyPin(UUID userId, String pin) {
-        UserModel user = userRepository.findById(userId)
+        UserModel user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return pinService.matches(user, pin);
     }
 
     // The token + identity returned by register / login / refresh
     private usersAuthResponse authResponse(UserModel user) {
-        String token = jwtService.generateToken(user.getUserId(), user.getEmail(), user.getPhoneNumber(),
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getPhoneNumber(),
                 user.getCountryCode(), user.getUserType(), user.getFirstName(), user.getLastName());
-        return new usersAuthResponse(token, user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName());
+        return new usersAuthResponse(token, user.getId(), user.getEmail(), user.getFirstName(), user.getLastName());
     }
 
     private void recordLogin(UUID userId, HttpServletRequest httpRequest, boolean success) {
@@ -225,6 +209,20 @@ public class UsersService {
         return request.getRemoteAddr();
     }
 
+    // CHECKING IF USER ACCOUNT IS ACTIVE
+    public void requireActiveUser(UserModel user) throws IllegalAccessException {
+        if (!Datatypes.UserStatus.ACTIVE.equals(user.getStatus())) {
+            throw new IllegalAccessException("Your account is " + user.getStatus() + " at the moment");
+        }
+    }
+
+    // CHECKING THE KYC STATUS OF THE USER
+    public void checkKycStatus(UserModel user) throws IllegalAccessException {
+        if (user.getKycTier() < (short) 2) {
+            throw new IllegalAccessException("Your kyc level is currently(" + user.getKycTier() + ") low for this feature. Upload you identity documents to continue");
+        }
+    }
+
 //    ========================================================================
 //    GET /api/users/qr_me — identity bundle rendered into receive QR codes
 //    ========================================================================
@@ -240,67 +238,108 @@ public class UsersService {
      * when the user has no wallet/default account yet (e.g. mid-registration)
      */
     @Transactional(readOnly = true)
-    public UserQRInfo getQRInfo(UUID userId) {
-        UserModel user = userRepository.getUserByUserId(userId)
+    public UserQRInfo getQRInfo(UUID userId, String currencyCode) {
+        UserModel user = users.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return new UserQRInfo(
-                user.getUserId(),
+                user.getId(),
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
                 user.getPhoneNumber(),
                 user.getCountryCode(),
-                resolveDefaultZentag(userId),
+                accountServices.getZentag(userId, currencyCode),
                 user.getUserType());
-    }
-
-    /**
-     * Resolves the zentag minted on the wallet's default currency account
-     * (same shape as registration/account creation:
-     * {@code phoneNumber + "_" + currencyCode + "@zentrapay"}).
-     */
-    private String resolveDefaultZentag(UUID userId) {
-        return accounts.getMerchantReferenceByUserId(userId);
     }
 
     //    GETTING USER INFROMATION
     @Transactional(readOnly = true)
     public UserInformation getMe(@Valid UUID userId) {
-        UserModel user = userRepository.getUserByUserId(userId)
+        UserModel user = users.getUserByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // Retrieve profile if present. The profile is optional — a row is only
-        // created once the user submits their KYC details — so a missing row must
-        // NOT null out the whole response. Always return the user; profile may be null.
         UserProfileModel up = userProfileRepository.getByUserId(userId);
-        UserProfileDTO profile = toProfileDTO(up);
-        return new UserInformation(toUserDTO(user), profile);
+        return new UserInformation(toUserDTO(user), toProfileDTO(up));
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public UserModel getUser(UUID userId) {
-        return userRepository.getUserByUserId(userId)
+        return users.getUserByUserId(userId)
                 .orElseThrow(
                         () -> new RuntimeException("User now found.")
                 );
     }
 
+    @Transactional(readOnly = true)
+    public void requireEligibleSender(UserModel user) {
+        if (user.getKycTier() < (short) 2) {
+            throw new RuntimeException("You are currently not eligible. Complete you kyc process first.");
+        }
+
+    }
+
+
     // ========================================================================
     // PATCH /api/users/me — self-service editable account fields (name only).
     // ========================================================================
     @Transactional
-    public UserDTO updateMe(UUID userId, UserMeUpdateDTO req) {
-        UserModel user = userRepository.getUserByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (req.firstName() != null && !req.firstName().isBlank()) {
+    public UserDTO updateMe(UUID userId, UserProfileUpdateRequest req) {
+        UserModel user = getUser(userId);
+        // updating the kyc documents
+        if (
+                req.documentType() != null
+                        || notBlank(req.documentNumber())
+                        || notBlank(req.documentIssuingCountryCode())
+                        || req.documentExpirationDate() != null) {
+            kycDocumentsServices.updateDocuments(
+                    userId,
+                    req.documentType(),
+                    req.documentNumber(),
+                    req.documentExpirationDate(),
+                    req.documentIssuingCountryCode()
+            );
+        }
+        // updating the user information
+        if (notBlank(req.firstName())) {
             user.setFirstName(req.firstName());
         }
-        if (req.lastName() != null && !req.lastName().isBlank()) {
+        if (notBlank(req.lastName())) {
             user.setLastName(req.lastName());
         }
-        user = userRepository.save(user);
+
+        if (notBlank(req.email())) {
+            user.setEmail(req.email());
+        }
+        if (notBlank(req.phoneNumber()) && user.getCountryCode().equalsIgnoreCase(req.countryCode())) {
+            user.setPhoneNumber(req.phoneNumber());
+        } else if (notBlank(req.phoneNumber()) && !user.getCountryCode().equalsIgnoreCase(req.countryCode())) {
+            throw new RuntimeException("You provided an invalid phone number. Only phone numbers for your country (" + countriesServices.getCountryNameByCode(user.getCountryCode()).toUpperCase() + ") are valid.");
+        }
+
+        //updating the user profile informaiton
+        if (
+                req.dateOfBirth() != null
+                        || notBlank(req.countryCode())
+                        || notBlank(req.addressLine1())
+                        || notBlank(req.addressLine2())
+                        || notBlank(req.cityName())
+                        || notBlank(req.stateOrRegion())
+                        || notBlank(req.postalCode())
+                        || notBlank(req.occupationTitle())
+        ) {
+            userProfileServices.populateUserProfile(
+                    userId,
+                    req.dateOfBirth(),
+                    req.countryCode(),
+                    req.addressLine1(),
+                    req.addressLine2(),
+                    req.cityName(),
+                    req.stateOrRegion(),
+                    req.postalCode(),
+                    req.occupationTitle()
+            );
+        }
         return toUserDTO(user);
     }
 
@@ -312,73 +351,43 @@ public class UsersService {
         return toProfileDTO(userProfileRepository.getByUserId(userId));
     }
 
-    // ========================================================================
-    // PUT /api/users/me/profile — upsert KYC profile fields, then recompute
-    // the caller's kycTier (see recomputeKycTier). Every field is optional
-    // (null = leave unchanged) so the KYC form can submit incrementally.
-    // ========================================================================
-    @Transactional
-    public UserProfileDTO upsertKycProfile(UUID userId, UserProfileUpdateDTO req) {
-        // Creates or updates the KYC profile of the user
-        log.info("Saving the KYC profile of user {}", userId);
-        UserModel user = userRepository.getUserByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        UserProfileModel profile = userProfileRepository.getByUserId(userId);
-        if (profile == null) {
-            profile = new UserProfileModel();
-            profile.setUserId(userId);
-        }
-
-        if (req.dateOfBirth() != null) profile.setDateOfBirth(req.dateOfBirth());
-        if (req.nationalityCountryCode() != null) profile.setNationalityCountryCode(req.nationalityCountryCode());
-        if (req.identityDocumentType() != null) profile.setIdentityDocumentType(req.identityDocumentType());
-        if (req.identityDocumentNumber() != null) profile.setIdentityDocumentNumber(req.identityDocumentNumber());
-        if (req.identityDocumentIssuingCountryCode() != null)
-            profile.setIdentityDocumentIssuingCountryCode(req.identityDocumentIssuingCountryCode());
-        if (req.identityDocumentExpirationDate() != null)
-            profile.setIdentityDocumentExpirationDate(req.identityDocumentExpirationDate());
-        if (req.addressLine1() != null) profile.setAddressLine1(req.addressLine1());
-        if (req.addressLine2() != null) profile.setAddressLine2(req.addressLine2());
-        if (req.cityName() != null) profile.setCityName(req.cityName());
-        if (req.stateOrRegion() != null) profile.setStateOrRegion(req.stateOrRegion());
-        if (req.postalCode() != null) profile.setPostalCode(req.postalCode());
-        if (req.occupationTitle() != null) profile.setOccupationTitle(req.occupationTitle());
-
-        userProfileRepository.save(profile);
-        recomputeKycTier(user, profile);
-        // The information is now in the table. Read it back and check whether
-        // everything the reviewer needs (fields + the three document images) is
-        // there; if so the profile is queued for a verification officer.
-        return toProfileDTO(kycVerificationService.checkSubmission(userId, false));
-    }
-
-    /**
-     * Tiers 0 and 1 follow the profile: an untouched profile is tier 0 and
-     * anything filled in is tier 1 ("started").
-     * <p>
-     * Tier 2 (unlocks sending/receiving money, see PaymentsService) is NEVER
-     * granted here, however complete the profile is: uploading documents only
-     * submits them for review. A verification officer checks the images and then
-     * raises the tier (see {@link KycVerificationService#approve}), Likewise a
-     * tier-2 user is never lowered by an edit - only an officer's decision can.
-     */
+    // MODIFYING THE KYC LEVEL
     void recomputeKycTier(UserModel user, UserProfileModel profile) {
         if (user.getKycTier() >= 2) {
             return;
         }
-        boolean started = profile != null && (profile.getDateOfBirth() != null
-                || notBlank(profile.getAddressLine1())
-                || notBlank(profile.getIdentityDocumentType())
-                || notBlank(profile.getIdentityDocumentNumber())
-                || notBlank(profile.getIdDocumentFrontPath())
-                || notBlank(profile.getIdDocumentBackPath())
-        );
-        short newTier = started ? (short) 1 : (short) 0;
-        if (user.getKycTier() != newTier) {
-            user.setKycTier(newTier);
-            userRepository.save(user);
+        KYCDocumentModel d = kycDocumentsServices.getKycDocument(user.getId());
+        if (
+                notBlank(d.getFrontImageUrl())
+                        && notBlank(d.getBackImageUrl())
+                        && profile != null
+                        && (notBlank(profile.getAddressLine1()) || notBlank(profile.getAddressLine2()))
+                        && profile.getAntiMoneyLaunderingStatus().equals(Datatypes.AntiMoneyStatuses.CLEAR)
+                        && notBlank(profile.getPostalCode())
+                        && notBlank(profile.getStateOrRegion())
+                        && notBlank(profile.getCityName()
+                )
+        ) {
+            if (user.getKycTier() != 2) {
+                user.setKycTier((short) 2);
+                users.save(user);
+            }
+        } else if (
+                !notBlank(d.getFrontImageUrl())
+                        || !notBlank(d.getBackImageUrl())
+                        || profile == null
+                        || !(notBlank(profile.getAddressLine1()) && notBlank(profile.getAddressLine2()))
+                        || profile.getAntiMoneyLaunderingStatus().equals(Datatypes.AntiMoneyStatuses.CLEAR)
+                        || !notBlank(profile.getPostalCode())
+                        || !notBlank(profile.getStateOrRegion())
+                        || !notBlank(profile.getCityName())
+        ) {
+            if (user.getKycTier() != 1) {
+                user.setKycTier((short) 1);
+                users.save(user);
+            }
         }
+
     }
 
     private boolean notBlank(String s) {
@@ -387,7 +396,7 @@ public class UsersService {
 
     private UserDTO toUserDTO(UserModel u) {
         return new UserDTO(
-                u.getUserId(),
+                u.getId(),
                 u.getFirstName(),
                 u.getLastName(),
                 u.getEmail(),
@@ -406,11 +415,7 @@ public class UsersService {
         }
         return new UserProfileDTO(
                 up.getDateOfBirth(),
-                up.getNationalityCountryCode(),
-                up.getIdentityDocumentType(),
-                up.getIdentityDocumentNumber(),
-                up.getIdentityDocumentIssuingCountryCode(),
-                up.getIdentityDocumentExpirationDate(),
+                up.getCountryCode(),
                 up.getAddressLine1(),
                 up.getAddressLine2(),
                 up.getCityName(),
@@ -420,12 +425,6 @@ public class UsersService {
                 up.getAntiMoneyLaunderingStatus(),
                 up.isPoliticallyExposedPerson(),
                 up.getRiskScoreLevel(),
-                up.getKYCStatus(),
-                notBlank(up.getIdDocumentFrontPath()),
-                notBlank(up.getIdDocumentBackPath()),
-                notBlank(up.getSelfiePath()),
-                kycVerificationService.missingRequirements(up),
-                up.getKycReviewNote(),
                 up.getCreatedAt(),
                 up.getUpdatedAt()
         );

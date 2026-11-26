@@ -13,25 +13,6 @@ import org.springframework.web.client.RestClientException;
 
 import java.util.Map;
 
-/**
- * Posts a KYC document image to the external image-hosting platform and hands
- * back the public URL it returns. The image itself is never stored in our
- * database or on our disk — only that URL is saved (see {@link DocumentsService}).
- * <p>
- * PLACEHOLDER: the hosting platform has not been chosen yet. This is a real
- * HTTP call driven entirely by {@code imagehost.*} properties, so switching to
- * the real provider means changing those properties (and, if its response shape
- * differs, {@link #extractUrl}) — nothing else.
- * <p>
- * The request is {@code multipart/form-data} with:
- * <ul>
- *   <li>{@code file} — the image; its file name is the original document name
- *       with the document type appended (e.g. {@code passport_id-front.jpg}),</li>
- *   <li>{@code document_type} — {@code id-front | id-back | selfie},</li>
- *   <li>{@code file_name} — the same typed name, for providers that read a field,</li>
- * </ul>
- * and the API key in the {@code imagehost.api-key-header} header.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -48,8 +29,11 @@ public class ImageHostingService {
     @Value("${imagehost.api-key-header:X-API-Key}")
     private String apiKeyHeader;
 
-    /** The hosted image's public URL (and the provider's delete link, when it gives one). */
-    public record HostedImage(String url, String deleteUrl) {}
+    /**
+     * The hosted image's public URL (and the provider's delete link, when it gives one).
+     */
+    public record HostedImage(String url, String deleteUrl) {
+    }
 
     /**
      * Builds the name the image is posted under: the submitted document name
@@ -120,7 +104,9 @@ public class ImageHostingService {
         }
     }
 
-    /** Accepts {@code {url}}, {@code {data:{url}}} and {@code {secure_url}}/{@code display_url} variants. */
+    /**
+     * Accepts {@code {url}}, {@code {data:{url}}} and {@code {secure_url}}/{@code display_url} variants.
+     */
     private static String extractUrl(Map<?, ?> response) {
         if (response == null) return null;
         for (Map<?, ?> source : new Map<?, ?>[]{response, nested(response)}) {

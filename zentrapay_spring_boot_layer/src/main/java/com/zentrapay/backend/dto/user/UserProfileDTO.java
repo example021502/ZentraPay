@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,35 +16,16 @@ import java.util.UUID;
  */
 public record UserProfileDTO(
         LocalDate dateOfBirth,
-        // ISO 3166-1 alpha-2 nationality code (essential for sanctions matching).
-        String nationalityCountryCode,
-        // Identity Document details expanded for clarity.
-        String identityDocumentType,
-        String identityDocumentNumber,
-        String identityDocumentIssuingCountryCode,
-        LocalDate identityDocumentExpirationDate,
-        // Residential address details expanded to full names.
+        String countryCode,
         String addressLine1,
         String addressLine2,
         String cityName,
         String stateOrRegion,
         String postalCode,
         String occupationTitle,
-        // Comprehensive Compliance and Risk tracking fields.
         Datatypes.AntiMoneyStatuses antiMoneyLaunderingStatus,
         boolean isPoliticallyExposedPerson,
-        String riskScoreLevel,
-        String KYCStatus,
-        // Tier-2 document upload status — presence flags only, never the actual
-        // storage path (that stays server-side; see DocumentsService).
-        boolean hasIdDocumentFront,
-        boolean hasIdDocumentBack,
-        boolean hasSelfie,
-        // What is still missing before the profile can be reviewed (empty once
-        // everything is in) and the officer's note when a review was rejected.
-        java.util.List<String> missingRequirements,
-        String kycReviewNote,
-        // System audit timestamps.
+        Datatypes.UserRiskScoreLevel riskScoreLevel,
         @CreationTimestamp
         LocalDateTime createdAt,
         @UpdateTimestamp

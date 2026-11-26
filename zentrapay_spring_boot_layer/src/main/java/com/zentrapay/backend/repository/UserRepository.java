@@ -29,6 +29,8 @@ public interface UserRepository extends JpaRepository<UserModel, UUID> {
     //  getting the user details ======
     Optional<UserModel> getUserByUserId(@Param("userId") UUID userId);
 
+    @Query("SELECT u.kycTier FROM UserModel u WHERE u.ud =:userId")
+    short getKycTier(UUID userId);
 
     //  getting the users matched contacts
     @Query("""

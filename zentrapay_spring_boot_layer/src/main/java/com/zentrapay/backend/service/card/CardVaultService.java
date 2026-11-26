@@ -4,7 +4,7 @@ import com.zentrapay.backend.dto.payment.GatewayCardToken;
 import com.zentrapay.backend.dto.payment.GatewayChargeStatus;
 import com.zentrapay.backend.dto.payment.SavedCardDTOs.SavedCardDTO;
 import com.zentrapay.backend.entity.GatewayModel;
-import com.zentrapay.backend.entity.SavedCardModel;
+import com.zentrapay.backend.entity.UserCardModel;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.SavedCardRepository;
@@ -45,7 +45,9 @@ import java.util.UUID;
 public class CardVaultService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
-    /** Stops a user from piling up cards. */
+    /**
+     * Stops a user from piling up cards.
+     */
     private static final int MAX_CARDS = 10;
 
     private final SavedCardRepository savedCardRepository;
@@ -81,9 +83,11 @@ public class CardVaultService {
                 .toList();
     }
 
-    /** One of the user's active cards, or "not found" (same answer for someone else's card). */
+    /**
+     * One of the user's active cards, or "not found" (same answer for someone else's card).
+     */
     @Transactional(readOnly = true)
-    public SavedCardModel activeCard(UUID userId, UUID cardId) {
+    public UserCardModel activeCard(UUID userId, UUID cardId) {
         return savedCardRepository.findByIdAndUserId(cardId, userId)
                 .filter(c -> "ACTIVE".equals(c.getStatus()))
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found"));
@@ -91,8 +95,8 @@ public class CardVaultService {
 
     @Transactional
     public SavedCardDTO makeDefault(UUID userId, UUID cardId) {
-        SavedCardModel card = activeCard(userId, cardId);
-        for (SavedCardModel other : savedCardRepository.findByUserIdAndStatusOrderByIsDefaultDescCreatedAtDesc(userId, "ACTIVE")) {
+        UserCardModel card = activeCard(userId, cardId);
+        for (UserCardModel other : savedCardRepository.findByUserIdAndStatusOrderByIsDefaultDescCreatedAtDesc(userId, "ACTIVE")) {
             boolean shouldBeDefault = other.getId().equals(card.getId());
             if (Boolean.TRUE.equals(other.getIsDefault()) != shouldBeDefault) {
                 other.setIsDefault(shouldBeDefault);
@@ -102,10 +106,12 @@ public class CardVaultService {
         return toDto(savedCardRepository.findById(card.getId()).orElse(card));
     }
 
-    /** Forgets the card: its token is wiped, so it can never be charged again. */
+    /**
+     * Forgets the card: its token is wiped, so it can never be charged again.
+     */
     @Transactional
     public void remove(UUID userId, UUID cardId) {
-        SavedCardModel card = activeCard(userId, cardId);
+        UserCardModel card = activeCard(userId, cardId);
         boolean wasDefault = Boolean.TRUE.equals(card.getIsDefault());
         card.setStatus("REMOVED");
         card.setIsDefault(false);
@@ -169,15 +175,15 @@ public class CardVaultService {
     }
 
     @Transactional
-    public SavedCardModel save(UUID userId, GatewayCardToken card) {
-        SavedCardModel row = savedCardRepository.findByUserIdAndGatewayAndSignature(userId, card.gateway(), card.signature())
+    public UserCardModel save(UUID userId, GatewayCardToken card) {
+        UserCardModel row = savedCardRepository.findByUserIdAndGatewayAndSignature(userId, card.gateway(), card.signature())
                 .orElse(null);
         if (row == null) {
             if (savedCardRepository.countByUserIdAndStatus(userId, "ACTIVE") >= MAX_CARDS) {
                 log.info("Card vault: user {} already keeps {} cards - not saving another", userId, MAX_CARDS);
                 return null;
             }
-            row = new SavedCardModel();
+            row = new UserCardModel();
             row.setUserId(userId);
             row.setGateway(card.gateway());
             row.setSignature(card.signature());
@@ -197,7 +203,7 @@ public class CardVaultService {
         if (first) {
             row.setIsDefault(true);
         }
-        SavedCardModel saved = savedCardRepository.save(row);
+        UserCardModel saved = savedCardRepository.save(row);
         log.info("Card vault: saved card ending {} for user {} on {}", card.last4(), userId, card.gateway());
         return saved;
     }
@@ -206,13 +212,17 @@ public class CardVaultService {
     // Using
     // ------------------------------------------------------------------
 
-    /** The gateway token of a card - only for the code that charges it. */
-    public String tokenOf(SavedCardModel card) {
+    /**
+     * The gateway token of a card - only for the code that charges it.
+     */
+    public String tokenOf(UserCardModel card) {
         return decrypt(card.getTokenEncrypted());
     }
 
-    /** True once the card's expiry month has passed (unknown expiry counts as usable). */
-    public static boolean isExpired(SavedCardModel card) {
+    /**
+     * True once the card's expiry month has passed (unknown expiry counts as usable).
+     */
+    public static boolean isExpired(UserCardModel card) {
         if (card.getExpMonth() == null || card.getExpYear() == null) {
             return false;
         }
@@ -224,13 +234,15 @@ public class CardVaultService {
         }
     }
 
-    /** "Visa ••4242" - what the history shows as the source of a card top-up. */
-    public static String label(SavedCardModel card) {
+    /**
+     * "Visa ••4242" - what the history shows as the source of a card top-up.
+     */
+    public static String label(UserCardModel card) {
         String brand = card.getBrand() == null || card.getBrand().isBlank() ? "Card" : card.getBrand().trim();
         return brand + " ••" + card.getLast4();
     }
 
-    private static SavedCardDTO toDto(SavedCardModel c) {
+    private static SavedCardDTO toDto(UserCardModel c) {
         return new SavedCardDTO(c.getId(), c.getGateway(), c.getBrand(), c.getCardType(), c.getLast4(), c.getBank(),
                 c.getExpMonth(), c.getExpYear(), Boolean.TRUE.equals(c.getIsDefault()), isExpired(c),
                 c.getCreatedAt(), c.getLastUsedAt());
@@ -264,7 +276,9 @@ public class CardVaultService {
         }
     }
 
-    /** Which statuses count as "this top-up really succeeded" for the capture hook. */
+    /**
+     * Which statuses count as "this top-up really succeeded" for the capture hook.
+     */
     public static boolean paid(TransactionModel txn) {
         return txn != null && txn.getStatus() == Datatypes.TransactionStatus.SUCCESS;
     }

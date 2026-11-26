@@ -5,22 +5,23 @@ import com.zentrapay.backend.dto.bank.BankingInsightDTOs.InsightsDTO;
 import com.zentrapay.backend.dto.bank.BankingInsightDTOs.SpendCategoryDTO;
 import com.zentrapay.backend.entity.TransactionModel;
 import com.zentrapay.backend.entity.UserBudgetModel;
-import com.zentrapay.backend.entity.UserModel;
-import com.zentrapay.backend.exception.ResourceNotFoundException;
 import com.zentrapay.backend.repository.TransactionRepository;
 import com.zentrapay.backend.repository.UserBudgetRepository;
 import com.zentrapay.backend.repository.UserRepository;
+import com.zentrapay.backend.service.common.Datatypes;
 import com.zentrapay.backend.service.common.Datatypes.TransactionStatus;
 import com.zentrapay.backend.service.common.Datatypes.TransactionType;
-import com.zentrapay.backend.service.region.SupportedRegionService;
+import com.zentrapay.backend.service.CountriesServices;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 /**
@@ -54,26 +55,25 @@ public class BankingInsightsService {
             TransactionType.PLATFORM_FEE, "FEES");
 
     private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
     private final UserBudgetRepository budgetRepository;
-    private final SupportedRegionService supportedRegionService;
+    private final CountriesServices countriesServices;
 
     @Transactional(readOnly = true)
-    public InsightsDTO insights(UUID userId) {
-        String currency = homeCurrency(userId);
-        List<TransactionModel> month = thisMonth(userId);
+    public InsightsDTO insights(UUID userId, Datatypes.BudgetPeriod period) {
+
+        List<TransactionModel> transactions = transactions(userId, period);
 
         BigDecimal spend = BigDecimal.ZERO;
         BigDecimal income = BigDecimal.ZERO;
         Map<String, BigDecimal> byCategory = new HashMap<>();
-        for (TransactionModel t : month) {
+        for (TransactionModel t : transactions) {
             String category = SPEND_CATEGORY.get(t.getTransactionType());
-            if (category != null && userId.equals(t.getSenderId()) && currency.equalsIgnoreCase(t.getSourceCurrencyCode())) {
+            if (category != null && userId.equals(t.getSenderId())) {
                 spend = spend.add(t.getAmount());
                 byCategory.merge(category, t.getAmount(), BigDecimal::add);
             }
             if (t.getTransactionType() == TransactionType.P2P_TRANSFER && userId.equals(t.getReceiverId())
-                    && !userId.equals(t.getSenderId()) && currency.equalsIgnoreCase(t.getDestinationCurrencyCode())) {
+                    && !userId.equals(t.getSenderId())) {
                 income = income.add(t.getDestinationAmount() == null ? t.getAmount() : t.getDestinationAmount());
             }
         }
@@ -82,48 +82,53 @@ public class BankingInsightsService {
                 .limit(5)
                 .map(e -> new SpendCategoryDTO(e.getKey(), money(e.getValue())))
                 .toList();
-        return new InsightsDTO(currency, money(spend), money(income), top);
+        return new InsightsDTO(money(spend), money(income), period, top);
     }
 
     @Transactional(readOnly = true)
-    public BudgetDTO budget(UUID userId) {
-        String currency = homeCurrency(userId);
-        BigDecimal limit = budgetRepository.findById(userId).map(UserBudgetModel::getMonthlyLimit).orElse(BigDecimal.ZERO);
-        return summary(userId, currency, limit);
+    public BudgetDTO budget(UUID userId, String currencyCode, Datatypes.BudgetPeriod period) {
+        BigDecimal limit = budgetRepository.findByUserIdAndCurrencyCode(userId, currencyCode).map(UserBudgetModel::getLimit).orElse(BigDecimal.ZERO);
+        return summary(userId, currencyCode, limit, period);
     }
 
-    /** Sets (or changes) the monthly limit; 0 clears it. */
+    /**
+     * Sets (or changes) the monthly limit; 0 clears it.
+     */
     @Transactional
-    public BudgetDTO setBudget(UUID userId, BigDecimal monthlyLimit) {
-        String currency = homeCurrency(userId);
-        BigDecimal limit = money(monthlyLimit);
+    public BudgetDTO setBudget(UUID userId, BigDecimal limit, String currencyCode, Datatypes.BudgetPeriod period) {
         UserBudgetModel row = budgetRepository.findById(userId).orElseGet(() -> {
             UserBudgetModel fresh = new UserBudgetModel();
             fresh.setUserId(userId);
             return fresh;
         });
-        row.setMonthlyLimit(limit);
-        row.setCurrencyCode(currency);
+        row.setLimit(money(limit));
+        row.setCurrencyCode(currencyCode);
+        row.setPeriod(period);
         budgetRepository.save(row);
-        return summary(userId, currency, limit);
+        return summary(userId, currencyCode, money(limit), period);
     }
 
     // ---------------------------------------------------------------- helpers
 
-    private BudgetDTO summary(UUID userId, String currency, BigDecimal limit) {
-        BigDecimal spent = insights(userId).monthlySpend();
+    private BudgetDTO summary(UUID userId, String currency, BigDecimal limit, Datatypes.BudgetPeriod period) {
+        BigDecimal spent = insights(userId, period).spend();
         BigDecimal remaining = limit.subtract(spent).max(BigDecimal.ZERO);
-        return new BudgetDTO(currency, limit, spent, money(remaining));
+        return new BudgetDTO(currency, limit, spent, money(remaining), period);
     }
 
-    private List<TransactionModel> thisMonth(UUID userId) {
-        LocalDateTime from = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+    private List<TransactionModel> transactions(UUID userId, Datatypes.BudgetPeriod period) {
+        LocalDateTime from = getPeriod(period);
         return transactionRepository.findUserSince(userId, from, COUNTED);
     }
 
-    private String homeCurrency(UUID userId) {
-        UserModel user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return supportedRegionService.defaultCurrencyOf(user.getCountryCode()).toUpperCase();
+    private LocalDateTime getPeriod(Datatypes.BudgetPeriod period) {
+        LocalDate today = LocalDate.now();
+        return switch (period) {
+            case DAILY -> today.atStartOfDay();
+            case WEEKLY -> today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+            case MONTHLY -> today.withDayOfMonth(1).atStartOfDay();
+            case YEARLY -> today.withDayOfYear(1).atStartOfDay();
+        };
     }
 
     private static BigDecimal money(BigDecimal value) {
